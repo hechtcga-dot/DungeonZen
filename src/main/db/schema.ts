@@ -66,6 +66,36 @@ export const boardItem = sqliteTable('board_item', {
   status: text('status').notNull()
 })
 
+// Attacks, spells and other actions on a stat block, exportable as Roll20 macros.
+export const ability = sqliteTable('ability', {
+  id: text('id').primaryKey(),
+  entityId: text('entity_id').notNull(),
+  name: text('name').notNull(),
+  kind: text('kind').notNull(), // ACTION, BONUS_ACTION, REACTION, LEGENDARY_ACTION, SPELL, OTHER
+  description: text('description').notNull(),
+  macroText: text('macro_text').notNull(),
+  showTokenAction: integer('show_token_action', { mode: 'boolean' }).notNull(),
+  showMacroBar: integer('show_macro_bar', { mode: 'boolean' }).notNull(),
+  sort: integer('sort').notNull(),
+  status: text('status').notNull()
+})
+
+// What the party knows (shared by the whole party), per field and per string.
+export const knowledge = sqliteTable('knowledge', {
+  id: text('id').primaryKey(),
+  entityId: text('entity_id').notNull(),
+  field: text('field').notNull(),
+  knownFromMin: integer('known_from_min').notNull(),
+  status: text('status').notNull()
+})
+
+export const relationshipKnown = sqliteTable('relationship_known', {
+  id: text('id').primaryKey(),
+  relationshipId: text('relationship_id').notNull(),
+  knownFromMin: integer('known_from_min').notNull(),
+  status: text('status').notNull()
+})
+
 export interface RowChange {
   table: TableName
   id: string
@@ -92,7 +122,10 @@ export const tracked = {
   storyline: { table: storyline, pk: storyline.id },
   storyline_entity: { table: storylineEntity, pk: storylineEntity.id },
   board: { table: board, pk: board.id },
-  board_item: { table: boardItem, pk: boardItem.id }
+  board_item: { table: boardItem, pk: boardItem.id },
+  ability: { table: ability, pk: ability.id },
+  knowledge: { table: knowledge, pk: knowledge.id },
+  relationship_known: { table: relationshipKnown, pk: relationshipKnown.id }
 } as const
 export type TableName = keyof typeof tracked
 
@@ -102,3 +135,4 @@ export type StorylineRow = typeof storyline.$inferSelect
 export type BoardRow = typeof board.$inferSelect
 export type BoardItemRow = typeof boardItem.$inferSelect
 export type CommandRow = typeof command.$inferSelect
+export type AbilityRow = typeof ability.$inferSelect

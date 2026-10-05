@@ -82,10 +82,26 @@ must have unit tests before any screen depends on it.
 - Colours for ITEM and HANDOUT cards (placeholders in `src/renderer/entityStyle.ts`)
 
 ## Current state (2026-10-05)
-Phase 1 Board, first slice: start screen (new/open/recent campaigns), campaign
-folder with `campaign.db`, global and storyline board views, cards for all
-entity types, strings (known/secret, typed), notes, resolved cards, History
-with Revive/Restore, change log with "Undo to here", Ctrl+Z/Ctrl+Y undo and
-redo through the command log, search highlighting.
-Not yet: entity sheet, library and Open5e, images and map items on the board,
-DM desk, DM Prep/Live/Player modes, packaging/installer.
+Phase 1 so far:
+- Board: start screen (new/open/recent campaigns), campaign folder with
+  `campaign.db`, global and storyline views, cards for every entity type,
+  strings (known/secret, typed), notes, resolved cards, search highlighting,
+  double-click a card to open its sheet.
+- Entity sheet: editable 5e stat block (size, type, AC, HP, speed, scores with
+  modifiers, saves, skills, damage and condition lines, senses, languages, CR,
+  traits), attacks/spells/actions with Roll20 macro text and token action /
+  macro bar options, campaign template, "What the party knows" (per field and
+  per string, dated from campaign time), Bio and notes, Connections, Duplicate.
+- Library: new from template, campaign search (text incl. abilities, type,
+  tag, CR and HP ranges), SRD 5.2 monsters and items with "Add copy".
+- History with Revive/Restore, change log with "Undo to here", Ctrl+Z/Ctrl+Y.
+
+SRD content is bundled (`resources/srd/srd-2024.json`, built by
+`node scripts/build-srd.mjs` from the Open5e project's data, CC-BY-4.0, the
+attribution is shown in the Library). The live Open5e API was not reachable
+from the build environment; online search of other Open5e documents is not
+built.
+
+Not yet: Phase 1 images on the board, Import NPC/map/images, PC sheet PDF
+import, exports (Phase 4), DM desk, DM Prep/Live/Player modes,
+packaging/installer.

@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { dialog, ipcMain, type BrowserWindow } from 'electron'
 import { Campaign } from './campaign/campaign'
 import { ProfileStore } from './profile'
+import { searchSrd, srdCopy, SRD_SOURCE } from './srd'
 import { ipcInputs, IPC_PREFIX, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
 import type { z } from 'zod'
@@ -70,7 +71,24 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('campaign:info', () => campaign?.info() ?? null)
 
   handle('board:view', ({ boardId }) => current().boardView(boardId))
-  handle('entity:create', (i) => current().createEntity(i))
+  handle('entity:create', ({ position, ...rest }) =>
+    current().createEntity({ ...rest, position: position ?? current().freeGlobalSpot() }))
+  handle('entity:duplicate', ({ id }) => current().duplicateEntity(id))
+  handle('sheet:view', ({ entityId }) => current().sheet(entityId))
+  handle('ability:add', ({ entityId, ability }) => current().addAbility(entityId, ability))
+  handle('ability:update', ({ id, patch }) => current().updateAbility(id, patch))
+  handle('ability:setStatus', ({ id, status }) => current().setAbilityStatus(id, status))
+  handle('knowledge:set', ({ entityId, field, known }) => current().setPartyKnows(entityId, field, known))
+  handle('knowledge:setString', ({ relationshipId, known }) => current().setStringKnown(relationshipId, known))
+  handle('library:search', (filters) => current().search(filters))
+  handle('srd:search', (filters) => searchSrd(filters))
+  handle('srd:addCopy', ({ key, boardId }) => {
+    const copy = srdCopy(key)
+    const c = current()
+    return c.createEntity({
+      ...copy, boardId, position: c.freeGlobalSpot(), label: `Added ${copy.name} from the ${SRD_SOURCE}`
+    })
+  })
   handle('entity:update', ({ id, patch }) => current().updateEntity(id, patch))
   handle('entity:setStatus', ({ id, status }) => current().setEntityStatus(id, status))
   handle('entity:addToStoryline', ({ entityId, storylineId, position }) =>

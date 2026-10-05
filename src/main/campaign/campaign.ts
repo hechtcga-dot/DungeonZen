@@ -4,15 +4,19 @@ import { join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
-  board, boardItem, campaignSetting, entity, relationship, storyline, storylineEntity,
-  type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
+  ability, board, boardItem, campaignSetting, entity, knowledge, relationship, relationshipKnown, storyline,
+  storylineEntity, type AbilityRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
 import type {
-  EntityAttributes, EntityStatus, EntityType, RowStatus, RulesEdition
+  AbilityKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, RowStatus, RulesEdition
 } from '../../shared/schemas'
+import { KNOWLEDGE_FIELDS } from '../../shared/schemas'
+import { freeSpot } from '../../shared/layout'
+import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
-  BoardItemView, BoardSummary, BoardView, CampaignInfo, EntityView, HistoryView, RelationshipView
+  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, EntityBrief, EntityView, HistoryView,
+  LibraryFilters, LibrarySearch, RelationshipView, SheetView
 } from '../../shared/types'
 
 export const DB_FILE = 'campaign.db'
@@ -22,6 +26,15 @@ const DEFAULT_RULES_EDITION: RulesEdition = '2024'
 const DEFAULT_CLOCK_MIN = 9 * 60 // Day 1, 09:00
 
 export interface Position { x: number; y: number }
+
+export interface NewAbility {
+  name: string
+  kind?: AbilityKind
+  description?: string
+  macroText?: string
+  showTokenAction?: boolean
+  showMacroBar?: boolean
+}
 
 /**
  * One open campaign folder: `campaign.db` plus `assets/`.
@@ -170,13 +183,23 @@ export class Campaign {
 
   // ---- writes (each one is a single undoable command) ----------------------
 
-  createEntity(input: { boardId: string; type: EntityType; name: string; position: Position }): EntityView {
+  createEntity(input: {
+    boardId: string
+    type: EntityType
+    name: string
+    position: Position
+    attributes?: EntityAttributes
+    tags?: string[]
+    abilities?: NewAbility[]
+    label?: string
+  }): EntityView {
     const id = randomUUID()
-    this.log.run(`Added ${input.type.toLowerCase()} ${input.name}`, (w) => {
+    this.log.run(input.label ?? `Added ${input.type.toLowerCase()} ${input.name}`, (w) => {
       w.insert('entity', {
-        id, type: input.type, name: input.name, attributes: {}, tags: [], status: 'active',
-        parentId: null, createdAt: new Date().toISOString()
+        id, type: input.type, name: input.name, attributes: input.attributes ?? {}, tags: input.tags ?? [],
+        status: 'active', parentId: null, createdAt: new Date().toISOString()
       })
+      ;(input.abilities ?? []).forEach((a, i) => this.insertAbility(w, id, a, i))
       const global = this.globalBoard()
       this.placeCard(w, global.id, id, input.position)
       const target = this.boardRow(input.boardId)
@@ -190,6 +213,9 @@ export class Campaign {
     patch: { name?: string; type?: EntityType; tags?: string[]; attributes?: EntityAttributes }
   ): void {
     const current = this.entityRow(id)
+    if (patch.attributes && 'statblock' in patch.attributes) {
+      patch = { ...patch, attributes: { ...patch.attributes, statblock: StatBlock.parse(patch.attributes.statblock) } }
+    }
     this.log.run(`Edited ${patch.name ?? current.name}`, (w) => {
       w.update('entity', id, {
         name: patch.name, type: patch.type, tags: patch.tags,
@@ -300,6 +326,143 @@ export class Campaign {
     return { id: boardId, name: title, storylineId }
   }
 
+  /** A free spot on the global board near its top-left area, for cards added from outside the board. */
+  freeGlobalSpot(): Position {
+    const items = this.db.select().from(boardItem)
+      .where(and(eq(boardItem.boardId, this.globalBoard().id), eq(boardItem.status, 'active'))).all()
+    return freeSpot({ x: 0, y: 0 }, items)
+  }
+
+  // ---- entity sheet ------------------------------------------------------------
+
+  sheet(entityId: string): SheetView {
+    const view = this.entityView(entityId)
+    const abilities = this.db.select().from(ability)
+      .where(and(eq(ability.entityId, entityId), eq(ability.status, 'active')))
+      .orderBy(asc(ability.sort)).all().map(toAbilityView)
+    const rels = this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
+      .filter((r) => r.sourceId === entityId || r.targetId === entityId)
+    const briefs = new Map(this.db.select({ id: entity.id, type: entity.type, name: entity.name, status: entity.status })
+      .from(entity).all().map((e) => [e.id, e as EntityBrief]))
+    const knownRels = new Set(this.db.select().from(relationshipKnown)
+      .where(eq(relationshipKnown.status, 'active')).all().map((k) => k.relationshipId))
+    const connections = rels.flatMap((r) => {
+      const outgoing = r.sourceId === entityId
+      const other = briefs.get(outgoing ? r.targetId : r.sourceId)
+      if (!other || other.status === 'defunct') return []
+      return [{ relationship: toRelationshipView(r), other, outgoing, partyKnows: knownRels.has(r.id) }]
+    }).sort((a, b) => a.other.name.localeCompare(b.other.name))
+    const known = new Set(this.db.select().from(knowledge)
+      .where(and(eq(knowledge.entityId, entityId), eq(knowledge.status, 'active'))).all().map((k) => k.field))
+    const partyKnows = Object.fromEntries(KNOWLEDGE_FIELDS.map((f) => [f, known.has(f)])) as Record<KnowledgeField, boolean>
+    const others = [...briefs.values()]
+      .filter((e) => e.id !== entityId && e.status !== 'defunct')
+      .sort((a, b) => a.name.localeCompare(b.name))
+    return { entity: view, abilities, connections, partyKnows, others, undo: this.log.state() }
+  }
+
+  addAbility(entityId: string, a: NewAbility): AbilityView {
+    const e = this.entityRow(entityId)
+    const next = this.db.select().from(ability).where(eq(ability.entityId, entityId)).all()
+      .reduce((m, r) => Math.max(m, r.sort + 1), 0)
+    let id = ''
+    this.log.run(`Added ${a.name} to ${e.name}`, (w) => { id = this.insertAbility(w, entityId, a, next) })
+    return toAbilityView(this.abilityRow(id))
+  }
+
+  updateAbility(id: string, patch: Partial<Omit<AbilityView, 'id'>>): void {
+    const a = this.abilityRow(id)
+    this.log.run(`Edited ${patch.name ?? a.name} on ${this.nameOf(a.entityId)}`, (w) => {
+      w.update('ability', id, patch)
+    })
+  }
+
+  setAbilityStatus(id: string, status: RowStatus): void {
+    const a = this.abilityRow(id)
+    const verb = status === 'defunct' ? 'Removed' : 'Restored'
+    this.log.run(`${verb} ${a.name} on ${this.nameOf(a.entityId)}`, (w) => { w.update('ability', id, { status }) })
+  }
+
+  setPartyKnows(entityId: string, field: KnowledgeField, known: boolean): void {
+    const e = this.entityRow(entityId)
+    const existing = this.db.select().from(knowledge)
+      .where(and(eq(knowledge.entityId, entityId), eq(knowledge.field, field))).get()
+    const label = known ? `Party learns ${e.name}: ${field}` : `Party no longer knows ${e.name}: ${field}`
+    this.log.run(label, (w) => {
+      const status = known ? 'active' : 'defunct'
+      if (existing) w.update('knowledge', existing.id, { status, ...(known ? { knownFromMin: this.info().clockMin } : {}) })
+      else if (known) {
+        w.insert('knowledge', { id: randomUUID(), entityId, field, knownFromMin: this.info().clockMin, status })
+      }
+    })
+  }
+
+  setStringKnown(relationshipId: string, known: boolean): void {
+    const r = this.relationshipRow(relationshipId)
+    const existing = this.db.select().from(relationshipKnown)
+      .where(eq(relationshipKnown.relationshipId, relationshipId)).get()
+    const names = `${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`
+    this.log.run(known ? `Party learns of the link ${names}` : `Party no longer knows the link ${names}`, (w) => {
+      const status = known ? 'active' : 'defunct'
+      if (existing) w.update('relationship_known', existing.id, { status, ...(known ? { knownFromMin: this.info().clockMin } : {}) })
+      else if (known) {
+        w.insert('relationship_known', { id: randomUUID(), relationshipId, knownFromMin: this.info().clockMin, status })
+      }
+    })
+  }
+
+  /** Copies an entity (fields, tags and abilities, not strings) and puts the copy beside it on the global board. */
+  duplicateEntity(id: string): EntityView {
+    const e = this.entityRow(id)
+    const g = this.globalBoard()
+    const card = this.cardItems(g.id, id)[0]
+    const abilities = this.db.select().from(ability)
+      .where(and(eq(ability.entityId, id), eq(ability.status, 'active'))).orderBy(asc(ability.sort)).all()
+    return this.createEntity({
+      boardId: g.id,
+      type: e.type as EntityType,
+      name: `${e.name} (copy)`,
+      position: card ? { x: card.x + 40, y: card.y + 40 } : { x: 0, y: 0 },
+      attributes: structuredClone(e.attributes),
+      tags: [...e.tags],
+      abilities: abilities.map((a) => ({
+        name: a.name, kind: a.kind as AbilityKind, description: a.description, macroText: a.macroText,
+        showTokenAction: a.showTokenAction, showMacroBar: a.showMacroBar
+      })),
+      label: `Duplicated ${e.name}`
+    })
+  }
+
+  // ---- library search -----------------------------------------------------------
+
+  search(filters: LibraryFilters): LibrarySearch {
+    const rows = this.db.select().from(entity).all().filter((r) => r.status === 'active' || r.status === 'resolved')
+    const views = this.entityViews(rows.map((r) => r.id))
+    const q = filters.query.trim().toLowerCase()
+    const tags = [...new Set(views.flatMap((v) => v.tags))].sort((a, b) => a.localeCompare(b))
+    const abilityNames = new Map<string, string[]>()
+    for (const a of this.db.select().from(ability).where(eq(ability.status, 'active')).all()) {
+      abilityNames.set(a.entityId, [...(abilityNames.get(a.entityId) ?? []), a.name])
+    }
+    const results = views.flatMap((v) => {
+      const sb = HAS_STATBLOCK.has(v.type) ? readStatBlock(v.attributes.statblock) : null
+      if (filters.type && v.type !== filters.type) return []
+      if (filters.tag && !v.tags.includes(filters.tag)) return []
+      const cr = sb ? crToNumber(sb.cr) : null
+      const hp = sb ? leadingNumber(sb.hp) : null
+      if (filters.crMin != null && (cr == null || cr < filters.crMin)) return []
+      if (filters.crMax != null && (cr == null || cr > filters.crMax)) return []
+      if (filters.hpMin != null && (hp == null || hp < filters.hpMin)) return []
+      if (filters.hpMax != null && (hp == null || hp > filters.hpMax)) return []
+      if (q && !`${searchText(v)} ${(abilityNames.get(v.id) ?? []).join(' ').toLowerCase()}`.includes(q)) return []
+      const summary = typeof v.attributes.summary === 'string' ? v.attributes.summary : ''
+      const location = typeof v.attributes.location === 'string' ? v.attributes.location : ''
+      const line = [summary || (sb ? statLine(sb) : ''), location].filter(Boolean).join(' · ')
+      return [{ entity: v, line }]
+    }).sort((a, b) => a.entity.name.localeCompare(b.entity.name))
+    return { results, tags }
+  }
+
   undo(): string | null { return this.log.undo() }
   redo(): string | null { return this.log.redo() }
 
@@ -340,6 +503,22 @@ export class Campaign {
     return this.db.select().from(boardItem).where(and(
       eq(boardItem.boardId, boardId), eq(boardItem.entityId, entityId), eq(boardItem.kind, 'card')
     )).all().filter((i) => includeRemoved || i.status === 'active')
+  }
+
+  private insertAbility(w: Writer, entityId: string, a: NewAbility, sort: number): string {
+    const id = randomUUID()
+    w.insert('ability', {
+      id, entityId, name: a.name, kind: a.kind ?? 'ACTION', description: a.description ?? '',
+      macroText: a.macroText ?? '', showTokenAction: a.showTokenAction ?? true, showMacroBar: a.showMacroBar ?? false,
+      sort, status: 'active'
+    })
+    return id
+  }
+
+  private abilityRow(id: string): AbilityRow {
+    const row = this.db.select().from(ability).where(eq(ability.id, id)).get()
+    if (!row) throw new Error(`No ability with id ${id}`)
+    return row
   }
 
   private moveLabel(itemId: string): string {
@@ -395,4 +574,24 @@ function toItemView(r: BoardItemRow): BoardItemView {
     id: r.id, kind: r.kind as BoardItemView['kind'], entityId: r.entityId, x: r.x, y: r.y, w: r.w, h: r.h,
     content: r.content ?? null
   }
+}
+
+function toAbilityView(r: AbilityRow): AbilityView {
+  return {
+    id: r.id, name: r.name, kind: r.kind as AbilityKind, description: r.description, macroText: r.macroText,
+    showTokenAction: r.showTokenAction, showMacroBar: r.showMacroBar
+  }
+}
+
+/** Everything searchable about an entity, lower-cased: name, type, tags and text fields (stat block included). */
+function searchText(v: EntityView): string {
+  const parts: string[] = [v.name, v.type, ...v.tags]
+  const walk = (x: unknown): void => {
+    if (typeof x === 'string') parts.push(x)
+    else if (typeof x === 'number') parts.push(String(x))
+    else if (Array.isArray(x)) x.forEach(walk)
+    else if (x && typeof x === 'object') Object.values(x).forEach(walk)
+  }
+  walk(v.attributes)
+  return parts.join(' \n ').toLowerCase()
 }

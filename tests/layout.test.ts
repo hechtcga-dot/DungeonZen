@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { freeSpot } from '../src/renderer/layout'
+import { freeSpot } from '../src/shared/layout'
 
 describe('free spot for a new card', () => {
   it('uses the starting point on an empty board', () => {

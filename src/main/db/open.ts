@@ -42,6 +42,25 @@ const MIGRATIONS: string[] = [
   CREATE INDEX board_item_board ON board_item(board_id);
   CREATE INDEX storyline_entity_storyline ON storyline_entity(storyline_id);
   CREATE INDEX command_state ON command(state, seq);
+  `,
+  `
+  CREATE TABLE ability (
+    id TEXT PRIMARY KEY, entity_id TEXT NOT NULL REFERENCES entity(id), name TEXT NOT NULL,
+    kind TEXT NOT NULL, description TEXT NOT NULL, macro_text TEXT NOT NULL,
+    show_token_action INTEGER NOT NULL, show_macro_bar INTEGER NOT NULL,
+    sort INTEGER NOT NULL, status TEXT NOT NULL
+  );
+  CREATE TABLE knowledge (
+    id TEXT PRIMARY KEY, entity_id TEXT NOT NULL REFERENCES entity(id), field TEXT NOT NULL,
+    known_from_min INTEGER NOT NULL, status TEXT NOT NULL
+  );
+  CREATE TABLE relationship_known (
+    id TEXT PRIMARY KEY, relationship_id TEXT NOT NULL REFERENCES relationship(id),
+    known_from_min INTEGER NOT NULL, status TEXT NOT NULL
+  );
+  CREATE INDEX ability_entity ON ability(entity_id, sort);
+  CREATE INDEX knowledge_entity ON knowledge(entity_id);
+  CREATE INDEX relationship_known_rel ON relationship_known(relationship_id);
   `
 ]
 

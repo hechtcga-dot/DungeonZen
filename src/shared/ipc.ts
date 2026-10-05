@@ -1,7 +1,10 @@
 import { z } from 'zod'
-import { EntityAttributes, EntityStatus, EntityType, Id, RelationshipType, RowStatus, Tags } from './schemas'
+import {
+  AbilityKind, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, RelationshipType, RowStatus, Tags
+} from './schemas'
 import type {
-  BoardItemView, BoardSummary, BoardView, CampaignInfo, EntityView, HistoryView, RecentCampaign, RelationshipView
+  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, EntityView, HistoryView, LibrarySearch,
+  RecentCampaign, RelationshipView, SheetView, SrdSearch
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -9,6 +12,15 @@ import type {
 
 const Position = z.object({ x: z.number().finite(), y: z.number().finite() })
 const Name = z.string().trim().min(1).max(200)
+const AbilityFields = z.object({
+  name: Name,
+  kind: AbilityKind,
+  description: z.string().max(10000),
+  macroText: z.string().max(10000),
+  showTokenAction: z.boolean(),
+  showMacroBar: z.boolean()
+})
+const OptionalNumber = z.number().finite().optional()
 
 export const ipcInputs = {
   'profile:recent': z.void(),
@@ -18,7 +30,22 @@ export const ipcInputs = {
   'campaign:close': z.void(),
   'campaign:info': z.void(),
   'board:view': z.object({ boardId: Id }),
-  'entity:create': z.object({ boardId: Id, type: EntityType, name: Name, position: Position }),
+  'entity:create': z.object({ boardId: Id, type: EntityType, name: Name, position: Position.optional() }),
+  'entity:duplicate': z.object({ id: Id }),
+  'sheet:view': z.object({ entityId: Id }),
+  'ability:add': z.object({ entityId: Id, ability: AbilityFields.partial().extend({ name: Name }) }),
+  'ability:update': z.object({ id: Id, patch: AbilityFields.partial() }),
+  'ability:setStatus': z.object({ id: Id, status: RowStatus }),
+  'knowledge:set': z.object({ entityId: Id, field: KnowledgeField, known: z.boolean() }),
+  'knowledge:setString': z.object({ relationshipId: Id, known: z.boolean() }),
+  'library:search': z.object({
+    query: z.string().max(200), type: EntityType.optional(), tag: z.string().max(40).optional(),
+    crMin: OptionalNumber, crMax: OptionalNumber, hpMin: OptionalNumber, hpMax: OptionalNumber
+  }),
+  'srd:search': z.object({
+    query: z.string().max(200), kind: z.enum(['monsters', 'items', 'both']), crMin: OptionalNumber, crMax: OptionalNumber
+  }),
+  'srd:addCopy': z.object({ key: z.string().min(1).max(200), boardId: Id }),
   'entity:update': z.object({
     id: Id,
     patch: z.object({
@@ -54,6 +81,16 @@ export interface IpcOutputs {
   'campaign:info': CampaignInfo | null
   'board:view': BoardView
   'entity:create': EntityView
+  'entity:duplicate': EntityView
+  'sheet:view': SheetView
+  'ability:add': AbilityView
+  'ability:update': void
+  'ability:setStatus': void
+  'knowledge:set': void
+  'knowledge:setString': void
+  'library:search': LibrarySearch
+  'srd:search': SrdSearch
+  'srd:addCopy': EntityView
   'entity:update': void
   'entity:setStatus': void
   'entity:addToStoryline': void

@@ -1,48 +1,10 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useBoard, useView } from '../store'
+import { CommitField } from './fields'
 import { ENTITY_LABELS } from '../entityStyle'
 import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import type { EntityView } from '../../shared/types'
 import type { IpcInput } from '../../shared/ipc'
-
-/** A text field that saves when you leave it or press Enter (one undo step per edit, not per key). */
-function CommitField(props: {
-  id: string
-  label: string
-  value: string
-  onCommit(value: string): void
-  multiline?: boolean
-  placeholder?: string
-  hint?: string
-  list?: string
-  required?: boolean
-}) {
-  const [draft, setDraft] = useState(props.value)
-  useEffect(() => setDraft(props.value), [props.value])
-  const commit = () => {
-    const next = draft.trim()
-    if (props.required && !next) { setDraft(props.value); return }
-    if (next !== props.value) props.onCommit(next)
-  }
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && (!props.multiline || e.ctrlKey)) { e.preventDefault(); (e.target as HTMLElement).blur() }
-    if (e.key === 'Escape') { setDraft(props.value); (e.target as HTMLElement).blur() }
-  }
-  return (
-    <div className="field">
-      <label htmlFor={props.id}>{props.label}</label>
-      {props.multiline ? (
-        <textarea id={props.id} value={draft} rows={5} placeholder={props.placeholder}
-          onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
-      ) : (
-        <input id={props.id} value={draft} placeholder={props.placeholder} list={props.list}
-          onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
-      )}
-      {props.hint && <div className="hint">{props.hint}</div>}
-    </div>
-  )
-}
 
 export function Inspector() {
   const selection = useBoard((s) => s.selection)
@@ -72,6 +34,7 @@ export function Inspector() {
 
 function EntityInspector({ entity }: { entity: EntityView }) {
   const act = useBoard((s) => s.act)
+  const openSheet = useBoard((s) => s.openSheet)
   const select = useBoard((s) => s.select)
   const view = useView()
   const { screenToFlowPosition } = useReactFlow()
@@ -85,7 +48,10 @@ function EntityInspector({ entity }: { entity: EntityView }) {
 
   return (
     <div className="inspector">
-      <h2 className="panel-heading">{ENTITY_LABELS[entity.type]} card</h2>
+      <div className="row spread">
+        <h2 className="panel-heading">{ENTITY_LABELS[entity.type]} card</h2>
+        <button className="outline" onClick={() => void openSheet(entity.id)}>Open sheet</button>
+      </div>
       <CommitField id={`${p}-name`} label="Name" value={entity.name} required onCommit={(name) => update({ name })} />
       <div className="field">
         <label htmlFor={`${p}-type`}>Type</label>
@@ -102,7 +68,8 @@ function EntityInspector({ entity }: { entity: EntityView }) {
         <div className="hint">Resolved cards stay on the board, greyed, until their storyline ends.</div>
       </fieldset>
       <CommitField id={`${p}-summary`} label="One-line summary" value={str('summary')}
-        placeholder="Medium fiend · CR 1 · HP 82" onCommit={(summary) => update({ attributes: { summary } })} />
+        placeholder="Shown on the card" hint="Leave empty to show the stat block line (size, type, CR, HP, AC)."
+        onCommit={(summary) => update({ attributes: { summary } })} />
       <CommitField id={`${p}-location`} label="Location" value={str('location')}
         onCommit={(location) => update({ attributes: { location } })} />
       <CommitField id={`${p}-motivation`} label="Motivation" value={str('motivation')}

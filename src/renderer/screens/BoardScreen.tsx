@@ -10,8 +10,8 @@ import { StringEdge, type StringEdgeType } from '../components/StringEdge'
 import { Inspector } from '../components/Inspector'
 import { HistoryPanel } from '../components/HistoryPanel'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
-import { freeSpot } from '../layout'
-import { formatClock } from '../../shared/time'
+import { freeSpot } from '../../shared/layout'
+import { TopBar, isTyping } from '../components/TopBar'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { EntityView } from '../../shared/types'
 
@@ -33,15 +33,10 @@ function matches(e: EntityView, q: string): boolean {
   return hay.some((s) => String(s).toLowerCase().includes(q))
 }
 
-function isTyping(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null
-  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
-}
-
 function BoardLayout() {
   const view = useView()
-  const { info, panel, search, act, undo, redo, setPanel, select, setSearch, showBoard, closeCampaign } = useBoard()
-  const { screenToFlowPosition, fitView } = useReactFlow()
+  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet } = useBoard()
+  const { screenToFlowPosition, fitView, setCenter } = useReactFlow()
   const paneRef = useRef<HTMLDivElement>(null)
   const [nodes, setNodes] = useState<BoardNode[]>([])
   const [edges, setEdges] = useState<StringEdgeType[]>([])
@@ -166,18 +161,25 @@ function BoardLayout() {
     if (selNodes.length + selEdges.length > 0) select(null)
   }, [nodes, edges, act, select])
 
-  // Keyboard: Ctrl+Z undo, Ctrl+Y or Ctrl+Shift+Z redo, Delete moves the selection to History.
+  // Delete moves the selection to History (undo and redo keys live in the top bar).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e.target)) return
-      const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); void undo() }
-      else if (mod && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); void redo() }
-      else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); void removeSelected() }
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); void removeSelected() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, removeSelected])
+  }, [removeSelected])
+
+  // Bring a card into view when another screen asked to show it on the board.
+  useEffect(() => {
+    if (!focusEntityId) return
+    const item = view.items.find((i) => i.entityId === focusEntityId)
+    useBoard.setState({ focusEntityId: null })
+    if (!item) return
+    setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === item.id })))
+    setTimeout(() => void setCenter(item.x + 110, item.y + 70, { zoom: 1, duration: 300 }), 0)
+  }, [focusEntityId, view.items, setCenter])
 
   const createStoryline = async (e: FormEvent) => {
     e.preventDefault()
@@ -192,29 +194,14 @@ function BoardLayout() {
 
   return (
     <div className="board-screen">
-      <header className="topbar">
-        <div className="brand">Dungeon Zen</div>
-        <button onClick={() => void closeCampaign()} title="Close this campaign and go back to the campaign list">
-          {info?.name}
-        </button>
+      <TopBar>
         <div className="search">
           <label htmlFor="board-search" className="visually-hidden">Search the board</label>
           <input id="board-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search names, types, tags, notes" />
           {q && <span className="search-count mono" aria-live="polite">{matchCount} found</span>}
         </div>
-        <div className="row tight">
-          <button aria-label="Undo" title={view.undo.undoLabel ? `Undo: ${view.undo.undoLabel} (Ctrl+Z)` : 'Nothing to undo'}
-            disabled={!view.undo.undoLabel} onClick={() => void undo()}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
-          </button>
-          <button aria-label="Redo" title={view.undo.redoLabel ? `Redo: ${view.undo.redoLabel} (Ctrl+Y)` : 'Nothing to redo'}
-            disabled={!view.undo.redoLabel} onClick={() => void redo()}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></svg>
-          </button>
-        </div>
-        <div className="clock mono" title="Campaign time">{info ? formatClock(info.clockMin) : ''}</div>
-      </header>
+      </TopBar>
 
       <nav className="viewbar" aria-label="Board views">
         <span className="eyebrow">VIEW</span>
@@ -268,6 +255,7 @@ function BoardLayout() {
             onSelectionChange={onSelectionChange}
             onConnect={onConnect}
             onNodeDragStop={onNodeDragStop}
+            onNodeDoubleClick={(_e, n: BoardNode) => { if (n.type === 'card') void openSheet(n.data.entity.id) }}
             connectionMode={ConnectionMode.Loose}
             connectionLineStyle={{ stroke: '#d2453a', strokeWidth: 2 }}
             deleteKeyCode={null}

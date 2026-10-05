@@ -120,5 +120,13 @@ commands. `group_id` lets a session or an import undo as one step.
   so strings and notes are never hard-deleted.
 - `storyline_entity` has a surrogate `id` (plus a `status`) so undo can treat
   every table the same way.
+- `ability` also has `kind` (ACTION, BONUS_ACTION, REACTION,
+  LEGENDARY_ACTION, SPELL, OTHER), `description`, `sort` and `status`.
+- `knowledge` and `relationship_known` have a `status` so the DM can untick
+  and re-tick without deleting rows. Knowledge fields: name, location,
+  motivation, statblock, bio.
+- The 5e stat block lives in `entity.attributes.statblock`, checked by the
+  Zod schema in `src/shared/statblock.ts`. Copies from the SRD record
+  `attributes.source` (name, key, license).
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

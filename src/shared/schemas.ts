@@ -47,3 +47,11 @@ export const NoteContent = z.object({ text: z.string().max(5000) })
 export type NoteContent = z.infer<typeof NoteContent>
 
 export const Id = z.string().uuid()
+
+export const AbilityKind = z.enum(['ACTION', 'BONUS_ACTION', 'REACTION', 'LEGENDARY_ACTION', 'SPELL', 'OTHER'])
+export type AbilityKind = z.infer<typeof AbilityKind>
+
+// Fields the party can know about an entity, shown as tick boxes on the sheet.
+export const KNOWLEDGE_FIELDS = ['name', 'location', 'motivation', 'statblock', 'bio'] as const
+export const KnowledgeField = z.enum(KNOWLEDGE_FIELDS)
+export type KnowledgeField = z.infer<typeof KnowledgeField>

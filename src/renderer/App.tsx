@@ -2,10 +2,13 @@ import { useEffect } from 'react'
 import { useBoard } from './store'
 import { StartScreen } from './screens/StartScreen'
 import { BoardScreen } from './screens/BoardScreen'
+import { SheetScreen } from './screens/SheetScreen'
+import { LibraryScreen } from './screens/LibraryScreen'
 
 export function App() {
   const info = useBoard((s) => s.info)
   const view = useBoard((s) => s.view)
+  const screen = useBoard((s) => s.screen)
   const message = useBoard((s) => s.message)
 
   // Messages fade after a few seconds; errors stay a little longer.
@@ -17,7 +20,10 @@ export function App() {
 
   return (
     <>
-      {info && view ? <BoardScreen /> : <StartScreen />}
+      {!info || !view ? <StartScreen />
+        : screen === 'sheet' ? <SheetScreen />
+          : screen === 'library' ? <LibraryScreen />
+            : <BoardScreen />}
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
           {message.text}
