@@ -107,7 +107,18 @@ provenance          id, target_kind, target_id, source_id, locator,
 
 ## Undo
 ```
-command             id, at, label, group_id, payload(json), undone
+command             id, seq, at, label, group_id, payload(json), state
 ```
-Every write is wrapped in a command. `group_id` lets a session or an
-import undo as one step.
+Every write is wrapped in a command. `payload` lists each row the command
+touched with its state before and after; undo restores the "before" rows and
+redo the "after" rows. `state`: done, undone, or discarded (undone and then
+replaced by a newer change, so it can no longer be redone). `seq` orders
+commands. `group_id` lets a session or an import undo as one step.
+
+## Implementation notes (Phase 1)
+- `relationship.status` and `board_item.status` (active, defunct) were added
+  so strings and notes are never hard-deleted.
+- `storyline_entity` has a surrogate `id` (plus a `status`) so undo can treat
+  every table the same way.
+- Schema changes are numbered migrations in `src/main/db/open.ts`
+  (`PRAGMA user_version`).

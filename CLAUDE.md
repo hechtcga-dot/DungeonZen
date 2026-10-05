@@ -17,9 +17,9 @@ a live-session desk, and AI-assisted creation from raw notes.
 - Zod for all validation, including AI structured outputs.
 - Open5e API for SRD content; Anthropic or OpenAI SDK for AI features.
 
-Status: Electron, no Next.js, and Drizzle were recommended in planning and
-not explicitly confirmed by the owner. React Flow (node graph) is confirmed.
-Confirm before scaffolding.
+Status: confirmed by the owner (2026-10-05): Electron, React + Vite (no
+Next.js), SQLite with Drizzle, React Flow. Build tooling is electron-vite.
+better-sqlite3 ships prebuilt N-API binaries, so no native rebuild is needed.
 
 ## Non-negotiable rules
 1. Local-first. Everything except AI calls and Open5e lookups works offline.
@@ -53,15 +53,37 @@ src/shared/      zod schemas, types, ipc contract
 docs/
 ```
 
+## Commands
+```
+npm install
+npm run dev        # run the app with live reload
+npm test           # unit tests (vitest)
+npm run typecheck
+npm run build      # production build into out/
+```
+
 ## Build order
 Phase 1 Board, Phase 2 Map and Timeline, Phase 3 Live session and review,
-Phase 4 Encounter planner and exports, Phase 5 AI ingestion. The temporal
+Phase 4 Encounter planner and exports, Phase 5 AI ingestion. The owner chose
+to start straight on the Board (2026-10-05); it does not use the engine. The temporal
 engine (`src/main/engine`) is pure TypeScript with no UI or DB imports and
 must have unit tests before any screen depends on it.
+
+## Decided
+- Rules edition default: 2024 (SRD 5.2), stored per campaign (owner, 2026-10-05).
 
 ## Open decisions (do not guess; ask)
 - Roll20 export mechanism (see FEATURES.md)
 - Image-generation provider for battle maps
-- Rules edition default (2014 or 2024); DM can upload rules
 - Whether working screens use the dark style or the desk style
 - How DM Prep, Live Session, and Player Preview differ on screen
+- Colours for ITEM and HANDOUT cards (placeholders in `src/renderer/entityStyle.ts`)
+
+## Current state (2026-10-05)
+Phase 1 Board, first slice: start screen (new/open/recent campaigns), campaign
+folder with `campaign.db`, global and storyline board views, cards for all
+entity types, strings (known/secret, typed), notes, resolved cards, History
+with Revive/Restore, change log with "Undo to here", Ctrl+Z/Ctrl+Y undo and
+redo through the command log, search highlighting.
+Not yet: entity sheet, library and Open5e, images and map items on the board,
+DM desk, DM Prep/Live/Player modes, packaging/installer.

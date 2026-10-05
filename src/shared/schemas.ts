@@ -1,0 +1,49 @@
+import { z } from 'zod'
+
+// Enums are stored as strings in SQLite and checked here (CLAUDE.md rule 6).
+
+export const ENTITY_TYPES = [
+  'NPC', 'PC', 'MONSTER', 'LOCATION', 'QUEST', 'ITEM', 'SCENE', 'CLUE', 'FACTION', 'HANDOUT'
+] as const
+export const EntityType = z.enum(ENTITY_TYPES)
+export type EntityType = z.infer<typeof EntityType>
+
+// active: on the board; resolved: greyed on the board; defunct: in History;
+// stashed: generated and saved for later.
+export const EntityStatus = z.enum(['active', 'resolved', 'defunct', 'stashed'])
+export type EntityStatus = z.infer<typeof EntityStatus>
+
+// Suggested relationship types; the DM may type any other label.
+export const RELATIONSHIP_TYPES = [
+  'KNOWS', 'HOSTILE_TO', 'ALLIED_WITH', 'LOCATED_AT', 'TIED_TO_QUEST', 'MEMBER_OF', 'BOARD_LINK'
+] as const
+export const RelationshipType = z
+  .string()
+  .trim()
+  .min(1)
+  .max(40)
+  .transform((s) => s.toUpperCase().replace(/\s+/g, '_'))
+
+// Nothing is hard-deleted: removed rows are marked defunct and can be revived.
+export const RowStatus = z.enum(['active', 'defunct'])
+export type RowStatus = z.infer<typeof RowStatus>
+
+export const BoardItemKind = z.enum(['card', 'note', 'image'])
+export type BoardItemKind = z.infer<typeof BoardItemKind>
+
+export const StorylineStatus = z.enum(['inactive', 'autonomous', 'player_active', 'concluded'])
+export type StorylineStatus = z.infer<typeof StorylineStatus>
+
+export const RulesEdition = z.enum(['2014', '2024'])
+export type RulesEdition = z.infer<typeof RulesEdition>
+
+// Free-form attributes; typed sub-schemas (5e stat block etc.) arrive with the entity sheet.
+export const EntityAttributes = z.record(z.string(), z.unknown())
+export type EntityAttributes = z.infer<typeof EntityAttributes>
+
+export const Tags = z.array(z.string().trim().min(1).max(40)).max(50)
+
+export const NoteContent = z.object({ text: z.string().max(5000) })
+export type NoteContent = z.infer<typeof NoteContent>
+
+export const Id = z.string().uuid()
