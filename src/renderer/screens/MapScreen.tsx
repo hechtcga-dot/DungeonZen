@@ -1,9 +1,8 @@
 import { useBoard } from '../store'
-import { DeskRail } from '../components/DeskRail'
-import { ArtDefs } from '../art/ArtDefs'
+import { DeskFrame } from '../components/DeskFrame'
 import { MapView } from '../components/MapView'
 import { Candle, CompassRose } from '../art/props'
-import { TableLighting, useLightingPref } from '../art/TableLighting'
+import { useLightingPref } from '../art/TableLighting'
 import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { useState } from 'react'
@@ -16,10 +15,7 @@ export function MapScreen() {
   const [lighting] = useLightingPref()
   const [editOpen, setEditOpen] = useState(false)
   return (
-    <div className="desk-screen">
-      <TableLighting minutes={minutes} />
-      <ArtDefs />
-      <DeskRail />
+    <DeskFrame>
       <main className="desk map-screen" aria-label="Map">
         <header className="desk-head">
           <Candle className="desk-candle" lit={!lighting || lightingAt(minutes).candlesLit} />
@@ -70,6 +66,6 @@ export function MapScreen() {
           </aside>
         </div>
       </main>
-    </div>
+    </DeskFrame>
   )
 }

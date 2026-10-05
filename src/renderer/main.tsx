@@ -9,6 +9,7 @@ import '@fontsource/im-fell-english/400-italic.css'
 import '@xyflow/react/dist/style.css'
 import './styles.css'
 import './desk.css'
+import './theme.css'
 import { App } from './App'
 
 createRoot(document.getElementById('root')!).render(

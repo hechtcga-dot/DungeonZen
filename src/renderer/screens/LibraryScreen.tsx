@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
+import { DeskFrame } from '../components/DeskFrame'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { LibraryFilters, LibrarySearch, SrdSearch } from '../../shared/types'
@@ -65,7 +66,7 @@ export function LibraryScreen() {
   const filtersActive = !!(type || tag || crMin || crMax || hpMin || hpMax)
 
   return (
-    <div className="page-screen">
+    <DeskFrame>
       <TopBar />
       <div className="library">
         <aside className="panel library-templates">
@@ -170,7 +171,7 @@ export function LibraryScreen() {
           </section>
         </main>
       </div>
-    </div>
+    </DeskFrame>
   )
 }
 

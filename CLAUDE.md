@@ -126,7 +126,10 @@ attribution is shown in the Library). The live Open5e API was not reachable
 from the build environment; online search of other Open5e documents is not
 built.
 
-Not yet: restyle Board, Sheet and Library in desk style (and give them the lighting);
-editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+- Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
+  parchment panels, a cork board in a wooden frame, candles in the top bar
+  and board tools, day and night lighting everywhere.
+
+Not yet: editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, exports (Phase 4), DM Prep/Live/Player modes,
 packaging/installer.

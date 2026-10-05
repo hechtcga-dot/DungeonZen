@@ -6,24 +6,19 @@ import { CampaignSettingsDialog, emblemOf, MapDialog, StorylineDialog, STORYLINE
 import { TarotCard } from '../art/TarotCard'
 import { ClockDial, MoonDisc } from '../art/sky'
 import { MapView } from '../components/MapView'
-import { DeskRail } from '../components/DeskRail'
-import { ArtDefs } from '../art/ArtDefs'
+import { DeskFrame } from '../components/DeskFrame'
 import { lightingAt, moonOn, skyAt } from '../../shared/sky'
-import { TableLighting, useLightingPref } from '../art/TableLighting'
+import { useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
 import type { DeskView } from '../../shared/types'
 
 
 export function DeskScreen() {
   const desk = useBoard((s) => s.desk)
-  const minutes = useBoard((s) => s.info?.clockMin ?? 0)
   return (
-    <div className="desk-screen">
-      <TableLighting minutes={minutes} />
-      <ArtDefs />
-      <DeskRail />
+    <DeskFrame>
       {desk ? <Desk desk={desk} /> : <p className="desk-loading">Laying out the desk…</p>}
-    </div>
+    </DeskFrame>
   )
 }
 

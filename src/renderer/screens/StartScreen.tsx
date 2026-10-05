@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
+import { Candle } from '../art/props'
 import type { CampaignInfo, RecentCampaign } from '../../shared/types'
 
 export function StartScreen() {
@@ -29,6 +30,8 @@ export function StartScreen() {
   }
 
   return (
+    <div className="desk-screen desk-theme start-screen">
+    <Candle className="start-candle" />
     <main className="start">
       <h1 className="start-title">Dungeon Zen</h1>
       <p className="muted">Campaign boards, storylines and time for Dungeon Masters. Everything stays on this computer.</p>
@@ -68,5 +71,6 @@ export function StartScreen() {
         <button onClick={() => void attempt(() => call('campaign:openDialog', undefined))}>Open a campaign folder…</button>
       </section>
     </main>
+    </div>
   )
 }

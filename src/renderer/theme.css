@@ -1,0 +1,147 @@
+/* Desk style for the board, sheet, library and start screens. These screens
+   reuse the shared component styles in styles.css and swap its colour tokens:
+   wooden bars carry light text, parchment surfaces carry ink. */
+
+html, body { background: #2e1c0e; }
+.frame-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+
+.desk-theme {
+  --text: #f1e6c6; --muted: #d6c296; --ground: rgba(24, 14, 6, 0.55); --panel: rgba(24, 14, 6, 0.4); --bar: transparent;
+  --border: #6b4a26; --border-strong: #a8884f; --selection: #f6c945; --link: #f6c945; --amber: #f6c945;
+  color: var(--text);
+}
+
+/* ---- wooden bars ---- */
+.desk-theme .topbar, .desk-theme .viewbar, .desk-theme .page-head, .desk-theme .tabs, .desk-theme .tools {
+  background-color: #4a2e16;
+  background-image: var(--tex-wood), linear-gradient(180deg, #5f3d1f, #3d2611);
+  background-size: 700px 700px, auto;
+  border-color: #150c06;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.15), 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.desk-theme .topbar { gap: 14px; }
+.topbar-title {
+  font-family: var(--display); font-size: 26px; font-weight: 400; padding: 0 6px; color: var(--parchment-light);
+  background: transparent; border-color: transparent; text-shadow: 0 2px 0 #000;
+}
+.desk-theme .topbar-title:hover:not(:disabled) { background: rgba(255, 240, 200, 0.08); border-color: var(--border); }
+.desk-theme .clock { background: var(--parchment); color: var(--ink); border: 1px solid #3b2608; min-height: 44px; }
+.desk-theme .clock:hover:not(:disabled) { background: var(--parchment-light); border-color: #3b2608; }
+button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+/* ---- buttons and inputs everywhere in the theme ---- */
+.desk-theme button:hover:not(:disabled) { background: rgba(255, 240, 200, 0.12); border-color: var(--border-strong); }
+.desk-theme button:disabled { color: #8a7a5c; }
+.desk-theme button[aria-pressed='true'], .desk-theme .viewbar button[aria-pressed='true'] {
+  color: #2a1806; font-weight: 600; border-color: #3b2608;
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass) 55%, #8a621f);
+  box-shadow: inset 0 1px 0 rgba(255, 245, 210, 0.7);
+}
+.desk-theme button[aria-pressed='true']:hover:not(:disabled) { background: linear-gradient(180deg, #fbe0a4, #c89539 55%, #93692a); border-color: #3b2608; }
+.desk-theme button.primary { color: #fbe9d0; border-color: #4a120d; background: radial-gradient(circle at 40% 35%, #b5392d, var(--wax) 60%, #5e1812); }
+.desk-theme button.primary:hover:not(:disabled) { background: radial-gradient(circle at 40% 35%, #c9473a, #9c3026 60%, #5e1812); border-color: #4a120d; }
+.desk-theme button.primary:disabled { color: #e8d9b0; background: #8a7a5c; border-color: #6b5636; }
+.desk-theme button.danger { color: #f3b9b0; border-color: #a5352a; }
+.desk-theme button.link { color: var(--link); }
+.desk-theme input, .desk-theme select, .desk-theme textarea { color: var(--text); background: var(--ground); border-color: var(--border); }
+.desk-theme input::placeholder, .desk-theme textarea::placeholder { color: var(--muted); opacity: 0.8; }
+.desk-theme :focus-visible { outline-color: var(--selection); }
+.desk-theme .eyebrow, .desk-theme .panel-heading { color: var(--muted); }
+.desk-theme .panel-heading { font-family: var(--display); font-size: 19px; font-weight: 400; letter-spacing: 0.02em; text-transform: none; color: var(--text); }
+
+/* ---- parchment surfaces ---- */
+.desk-theme .side, .desk-theme .panel, .desk-theme .library-templates, .start-panel, .desk-theme .menu {
+  --text: #2a1f12; --muted: #5a4a32; --ground: rgba(255, 250, 236, 0.6); --panel: transparent;
+  --border: #a8916a; --border-strong: #7a6440; --selection: #8f2a21; --link: #8f2a21; --amber: #8f2a21;
+  color: var(--text);
+  background-color: var(--parchment);
+  background-image: radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(120, 80, 30, 0.28) 100%), var(--tex-blotch), var(--tex-paper);
+  background-size: auto, 600px 600px, 300px 300px;
+  border: 1px solid #6b5636;
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 228, 0.5), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.desk-theme .side button:hover:not(:disabled), .desk-theme .panel button:hover:not(:disabled),
+.desk-theme .library-templates button:hover:not(:disabled), .start-panel button:hover:not(:disabled), .desk-theme .menu button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.7); border-color: var(--ink);
+}
+.desk-theme .side button:disabled, .desk-theme .panel button:disabled { color: #9a8a6c; }
+.desk-theme .side button.danger, .desk-theme .panel button.danger { color: var(--wax); border-color: var(--wax); background: transparent; }
+.desk-theme .side { border-width: 0 0 0 3px; border-color: #150c06; }
+.desk-theme .side .segmented { border-color: var(--border-strong); }
+.desk-theme .side .segmented button + button { border-left-color: var(--border-strong); }
+.desk-theme .panel-heading { color: var(--text); }
+.desk-theme .side .panel-heading, .desk-theme .panel .panel-heading, .desk-theme .library-templates .panel-heading { color: var(--ink); }
+.desk-theme .hint { color: var(--muted); }
+
+/* ---- the board: cork in a wooden frame ---- */
+.desk-theme .canvas {
+  background-color: #b98a55;
+  background-image: radial-gradient(ellipse at 50% 45%, rgba(255, 220, 160, 0.25), transparent 70%), var(--tex-cork-light), var(--tex-cork);
+  background-size: auto, 300px 300px, 240px 240px;
+  box-shadow: inset 0 0 0 10px #4a2e16, inset 0 0 0 12px #150c06, inset 0 0 40px 12px rgba(0, 0, 0, 0.55);
+}
+.desk-theme .react-flow { background: transparent; }
+.desk-theme .card { box-shadow: 0 8px 14px rgba(40, 20, 5, 0.55), 0 1px 0 rgba(255, 255, 255, 0.4) inset; }
+.desk-theme .card-name { font-family: var(--display); font-size: 19px; font-weight: 400; }
+.desk-theme .string-label { background: var(--parchment-light); color: var(--ink); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35); }
+.desk-theme .legend, .desk-theme .empty-board {
+  --text: #2a1f12; --muted: #5a4a32; color: var(--ink); background: var(--parchment-light); border-color: #6b5636;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.desk-theme .empty-board strong { color: var(--ink); }
+.desk-theme .react-flow__controls { box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); }
+.desk-theme .react-flow__controls-button { background: var(--parchment-light); border-color: #a8916a; color: var(--ink); }
+.desk-theme .react-flow__controls-button:hover { background: #fffaf0; }
+.desk-theme .react-flow__controls-button svg { fill: var(--ink); }
+.desk-theme .tool { color: var(--text); }
+.desk-theme .menu { border-color: #3b2a14; }
+
+/* ---- sheet and library on the table ---- */
+.desk-theme .sheet-body, .desk-theme .library { background: transparent; }
+.desk-theme .page-title h1 { font-family: var(--display); font-weight: 400; font-size: 30px; text-shadow: 0 2px 0 #000; }
+.desk-theme .tabs button { color: var(--muted); }
+.desk-theme .tabs button[aria-selected='true'] { color: var(--parchment-light); border-bottom-color: var(--gold); background: transparent; box-shadow: none; }
+.desk-theme .source-tag { border-color: var(--border-strong); color: var(--muted); }
+.desk-theme .score { background: rgba(255, 250, 236, 0.75); border-color: #a8916a; }
+.desk-theme .score input { color: var(--ink); background: transparent; }
+.desk-theme .subcard, .desk-theme .results li, .desk-theme .connections li, .desk-theme .removed li, .desk-theme .log li {
+  background: rgba(255, 250, 236, 0.55); border-color: #a8916a;
+}
+.desk-theme .library-search .panel-heading { color: var(--parchment-light); }
+.desk-theme input.big { background: var(--parchment-light); color: var(--ink); border-color: #3b2608; }
+.desk-theme .filters label, .desk-theme .range-label { color: var(--parchment-light); }
+.desk-theme .filters input, .desk-theme .filters select { background: var(--parchment-light); color: var(--ink); border-color: #3b2608; }
+.desk-theme .srd-table thead th { color: var(--muted); }
+.desk-theme .attribution { color: var(--muted); }
+.desk-theme .tag-secret { color: var(--wax); border-color: var(--wax); }
+.desk-theme .tag-known { color: #1f4f73; border-color: #1f4f73; }
+.desk-theme .chip { border-color: #7a6440; }
+
+/* ---- start screen ---- */
+.start-screen .start { position: relative; z-index: 1; }
+.start-screen .start-title { font-family: var(--display); font-weight: 400; font-size: 54px; color: var(--parchment-light); text-shadow: 0 3px 0 #000, 0 0 24px rgba(246, 201, 69, 0.25); }
+.start-screen .muted { color: #d6c296; }
+.start-panel h2 { font-family: var(--display); font-weight: 400; font-size: 24px; }
+.start-panel { --ground: rgba(255, 250, 236, 0.6); }
+.start-panel input { color: var(--ink); background: rgba(255, 250, 236, 0.8); border-color: #8a7350; }
+.start-panel .muted, .start-panel .hint { color: var(--ink-muted); }
+.start-panel button { color: var(--ink); border-color: #7a6440; }
+.start-panel .recent-path { color: var(--ink-muted); }
+.start-panel button.primary { color: #fbe9d0; background: radial-gradient(circle at 40% 35%, #b5392d, var(--wax) 60%, #5e1812); border-color: #4a120d; }
+.start-panel button.primary:disabled { color: #e8d9b0; background: #a89880; border-color: #a89880; }
+
+/* ---- messages ---- */
+.toast { color: var(--ink); background: var(--parchment-light); border: 2px solid #3b2a14; font-weight: 500; }
+.toast-error { color: #fff1ec; background: var(--wax); border-color: #4a120d; }
+.start-screen { overflow-y: auto; justify-content: center; }
+.start-screen .start { flex: 0 1 640px; }
+.candle.start-candle { position: absolute; left: 8%; top: 40px; }
+.candle.topbar-candle { flex: none; width: 40px; height: 56px; margin: -6px -4px -6px 0; }
+.candle.topbar-candle svg { width: 34px; height: 64px; margin-top: -2px; }
+.candle.topbar-candle .candle-glow { width: 110px; height: 110px; top: 12px; }
+.candle.topbar-candle .candle-light { top: 12px; }
+.candle.tools-candle { width: 64px; height: 120px; }
+.candle.tools-candle svg { width: 64px; height: 120px; }
+.candle.tools-candle .candle-light { top: 24px; }
+.desk-theme .tools { align-items: center; }
+.desk-theme .filters input::placeholder { color: var(--ink-muted); }

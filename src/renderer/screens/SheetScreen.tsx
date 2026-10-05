@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
+import { DeskFrame } from '../components/DeskFrame'
 import { CommitField, ScoreField } from '../components/fields'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import {
@@ -24,10 +25,10 @@ const KNOWLEDGE_LABELS: Record<KnowledgeField, string> = {
 export function SheetScreen() {
   const sheet = useBoard((s) => s.sheet)
   return (
-    <div className="page-screen">
+    <DeskFrame>
       <TopBar />
       {sheet ? <Sheet key={sheet.entity.id} sheet={sheet} /> : <p className="muted page-pad">Loading…</p>}
-    </div>
+    </DeskFrame>
   )
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
-  Background, BackgroundVariant, ConnectionMode, Controls, ReactFlow, ReactFlowProvider, applyEdgeChanges,
+  ConnectionMode, Controls, ReactFlow, ReactFlowProvider, applyEdgeChanges,
   applyNodeChanges, useReactFlow, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams
 } from '@xyflow/react'
 import { useBoard, useView } from '../store'
@@ -12,6 +12,10 @@ import { HistoryPanel } from '../components/HistoryPanel'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { freeSpot } from '../../shared/layout'
 import { TopBar, isTyping } from '../components/TopBar'
+import { DeskFrame } from '../components/DeskFrame'
+import { Candle } from '../art/props'
+import { lightingAt } from '../../shared/sky'
+import { useLightingPref } from '../art/TableLighting'
 import { StorylineDialog } from '../components/EditDialogs'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { EntityView } from '../../shared/types'
@@ -44,6 +48,8 @@ function BoardLayout() {
   const [cardMenu, setCardMenu] = useState(false)
   const [newStoryline, setNewStoryline] = useState<string | null>(null)
   const [editStory, setEditStory] = useState(false)
+  const [lighting] = useLightingPref()
+  useBoard((s) => s.info?.clockMin) // re-render when the clock moves, for the candle
 
   const q = search.trim().toLowerCase()
 
@@ -195,7 +201,7 @@ function BoardLayout() {
   const matchCount = q ? Object.values(view.entities).filter((e) => matches(e, q)).length : 0
 
   return (
-    <div className="board-screen">
+    <DeskFrame>
       <TopBar>
         <div className="search">
           <label htmlFor="board-search" className="visually-hidden">Search the board</label>
@@ -250,6 +256,8 @@ function BoardLayout() {
           </div>
           <button className="tool" onClick={() => void addNote()}>Note</button>
           <button className="tool" onClick={() => fitView({ padding: 0.2, duration: 300 })}>Fit all</button>
+          <span className="spacer" />
+          <Candle className="tools-candle" lit={!lighting || lightingAt(useBoard.getState().info?.clockMin ?? 0).candlesLit} />
         </nav>
 
         <main className="canvas" ref={paneRef} aria-label={`${view.board.name} board`}>
@@ -274,9 +282,8 @@ function BoardLayout() {
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             proOptions={{ hideAttribution: true }}
-            colorMode="dark"
+            colorMode="light"
           >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#363c46" bgColor="#23272e" />
             <Controls showInteractive={false} position="bottom-right" />
           </ReactFlow>
           {view.items.length === 0 && (
@@ -300,6 +307,6 @@ function BoardLayout() {
           <div className="side-body">{panel === 'inspector' ? <Inspector /> : <HistoryPanel />}</div>
         </aside>
       </div>
-    </div>
+    </DeskFrame>
   )
 }
