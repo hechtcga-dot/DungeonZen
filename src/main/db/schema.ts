@@ -96,6 +96,17 @@ export const relationshipKnown = sqliteTable('relationship_known', {
   status: text('status').notNull()
 })
 
+// Imported map images. The file lives in the campaign's assets/maps folder.
+export const map = sqliteTable('map', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  imagePath: text('image_path').notNull(), // relative to assets/, forward slashes
+  width: integer('width'),
+  height: integer('height'),
+  gridSize: integer('grid_size'),
+  status: text('status').notNull()
+})
+
 export interface RowChange {
   table: TableName
   id: string
@@ -125,7 +136,8 @@ export const tracked = {
   board_item: { table: boardItem, pk: boardItem.id },
   ability: { table: ability, pk: ability.id },
   knowledge: { table: knowledge, pk: knowledge.id },
-  relationship_known: { table: relationshipKnown, pk: relationshipKnown.id }
+  relationship_known: { table: relationshipKnown, pk: relationshipKnown.id },
+  map: { table: map, pk: map.id }
 } as const
 export type TableName = keyof typeof tracked
 
@@ -136,3 +148,4 @@ export type BoardRow = typeof board.$inferSelect
 export type BoardItemRow = typeof boardItem.$inferSelect
 export type CommandRow = typeof command.$inferSelect
 export type AbilityRow = typeof ability.$inferSelect
+export type MapRow = typeof map.$inferSelect

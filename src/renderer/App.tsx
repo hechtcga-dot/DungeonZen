@@ -4,6 +4,8 @@ import { StartScreen } from './screens/StartScreen'
 import { BoardScreen } from './screens/BoardScreen'
 import { SheetScreen } from './screens/SheetScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
+import { DeskScreen } from './screens/DeskScreen'
+import { MapScreen } from './screens/MapScreen'
 
 export function App() {
   const info = useBoard((s) => s.info)
@@ -23,7 +25,9 @@ export function App() {
       {!info || !view ? <StartScreen />
         : screen === 'sheet' ? <SheetScreen />
           : screen === 'library' ? <LibraryScreen />
-            : <BoardScreen />}
+            : screen === 'desk' ? <DeskScreen />
+              : screen === 'map' ? <MapScreen />
+                : <BoardScreen />}
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
           {message.text}

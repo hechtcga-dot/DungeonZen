@@ -1,6 +1,7 @@
 import { join } from 'node:path'
-import { dialog, ipcMain, type BrowserWindow } from 'electron'
-import { Campaign } from './campaign/campaign'
+import { pathToFileURL } from 'node:url'
+import { dialog, ipcMain, net, protocol, type BrowserWindow } from 'electron'
+import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import { searchSrd, srdCopy, SRD_SOURCE } from './srd'
 import { ipcInputs, IPC_PREFIX, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
@@ -37,6 +38,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       }
     })
   }
+
+  // dz-asset://campaign/<path> serves files from the open campaign's assets folder only.
+  protocol.handle('dz-asset', (request) => {
+    const url = new URL(request.url)
+    const file = url.hostname === 'campaign' && campaign ? campaign.assetFile(decodeURIComponent(url.pathname.slice(1))) : null
+    if (!file) return new Response('Not found', { status: 404 })
+    return net.fetch(pathToFileURL(file).toString())
+  })
 
   handle('profile:recent', () => profile.recent())
 
@@ -103,6 +112,22 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('note:setStatus', ({ itemId, status }) => current().setNoteStatus(itemId, status))
   handle('items:move', ({ moves }) => current().moveItems(moves))
   handle('storyline:create', ({ title }) => current().createStoryline(title))
+  handle('desk:view', () => current().desk())
+  handle('map:importDialog', async () => {
+    const win = getWindow()
+    const options = {
+      title: 'Import a map image',
+      buttonLabel: 'Import map',
+      properties: ['openFile'] as Array<'openFile'>,
+      filters: [{ name: 'Images', extensions: MAP_EXTENSIONS.map((e) => e.slice(1)) }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    return current().importMap(result.filePaths[0])
+  })
+  handle('map:setActive', ({ mapId }) => current().setSetting('active_map_id', mapId, 'Changed the desk map'))
+  handle('notes:set', ({ text }) => current().setSetting('dm_notes', text, 'Edited DM notes'))
+  handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
   handle('history:view', () => current().history())
   handle('history:undo', () => current().undo())
   handle('history:redo', () => current().redo())

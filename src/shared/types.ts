@@ -162,3 +162,39 @@ export interface SrdSearch {
   totalItems: number
   attribution: string
 }
+
+export interface MapView {
+  id: string
+  name: string
+  /** dz-asset:// address the renderer can show. */
+  url: string
+  width: number | null
+  height: number | null
+}
+
+export interface DeskStoryline {
+  boardId: string
+  storylineId: string
+  title: string
+  status: string
+  cardCount: number
+}
+
+export interface DeskPartyMember {
+  id: string
+  name: string
+  summary: string
+  ac: string
+  hp: string
+  passivePerception: number | null
+}
+
+export interface DeskView {
+  storylines: DeskStoryline[]
+  party: DeskPartyMember[]
+  map: MapView | null
+  maps: MapView[]
+  dmNotes: string
+  moonOffsetDays: number
+  counts: { cards: number; strings: number; removed: number }
+}

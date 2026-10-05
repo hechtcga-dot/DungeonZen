@@ -73,11 +73,20 @@ must have unit tests before any screen depends on it.
 
 ## Decided
 - Rules edition default: 2024 (SRD 5.2), stored per campaign (owner, 2026-10-05).
+- Visual style: the desk style everywhere, aiming for a rich painted tabletop
+  (owner's reference: wooden table, old map, tarot cards, candles, leather
+  journal). The dark "working style" screens are to be restyled (2026-10-05).
+- The map must zoom and pan (owner, 2026-10-05): `src/renderer/components/MapView.tsx`.
+- Art is drawn in code (SVG props, emblems, procedural textures in
+  `src/renderer/art/` and `desk-textures.css`); no copyrighted images. Note: the
+  common Rider-Waite tarot scans online are the 1971 U.S. Games recolouring
+  and must not be used.
 
 ## Open decisions (do not guess; ask)
 - Roll20 export mechanism (see FEATURES.md)
 - Image-generation provider for battle maps
-- Whether working screens use the dark style or the desk style
+- Painted art (like the owner's reference) needs a source: commissioned,
+  licensed asset pack, or an image generator. Until then, art is drawn in code.
 - How DM Prep, Live Session, and Player Preview differ on screen
 - Colours for ITEM and HANDOUT cards (placeholders in `src/renderer/entityStyle.ts`)
 
@@ -95,6 +104,11 @@ Phase 1 so far:
 - Library: new from template, campaign search (text incl. abilities, type,
   tag, CR and HP ranges), SRD 5.2 monsters and items with "Add copy".
 - History with Revive/Restore, change log with "Undo to here", Ctrl+Z/Ctrl+Y.
+- DM desk (landing screen, desk style): clock dial with sun/moon and sky,
+  moon phase, party ledger, board counts, storyline tarot cards, the map on
+  parchment (zoomable), DM notes journal, party tarot cards, decorative props.
+- Map screen: imported map, zoom and pan (wheel, drag, keys, buttons), map
+  picker. Maps are copied into `assets/maps` and served via `dz-asset://`.
 
 SRD content is bundled (`resources/srd/srd-2024.json`, built by
 `node scripts/build-srd.mjs` from the Open5e project's data, CC-BY-4.0, the
@@ -102,6 +116,6 @@ attribution is shown in the Library). The live Open5e API was not reachable
 from the build environment; online search of other Open5e documents is not
 built.
 
-Not yet: Phase 1 images on the board, Import NPC/map/images, PC sheet PDF
-import, exports (Phase 4), DM desk, DM Prep/Live/Player modes,
+Not yet: restyle Board, Sheet and Library in desk style; images on the board, PC sheet PDF
+import, exports (Phase 4), DM Prep/Live/Player modes,
 packaging/installer.

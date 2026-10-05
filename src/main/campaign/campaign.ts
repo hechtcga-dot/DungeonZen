@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
-  ability, board, boardItem, campaignSetting, entity, knowledge, relationship, relationshipKnown, storyline,
-  storylineEntity, type AbilityRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
+  ability, board, boardItem, campaignSetting, entity, knowledge, map, relationship, relationshipKnown, storyline,
+  storylineEntity, type AbilityRow, type MapRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
 import type {
@@ -13,14 +13,18 @@ import type {
 } from '../../shared/schemas'
 import { KNOWLEDGE_FIELDS } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
+import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
-  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, RelationshipView, SheetView
+  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
+  LibraryFilters, LibrarySearch, MapView, RelationshipView, SheetView
 } from '../../shared/types'
 
 export const DB_FILE = 'campaign.db'
 export const ASSETS_DIR = 'assets'
+export const MAP_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
+/** Address the app's asset protocol serves files from the open campaign's assets folder under. */
+export const ASSET_URL_PREFIX = 'dz-asset://campaign/'
 
 const DEFAULT_RULES_EDITION: RulesEdition = '2024'
 const DEFAULT_CLOCK_MIN = 9 * 60 // Day 1, 09:00
@@ -463,6 +467,102 @@ export class Campaign {
     return { results, tags }
   }
 
+  // ---- desk, maps and settings ----------------------------------------------
+
+  private setting(key: string): unknown {
+    return this.db.select().from(campaignSetting).where(eq(campaignSetting.key, key)).get()?.value
+  }
+
+  /** Changes one campaign setting as an undoable step. */
+  setSetting(key: 'dm_notes' | 'clock_min' | 'moon_offset_days' | 'active_map_id' | 'name', value: unknown, label: string): void {
+    this.log.run(label, (w) => {
+      if (w.get('campaign_settings', key)) w.update('campaign_settings', key, { value })
+      else w.insert('campaign_settings', { key, value })
+    })
+  }
+
+  /** Moves the campaign clock by a number of minutes (never before minute 0). */
+  shiftClock(minutes: number): number {
+    const now = this.info().clockMin
+    const next = Math.max(0, now + Math.round(minutes))
+    if (next !== now) {
+      const h = Math.abs(next - now) / 60
+      this.setSetting('clock_min', next, `${next > now ? 'Moved the clock forward' : 'Moved the clock back'} ${h} h`)
+    }
+    return next
+  }
+
+  /** Copies an image into assets/maps and makes it the desk map. */
+  importMap(sourceFile: string, name?: string): MapView {
+    const ext = extname(sourceFile).toLowerCase()
+    if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Maps must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
+    const id = randomUUID()
+    const rel = `maps/${id}${ext}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'maps'), { recursive: true })
+    copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
+    const size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
+    const mapName = name?.trim() || basename(sourceFile, extname(sourceFile))
+    this.log.run(`Imported map ${mapName}`, (w) => {
+      w.insert('map', {
+        id, name: mapName, imagePath: rel, width: size?.width ?? null, height: size?.height ?? null,
+        gridSize: null, status: 'active'
+      })
+      if (w.get('campaign_settings', 'active_map_id')) w.update('campaign_settings', 'active_map_id', { value: id })
+      else w.insert('campaign_settings', { key: 'active_map_id', value: id })
+    })
+    return toMapView(this.db.select().from(map).where(eq(map.id, id)).get()!)
+  }
+
+  maps(): MapView[] {
+    return this.db.select().from(map).where(eq(map.status, 'active')).all().map(toMapView)
+  }
+
+  /** Resolves an asset address path (for example "maps/x.png") to a file inside this campaign's assets folder. */
+  assetFile(relPath: string): string | null {
+    const clean = relPath.replace(/\\/g, '/')
+    if (clean.split('/').some((part) => part === '..' || part === '') || clean.includes(':')) return null
+    const file = join(this.folder, ASSETS_DIR, ...clean.split('/'))
+    return existsSync(file) ? file : null
+  }
+
+  desk(): DeskView {
+    const storylines = this.db
+      .select({ boardId: board.id, storylineId: storyline.id, title: storyline.title, status: storyline.status })
+      .from(board).innerJoin(storyline, eq(board.storylineId, storyline.id)).all()
+    const cardCounts = new Map<string, number>()
+    for (const item of this.db.select().from(boardItem).where(and(eq(boardItem.kind, 'card'), eq(boardItem.status, 'active'))).all()) {
+      cardCounts.set(item.boardId, (cardCounts.get(item.boardId) ?? 0) + 1)
+    }
+    const entities = this.db.select().from(entity).all()
+    const party = entities.filter((e) => e.type === 'PC' && (e.status === 'active' || e.status === 'resolved'))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((e) => {
+        const sb = readStatBlock(e.attributes.statblock)
+        const pp = sb ? /passive perception\s+(\d+)/i.exec(sb.senses) : null
+        return {
+          id: e.id, name: e.name,
+          summary: typeof e.attributes.summary === 'string' ? e.attributes.summary : '',
+          ac: sb?.ac ? String(leadingNumber(sb.ac) ?? sb.ac) : '',
+          hp: sb?.hp ? String(leadingNumber(sb.hp) ?? sb.hp) : '',
+          passivePerception: pp ? Number(pp[1]) : sb ? 10 + Math.floor((sb.wis - 10) / 2) : null
+        }
+      })
+    const maps = this.maps()
+    const activeId = this.setting('active_map_id')
+    const visible = new Set(entities.filter((e) => e.status === 'active' || e.status === 'resolved').map((e) => e.id))
+    const strings = this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
+      .filter((r) => visible.has(r.sourceId) && visible.has(r.targetId)).length
+    return {
+      storylines: storylines.map((s) => ({ ...s, cardCount: cardCounts.get(s.boardId) ?? 0 })),
+      party,
+      map: maps.find((m) => m.id === activeId) ?? maps[0] ?? null,
+      maps,
+      dmNotes: String(this.setting('dm_notes') ?? ''),
+      moonOffsetDays: Number(this.setting('moon_offset_days') ?? 0),
+      counts: { cards: visible.size, strings, removed: entities.filter((e) => e.status === 'defunct').length }
+    }
+  }
+
   undo(): string | null { return this.log.undo() }
   redo(): string | null { return this.log.redo() }
 
@@ -594,4 +694,8 @@ function searchText(v: EntityView): string {
   }
   walk(v.attributes)
   return parts.join(' \n ').toLowerCase()
+}
+
+function toMapView(r: MapRow): MapView {
+  return { id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath, width: r.width, height: r.height }
 }

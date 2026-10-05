@@ -128,5 +128,8 @@ commands. `group_id` lets a session or an import undo as one step.
 - The 5e stat block lives in `entity.attributes.statblock`, checked by the
   Zod schema in `src/shared/statblock.ts`. Copies from the SRD record
   `attributes.source` (name, key, license).
+- `map` has `width`, `height` (read from the image header) and `status`;
+  `image_path` is relative to `assets/`. Settings keys in use: name,
+  rules_edition, clock_min, dm_notes, moon_offset_days, active_map_id.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

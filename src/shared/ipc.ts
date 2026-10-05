@@ -3,7 +3,7 @@ import {
   AbilityKind, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, RelationshipType, RowStatus, Tags
 } from './schemas'
 import type {
-  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, EntityView, HistoryView, LibrarySearch,
+  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch
 } from './types'
 
@@ -46,6 +46,11 @@ export const ipcInputs = {
     query: z.string().max(200), kind: z.enum(['monsters', 'items', 'both']), crMin: OptionalNumber, crMax: OptionalNumber
   }),
   'srd:addCopy': z.object({ key: z.string().min(1).max(200), boardId: Id }),
+  'desk:view': z.void(),
+  'map:importDialog': z.void(),
+  'map:setActive': z.object({ mapId: Id }),
+  'notes:set': z.object({ text: z.string().max(100000) }),
+  'clock:shift': z.object({ minutes: z.number().int().min(-525600).max(525600) }),
   'entity:update': z.object({
     id: Id,
     patch: z.object({
@@ -91,6 +96,11 @@ export interface IpcOutputs {
   'library:search': LibrarySearch
   'srd:search': SrdSearch
   'srd:addCopy': EntityView
+  'desk:view': DeskView
+  'map:importDialog': MapView | null
+  'map:setActive': void
+  'notes:set': void
+  'clock:shift': number
   'entity:update': void
   'entity:setStatus': void
   'entity:addToStoryline': void

@@ -1,9 +1,14 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, protocol, shell } from 'electron'
 import { registerIpc } from './ipcHandlers'
 import { ProfileStore } from './profile'
 
 let mainWindow: BrowserWindow | null = null
+
+// Campaign images (maps, handouts) are served to the window through this scheme.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'dz-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+])
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({

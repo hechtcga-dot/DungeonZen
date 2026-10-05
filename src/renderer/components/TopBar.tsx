@@ -32,7 +32,9 @@ export function TopBar({ children }: { children?: ReactNode }) {
         {info?.name}
       </button>
       <nav className="row tight" aria-label="Screens">
+        <button aria-pressed={screen === 'desk'} onClick={() => goTo('desk')}>Desk</button>
         <button aria-pressed={screen === 'board'} onClick={() => goTo('board')}>Board</button>
+        <button aria-pressed={screen === 'map'} onClick={() => goTo('map')}>Map</button>
         <button aria-pressed={screen === 'library'} onClick={() => goTo('library')}>Library</button>
       </nav>
       <div className="topbar-middle">{children}</div>

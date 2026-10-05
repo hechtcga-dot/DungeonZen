@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { BoardView, CampaignInfo, HistoryView, SheetView } from '../shared/types'
+import type { BoardView, CampaignInfo, DeskView, HistoryView, SheetView } from '../shared/types'
 
 export type Selection =
   | { kind: 'entity'; id: string }
@@ -9,7 +9,7 @@ export type Selection =
   | { kind: 'note'; id: string }
   | null
 
-export type Screen = 'board' | 'sheet' | 'library'
+export type Screen = 'desk' | 'board' | 'map' | 'sheet' | 'library'
 
 interface BoardState {
   info: CampaignInfo | null
@@ -18,6 +18,7 @@ interface BoardState {
   view: BoardView | null
   history: HistoryView | null
   sheet: SheetView | null
+  desk: DeskView | null
   sheetId: string | null
   /** A card to bring into view the next time the board shows. */
   focusEntityId: string | null
@@ -29,7 +30,7 @@ interface BoardState {
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
   showBoard(boardId: string): Promise<void>
-  goTo(screen: 'board' | 'library'): void
+  goTo(screen: 'desk' | 'board' | 'map' | 'library'): void
   openSheet(entityId: string): Promise<void>
   showOnBoard(entityId: string): Promise<void>
   refresh(): Promise<void>
@@ -50,6 +51,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   view: null,
   history: null,
   sheet: null,
+  desk: null,
   sheetId: null,
   focusEntityId: null,
   panel: 'inspector',
@@ -59,7 +61,7 @@ export const useBoard = create<BoardState>((set, get) => ({
 
   async openCampaign(info) {
     set({
-      info, screen: 'board', boardId: info.globalBoardId, selection: null, view: null, history: null,
+      info, screen: 'desk', boardId: info.globalBoardId, desk: null, selection: null, view: null, history: null,
       sheet: null, sheetId: null, search: ''
     })
     await get().refresh()
@@ -67,7 +69,7 @@ export const useBoard = create<BoardState>((set, get) => ({
 
   async closeCampaign() {
     await call('campaign:close', undefined)
-    set({ info: null, boardId: null, view: null, history: null, sheet: null, sheetId: null, selection: null })
+    set({ info: null, boardId: null, view: null, history: null, sheet: null, desk: null, sheetId: null, selection: null })
   },
 
   async showBoard(boardId) {
@@ -96,17 +98,19 @@ export const useBoard = create<BoardState>((set, get) => ({
     const { boardId, panel, screen, sheetId } = get()
     if (!boardId) return
     try {
-      const [view, history, sheet] = await Promise.all([
+      const [view, history, sheet, desk, info] = await Promise.all([
         call('board:view', { boardId }),
         panel === 'history' ? call('history:view', undefined) : Promise.resolve(get().history),
-        screen === 'sheet' && sheetId ? call('sheet:view', { entityId: sheetId }).catch(() => null) : Promise.resolve(null)
+        screen === 'sheet' && sheetId ? call('sheet:view', { entityId: sheetId }).catch(() => null) : Promise.resolve(null),
+        screen === 'desk' || screen === 'map' ? call('desk:view', undefined) : Promise.resolve(get().desk),
+        call('campaign:info', undefined)
       ])
       if (screen === 'sheet' && !sheet) {
         // The entity is gone, for example its creation was just undone.
-        set({ view, history, sheet: null, sheetId: null, screen: 'board' })
+        set({ view, history, desk, info: info ?? get().info, sheet: null, sheetId: null, screen: 'board' })
         return
       }
-      set({ view, history, sheet })
+      set({ view, history, sheet, desk, info: info ?? get().info })
     } catch (err) {
       get().say((err as Error).message, true)
     }

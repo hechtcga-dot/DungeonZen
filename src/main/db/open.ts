@@ -61,6 +61,12 @@ const MIGRATIONS: string[] = [
   CREATE INDEX ability_entity ON ability(entity_id, sort);
   CREATE INDEX knowledge_entity ON knowledge(entity_id);
   CREATE INDEX relationship_known_rel ON relationship_known(relationship_id);
+  `,
+  `
+  CREATE TABLE map (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, image_path TEXT NOT NULL,
+    width INTEGER, height INTEGER, grid_size INTEGER, status TEXT NOT NULL
+  );
   `
 ]
 
