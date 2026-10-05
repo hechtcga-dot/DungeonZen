@@ -71,6 +71,24 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE storyline ADD COLUMN emblem TEXT;
   ALTER TABLE storyline ADD COLUMN removed INTEGER NOT NULL DEFAULT 0;
+  `,
+  `
+  CREATE TABLE act (
+    id TEXT PRIMARY KEY, storyline_id TEXT NOT NULL REFERENCES storyline(id), title TEXT NOT NULL,
+    summary TEXT NOT NULL, start_min INTEGER NOT NULL, end_min INTEGER NOT NULL,
+    chosen_outcome_id TEXT, status TEXT NOT NULL
+  );
+  CREATE TABLE act_outcome (
+    id TEXT PRIMARY KEY, act_id TEXT NOT NULL REFERENCES act(id), label TEXT NOT NULL,
+    description TEXT NOT NULL, is_default INTEGER NOT NULL, sort INTEGER NOT NULL, status TEXT NOT NULL
+  );
+  CREATE TABLE story_trigger (
+    id TEXT PRIMARY KEY, source_act_id TEXT NOT NULL REFERENCES act(id), outcome_id TEXT NOT NULL,
+    target_storyline_id TEXT NOT NULL REFERENCES storyline(id), effect_type TEXT NOT NULL,
+    payload TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL
+  );
+  CREATE INDEX act_storyline ON act(storyline_id);
+  CREATE INDEX act_outcome_act ON act_outcome(act_id);
   `
 ]
 

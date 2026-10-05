@@ -17,7 +17,8 @@ export function HistoryPanel() {
   const say = useBoard((s) => s.say)
   if (!history) return <p className="muted">Loading…</p>
   const removedCount = history.removedEntities.length + history.removedStrings.length + history.removedNotes.length +
-    history.removedStorylines.length + history.removedMaps.length
+    history.removedStorylines.length + history.removedMaps.length + history.removedActs.length +
+    history.removedOutcomes.length + history.removedTriggers.length
 
   return (
     <div className="history">
@@ -53,6 +54,24 @@ export function HistoryPanel() {
             <li key={st.storylineId}>
               <div className="removed-text"><strong>{st.title}</strong><span className="muted">Storyline</span></div>
               <button onClick={() => void act('storyline:setRemoved', { storylineId: st.storylineId, removed: false })}>Restore</button>
+            </li>
+          ))}
+          {history.removedActs.map((a) => (
+            <li key={a.id}>
+              <div className="removed-text"><strong>{a.title}</strong><span className="muted">Act · {a.storylineTitle}</span></div>
+              <button onClick={() => void act('act:setStatus', { id: a.id, status: 'active' })}>Restore</button>
+            </li>
+          ))}
+          {history.removedOutcomes.map((o) => (
+            <li key={o.id}>
+              <div className="removed-text"><strong>{o.label}</strong><span className="muted">Outcome · {o.actTitle}</span></div>
+              <button onClick={() => void act('outcome:setStatus', { id: o.id, status: 'active' })}>Restore</button>
+            </li>
+          ))}
+          {history.removedTriggers.map((tr) => (
+            <li key={tr.id}>
+              <div className="removed-text"><strong>Trigger {tr.label}</strong><span className="muted">From {tr.actTitle}</span></div>
+              <button onClick={() => void act('trigger:setStatus', { id: tr.id, status: 'active' })}>Restore</button>
             </li>
           ))}
           {history.removedMaps.map((m) => (

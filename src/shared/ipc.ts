@@ -5,7 +5,7 @@ import {
 } from './schemas'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
-  RecentCampaign, RelationshipView, SheetView, SrdSearch
+  RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -22,6 +22,12 @@ const AbilityFields = z.object({
   showMacroBar: z.boolean()
 })
 const OptionalNumber = z.number().finite().optional()
+const Minute = z.number().int().min(0).max(1_000_000_000)
+const TriggerEffect = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('shift_act'), actId: Id, minutes: z.number().int().min(-525600).max(525600) }),
+  z.object({ type: z.literal('force_outcome'), actId: Id, outcomeId: Id }),
+  z.object({ type: z.literal('set_status'), status: StorylineStatus })
+])
 
 export const ipcInputs = {
   'profile:recent': z.void(),
@@ -66,6 +72,24 @@ export const ipcInputs = {
   }),
   'storyline:setRemoved': z.object({ storylineId: Id, removed: z.boolean() }),
   'map:rename': z.object({ mapId: Id, name: Name }),
+  'timeline:view': z.void(),
+  'act:create': z.object({ storylineId: Id, title: Name, startMin: Minute, endMin: Minute }),
+  'act:update': z.object({
+    id: Id, patch: z.object({ title: Name.optional(), summary: z.string().max(20000).optional(), startMin: Minute.optional(), endMin: Minute.optional() })
+  }),
+  'act:setStatus': z.object({ id: Id, status: RowStatus }),
+  'act:chooseOutcome': z.object({ actId: Id, outcomeId: Id.nullable() }),
+  'outcome:add': z.object({ actId: Id, label: Name }),
+  'outcome:update': z.object({
+    id: Id, patch: z.object({ label: Name.optional(), description: z.string().max(20000).optional(), isDefault: z.boolean().optional() })
+  }),
+  'outcome:setStatus': z.object({ id: Id, status: RowStatus }),
+  'trigger:add': z.object({ sourceActId: Id, outcomeId: Id, targetStorylineId: Id, effect: TriggerEffect, note: z.string().max(2000).optional() }),
+  'trigger:update': z.object({
+    id: Id, patch: z.object({ outcomeId: Id.optional(), targetStorylineId: Id.optional(), effect: TriggerEffect.optional(), note: z.string().max(2000).optional() })
+  }),
+  'trigger:setStatus': z.object({ id: Id, status: RowStatus }),
+  'timeline:whatIf': z.object({ actId: Id, outcomeId: Id }),
   'map:setStatus': z.object({ mapId: Id, status: RowStatus }),
   'entity:update': z.object({
     id: Id,
@@ -122,6 +146,18 @@ export interface IpcOutputs {
   'storyline:update': void
   'storyline:setRemoved': void
   'map:rename': void
+  'timeline:view': TimelineView
+  'act:create': string
+  'act:update': void
+  'act:setStatus': void
+  'act:chooseOutcome': void
+  'outcome:add': string
+  'outcome:update': void
+  'outcome:setStatus': void
+  'trigger:add': string
+  'trigger:update': void
+  'trigger:setStatus': void
+  'timeline:whatIf': WhatIfView
   'map:setStatus': void
   'entity:update': void
   'entity:setStatus': void

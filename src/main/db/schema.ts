@@ -109,6 +109,42 @@ export const map = sqliteTable('map', {
   status: text('status').notNull()
 })
 
+// Time and story (docs/DATA_MODEL.md). The DM's plan only: what the engine
+// projects from it (default outcomes, fired triggers) is computed, never stored.
+export const act = sqliteTable('act', {
+  id: text('id').primaryKey(),
+  storylineId: text('storyline_id').notNull(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull(),
+  startMin: integer('start_min').notNull(),
+  endMin: integer('end_min').notNull(),
+  chosenOutcomeId: text('chosen_outcome_id'),
+  status: text('status').notNull()
+})
+
+export const actOutcome = sqliteTable('act_outcome', {
+  id: text('id').primaryKey(),
+  actId: text('act_id').notNull(),
+  label: text('label').notNull(),
+  description: text('description').notNull(),
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull(),
+  sort: integer('sort').notNull(),
+  status: text('status').notNull()
+})
+
+// "trigger" is an SQL keyword, so the table is story_trigger.
+export const storyTrigger = sqliteTable('story_trigger', {
+  id: text('id').primaryKey(),
+  sourceActId: text('source_act_id').notNull(),
+  outcomeId: text('outcome_id').notNull(),
+  targetStorylineId: text('target_storyline_id').notNull(),
+  effectType: text('effect_type').notNull(), // shift_act | force_outcome | set_status
+  payload: text('payload', { mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+  note: text('note').notNull(),
+  createdAt: text('created_at').notNull(),
+  status: text('status').notNull()
+})
+
 export interface RowChange {
   table: TableName
   id: string
@@ -139,7 +175,10 @@ export const tracked = {
   ability: { table: ability, pk: ability.id },
   knowledge: { table: knowledge, pk: knowledge.id },
   relationship_known: { table: relationshipKnown, pk: relationshipKnown.id },
-  map: { table: map, pk: map.id }
+  map: { table: map, pk: map.id },
+  act: { table: act, pk: act.id },
+  act_outcome: { table: actOutcome, pk: actOutcome.id },
+  story_trigger: { table: storyTrigger, pk: storyTrigger.id }
 } as const
 export type TableName = keyof typeof tracked
 
@@ -151,3 +190,6 @@ export type BoardItemRow = typeof boardItem.$inferSelect
 export type CommandRow = typeof command.$inferSelect
 export type AbilityRow = typeof ability.$inferSelect
 export type MapRow = typeof map.$inferSelect
+export type ActRow = typeof act.$inferSelect
+export type OutcomeRow = typeof actOutcome.$inferSelect
+export type TriggerRow = typeof storyTrigger.$inferSelect

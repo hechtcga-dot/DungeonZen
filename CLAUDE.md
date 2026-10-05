@@ -126,10 +126,22 @@ attribution is shown in the Library). The live Open5e API was not reachable
 from the build environment; online search of other Open5e documents is not
 built.
 
+- Time engine (`src/main/engine`, pure, 14 unit tests): world state from
+  deltas (later wins, DM beats autonomous in the same minute, superseded and
+  what-if drafts excluded), timeline projection (acts resolve in end order:
+  DM choice, then a trigger's forced outcome, then the default if the storyline
+  runs on its own; player-active storylines wait), triggers fire once and only
+  reach forward, what-if diff. The engine only projects; nothing it decides is
+  saved until the DM chooses an outcome ("Approve: this happened").
+- Timeline screen: storyline lanes by day (full and new moons marked), act
+  blocks by state, ghost of the planned position when a trigger moved an act,
+  dotted trigger connectors with T1/T2 badges, NOW line, zoom, add acts
+  (button or double-click), act panel (title, summary, times, outcomes with
+  default, This happened, Preview what-if, triggers add/edit/remove).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, exports (Phase 4), DM Prep/Live/Player modes,
 packaging/installer.

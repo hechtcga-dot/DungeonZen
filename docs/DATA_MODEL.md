@@ -135,5 +135,12 @@ commands. `group_id` lets a session or an import undo as one step.
   `storyline.removed` (in History) were added in migration 4.
 - `entity.attributes.colour` (card colour override) and
   `entity.attributes.custom` (list of `{label, value}` the DM adds).
+- Timeline (migration 5): `act` (title, summary, start_min, end_min,
+  chosen_outcome_id, status), `act_outcome` (label, description, is_default,
+  sort, status), `story_trigger` (the doc's `trigger`; renamed because TRIGGER
+  is an SQL keyword) with effect_type and payload, note, created_at, status.
+  `act.number` and `trigger.fired_at_min` are computed by the engine, not
+  stored: the engine projects, the DM approves (rule 2). Outcome deltas are
+  not stored yet.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

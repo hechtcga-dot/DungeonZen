@@ -91,6 +91,9 @@ export interface HistoryView {
   removedNotes: Array<{ itemId: string; boardName: string; text: string }>
   removedStorylines: Array<{ storylineId: string; title: string }>
   removedMaps: Array<{ id: string; name: string }>
+  removedActs: Array<{ id: string; title: string; storylineTitle: string }>
+  removedOutcomes: Array<{ id: string; label: string; actTitle: string }>
+  removedTriggers: Array<{ id: string; label: string; actTitle: string }>
   log: LogEntryView[]
 }
 
@@ -212,4 +215,76 @@ export interface DeskView {
   dmNotes: string
   moonOffsetDays: number
   counts: { cards: number; strings: number; removed: number }
+}
+
+export type TriggerEffectView =
+  | { type: 'shift_act'; actId: string; minutes: number }
+  | { type: 'force_outcome'; actId: string; outcomeId: string }
+  | { type: 'set_status'; status: StorylineStatus }
+
+export interface OutcomeView {
+  id: string
+  actId: string
+  label: string
+  description: string
+  isDefault: boolean
+}
+
+export interface ActView {
+  id: string
+  storylineId: string
+  number: number
+  title: string
+  summary: string
+  /** The DM's planned times. */
+  plannedStartMin: number
+  plannedEndMin: number
+  /** Where the engine puts it after triggers (equal to planned if nothing moved it). */
+  startMin: number
+  endMin: number
+  shiftedBy: number
+  chosenOutcomeId: string | null
+  state: 'upcoming' | 'running' | 'resolved' | 'awaiting'
+  outcomeId: string | null
+  resolvedBy: 'dm' | 'default' | 'trigger' | null
+  forcedOutcomeId: string | null
+  defaultOutcomeId: string | null
+  outcomes: OutcomeView[]
+}
+
+export interface TriggerView {
+  id: string
+  /** T1, T2… in the order they were made. */
+  label: string
+  sourceActId: string
+  outcomeId: string
+  targetStorylineId: string
+  effect: TriggerEffectView
+  note: string
+  firedAtMin: number | null
+}
+
+export interface TimelineStoryline {
+  storylineId: string
+  boardId: string
+  title: string
+  status: StorylineStatus
+  /** Status after triggers (equal to status if nothing changed it). */
+  projectedStatus: StorylineStatus
+  isMajor: boolean
+  emblem: string | null
+}
+
+export interface TimelineView {
+  nowMin: number
+  moonOffsetDays: number
+  storylines: TimelineStoryline[]
+  acts: ActView[]
+  triggers: TriggerView[]
+}
+
+export interface WhatIfView {
+  actId: string
+  outcomeId: string
+  lines: string[]
 }
