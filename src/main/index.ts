@@ -12,7 +12,7 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#171a1f',
-    title: 'Chronosboard',
+    title: 'Dungeon Zen',
     show: false,
     autoHideMenuBar: true,
     webPreferences: {

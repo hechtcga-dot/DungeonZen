@@ -78,7 +78,7 @@ export type IpcInput<C extends IpcChannel> = z.input<(typeof ipcInputs)[C]>
 /** Errors cross IPC as plain data so the UI can show the message. */
 export type IpcResult<T> = { ok: true; value: T } | { ok: false; error: string }
 
-export interface ChronosApi {
+export interface DungeonZenApi {
   invoke<C extends IpcChannel>(channel: C, input: IpcInput<C>): Promise<IpcResult<IpcOutputs[C]>>
 }
 

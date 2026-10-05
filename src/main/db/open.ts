@@ -64,7 +64,7 @@ export function migrate(sqlite: Database.Database): void {
   const current = sqlite.pragma('user_version', { simple: true }) as number
   if (current > MIGRATIONS.length) {
     throw new Error(
-      `This campaign was saved by a newer version of Chronosboard (schema ${current}). Update the app to open it.`
+      `This campaign was saved by a newer version of Dungeon Zen (schema ${current}). Update the app to open it.`
     )
   }
   for (let i = current; i < MIGRATIONS.length; i++) {

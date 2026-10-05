@@ -1,4 +1,6 @@
-# Chronosboard
+# Dungeon Zen
+
+(Earlier planning documents call it Chronosboard; the name is Dungeon Zen, owner 2026-10-05.)
 
 Local-first Windows desktop app for D&D 5e Dungeon Masters. It combines a
 detective-board canvas, a multi-storyline temporal engine, a clickable map,

@@ -30,7 +30,7 @@ export function StartScreen() {
 
   return (
     <main className="start">
-      <h1 className="start-title">Chronosboard</h1>
+      <h1 className="start-title">Dungeon Zen</h1>
       <p className="muted">Campaign boards, storylines and time for Dungeon Masters. Everything stays on this computer.</p>
 
       <section className="start-panel" aria-labelledby="new-heading">

@@ -8,7 +8,7 @@ let dir: string
 let c: Campaign
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'chronos-'))
+  dir = mkdtempSync(join(tmpdir(), 'dungeonzen-'))
   c = Campaign.create(join(dir, 'Test campaign'), 'Test campaign')
 })
 afterEach(() => {

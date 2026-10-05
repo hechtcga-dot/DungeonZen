@@ -193,7 +193,7 @@ function BoardLayout() {
   return (
     <div className="board-screen">
       <header className="topbar">
-        <div className="brand">Chronosboard</div>
+        <div className="brand">Dungeon Zen</div>
         <button onClick={() => void closeCampaign()} title="Close this campaign and go back to the campaign list">
           {info?.name}
         </button>

@@ -72,7 +72,7 @@ PC card colours: `#23395b`, `#7a2230`, `#24553a`, `#4b2d6b`.
 ### 1. Board
 ```
 +---------------------------------------------------------------+
-| Chronosboard [Campaign] [DM Prep|Live|Player] [search] [undo] |
+| Dungeon Zen [Campaign] [DM Prep|Live|Player] [search] [undo] |
 | Back to desk  VIEW: [Global] [Storyline A] [Storyline B]      |
 |                     [New NPC] [Import NPC] [Map] [Images]     |
 +------+------------------------------------------+-------------+

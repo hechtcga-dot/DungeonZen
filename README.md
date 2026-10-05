@@ -1,4 +1,4 @@
-# Chronosboard
+# Dungeon Zen
 
 Local-first Windows desktop app for D&D 5e Dungeon Masters: a detective-board
 canvas, storylines over time, a clickable map, a live-session desk, and
