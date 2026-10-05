@@ -6,10 +6,12 @@ import type { CSSProperties } from 'react'
 
 type PropProps = { className?: string; style?: CSSProperties }
 
-export function Candle({ className, style }: PropProps) {
+/** A brass candlestick. Lit candles flicker and light the table at night (see TableLighting). */
+export function Candle({ className, style, lit = true }: PropProps & { lit?: boolean }) {
   return (
-    <div className={`prop candle ${className ?? ''}`} style={style} aria-hidden="true">
-      <div className="candle-glow" />
+    <div className={`prop candle ${lit ? 'is-lit' : 'is-out'} ${className ?? ''}`} style={style} aria-hidden="true">
+      {lit && <div className="candle-glow" />}
+      {lit && <div className="candle-light" />}
       <svg viewBox="0 0 80 150" width="80" height="150">
         <defs>
           <radialGradient id="flame" cx="50%" cy="70%" r="60%">
@@ -29,10 +31,11 @@ export function Candle({ className, style }: PropProps) {
             <stop offset="100%" stopColor="#7a5520" />
           </linearGradient>
         </defs>
-        <g className="flame">
+        {!lit && <path className="smoke" d="M40 44 C36 36 44 30 40 22 C37 16 43 12 41 6" fill="none" stroke="#d8d2c4" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />}
+        {lit && <g className="flame">
           <path d="M40 8 C50 26 52 36 46 46 C43 51 37 51 34 46 C28 36 31 24 40 8 Z" fill="url(#flame)" />
           <path d="M40 26 C44 34 44 40 41 44 C39 46 37 45 36 42 C35 37 37 32 40 26 Z" fill="#fffbe8" opacity="0.9" />
-        </g>
+        </g>}
         <line x1="40" y1="44" x2="40" y2="54" stroke="#2b1d10" strokeWidth="2" />
         <path d="M24 54 Q40 50 56 54 L56 118 L24 118 Z" fill="url(#wax)" />
         <path d="M30 54 Q31 66 28 74 Q26 80 29 84" fill="none" stroke="#efe2c2" strokeWidth="4" strokeLinecap="round" />

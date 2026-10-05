@@ -41,3 +41,24 @@ describe('image size', () => {
     expect(imageSize(Buffer.from('hello world, not an image at all'))).toBeNull()
   })
 })
+
+import { lightingAt } from '../src/shared/sky'
+
+describe('table lighting', () => {
+  it('is bright by day, dark at night, with candles only when dark', () => {
+    expect(lightingAt(12 * 60)).toEqual({ darkness: 0, twilight: 0, candlesLit: false })
+    expect(lightingAt(23 * 60)).toMatchObject({ darkness: 1, candlesLit: true })
+    expect(lightingAt(2 * 60).candlesLit).toBe(true)
+  })
+
+  it('darkens gradually at dusk and brightens at dawn', () => {
+    const d1 = lightingAt(17 * 60 + 30).darkness
+    const d2 = lightingAt(18 * 60 + 30).darkness
+    const d3 = lightingAt(19 * 60 + 30).darkness
+    expect(0 < d1 && d1 < d2 && d2 < d3 && d3 < 1).toBe(true)
+    expect(lightingAt(18 * 60).twilight).toBe(1)
+    expect(lightingAt(6 * 60).darkness).toBeCloseTo(0.5)
+    expect(lightingAt(7 * 60).darkness).toBe(0)
+    expect(lightingAt(36 * 60).darkness).toBe(0) // Day 2 noon
+  })
+})

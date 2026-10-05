@@ -2,18 +2,24 @@ import { useBoard } from '../store'
 import { DeskRail } from '../components/DeskRail'
 import { ArtDefs } from '../art/ArtDefs'
 import { MapView } from '../components/MapView'
-import { CompassRose } from '../art/props'
+import { Candle, CompassRose } from '../art/props'
+import { TableLighting, useLightingPref } from '../art/TableLighting'
+import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 
 export function MapScreen() {
   const { desk, info, act } = useBoard()
   const current = desk?.map ?? null
+  const minutes = info?.clockMin ?? 0
+  const [lighting] = useLightingPref()
   return (
     <div className="desk-screen">
+      <TableLighting minutes={minutes} />
       <ArtDefs />
       <DeskRail />
       <main className="desk map-screen" aria-label="Map">
         <header className="desk-head">
+          <Candle className="desk-candle" lit={!lighting || lightingAt(minutes).candlesLit} />
           <div className="desk-title">
             <span className="desk-eyebrow">{info ? formatClock(info.clockMin) : ''}</span>
             <h1>{current?.name ?? 'The map'}</h1>

@@ -157,7 +157,7 @@ select.ink-select.on-wood { background: var(--parchment); }
 .prop { position: absolute; pointer-events: none; filter: drop-shadow(3px 6px 6px rgba(0, 0, 0, 0.55)); }
 .leaf-a { top: -26px; right: 180px; transform: rotate(28deg); z-index: 2; }
 .leaf-b { bottom: 40px; left: -30px; transform: rotate(-40deg) scale(0.8); z-index: 2; }
-.mat-d20 { right: 340px; bottom: 230px; transform: rotate(14deg); z-index: 2; }
+.mat-d20 { right: 190px; bottom: 60px; transform: rotate(14deg); z-index: 2; }
 .mat-potion { right: -14px; top: 300px; transform: rotate(-8deg); z-index: 2; }
 .candle { position: relative; width: 80px; height: 150px; }
 .candle svg { position: relative; z-index: 1; }
@@ -305,3 +305,16 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
   .rail { flex-basis: 64px; }
   .rail-item span { font-size: 10px; }
 }
+
+/* ---- day and night lighting (TableLighting) ---- */
+.table-lighting { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+.table-lighting > div { position: absolute; inset: 0; transition: opacity 1.2s ease; }
+.light-shade { background: rgb(8, 12, 30); }
+.light-twilight { background: linear-gradient(180deg, rgba(255, 128, 60, 0.45), rgba(150, 70, 140, 0.25)); mix-blend-mode: soft-light; }
+.light-glow { mix-blend-mode: screen; }
+.candle-light { position: absolute; left: 50%; top: 30px; width: 2px; height: 2px; }
+.candle.is-out .smoke { animation: smoke 4s ease-in-out infinite; transform-origin: 40px 44px; }
+@keyframes smoke { 0%, 100% { opacity: 0.15; transform: translateY(0); } 50% { opacity: 0.5; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .candle.is-out .smoke { animation: none; } .table-lighting > div { transition: none; } }
+.candle.mat-candle { position: absolute; right: 70px; bottom: 40px; z-index: 2; }
+.light-toggle[aria-pressed='false'] { filter: saturate(0.5); }

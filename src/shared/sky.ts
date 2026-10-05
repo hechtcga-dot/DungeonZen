@@ -62,3 +62,34 @@ export function moonOn(totalMinutes: number, offsetDays = 0): MoonState {
   const nightsUntilFull = name === 'Full moon' && phase >= 0.5 ? 0 : Math.round(toFull)
   return { phase, name, illumination, nightsUntilFull }
 }
+
+export interface Lighting {
+  /** 0 = full daylight, 1 = deepest night. */
+  darkness: number
+  /** 0..1 strength of the warm dawn/dusk tint. */
+  twilight: number
+  /** Candles burn from dusk until after dawn. */
+  candlesLit: boolean
+}
+
+const smooth = (t: number) => {
+  const x = Math.min(1, Math.max(0, t))
+  return x * x * (3 - 2 * x)
+}
+
+/**
+ * Light on the table at a given time: fully lit 07:00–17:00, darkening
+ * 17:00–20:00, dark 20:00–05:00, brightening 05:00–07:00.
+ */
+export function lightingAt(totalMinutes: number): Lighting {
+  const m = ((totalMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+  const h = m / 60
+  let darkness: number
+  if (h >= 7 && h < 17) darkness = 0
+  else if (h >= 17 && h < 20) darkness = smooth((h - 17) / 3)
+  else if (h >= 5 && h < 7) darkness = 1 - smooth((h - 5) / 2)
+  else darkness = 1
+  // Warm tint strongest around sunset (18:00) and sunrise (06:00).
+  const twilight = Math.max(0, 1 - Math.abs(h - 18) / 1.5, 1 - Math.abs(h - 6) / 1.2)
+  return { darkness, twilight, candlesLit: darkness >= 0.3 }
+}

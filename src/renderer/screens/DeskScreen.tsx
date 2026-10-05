@@ -7,7 +7,8 @@ import { ClockDial, MoonDisc } from '../art/sky'
 import { MapView } from '../components/MapView'
 import { DeskRail } from '../components/DeskRail'
 import { ArtDefs } from '../art/ArtDefs'
-import { moonOn, skyAt } from '../../shared/sky'
+import { lightingAt, moonOn, skyAt } from '../../shared/sky'
+import { TableLighting, useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
 import type { DeskView } from '../../shared/types'
 
@@ -17,8 +18,10 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function DeskScreen() {
   const desk = useBoard((s) => s.desk)
+  const minutes = useBoard((s) => s.info?.clockMin ?? 0)
   return (
     <div className="desk-screen">
+      <TableLighting minutes={minutes} />
       <ArtDefs />
       <DeskRail />
       {desk ? <Desk desk={desk} /> : <p className="desk-loading">Laying out the desk…</p>}
@@ -32,6 +35,8 @@ function Desk({ desk }: { desk: DeskView }) {
   const sky = skyAt(minutes)
   const moon = moonOn(minutes, desk.moonOffsetDays)
   const [newStory, setNewStory] = useState<string | null>(null)
+  const [lighting, setLighting] = useLightingPref()
+  const candlesLit = !lighting || lightingAt(minutes).candlesLit
 
   const addStoryline = async () => {
     const title = newStory?.trim()
@@ -49,12 +54,16 @@ function Desk({ desk }: { desk: DeskView }) {
   return (
     <main className="desk" aria-label="DM desk">
       <header className="desk-head">
-        <Candle className="desk-candle" />
+        <Candle className="desk-candle" lit={candlesLit} />
         <div className="desk-title">
           <span className="desk-eyebrow">The campaign of</span>
           <h1>{info?.name}</h1>
         </div>
         <div className="desk-head-actions">
+          <button className="brass light-toggle" aria-pressed={lighting} onClick={() => setLighting(!lighting)}
+            title="Day and night lighting follows the campaign clock; candles burn at night">
+            {lighting ? 'Lighting: day and night' : 'Lighting: always bright'}
+          </button>
           <button className="brass" disabled={!view?.undo.undoLabel} onClick={() => void undo()}
             title={view?.undo.undoLabel ? `Undo: ${view.undo.undoLabel} (Ctrl+Z)` : 'Nothing to undo'}>Undo</button>
           <button className="brass" disabled={!view?.undo.redoLabel} onClick={() => void redo()}
@@ -121,6 +130,7 @@ function Desk({ desk }: { desk: DeskView }) {
         <Leaf className="leaf leaf-b" colour="#c9862e" />
         <D20 className="mat-d20" />
         <Potion className="mat-potion" />
+        <Candle className="mat-candle" lit={candlesLit} />
 
         <div className="mat-stories">
           <h2 className="mat-heading">Storylines</h2>
