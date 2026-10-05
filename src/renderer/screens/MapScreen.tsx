@@ -6,12 +6,15 @@ import { Candle, CompassRose } from '../art/props'
 import { TableLighting, useLightingPref } from '../art/TableLighting'
 import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
+import { useState } from 'react'
+import { MapDialog } from '../components/EditDialogs'
 
 export function MapScreen() {
   const { desk, info, act } = useBoard()
   const current = desk?.map ?? null
   const minutes = info?.clockMin ?? 0
   const [lighting] = useLightingPref()
+  const [editOpen, setEditOpen] = useState(false)
   return (
     <div className="desk-screen">
       <TableLighting minutes={minutes} />
@@ -34,7 +37,9 @@ export function MapScreen() {
                 </select>
               </>
             )}
+            {current && <button className="brass" onClick={() => setEditOpen(true)}>Rename or remove</button>}
             <button className="brass" onClick={() => void act('map:importDialog', undefined)}>Import map</button>
+            {current && <MapDialog open={editOpen} onClose={() => setEditOpen(false)} map={current} />}
           </div>
         </header>
         <div className="map-layout">

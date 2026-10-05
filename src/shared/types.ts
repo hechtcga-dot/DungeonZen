@@ -1,7 +1,7 @@
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, NoteContent, RowStatus,
-  RulesEdition
+  RulesEdition, StorylineStatus
 } from './schemas'
 
 export interface CampaignInfo {
@@ -49,10 +49,19 @@ export interface BoardItemView {
   content: NoteContent | null
 }
 
+export interface StorylineDetail {
+  title: string
+  status: StorylineStatus
+  isMajor: boolean
+  /** Desk tarot emblem key; null means one is chosen automatically. */
+  emblem: string | null
+}
+
 export interface BoardSummary {
   id: string
   name: string
   storylineId: string | null
+  storyline: StorylineDetail | null
 }
 
 export interface UndoState {
@@ -80,6 +89,8 @@ export interface HistoryView {
   removedEntities: EntityView[]
   removedStrings: Array<RelationshipView & { sourceName: string; targetName: string }>
   removedNotes: Array<{ itemId: string; boardName: string; text: string }>
+  removedStorylines: Array<{ storylineId: string; title: string }>
+  removedMaps: Array<{ id: string; name: string }>
   log: LogEntryView[]
 }
 
@@ -176,7 +187,9 @@ export interface DeskStoryline {
   boardId: string
   storylineId: string
   title: string
-  status: string
+  status: StorylineStatus
+  isMajor: boolean
+  emblem: string | null
   cardCount: number
 }
 
@@ -187,6 +200,8 @@ export interface DeskPartyMember {
   ac: string
   hp: string
   passivePerception: number | null
+  /** The DM's card colour, if set. */
+  colour: string | null
 }
 
 export interface DeskView {

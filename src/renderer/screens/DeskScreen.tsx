@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useBoard } from '../store'
 import { Candle, CompassRose, D20, Leaf, Potion, Quill } from '../art/props'
-import { PartyEmblem, roman, StoryEmblemArt, storyEmblemFor } from '../art/emblems'
+import { PartyEmblem, roman, StoryEmblemArt } from '../art/emblems'
+import { CampaignSettingsDialog, emblemOf, MapDialog, StorylineDialog, STORYLINE_STATUS_LABELS } from '../components/EditDialogs'
 import { TarotCard } from '../art/TarotCard'
 import { ClockDial, MoonDisc } from '../art/sky'
 import { MapView } from '../components/MapView'
@@ -12,9 +13,6 @@ import { TableLighting, useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
 import type { DeskView } from '../../shared/types'
 
-const STATUS_LABELS: Record<string, string> = {
-  inactive: 'Not started', autonomous: 'Running on its own', player_active: 'Players active', concluded: 'Concluded'
-}
 
 export function DeskScreen() {
   const desk = useBoard((s) => s.desk)
@@ -35,6 +33,9 @@ function Desk({ desk }: { desk: DeskView }) {
   const sky = skyAt(minutes)
   const moon = moonOn(minutes, desk.moonOffsetDays)
   const [newStory, setNewStory] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [editStory, setEditStory] = useState<DeskView['storylines'][number] | null>(null)
+  const [mapOpen, setMapOpen] = useState(false)
   const [lighting, setLighting] = useLightingPref()
   const candlesLit = !lighting || lightingAt(minutes).candlesLit
 
@@ -60,6 +61,7 @@ function Desk({ desk }: { desk: DeskView }) {
           <h1>{info?.name}</h1>
         </div>
         <div className="desk-head-actions">
+          <button className="brass" onClick={() => setSettingsOpen(true)}>Campaign settings</button>
           <button className="brass light-toggle" aria-pressed={lighting} onClick={() => setLighting(!lighting)}
             title="Day and night lighting follows the campaign clock; candles burn at night">
             {lighting ? 'Lighting: day and night' : 'Lighting: always bright'}
@@ -84,6 +86,7 @@ function Desk({ desk }: { desk: DeskView }) {
             <div className="row tight">
               <button className="ink-button" aria-label="Move the clock back one hour" onClick={() => void act('clock:shift', { minutes: -60 })}>−1 h</button>
               <button className="ink-button" aria-label="Move the clock forward one hour" onClick={() => void act('clock:shift', { minutes: 60 })}>+1 h</button>
+              <button className="ink-button" onClick={() => setSettingsOpen(true)} title="Set an exact day and time">Set…</button>
             </div>
           </div>
         </div>
@@ -136,17 +139,22 @@ function Desk({ desk }: { desk: DeskView }) {
           <h2 className="mat-heading">Storylines</h2>
           <div className="tarot-stack">
             {desk.storylines.map((s, i) => (
-              <TarotCard
-                key={s.boardId}
-                numeral={roman(i + 1)}
-                title={s.title}
-                subtitle={STATUS_LABELS[s.status] ?? s.status}
-                art={<StoryEmblemArt emblem={storyEmblemFor(s.storylineId)} />}
-                footer={`${s.cardCount} card${s.cardCount === 1 ? '' : 's'}`}
-                onClick={() => void showBoard(s.boardId)}
-                label={`Open storyline ${s.title} on the board`}
-                dimmed={s.status === 'concluded'}
-              />
+              <div key={s.boardId} className="tarot-slot">
+                <TarotCard
+                  numeral={roman(i + 1)}
+                  title={s.title}
+                  subtitle={`${s.isMajor ? 'Major · ' : ''}${STORYLINE_STATUS_LABELS[s.status]}`}
+                  art={<StoryEmblemArt emblem={emblemOf(s.storylineId, s.emblem)} />}
+                  footer={`${s.cardCount} card${s.cardCount === 1 ? '' : 's'}`}
+                  onClick={() => void showBoard(s.boardId)}
+                  label={`Open storyline ${s.title} on the board`}
+                  dimmed={s.status === 'concluded'}
+                />
+                <button className="tarot-edit" aria-label={`Edit storyline ${s.title}`} title="Edit storyline"
+                  onClick={() => setEditStory(s)}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
+                </button>
+              </div>
             ))}
             {newStory === null ? (
               <button className="tarot tarot-new" onClick={() => setNewStory('')}>
@@ -171,7 +179,12 @@ function Desk({ desk }: { desk: DeskView }) {
           <div className="parchment-sheet">
             {desk.map ? (
               <>
-                <div className="map-cartouche"><span>{desk.map.name}</span></div>
+                <div className="map-cartouche">
+                  <button className="cartouche-button" onClick={() => setMapOpen(true)} title="Rename or remove this map">
+                    {desk.map.name}
+                  </button>
+                </div>
+                <MapDialog open={mapOpen} onClose={() => setMapOpen(false)} map={desk.map} />
                 <MapView src={desk.map.url} alt={`Map of ${desk.map.name}`} className="desk-mapview" />
                 <div className="row tight wrap map-actions">
                   <button className="ink-button" onClick={() => goTo('map')}>Open the full map</button>
@@ -219,7 +232,7 @@ function Desk({ desk }: { desk: DeskView }) {
                 title={p.name}
                 subtitle={p.summary || 'Player character'}
                 art={<PartyEmblem index={i} />}
-                tint={['#23395b', '#7a2230', '#24553a', '#4b2d6b'][i % 4]}
+                tint={p.colour ?? ['#23395b', '#7a2230', '#24553a', '#4b2d6b'][i % 4]}
                 footer={(
                   <span className="pc-stats">
                     <span title="Armor class"><b>AC</b> {p.ac || '–'}</span>
@@ -238,6 +251,11 @@ function Desk({ desk }: { desk: DeskView }) {
           </div>
         </div>
       </section>
+      <CampaignSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {editStory && (
+        <StorylineDialog open onClose={() => setEditStory(null)} storylineId={editStory.storylineId}
+          detail={{ title: editStory.title, status: editStory.status, isMajor: editStory.isMajor, emblem: editStory.emblem }} />
+      )}
     </main>
   )
 }

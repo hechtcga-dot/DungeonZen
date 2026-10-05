@@ -9,8 +9,9 @@ import {
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
 import type {
-  AbilityKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, RowStatus, RulesEdition
+  AbilityKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, RowStatus, RulesEdition, StorylineStatus
 } from '../../shared/schemas'
+import { formatClock } from '../../shared/time'
 import { KNOWLEDGE_FIELDS } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
@@ -30,6 +31,8 @@ const DEFAULT_RULES_EDITION: RulesEdition = '2024'
 const DEFAULT_CLOCK_MIN = 9 * 60 // Day 1, 09:00
 
 export interface Position { x: number; y: number }
+
+export type SettingKey = 'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id'
 
 export interface NewAbility {
   name: string
@@ -100,11 +103,19 @@ export class Campaign {
 
   boards(): BoardSummary[] {
     const rows = this.db
-      .select({ id: board.id, name: board.name, storylineId: board.storylineId, title: storyline.title })
+      .select({ board, story: storyline })
       .from(board)
       .leftJoin(storyline, eq(board.storylineId, storyline.id))
       .all()
-    const summaries = rows.map((r) => ({ id: r.id, name: r.title ?? r.name, storylineId: r.storylineId }))
+      .filter((r) => !r.story?.removed)
+    const summaries = rows.map(({ board: b, story }) => ({
+      id: b.id,
+      name: story?.title ?? b.name,
+      storylineId: b.storylineId,
+      storyline: story
+        ? { title: story.title, status: story.status as StorylineStatus, isMajor: story.isMajor, emblem: story.emblem }
+        : null
+    }))
     // Global first, then storylines in creation order (rowid order).
     // Concluded storylines stay listed for now; the timeline phase decides otherwise.
     return summaries.sort((a, b) => Number(a.storylineId !== null) - Number(b.storylineId !== null))
@@ -130,7 +141,7 @@ export class Campaign {
       .filter((r) => visible.has(r.targetId))
     const boards = this.boards()
     return {
-      board: boards.find((s) => s.id === boardId) ?? { id: b.id, name: b.name, storylineId: b.storylineId },
+      board: boards.find((s) => s.id === boardId) ?? { id: b.id, name: b.name, storylineId: b.storylineId, storyline: null },
       boards,
       items: visibleItems.map(toItemView),
       entities: Object.fromEntries(entities.map((e) => [e.id, e])),
@@ -181,6 +192,9 @@ export class Campaign {
         boardName: n.title ?? n.boardName,
         text: n.item.content?.text ?? ''
       })),
+      removedStorylines: this.db.select().from(storyline).where(eq(storyline.removed, true)).all()
+        .map((r) => ({ storylineId: r.id, title: r.title })),
+      removedMaps: this.db.select().from(map).where(eq(map.status, 'defunct')).all().map((m) => ({ id: m.id, name: m.name })),
       log: this.log.recent().map((c) => ({ id: c.id, label: c.label, at: c.at, undone: c.state === 'undone' }))
     }
   }
@@ -324,10 +338,43 @@ export class Campaign {
     const storylineId = randomUUID()
     const boardId = randomUUID()
     this.log.run(`Added storyline ${title}`, (w) => {
-      w.insert('storyline', { id: storylineId, title, isMajor: false, status: 'inactive', bbegEntityId: null })
+      w.insert('storyline', {
+        id: storylineId, title, isMajor: false, status: 'inactive', bbegEntityId: null, emblem: null, removed: false
+      })
       w.insert('board', { id: boardId, name: title, storylineId })
     })
-    return { id: boardId, name: title, storylineId }
+    return {
+      id: boardId, name: title, storylineId,
+      storyline: { title, status: 'inactive', isMajor: false, emblem: null }
+    }
+  }
+
+  updateStoryline(
+    storylineId: string,
+    patch: { title?: string; status?: StorylineStatus; isMajor?: boolean; emblem?: string | null }
+  ): void {
+    const s = this.storylineRow(storylineId)
+    this.log.run(`Edited storyline ${patch.title ?? s.title}`, (w) => {
+      w.update('storyline', storylineId, patch)
+      if (patch.title !== undefined) {
+        const b = this.db.select().from(board).where(eq(board.storylineId, storylineId)).get()
+        if (b) w.update('board', b.id, { name: patch.title })
+      }
+    })
+  }
+
+  /** Moves a storyline (and its board view) to History, or brings it back. Its cards stay on the global board. */
+  setStorylineRemoved(storylineId: string, removed: boolean): void {
+    const s = this.storylineRow(storylineId)
+    this.log.run(removed ? `Moved storyline ${s.title} to History` : `Restored storyline ${s.title}`, (w) => {
+      w.update('storyline', storylineId, { removed })
+    })
+  }
+
+  private storylineRow(id: string) {
+    const row = this.db.select().from(storyline).where(eq(storyline.id, id)).get()
+    if (!row) throw new Error(`No storyline with id ${id}`)
+    return row
   }
 
   /** A free spot on the global board near its top-left area, for cards added from outside the board. */
@@ -474,11 +521,43 @@ export class Campaign {
   }
 
   /** Changes one campaign setting as an undoable step. */
-  setSetting(key: 'dm_notes' | 'clock_min' | 'moon_offset_days' | 'active_map_id' | 'name', value: unknown, label: string): void {
+  setSetting(key: SettingKey, value: unknown, label: string): void {
+    this.setSettings({ [key]: value }, label)
+  }
+
+  /** Changes several campaign settings as one undoable step. */
+  setSettings(values: Partial<Record<SettingKey, unknown>>, label: string): void {
     this.log.run(label, (w) => {
-      if (w.get('campaign_settings', key)) w.update('campaign_settings', key, { value })
-      else w.insert('campaign_settings', { key, value })
+      for (const [key, value] of Object.entries(values)) {
+        if (value === undefined) continue
+        if (w.get('campaign_settings', key)) w.update('campaign_settings', key, { value })
+        else w.insert('campaign_settings', { key, value })
+      }
     })
+  }
+
+  /** Sets the campaign clock to an exact minute (never before minute 0). */
+  setClock(minutes: number): void {
+    const next = Math.max(0, Math.round(minutes))
+    this.setSetting('clock_min', next, `Set the clock to ${formatClock(next)}`)
+  }
+
+  renameMap(mapId: string, name: string): void {
+    const m = this.mapRow(mapId)
+    this.log.run(`Renamed map ${m.name} to ${name}`, (w) => { w.update('map', mapId, { name }) })
+  }
+
+  setMapStatus(mapId: string, status: RowStatus): void {
+    const m = this.mapRow(mapId)
+    this.log.run(status === 'defunct' ? `Moved map ${m.name} to History` : `Restored map ${m.name}`, (w) => {
+      w.update('map', mapId, { status })
+    })
+  }
+
+  private mapRow(id: string): MapRow {
+    const row = this.db.select().from(map).where(eq(map.id, id)).get()
+    if (!row) throw new Error(`No map with id ${id}`)
+    return row
   }
 
   /** Moves the campaign clock by a number of minutes (never before minute 0). */
@@ -527,8 +606,12 @@ export class Campaign {
 
   desk(): DeskView {
     const storylines = this.db
-      .select({ boardId: board.id, storylineId: storyline.id, title: storyline.title, status: storyline.status })
+      .select({
+        boardId: board.id, storylineId: storyline.id, title: storyline.title, status: storyline.status,
+        isMajor: storyline.isMajor, emblem: storyline.emblem, removed: storyline.removed
+      })
       .from(board).innerJoin(storyline, eq(board.storylineId, storyline.id)).all()
+      .filter((s) => !s.removed)
     const cardCounts = new Map<string, number>()
     for (const item of this.db.select().from(boardItem).where(and(eq(boardItem.kind, 'card'), eq(boardItem.status, 'active'))).all()) {
       cardCounts.set(item.boardId, (cardCounts.get(item.boardId) ?? 0) + 1)
@@ -544,7 +627,8 @@ export class Campaign {
           summary: typeof e.attributes.summary === 'string' ? e.attributes.summary : '',
           ac: sb?.ac ? String(leadingNumber(sb.ac) ?? sb.ac) : '',
           hp: sb?.hp ? String(leadingNumber(sb.hp) ?? sb.hp) : '',
-          passivePerception: pp ? Number(pp[1]) : sb ? 10 + Math.floor((sb.wis - 10) / 2) : null
+          passivePerception: pp ? Number(pp[1]) : sb ? 10 + Math.floor((sb.wis - 10) / 2) : null,
+          colour: typeof e.attributes.colour === 'string' ? e.attributes.colour : null
         }
       })
     const maps = this.maps()
@@ -553,7 +637,9 @@ export class Campaign {
     const strings = this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
       .filter((r) => visible.has(r.sourceId) && visible.has(r.targetId)).length
     return {
-      storylines: storylines.map((s) => ({ ...s, cardCount: cardCounts.get(s.boardId) ?? 0 })),
+      storylines: storylines.map(({ removed: _removed, ...s }) => ({
+        ...s, status: s.status as StorylineStatus, cardCount: cardCounts.get(s.boardId) ?? 0
+      })),
       party,
       map: maps.find((m) => m.id === activeId) ?? maps[0] ?? null,
       maps,

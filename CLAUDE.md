@@ -40,6 +40,10 @@ better-sqlite3 ships prebuilt N-API binaries, so no native rebuild is needed.
    live.
 9. Party knowledge is shared across the whole party, tracked per field.
 10. AI suggestions must be visibly distinct from DM-authored content.
+11. The DM can change everything (owner, 2026-10-05). Every piece of data the
+    app stores or shows (names, numbers, times, pictures, colours, statuses,
+    SRD copies, generated text) must be editable in the app, undoable, and
+    removable to History. When adding a feature, add its edit path too.
 
 ## Process boundaries
 - Main process only: database, file system, AI calls, Open5e calls, key
@@ -108,7 +112,13 @@ Phase 1 so far:
   moon phase, party ledger, board counts, storyline tarot cards, the map on
   parchment (zoomable), DM notes journal, party tarot cards, decorative props.
 - Map screen: imported map, zoom and pan (wheel, drag, keys, buttons), map
-  picker. Maps are copied into `assets/maps` and served via `dz-asset://`.
+  picker, rename or remove. Maps are copied into `assets/maps` and served via `dz-asset://`.
+- Day and night lighting on desk-style screens (darkens 17:00 to 20:00,
+  brightens 05:00 to 07:00, candles lit only at night; on/off switch).
+- Editing: campaign settings (name, rules edition, exact time, full-moon day),
+  storylines (title, status, major, card picture, move to History), maps
+  (rename, remove), entities (card colour, your own fields, move to
+  History), History restores storylines and maps too.
 
 SRD content is bundled (`resources/srd/srd-2024.json`, built by
 `node scripts/build-srd.mjs` from the Open5e project's data, CC-BY-4.0, the
@@ -116,6 +126,7 @@ attribution is shown in the Library). The live Open5e API was not reachable
 from the build environment; online search of other Open5e documents is not
 built.
 
-Not yet: restyle Board, Sheet and Library in desk style; images on the board, PC sheet PDF
+Not yet: restyle Board, Sheet and Library in desk style (and give them the lighting);
+editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, exports (Phase 4), DM Prep/Live/Player modes,
 packaging/installer.

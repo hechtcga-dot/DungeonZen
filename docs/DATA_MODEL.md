@@ -131,5 +131,9 @@ commands. `group_id` lets a session or an import undo as one step.
 - `map` has `width`, `height` (read from the image header) and `status`;
   `image_path` is relative to `assets/`. Settings keys in use: name,
   rules_edition, clock_min, dm_notes, moon_offset_days, active_map_id.
+- `storyline.emblem` (desk card picture, null = automatic) and
+  `storyline.removed` (in History) were added in migration 4.
+- `entity.attributes.colour` (card colour override) and
+  `entity.attributes.custom` (list of `{label, value}` the DM adds).
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

@@ -36,7 +36,9 @@ export const storyline = sqliteTable('storyline', {
   title: text('title').notNull(),
   isMajor: integer('is_major', { mode: 'boolean' }).notNull(),
   status: text('status').notNull(),
-  bbegEntityId: text('bbeg_entity_id')
+  bbegEntityId: text('bbeg_entity_id'),
+  emblem: text('emblem'), // tarot emblem on the desk; null = chosen from the id
+  removed: integer('removed', { mode: 'boolean' }).notNull().default(false) // in History
 })
 
 // Composite key in the doc; a surrogate id keeps undo generic.

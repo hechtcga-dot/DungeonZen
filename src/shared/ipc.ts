@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
-  AbilityKind, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, RelationshipType, RowStatus, Tags
+  AbilityKind, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, RelationshipType, RowStatus, RulesEdition,
+  StorylineStatus, Tags
 } from './schemas'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
@@ -51,6 +52,21 @@ export const ipcInputs = {
   'map:setActive': z.object({ mapId: Id }),
   'notes:set': z.object({ text: z.string().max(100000) }),
   'clock:shift': z.object({ minutes: z.number().int().min(-525600).max(525600) }),
+  'clock:set': z.object({ minutes: z.number().int().min(0).max(1_000_000_000) }),
+  'campaign:update': z.object({
+    name: Name.optional(), rulesEdition: RulesEdition.optional(),
+    moonOffsetDays: z.number().finite().min(-10000).max(10000).optional()
+  }),
+  'storyline:update': z.object({
+    storylineId: Id,
+    patch: z.object({
+      title: Name.optional(), status: StorylineStatus.optional(), isMajor: z.boolean().optional(),
+      emblem: z.string().max(40).nullable().optional()
+    })
+  }),
+  'storyline:setRemoved': z.object({ storylineId: Id, removed: z.boolean() }),
+  'map:rename': z.object({ mapId: Id, name: Name }),
+  'map:setStatus': z.object({ mapId: Id, status: RowStatus }),
   'entity:update': z.object({
     id: Id,
     patch: z.object({
@@ -101,6 +117,12 @@ export interface IpcOutputs {
   'map:setActive': void
   'notes:set': void
   'clock:shift': number
+  'clock:set': void
+  'campaign:update': void
+  'storyline:update': void
+  'storyline:setRemoved': void
+  'map:rename': void
+  'map:setStatus': void
   'entity:update': void
   'entity:setStatus': void
   'entity:addToStoryline': void

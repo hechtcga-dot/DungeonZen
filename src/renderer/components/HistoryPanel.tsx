@@ -16,7 +16,8 @@ export function HistoryPanel() {
   const act = useBoard((s) => s.act)
   const say = useBoard((s) => s.say)
   if (!history) return <p className="muted">Loading…</p>
-  const removedCount = history.removedEntities.length + history.removedStrings.length + history.removedNotes.length
+  const removedCount = history.removedEntities.length + history.removedStrings.length + history.removedNotes.length +
+    history.removedStorylines.length + history.removedMaps.length
 
   return (
     <div className="history">
@@ -46,6 +47,18 @@ export function HistoryPanel() {
                 <span className="muted">Note · {n.boardName}</span>
               </div>
               <button onClick={() => void act('note:setStatus', { itemId: n.itemId, status: 'active' })}>Restore</button>
+            </li>
+          ))}
+          {history.removedStorylines.map((st) => (
+            <li key={st.storylineId}>
+              <div className="removed-text"><strong>{st.title}</strong><span className="muted">Storyline</span></div>
+              <button onClick={() => void act('storyline:setRemoved', { storylineId: st.storylineId, removed: false })}>Restore</button>
+            </li>
+          ))}
+          {history.removedMaps.map((m) => (
+            <li key={m.id}>
+              <div className="removed-text"><strong>{m.name}</strong><span className="muted">Map</span></div>
+              <button onClick={() => void act('map:setStatus', { mapId: m.id, status: 'active' })}>Restore</button>
             </li>
           ))}
         </ul>

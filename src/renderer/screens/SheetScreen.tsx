@@ -34,6 +34,7 @@ export function SheetScreen() {
 function Sheet({ sheet }: { sheet: SheetView }) {
   const { act, goTo, showOnBoard, openSheet } = useBoard()
   const [tab, setTab] = useState<Tab>('sheet')
+  const [colourDraft, setColourDraft] = useState('')
   const e = sheet.entity
   const update = (patch: IpcInput<'entity:update'>['patch']) => void act('entity:update', { id: e.id, patch })
   const str = (key: string) => (typeof e.attributes[key] === 'string' ? (e.attributes[key] as string) : '')
@@ -45,8 +46,9 @@ function Sheet({ sheet }: { sheet: SheetView }) {
       <div className="page-head">
         <button className="link" onClick={() => goTo('board')}>Back to board</button>
         <div className="page-title">
-          <span className="badge" style={{ background: ENTITY_COLOURS[e.type] }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
+          <span className="badge" style={{ background: colourOf(e) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
           <h1>{e.name}</h1>
+          {e.status === 'defunct' && <span className="source-tag">In History</span>}
           {e.status === 'resolved' && <span className="muted">Resolved</span>}
           {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
         </div>
@@ -55,6 +57,9 @@ function Sheet({ sheet }: { sheet: SheetView }) {
           const copy = await act('entity:duplicate', { id: e.id })
           if (copy) await openSheet(copy.id)
         }}>Duplicate</button>
+        <button className="danger" onClick={async () => {
+          await act('entity:setStatus', { id: e.id, status: e.status === 'defunct' ? 'active' : 'defunct' })
+        }}>{e.status === 'defunct' ? 'Revive' : 'Move to History'}</button>
       </div>
 
       <nav className="tabs" role="tablist" aria-label="Sheet sections">
@@ -105,7 +110,22 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                   onCommit={(motivation) => update({ attributes: { motivation } })} />
                 <CommitField id={`${p}-tags`} label="Tags" value={e.tags.join(', ')} hint="Separate tags with commas."
                   onCommit={(t) => update({ tags: [...new Set(t.split(',').map((x) => x.trim()).filter(Boolean))] })} />
+                <div className="field">
+                  <label htmlFor={`${p}-colour`}>Card colour</label>
+                  <div className="row tight">
+                    <input id={`${p}-colour`} type="color" className="colour-input" value={colourOf(e)}
+                      onChange={(ev) => setColourDraft(ev.target.value)}
+                      onBlur={() => { if (colourDraft && colourDraft !== colourOf(e)) update({ attributes: { colour: colourDraft } }) }} />
+                    {typeof e.attributes.colour === 'string' && (
+                      <button type="button" onClick={() => { setColourDraft(''); update({ attributes: { colour: null } }) }}>
+                        Use the {ENTITY_LABELS[e.type]} colour
+                      </button>
+                    )}
+                  </div>
+                  <div className="hint">Shown on the board card and its badge.</div>
+                </div>
               </section>
+              <CustomFields sheet={sheet} />
               <PartyKnows sheet={sheet} />
             </div>
           </>
@@ -127,6 +147,41 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         {tab === 'connections' && <Connections sheet={sheet} />}
       </div>
     </>
+  )
+}
+
+/** The card colour: the DM's choice, or the colour for its type. */
+function colourOf(e: SheetView['entity']): string {
+  return typeof e.attributes.colour === 'string' ? e.attributes.colour : ENTITY_COLOURS[e.type]
+}
+
+type CustomField = { label: string; value: string }
+
+/** Any extra fields the DM wants on this card, label and value. */
+function CustomFields({ sheet }: { sheet: SheetView }) {
+  const act = useBoard((s) => s.act)
+  const e = sheet.entity
+  const fields: CustomField[] = Array.isArray(e.attributes.custom)
+    ? (e.attributes.custom as unknown[]).filter((f): f is CustomField =>
+      !!f && typeof (f as CustomField).label === 'string' && typeof (f as CustomField).value === 'string')
+    : []
+  const save = (next: CustomField[]) => void act('entity:update', { id: e.id, patch: { attributes: { custom: next } } })
+  return (
+    <section className="panel">
+      <h2 className="panel-heading">Your own fields</h2>
+      {fields.length === 0 && <p className="hint">Add anything this card needs: a secret, a price, a favourite drink, a debt owed.</p>}
+      {fields.map((f, i) => (
+        <div key={i} className="custom-field">
+          <CommitField id={`custom-${e.id}-${i}-label`} label="Field" value={f.label} required
+            onCommit={(label) => save(fields.map((x, j) => (j === i ? { ...x, label } : x)))} />
+          <CommitField id={`custom-${e.id}-${i}-value`} label="Value" value={f.value}
+            onCommit={(value) => save(fields.map((x, j) => (j === i ? { ...x, value } : x)))} />
+          <button className="danger align-end" aria-label={`Remove field ${f.label}`}
+            onClick={() => save(fields.filter((_, j) => j !== i))}>Remove</button>
+        </div>
+      ))}
+      <button className="align-start" onClick={() => save([...fields, { label: 'New field', value: '' }])}>Add a field</button>
+    </section>
   )
 }
 

@@ -12,6 +12,7 @@ import { HistoryPanel } from '../components/HistoryPanel'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { freeSpot } from '../../shared/layout'
 import { TopBar, isTyping } from '../components/TopBar'
+import { StorylineDialog } from '../components/EditDialogs'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { EntityView } from '../../shared/types'
 
@@ -42,6 +43,7 @@ function BoardLayout() {
   const [edges, setEdges] = useState<StringEdgeType[]>([])
   const [cardMenu, setCardMenu] = useState(false)
   const [newStoryline, setNewStoryline] = useState<string | null>(null)
+  const [editStory, setEditStory] = useState(false)
 
   const q = search.trim().toLowerCase()
 
@@ -221,8 +223,14 @@ function BoardLayout() {
             <button type="button" onClick={() => setNewStoryline(null)}>Cancel</button>
           </form>
         )}
+        {view.board.storylineId && view.board.storyline && (
+          <button className="ghost" onClick={() => setEditStory(true)}>Edit storyline</button>
+        )}
         <span className="spacer" />
         <button className="outline" onClick={() => void addCard('NPC')}>New NPC</button>
+        {editStory && view.board.storylineId && view.board.storyline && (
+          <StorylineDialog open onClose={() => setEditStory(false)} storylineId={view.board.storylineId} detail={view.board.storyline} />
+        )}
       </nav>
 
       <div className="workspace">

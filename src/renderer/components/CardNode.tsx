@@ -20,7 +20,7 @@ function CardNodeImpl({ data, selected }: NodeProps<CardNodeType>) {
       {/* The pin: drag from one pin to another to tie a string. */}
       <Handle type="source" position={Position.Top} id="pin" className="pin" title="Drag to another card's pin to tie a string" />
       <div className="card-head">
-        <span className="badge" style={{ background: resolved ? '#3d434b' : ENTITY_COLOURS[entity.type] }}>
+        <span className="badge" style={{ background: resolved ? '#3d434b' : typeof entity.attributes.colour === 'string' ? entity.attributes.colour : ENTITY_COLOURS[entity.type] }}>
           {ENTITY_LABELS[entity.type].toUpperCase()}
         </span>
         {resolved && <span className="card-state">Resolved</span>}

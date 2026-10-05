@@ -183,8 +183,21 @@ select.ink-select.on-wood { background: var(--parchment); }
   box-shadow: inset 0 0 0 4px var(--parchment-light), inset 0 0 0 5px #a8884f, 0 6px 14px rgba(0, 0, 0, 0.6);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.tarot:nth-child(odd) { transform: rotate(-1.2deg); }
-.tarot:nth-child(even) { transform: rotate(1deg); }
+.tarot-slot { position: relative; display: flex; flex-direction: column; }
+.tarot-slot > .tarot { flex: 1; }
+.tarot-slot:nth-child(odd) > .tarot, .party-row > .tarot:nth-child(odd) { transform: rotate(-1.2deg); }
+.tarot-slot:nth-child(even) > .tarot, .party-row > .tarot:nth-child(even) { transform: rotate(1deg); }
+.tarot-edit {
+  position: absolute; top: -10px; right: -10px; z-index: 3; min-width: 40px; min-height: 40px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; color: #fbe9d0; background: radial-gradient(circle at 40% 35%, #b5392d, #8f2a21 60%, #5e1812);
+  border: 2px solid #4a120d; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.tarot-edit:hover:not(:disabled) { background: radial-gradient(circle at 40% 35%, #c9473a, #9c3026 60%, #5e1812); border-color: #4a120d; }
+.cartouche-button {
+  font-family: var(--display); font-size: 24px; padding: 2px 26px; min-height: 44px; color: var(--ink); border-radius: 0;
+  border: 0; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); background: rgba(255, 248, 228, 0.5);
+}
+.cartouche-button:hover:not(:disabled) { background: rgba(255, 252, 240, 0.85); border-color: var(--ink); }
 button.tarot:hover:not(:disabled) {
   transform: translateY(-4px) rotate(0deg); background-color: #fff6dc; border-color: #3b2a14;
   box-shadow: inset 0 0 0 4px #fff6dc, inset 0 0 0 5px #a8884f, 0 12px 22px rgba(0, 0, 0, 0.65);
