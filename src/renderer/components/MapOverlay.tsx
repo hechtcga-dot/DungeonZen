@@ -35,6 +35,9 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
   const sorted = [...view.regions].sort((a, b) => area(b) - area(a)) // big regions first, sub-regions on top
   return (
     <>
+      {view.map.gridCols && view.map.width && view.map.height && (
+        <GridLines cols={view.map.gridCols} width={view.map.width} height={view.map.height} scale={ctx.scale} />
+      )}
       {sorted.map((r) => {
         const selected = r.id === selectedRegionId
         const party = view.party?.locationId === r.locationId
@@ -67,6 +70,20 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
       )}
       {!hideParty && view.party && <PartyToken x={view.party.x} y={view.party.y} scale={ctx.scale} />}
     </>
+  )
+}
+
+/** A square grid (5 ft squares) drawn by the app over a battle map, so it always lines up. */
+export function GridLines({ cols, width, height, scale }: { cols: number; width: number; height: number; scale: number }) {
+  const cell = width / cols
+  const rows = Math.ceil(height / cell - 0.01)
+  const d: string[] = []
+  for (let i = 1; i < cols; i++) d.push(`M${i * cell} 0V${height}`)
+  for (let j = 1; j < rows; j++) d.push(`M0 ${j * cell}H${width}`)
+  return (
+    <g className="grid-lines" pointerEvents="none">
+      <path d={d.join('')} stroke="#120c05" strokeOpacity="0.45" strokeWidth={Math.max(1 / scale, cell * 0.012)} fill="none" />
+    </g>
   )
 }
 

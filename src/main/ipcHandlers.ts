@@ -4,7 +4,7 @@ import { dialog, ipcMain, net, protocol, safeStorage, type BrowserWindow } from 
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
-import { checkConnection, generateText, listModels, resolve } from './ai/client'
+import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { AI_PROVIDERS, providerById, type AiChoice } from '../shared/aiProviders'
 import { searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
@@ -194,6 +194,38 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return listModels(r)
   })
   handle('ai:test', async ({ provider, model, baseUrl }) => checkConnection(resolve(choiceFor(provider, { model, baseUrl }), keys.get(provider))))
+  // ---- battle maps
+  handle('style:list', () => current().styleExamples())
+  handle('style:addDialog', async () => {
+    const win = getWindow()
+    const options = {
+      title: 'Choose example maps for the battle map style',
+      buttonLabel: 'Add examples',
+      properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths.map((f) => current().addStyleExample(f))
+  })
+  handle('style:rename', ({ id, name }) => current().renameStyleExample(id, name))
+  handle('style:setStatus', ({ id, status }) => current().setStyleExampleStatus(id, status))
+  handle('battlemap:context', () => {
+    const s = current().sceneContext()
+    const description = s.current.trim() || (s.place ? [s.place.name, s.place.notes].filter(Boolean).join(': ') : '')
+    return { description, placeName: s.place?.name ?? null, light: s.light === 'daylight' ? 'daylight' : s.light === 'night' ? 'night, lit by torches or moonlight' : s.light }
+  })
+  handle('battlemap:draw', async ({ prompt, styleIds, aspect }) => {
+    const choice = profile.aiChoice('image')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const references = r.info.references ? c.styleImages(styleIds) : []
+    const image = await generateImage(r, { prompt, references, aspect })
+    return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+  handle('battlemap:keep', (input) => current().keepBattleMap(input))
+  handle('battlemap:discard', ({ pendingId }) => current().discardPending(pendingId))
+  handle('map:setGrid', ({ mapId, cols }) => current().setMapGrid(mapId, cols))
   handle('ai:sceneText', async ({ ask }) => {
     const choice = profile.aiChoice('text')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)

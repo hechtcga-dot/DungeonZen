@@ -11,12 +11,13 @@ import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { centroid, regionAt, type Point } from '../../shared/geometry'
+import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
 
 type Mode = 'view' | 'draw' | 'edit'
 
 export function MapScreen() {
-  const { desk, info, act, mapScreen } = useBoard()
+  const { desk, info, act, mapScreen, setBattleMapOpen } = useBoard()
   const current = desk?.map ?? null
   const minutes = info?.clockMin ?? 0
   const [lighting] = useLightingPref()
@@ -39,7 +40,12 @@ export function MapScreen() {
                 <label htmlFor="map-pick" className="visually-hidden">Show map</label>
                 <select id="map-pick" className="ink-select on-wood" value={current.id}
                   onChange={(e) => void act('map:setActive', { mapId: e.target.value })}>
-                  {desk.maps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  {desk.maps.some((m) => m.kind === 'world') && (
+                    <optgroup label="Maps">{desk.maps.filter((m) => m.kind === 'world').map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</optgroup>
+                  )}
+                  {desk.maps.some((m) => m.kind === 'battle') && (
+                    <optgroup label="Battle maps">{desk.maps.filter((m) => m.kind === 'battle').map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</optgroup>
+                  )}
                 </select>
               </>
             )}
@@ -48,10 +54,11 @@ export function MapScreen() {
                 <button className="brass" aria-pressed={mode === 'draw'} onClick={() => setMode(mode === 'draw' ? 'view' : 'draw')}>
                   {mode === 'draw' ? 'Stop drawing' : 'Draw region'}
                 </button>
-                <button className="brass" onClick={() => setScaleOpen(true)}>Map scale</button>
+                <button className="brass" onClick={() => setScaleOpen(true)}>Scale and grid</button>
                 <button className="brass" onClick={() => setEditOpen(true)}>Rename or remove</button>
               </>
             )}
+            <button className="brass" onClick={() => setBattleMapOpen(true)}>Draw a battle map</button>
             <button className="brass" onClick={() => void act('map:importDialog', undefined)}>Import map</button>
             {current && <MapDialog open={editOpen} onClose={() => setEditOpen(false)} map={current} />}
             {view && scaleOpen && <ScaleDialog view={view} onClose={() => setScaleOpen(false)} />}
@@ -193,11 +200,21 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         {pending && (
           <ConfirmTravel view={view} pending={pending} onDone={() => setPending(null)} />
         )}
-        <p className="ink-muted map-foot">
-          {view.party ? <>Party location: <strong>{view.party.locationName ?? 'between places'}</strong> since {formatClock(view.party.atMin)}. Drag the banner to move them.</>
-            : 'The party is not on this map yet.'}
-          {!view.map.widthMiles && ' Set the map scale to get travel time estimates.'}
-        </p>
+        {view.map.kind === 'battle' ? (
+          <div className="ink-muted map-foot">
+            Battle map{view.map.gridCols && view.map.gridRows ? `: ${view.map.gridCols} × ${view.map.gridRows} squares (${view.map.gridCols * 5} × ${view.map.gridRows * 5} ft)` : ''}.
+            {view.map.source && <> <span className="ai-badge">Drawn by AI · {view.map.source}</span></>}
+            {view.map.prompt && (
+              <details className="map-prompt"><summary>What the AI was asked</summary><p>{view.map.prompt}</p></details>
+            )}
+          </div>
+        ) : (
+          <p className="ink-muted map-foot">
+            {view.party ? <>Party location: <strong>{view.party.locationName ?? 'between places'}</strong> since {formatClock(view.party.atMin)}. Drag the banner to move them.</>
+              : 'The party is not on this map yet.'}
+            {!view.map.widthMiles && ' Set the map scale to get travel time estimates.'}
+          </p>
+        )}
       </div>
       <aside className="parchment-note map-side">
         {region && detail ? (
@@ -391,16 +408,25 @@ function ScaleDialog({ view, onClose }: { view: MapScreenView; onClose(): void }
   const act = useBoard((s) => s.act)
   const [miles, setMiles] = useState(view.map.widthMiles != null ? String(view.map.widthMiles) : '')
   const [mph, setMph] = useState(String(view.map.travelMph))
+  const [cols, setCols] = useState(view.map.gridCols != null ? String(view.map.gridCols) : '')
   const m = miles.trim() === '' ? null : Number(miles)
-  const valid = (m === null || (Number.isFinite(m) && m > 0)) && Number(mph) > 0
+  const g = cols.trim() === '' ? null : Number(cols)
+  const gridOk = g === null || (Number.isInteger(g) && g >= GRID_MIN && g <= GRID_MAX)
+  const valid = (m === null || (Number.isFinite(m) && m > 0)) && Number(mph) > 0 && gridOk
   return (
-    <Dialog title="Map scale" open onClose={onClose}>
+    <Dialog title="Map scale and grid" open onClose={onClose}>
       <form className="dz-form" onSubmit={async (e) => {
         e.preventDefault()
         if (!valid) return
-        await act('map:setScale', { mapId: view.map.id, widthMiles: m, travelMph: Number(mph) })
+        if (m !== view.map.widthMiles || Number(mph) !== view.map.travelMph) await act('map:setScale', { mapId: view.map.id, widthMiles: m, travelMph: Number(mph) })
+        if (g !== view.map.gridCols) await act('map:setGrid', { mapId: view.map.id, cols: g })
         onClose()
       }}>
+        <div className="field">
+          <label htmlFor="sc-grid">Grid: how many squares across (5 feet each)?</label>
+          <input id="sc-grid" className="short" inputMode="numeric" value={cols} onChange={(e) => setCols(e.target.value)} />
+          <div className="hint">For battle maps. {GRID_MIN} to {GRID_MAX}; leave empty for no grid. The app draws the lines, so they always line up.</div>
+        </div>
         <div className="field">
           <label htmlFor="sc-miles">How many miles is the map across (left to right)?</label>
           <input id="sc-miles" className="short" inputMode="decimal" value={miles} onChange={(e) => setMiles(e.target.value)} />

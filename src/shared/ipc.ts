@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { GRID_MAX, GRID_MIN } from './battlemap'
 import {
   AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags
@@ -6,7 +7,8 @@ import {
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
-  GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion
+  GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
+  StyleExampleView, PendingImageView, BattleMapContext
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -114,6 +116,21 @@ export const ipcInputs = {
   'ai:models': z.object({ provider: z.string().max(60), baseUrl: z.string().trim().max(500).optional() }),
   'ai:test': z.object({ provider: z.string().max(60), model: z.string().trim().max(200), baseUrl: z.string().trim().max(500) }),
   'ai:sceneText': z.object({ ask: z.string().max(2000) }),
+  'style:list': z.void(),
+  'style:addDialog': z.void(),
+  'style:rename': z.object({ id: Id, name: Name }),
+  'style:setStatus': z.object({ id: Id, status: RowStatus }),
+  'battlemap:context': z.void(),
+  'battlemap:draw': z.object({
+    prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(4),
+    aspect: z.enum(['1:1', '3:2', '2:3', '16:9', '9:16'])
+  }),
+  'battlemap:keep': z.object({
+    pendingId: z.string().max(80), name: Name, cols: z.number().int().min(GRID_MIN).max(GRID_MAX),
+    prompt: z.string().max(4000), source: z.string().max(300)
+  }),
+  'battlemap:discard': z.object({ pendingId: z.string().max(80) }),
+  'map:setGrid': z.object({ mapId: Id, cols: z.number().int().min(GRID_MIN).max(GRID_MAX).nullable() }),
   'region:detail': z.object({ regionId: Id }),
   'region:create': z.object({
     mapId: Id, polygon: Polygon, locationId: Id.optional(), newName: Name.optional(), parentLocationId: Id.nullable().optional()
@@ -235,6 +252,15 @@ export interface IpcOutputs {
   'ai:models': string[]
   'ai:test': string
   'ai:sceneText': AiSuggestion
+  'style:list': StyleExampleView[]
+  'style:addDialog': StyleExampleView[] | null
+  'style:rename': void
+  'style:setStatus': void
+  'battlemap:context': BattleMapContext
+  'battlemap:draw': PendingImageView & { source: string }
+  'battlemap:keep': MapView
+  'battlemap:discard': void
+  'map:setGrid': void
   'region:detail': RegionDetail
   'region:create': string
   'region:update': void

@@ -165,5 +165,11 @@ commands. `group_id` lets a session or an import undo as one step.
   the way back until one is saved for that direction. Sub-regions use
   `entity.parent_id` of their location card. The doc's `route` table is not
   built: the route shown is the party's moves in the current or last session.
+- Battle maps (migration 9): `map.kind` (world | battle), `map.grid_cols`
+  (squares across; rows follow from the image shape), `map.source` (null for
+  the DM's own image, else which AI drew it) and `map.prompt` (what it was
+  asked). `style_example` (name, image_path under `assets/styles`, status): the
+  DM's example maps for the battle map style. Drawn images wait in
+  `assets/pending` and are not campaign data until kept.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

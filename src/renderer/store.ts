@@ -35,6 +35,9 @@ interface BoardState {
   /** Settings › AI services is open. */
   aiSettingsOpen: boolean
   setAiSettingsOpen(open: boolean): void
+  /** The battle map dialog is open. */
+  battleMapOpen: boolean
+  setBattleMapOpen(open: boolean): void
 
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
@@ -69,6 +72,8 @@ export const useBoard = create<BoardState>((set, get) => ({
   mapScreen: null,
   aiSettingsOpen: false,
   setAiSettingsOpen(open) { set({ aiSettingsOpen: open }) },
+  battleMapOpen: false,
+  setBattleMapOpen(open) { set({ battleMapOpen: open }) },
   reviewSessionId: null,
   sheetId: null,
   focusEntityId: null,

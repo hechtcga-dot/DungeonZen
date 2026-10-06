@@ -509,3 +509,28 @@ button.otf-card:hover:not(:disabled) { background-color: #fff6dc; border-color: 
 }
 .ai-badge { align-self: flex-start; padding: 2px 8px; border-radius: 3px; background: #3b4f8a; color: #eef2ff; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
 .ai-suggestion-text { margin: 0; white-space: pre-wrap; font-family: var(--display); font-size: 16px; line-height: 1.45; }
+
+/* ---- battle maps ---- */
+.battle-form { max-width: 980px; }
+.battle-cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; }
+.battle-cols textarea { width: 100%; }
+.field-label { font-size: 13px; font-weight: 500; }
+.style-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.style-list li { display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 1px solid rgba(42, 31, 18, 0.25); border-radius: 3px; background: rgba(255, 250, 236, 0.5); }
+.style-list li.is-picked { border: 2px solid #3b4f8a; padding: 5px; }
+.style-thumb { position: relative; display: block; cursor: pointer; }
+.style-thumb img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 2px; }
+.style-thumb input { position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; accent-color: #3b4f8a; }
+.style-name > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.style-name input { font-size: 13px; min-height: 30px; padding: 2px 6px; }
+.battle-prompt summary { cursor: pointer; font-size: 14px; }
+.battle-prompt textarea { width: 100%; margin-top: 6px; font-size: 13px; }
+.battle-preview { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+.battle-preview-frame { position: relative; align-self: center; line-height: 0; border: 3px solid #2a1f12; box-shadow: 0 6px 16px rgba(20, 12, 4, 0.4); }
+.battle-preview-frame img { display: block; max-width: 100%; max-height: 58vh; }
+.battle-preview-frame svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.map-foot .ai-badge { margin-left: 6px; }
+.map-prompt { margin-top: 6px; }
+.map-prompt summary { cursor: pointer; }
+.map-prompt p { margin: 4px 0 0; white-space: pre-wrap; font-size: 12px; }
+@media (max-width: 900px) { .battle-cols { grid-template-columns: minmax(0, 1fr); } }

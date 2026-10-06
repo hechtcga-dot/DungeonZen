@@ -96,6 +96,7 @@ export interface HistoryView {
   removedOutcomes: Array<{ id: string; label: string; actTitle: string }>
   removedTriggers: Array<{ id: string; label: string; actTitle: string }>
   removedRegions: Array<{ id: string; name: string }>
+  removedStyles: Array<{ id: string; name: string }>
   log: LogEntryView[]
 }
 
@@ -188,6 +189,27 @@ export interface MapView {
   height: number | null
   widthMiles: number | null
   travelMph: number
+  /** A world map, or a battle map with a square grid (5 ft squares). */
+  kind: 'world' | 'battle'
+  gridCols: number | null
+  gridRows: number | null
+  /** Null for the DM's own image; otherwise which AI drew it (rule 10). */
+  source: string | null
+  prompt: string | null
+}
+
+export interface StyleExampleView {
+  id: string
+  name: string
+  url: string
+}
+
+/** An image an AI drew, waiting for the DM to keep or discard it. */
+export interface PendingImageView {
+  pendingId: string
+  url: string
+  width: number | null
+  height: number | null
 }
 
 export interface DeskStoryline {
@@ -472,4 +494,11 @@ export interface AiSuggestion {
   text: string
   /** "Anthropic Claude · claude-sonnet-5-5" */
   source: string
+}
+
+/** What the battle map dialog starts from: the scene, the place and the light now. */
+export interface BattleMapContext {
+  description: string
+  placeName: string | null
+  light: string
 }

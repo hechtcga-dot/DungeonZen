@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
-  relationship, relationshipKnown, reviewDecision, session, travelLink, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
+  relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
@@ -21,7 +21,7 @@ import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, RegionDetail, RegionView,
+  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
   SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
 } from '../../shared/types'
@@ -29,10 +29,17 @@ import { advise } from '../advisor'
 import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
+import { rowsFor } from '../../shared/battlemap'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
 export const DB_FILE = 'campaign.db'
 export const ASSETS_DIR = 'assets'
+const STYLE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
+const PENDING_ID = /^[0-9a-f-]{36}\.(png|jpg|webp)$/
+function mimeOf(path: string): string {
+  const e = extname(path).toLowerCase()
+  return e === '.jpg' || e === '.jpeg' ? 'image/jpeg' : e === '.webp' ? 'image/webp' : 'image/png'
+}
 export const MAP_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
 /** Address the app's asset protocol serves files from the open campaign's assets folder under. */
 export const ASSET_URL_PREFIX = 'dz-asset://campaign/'
@@ -90,6 +97,8 @@ export class Campaign {
   static open(folder: string): Campaign {
     const file = join(folder, DB_FILE)
     if (!existsSync(file)) throw new Error(`No campaign found in ${folder} (missing ${DB_FILE})`)
+    // Images an AI drew that the DM never kept or discarded (the app closed) are not campaign data.
+    rmSync(join(folder, ASSETS_DIR, 'pending'), { recursive: true, force: true })
     return new Campaign(folder, openDatabase(file))
   }
 
@@ -213,6 +222,8 @@ export class Campaign {
       ...this.removedTimeline(),
       removedRegions: this.db.select().from(regionShape).where(eq(regionShape.status, 'defunct')).all()
         .map((r) => ({ id: r.id, name: this.nameOf(r.locationId) })),
+      removedStyles: this.db.select().from(styleExample).where(eq(styleExample.status, 'defunct')).all()
+        .map((r) => ({ id: r.id, name: r.name })),
       log: this.log.recent().map((c) => ({ id: c.id, label: c.label, at: c.at, undone: c.state === 'undone' }))
     }
   }
@@ -1537,6 +1548,100 @@ export class Campaign {
     this.log.run(`Set the scale of ${m.name}`, (w) => { w.update('map', mapId, { widthMiles, travelMph }) })
   }
 
+  /** A square grid over the map (squares across), or none. */
+  setMapGrid(mapId: string, cols: number | null): void {
+    const m = this.mapRow(mapId)
+    this.log.run(cols ? `Set a ${cols}-square grid on ${m.name}` : `Removed the grid from ${m.name}`, (w) => { w.update('map', mapId, { gridCols: cols }) })
+  }
+
+  // ---- battle maps and the DM's style examples
+
+  styleExamples(): StyleExampleView[] {
+    return this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all()
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((r) => ({ id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath }))
+  }
+
+  addStyleExample(sourceFile: string, name?: string): StyleExampleView {
+    const ext = extname(sourceFile).toLowerCase()
+    if (!STYLE_EXTENSIONS.includes(ext)) throw new Error(`Example maps must be PNG, JPEG or WebP images (got ${ext || 'no extension'})`)
+    const id = randomUUID()
+    const rel = `styles/${id}${ext}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'styles'), { recursive: true })
+    copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
+    const label = name?.trim() || basename(sourceFile, extname(sourceFile))
+    this.log.run(`Added example map ${label}`, (w) => {
+      w.insert('style_example', { id, name: label, imagePath: rel, createdAt: new Date().toISOString(), status: 'active' })
+    })
+    return this.styleExamples().find((x) => x.id === id)!
+  }
+
+  renameStyleExample(id: string, name: string): void {
+    const r = this.styleRow(id)
+    this.log.run(`Renamed example map ${r.name} to ${name}`, (w) => { w.update('style_example', id, { name }) })
+  }
+
+  setStyleExampleStatus(id: string, status: RowStatus): void {
+    const r = this.styleRow(id)
+    this.log.run(status === 'defunct' ? `Moved example map ${r.name} to History` : `Restored example map ${r.name}`, (w) => {
+      w.update('style_example', id, { status })
+    })
+  }
+
+  /** The example images to send with a battle map request (active ones only, at most 4). */
+  styleImages(ids: string[]): Array<{ bytes: Buffer; mime: string }> {
+    const rows = this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all().filter((r) => ids.includes(r.id)).slice(0, 4)
+    return rows.map((r) => ({ bytes: readFileSync(join(this.folder, ASSETS_DIR, r.imagePath)), mime: mimeOf(r.imagePath) }))
+  }
+
+  private styleRow(id: string) {
+    const r = this.db.select().from(styleExample).where(eq(styleExample.id, id)).get()
+    if (!r) throw new Error(`No example map with id ${id}`)
+    return r
+  }
+
+  /**
+   * An image an AI just drew, waiting for the DM. It sits in assets/pending and is not
+   * campaign data until the DM keeps it (rule 2).
+   */
+  savePendingImage(bytes: Buffer, mime: string): PendingImageView {
+    const ext = mime.includes('jpeg') ? '.jpg' : mime.includes('webp') ? '.webp' : '.png'
+    const pendingId = `${randomUUID()}${ext}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'pending'), { recursive: true })
+    writeFileSync(join(this.folder, ASSETS_DIR, 'pending', pendingId), bytes)
+    const size = imageSize(bytes)
+    return { pendingId, url: `${ASSET_URL_PREFIX}pending/${pendingId}`, width: size?.width ?? null, height: size?.height ?? null }
+  }
+
+  private pendingFile(pendingId: string): string {
+    if (!PENDING_ID.test(pendingId)) throw new Error('Not a waiting image')
+    const file = join(this.folder, ASSETS_DIR, 'pending', pendingId)
+    if (!existsSync(file)) throw new Error('That image is gone; draw it again')
+    return file
+  }
+
+  /** Keeps a drawn battle map: it becomes a map with a grid (one undo step). */
+  keepBattleMap(input: { pendingId: string; name: string; cols: number; source: string; prompt: string }): MapView {
+    const from = this.pendingFile(input.pendingId)
+    const id = randomUUID()
+    const rel = `maps/${id}${extname(input.pendingId)}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'maps'), { recursive: true })
+    renameSync(from, join(this.folder, ASSETS_DIR, rel))
+    const size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
+    this.log.run(`Kept battle map ${input.name}`, (w) => {
+      w.insert('map', {
+        id, name: input.name, imagePath: rel, width: size?.width ?? null, height: size?.height ?? null, gridSize: null,
+        status: 'active', kind: 'battle', gridCols: input.cols, source: input.source, prompt: input.prompt
+      })
+    })
+    return toMapView(this.mapRow(id))
+  }
+
+  /** Throws away a drawn image the DM did not keep (it was never campaign data). */
+  discardPending(pendingId: string): void {
+    try { unlinkSync(this.pendingFile(pendingId)) } catch { /* already gone */ }
+  }
+
   /** How long the party would take to get to (x, y), and which region that is. Nothing is saved. */
   travelEstimate(mapId: string, to: Point): TravelEstimateView {
     const m = this.mapRow(mapId)
@@ -1729,7 +1834,11 @@ function searchText(v: EntityView): string {
 function toMapView(r: MapRow): MapView {
   return {
     id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath, width: r.width, height: r.height,
-    widthMiles: r.widthMiles, travelMph: r.travelMph
+    widthMiles: r.widthMiles, travelMph: r.travelMph,
+    kind: r.kind === 'battle' ? 'battle' : 'world',
+    gridCols: r.gridCols,
+    gridRows: r.gridCols && r.width && r.height ? rowsFor(r.gridCols, r.width, r.height) : null,
+    source: r.source, prompt: r.prompt
   }
 }
 

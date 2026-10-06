@@ -443,10 +443,10 @@ function OnTheFly({ v }: { v: LiveView }) {
           <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><rect x="9" y="10" width="18" height="24" rx="3" fill="#c9893b" stroke="#2a1f12" /><path d="M27 15h4a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-4" fill="none" stroke="#2a1f12" strokeWidth="2" /><path d="M9 12q9-6 18 0" fill="#fffbea" stroke="#2a1f12" /></svg>
           <span><strong>Fill a tavern</strong><span>A named tavern, its keeper and patrons, a rumour</span></span>
         </button>
-        <div className="otf-card is-off" title="Needs an image generator; which one is still to be decided">
+        <button className="otf-card" onClick={() => useBoard.getState().setBattleMapOpen(true)}>
           <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><rect x="4" y="4" width="32" height="32" fill="#efe3c4" stroke="#2a1f12" /><path d="M4 14h32M4 24h32M14 4v32M24 4v32" stroke="#2a1f12" opacity="0.5" /><rect x="15" y="15" width="8" height="8" fill="#8f2a21" /></svg>
-          <span><strong>Draw a battle map</strong><span>Needs an image generator. Which one is still your decision.</span></span>
-        </div>
+          <span><strong>Draw a battle map</strong><span>Top-down, on a grid, from the scene, in the style of your example maps (AI image service)</span></span>
+        </button>
       </div>
       {result && (
         <div className="otf-result suggestion" role="status">

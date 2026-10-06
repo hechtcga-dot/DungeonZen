@@ -1,4 +1,5 @@
 import { providerById, type AiChoice, type AiProviderInfo } from '../../shared/aiProviders'
+import type { Aspect } from '../../shared/battlemap'
 
 // Talks to the chosen AI service. Main process only. One adapter per protocol;
 // every service in shared/aiProviders.ts maps to one of them.
@@ -15,8 +16,8 @@ export interface ImageRequest {
   prompt: string
   /** Example images for the style (PNG/JPEG bytes). Ignored by services that cannot take them. */
   references?: Array<{ bytes: Buffer; mime: string }>
-  /** Square images are the default; battle maps are drawn on a square grid. */
-  aspect?: '1:1' | '16:9' | '3:2'
+  /** Shape of the image (from the grid size); square by default. */
+  aspect?: Aspect
 }
 
 export interface ImageResult { bytes: Buffer; mime: string }
@@ -91,7 +92,7 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
   const aspect = req.aspect ?? '1:1'
   switch (r.info.protocol) {
     case 'openai-image': {
-      const size = aspect === '1:1' ? '1024x1024' : '1536x1024'
+      const size = aspect === '1:1' ? '1024x1024' : landscape(aspect) ? '1536x1024' : '1024x1536'
       if (refs.length) {
         const form = new FormData()
         form.append('model', r.model)
@@ -156,12 +157,12 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
     case 'fal': {
       const body = await call(r, f, `${r.baseUrl}/${r.model}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Key ${r.key ?? ''}` },
-        body: JSON.stringify({ prompt: req.prompt, image_size: aspect === '1:1' ? 'square_hd' : 'landscape_16_9', num_images: 1 })
+        body: JSON.stringify({ prompt: req.prompt, image_size: FAL_SIZES[aspect], num_images: 1 })
       }, IMAGE_TIMEOUT)
       return download((body.images as Array<{ url?: string }> | undefined)?.[0]?.url ?? '', r, f)
     }
     case 'sd-webui': {
-      const [w, h] = aspect === '1:1' ? [1024, 1024] : [1216, 832]
+      const [w, h] = SD_SIZES[aspect]
       const body = await call(r, f, `${r.baseUrl}/sdapi/v1/txt2img`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -236,6 +237,14 @@ export async function checkConnection(r: Resolved, f: Fetch = fetch): Promise<st
 }
 
 // ---------------------------------------------------------------- helpers
+
+const landscape = (a: Aspect) => a === '3:2' || a === '16:9'
+const FAL_SIZES: Record<Aspect, string> = {
+  '1:1': 'square_hd', '3:2': 'landscape_4_3', '16:9': 'landscape_16_9', '2:3': 'portrait_4_3', '9:16': 'portrait_16_9'
+}
+const SD_SIZES: Record<Aspect, [number, number]> = {
+  '1:1': [1024, 1024], '3:2': [1216, 832], '2:3': [832, 1216], '16:9': [1344, 768], '9:16': [768, 1344]
+}
 
 function anthropicHeaders(r: Resolved): Record<string, string> {
   return { 'Content-Type': 'application/json', 'x-api-key': r.key ?? '', 'anthropic-version': '2023-06-01' }

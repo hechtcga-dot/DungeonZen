@@ -108,7 +108,20 @@ export const map = sqliteTable('map', {
   gridSize: integer('grid_size'),
   status: text('status').notNull(),
   widthMiles: real('width_miles'), // how many miles the image is across (map scale)
-  travelMph: real('travel_mph').notNull().default(3)
+  travelMph: real('travel_mph').notNull().default(3),
+  kind: text('kind').notNull().default('world'), // world | battle
+  gridCols: integer('grid_cols'), // squares across, when the map has a grid (5 ft each)
+  source: text('source'), // null = the DM's own image; otherwise which AI drew it
+  prompt: text('prompt') // what the AI was asked, for battle maps it drew
+})
+
+// The DM's own example maps: the style an AI copies when it draws battle maps.
+export const styleExample = sqliteTable('style_example', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  imagePath: text('image_path').notNull(), // relative to assets/
+  createdAt: text('created_at').notNull(),
+  status: text('status').notNull()
 })
 
 // A region drawn on a map, tied to a Location card (sub-regions: the card's parent_id).
@@ -258,7 +271,8 @@ export const tracked = {
   review_decision: { table: reviewDecision, pk: reviewDecision.id },
   region_shape: { table: regionShape, pk: regionShape.id },
   party_position: { table: partyPosition, pk: partyPosition.id },
-  travel_link: { table: travelLink, pk: travelLink.id }
+  travel_link: { table: travelLink, pk: travelLink.id },
+  style_example: { table: styleExample, pk: styleExample.id }
 } as const
 export type TableName = keyof typeof tracked
 

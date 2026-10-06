@@ -128,6 +128,15 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX region_shape_map ON region_shape(map_id);
   CREATE INDEX party_position_map ON party_position(map_id, at_min);
+  `,
+  `
+  ALTER TABLE map ADD COLUMN kind TEXT NOT NULL DEFAULT 'world';
+  ALTER TABLE map ADD COLUMN grid_cols INTEGER;
+  ALTER TABLE map ADD COLUMN source TEXT;
+  ALTER TABLE map ADD COLUMN prompt TEXT;
+  CREATE TABLE style_example (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, image_path TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL
+  );
   `
 ]
 
