@@ -286,3 +286,6 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .desk-theme button.ink-button.primary-ink:not(:disabled), .desk-theme button.ink-button.primary-ink:hover:not(:disabled) { color: var(--parchment-light, #f6ecd0); }
 .desk-theme button.ink-button.primary-ink:hover:not(:disabled) { background: #3d2c18; border-color: #000; color: #fff; }
 .desk-theme button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; border-color: #7a1e16; color: #fff3e0; }
+/* Drop-downs on the wooden bars are parchment with ink. */
+.desk-theme select.ink-select { color: var(--ink); background: rgba(255, 248, 228, 0.85); border-color: #7a6440; }
+.desk-theme select.ink-select.on-wood { background: var(--parchment); }

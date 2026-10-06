@@ -6,9 +6,11 @@ import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
+import { ASK_SYSTEM, askPrompt } from './ai/ask'
 import { AI_PROVIDERS, providerById, type AiChoice } from '../shared/aiProviders'
+import { timeOfDayFor } from '../shared/battlemap'
 import { searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
-import { fillTavern, rollCharacter, suggestEncounter } from './generators'
+import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } from './generators'
 import { ipcInputs, IPC_PREFIX, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
 import type { z } from 'zod'
@@ -194,6 +196,40 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return listModels(r)
   })
   handle('ai:test', async ({ provider, model, baseUrl }) => checkConnection(resolve(choiceFor(provider, { model, baseUrl }), keys.get(provider))))
+  // ---- live: where the party is, and Ask AI
+  handle('live:where', () => current().liveWhere())
+  handle('players:view', () => current().playersView())
+  handle('live:setHeading', ({ locationId }) => current().setHeading(locationId))
+  handle('notes:append', ({ text }) => current().appendDmNotes(text))
+  handle('ai:ask', async ({ preset, ask }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const where = c.liveWhere()
+    const extras = {
+      cameFrom: where.cameFrom?.name ?? null,
+      headingTo: where.headingTo?.name ?? null,
+      secrets: where.secrets.filter((x) => !x.done).map((x) => x.text),
+      scenes: (where.prep?.items ?? []).filter((i) => i.kind === 'scene' && !i.done).map((i) => [i.title, i.locationName && `at ${i.locationName}`, i.body].filter(Boolean).join(' '))
+    }
+    const text = await generateText(r, { system: ASK_SYSTEM, prompt: askPrompt(c.sceneContext(), extras, preset, ask), maxTokens: 700 })
+    return { text, source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+
+  // ---- session prep
+  handle('prep:screen', () => current().prepScreen())
+  handle('prep:view', ({ number }) => current().prepFor(number))
+  handle('prep:create', ({ number }) => current().createPrep(number))
+  handle('prep:update', ({ id, patch }) => current().updatePrep(id, patch))
+  handle('prep:setStatus', ({ id, status }) => current().setPrepStatus(id, status))
+  handle('prep:spread', ({ prepId }) => current().spreadSceneTimes(prepId))
+  handle('prep:rollNames', ({ count }) => rollNames(seededRng(Date.now() % 2147483647), count))
+  handle('prepItem:add', ({ prepId, kind, fields }) => current().addPrepItem(prepId, kind, fields))
+  handle('prepItem:update', ({ id, patch }) => current().updatePrepItem(id, patch))
+  handle('prepItem:done', ({ id, done }) => current().setPrepDone(id, done))
+  handle('prepItem:setStatus', ({ id, status }) => current().setPrepItemStatus(id, status))
+  handle('prepItem:move', ({ id, direction }) => current().movePrepItem(id, direction))
+
   // ---- battle maps
   handle('style:list', () => current().styleExamples())
   handle('style:addDialog', async () => {
@@ -212,8 +248,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('style:setStatus', ({ id, status }) => current().setStyleExampleStatus(id, status))
   handle('battlemap:context', () => {
     const s = current().sceneContext()
-    const description = s.current.trim() || (s.place ? [s.place.name, s.place.notes].filter(Boolean).join(': ') : '')
-    return { description, placeName: s.place?.name ?? null, light: s.light === 'daylight' ? 'daylight' : s.light === 'night' ? 'night, lit by torches or moonlight' : s.light }
+    // The scene text, else how the place looks to the players, else the DM's notes on it.
+    const description = s.current.trim() || (s.place ? [s.place.name, s.place.looks || s.place.notes].filter(Boolean).join(': ') : '')
+    return { description, placeName: s.place?.name ?? null, timeOfDay: timeOfDayFor(s.light) }
   })
   handle('battlemap:draw', async ({ prompt, styleIds, aspect }) => {
     const choice = profile.aiChoice('image')

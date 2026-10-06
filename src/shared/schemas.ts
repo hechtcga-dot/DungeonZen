@@ -64,3 +64,8 @@ export type EncounterFeedback = z.infer<typeof EncounterFeedback>
 
 export const ReviewDecisionKind = z.enum(['approved', 'rejected', 'flagged', 'explained', 'resolved'])
 export type ReviewDecisionKind = z.infer<typeof ReviewDecisionKind>
+
+export const PrepKind = z.enum(['discovery', 'scene', 'clue', 'npc', 'threat'])
+export type PrepKind = z.infer<typeof PrepKind>
+export const SceneType = z.enum(['social', 'exploration', 'combat', 'other'])
+export type SceneType = z.infer<typeof SceneType>

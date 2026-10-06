@@ -171,5 +171,13 @@ commands. `group_id` lets a session or an import undo as one step.
   asked). `style_example` (name, image_path under `assets/styles`, status): the
   DM's example maps for the battle map style. Drawn images wait in
   `assets/pending` and are not campaign data until kept.
+- Session prep (migration 10): `session_prep` (number = the session it is
+  for, one active sheet per number; title, premise, pacing_minutes,
+  backup_names, notes, status) and `prep_item` (prep_id, kind discovery |
+  scene | clue | npc | threat, sort, title, body, scene_type, target_start /
+  target_end in real minutes from the session start, entity_id, location_id,
+  discovery_id, role, stats, tactics, done, done_at_min in campaign time,
+  status). Campaign settings: `heading_location_id` (where the party is
+  heading). Location cards: `attributes.player_notes` (what the players see).
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

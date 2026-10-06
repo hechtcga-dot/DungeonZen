@@ -5,10 +5,37 @@ import { GridLines } from './MapOverlay'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { providerById, type AiProviderInfo } from '../../shared/aiProviders'
-import { aspectFor, battleMapPrompt, BATTLE_SETTINGS, GRID_MAX, GRID_MIN, rowsFor, type BattleSetting } from '../../shared/battlemap'
+import {
+  ART_STYLES, aspectFor, BATTLE_FEATURES, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
+  rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
+} from '../../shared/battlemap'
 import type { PendingImageView, StyleExampleView } from '../../shared/types'
 
 type Drawn = PendingImageView & { source: string; prompt: string; cols: number }
+type Spec = Omit<BattleMapSpec, 'withExamples'>
+
+const START: Spec = {
+  description: '', setting: 'outdoors', terrain: 'any', cols: 20, rows: 20, timeOfDay: 'day', weather: 'clear',
+  season: 'any', mood: 'neutral', style: 'painted', features: defaultFeatures('outdoors'), extra: ''
+}
+const cap = (x: string) => x[0].toUpperCase() + x.slice(1)
+
+/** A drop-down for one of the spec's word lists. */
+function Choice<K extends keyof Spec>({ id, label, k, options, spec, set, auto }: {
+  id: string; label: string; k: K; options: readonly string[]; spec: Spec; set(patch: Partial<Spec>): void; auto?: { value: Spec[K]; from: string }
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={String(spec[k])} onChange={(e) => set({ [k]: e.target.value } as Partial<Spec>)}>
+        {options.map((x) => <option key={x} value={x}>{cap(x)}</option>)}
+      </select>
+      {auto && (auto.value === spec[k]
+        ? <span className="hint auto-hint">From {auto.from}</span>
+        : <button type="button" className="link-button auto-hint" onClick={() => set({ [k]: auto.value } as Partial<Spec>)}>Back to {String(auto.value)} ({auto.from})</button>)}
+    </div>
+  )
+}
 
 /**
  * Draw a battle map with the chosen image service. The request is built from fixed
@@ -26,16 +53,16 @@ export function BattleMapDialog() {
   const [styles, setStyles] = useState<StyleExampleView[]>([])
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [name, setName] = useState('Battle map')
-  const [description, setDescription] = useState('')
-  const [setting, setSetting] = useState<BattleSetting>('outdoors')
-  const [cols, setCols] = useState(20)
-  const [rows, setRows] = useState(20)
-  const [light, setLight] = useState('daylight')
+  const [spec, setSpec] = useState<Spec>(START)
+  // What the app filled in, so the DM can see it and go back to it after a change.
+  const [auto, setAuto] = useState<Pick<Spec, 'description' | 'timeOfDay' | 'terrain' | 'setting'>>(START)
   const [ownPrompt, setOwnPrompt] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Drawn | null>(null)
 
+  const set = (patch: Partial<Spec>) => { setSpec((cur) => ({ ...cur, ...patch })); setOwnPrompt(null) }
+  const { cols, rows } = spec
   const loadStyles = async () => {
     const list = await call('style:list', undefined)
     setStyles(list)
@@ -49,8 +76,14 @@ export function BattleMapDialog() {
     void (async () => {
       try {
         const [ctx, list] = await Promise.all([call('battlemap:context', undefined), loadStyles()])
-        setDescription(ctx.description)
-        setLight(ctx.light)
+        const terrain = guessTerrain(`${ctx.placeName ?? ''} ${ctx.description}`)
+        const setting = settingFor(terrain)
+        const filled = { description: ctx.description, timeOfDay: ctx.timeOfDay, terrain, setting }
+        setAuto(filled)
+        setSpec((cur) => ({
+          ...cur, ...filled, features: defaultFeatures(setting),
+          weather: setting === 'indoors' || setting === 'underground' ? 'indoors (none)' : cur.weather === 'indoors (none)' ? 'clear' : cur.weather
+        }))
         setName(ctx.placeName ? `${ctx.placeName} battle map` : 'Battle map')
         setPicked(new Set(list.slice(0, 4).map((x) => x.id)))
       } catch (e) { setError((e as Error).message) }
@@ -67,7 +100,7 @@ export function BattleMapDialog() {
   }, [open, aiOpen])
 
   const withExamples = !!service?.info.references && picked.size > 0
-  const generated = battleMapPrompt({ description, setting, cols, rows, light, withExamples })
+  const generated = battleMapPrompt({ ...spec, withExamples })
   const prompt = ownPrompt ?? generated
   const sizeOk = [cols, rows].every((n) => Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX)
 
@@ -156,35 +189,55 @@ export function BattleMapDialog() {
                 <input id="bm-name" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="field">
-                <label htmlFor="bm-desc">What is there</label>
-                <textarea id="bm-desc" rows={5} value={description} maxLength={2000}
+                <label htmlFor="bm-desc">Description of the setting</label>
+                <textarea id="bm-desc" rows={4} value={spec.description} maxLength={2000}
                   placeholder="A ruined chapel: collapsed roof at the north end, pews in rows, a crypt stair in the south-east corner…"
-                  onChange={(e) => { setDescription(e.target.value); setOwnPrompt(null) }} />
-                <span className="hint">Started from the scene text or the place's notes. Walls, doors, cover, water, stairs: say where.</span>
+                  onChange={(e) => set({ description: e.target.value })} />
+                {auto.description && spec.description !== auto.description
+                  ? <button type="button" className="link-button auto-hint" onClick={() => set({ description: auto.description })}>Back to the scene text</button>
+                  : <span className="hint">{auto.description ? 'From the scene text or the place\'s notes. ' : ''}Walls, doors, cover, water, stairs: say where.</span>}
               </div>
-              <div className="row tight wrap">
+              <div className="battle-grid-fields">
+                <Choice id="bm-setting" label="Setting" k="setting" options={BATTLE_SETTINGS} spec={spec} auto={{ value: auto.setting, from: 'the place' }}
+                  set={(p) => set({ ...p, features: defaultFeatures(p.setting as BattleSetting) })} />
+                <Choice id="bm-terrain" label="Terrain" k="terrain" options={TERRAINS} spec={spec} set={set} auto={{ value: auto.terrain, from: 'the description' }} />
+                <Choice id="bm-time" label="Time of day" k="timeOfDay" options={TIMES_OF_DAY} spec={spec} set={set} auto={{ value: auto.timeOfDay, from: 'the clock' }} />
+                <Choice id="bm-weather" label="Weather" k="weather" options={WEATHERS} spec={spec} set={set} />
+                <Choice id="bm-season" label="Season" k="season" options={SEASONS} spec={spec} set={set} />
+                <Choice id="bm-mood" label="Mood" k="mood" options={MOODS} spec={spec} set={set} />
+                <Choice id="bm-style" label="Art style" k="style" options={ART_STYLES} spec={spec} set={set} />
                 <div className="field">
-                  <label htmlFor="bm-setting">Setting</label>
-                  <select id="bm-setting" value={setting} onChange={(e) => { setSetting(e.target.value as BattleSetting); setOwnPrompt(null) }}>
-                    {BATTLE_SETTINGS.map((x) => <option key={x} value={x}>{x[0].toUpperCase() + x.slice(1)}</option>)}
-                  </select>
-                </div>
-                <div className="field">
-                  <label htmlFor="bm-cols">Squares across</label>
-                  <input id="bm-cols" className="short" type="number" min={GRID_MIN} max={GRID_MAX} value={cols}
-                    onChange={(e) => { setCols(Number(e.target.value)); setOwnPrompt(null) }} />
-                </div>
-                <div className="field">
-                  <label htmlFor="bm-rows">Squares deep</label>
-                  <input id="bm-rows" className="short" type="number" min={GRID_MIN} max={GRID_MAX} value={rows}
-                    onChange={(e) => { setRows(Number(e.target.value)); setOwnPrompt(null) }} />
-                </div>
-                <div className="field">
-                  <label htmlFor="bm-light">Light</label>
-                  <input id="bm-light" value={light} maxLength={120} onChange={(e) => { setLight(e.target.value); setOwnPrompt(null) }} />
+                  <label htmlFor="bm-cols">Size in squares</label>
+                  <div className="row tight">
+                    <input id="bm-cols" className="short" type="number" min={GRID_MIN} max={GRID_MAX} value={cols} aria-label="Squares across"
+                      onChange={(e) => set({ cols: Number(e.target.value) })} />
+                    <span aria-hidden="true">×</span>
+                    <input id="bm-rows" className="short" type="number" min={GRID_MIN} max={GRID_MAX} value={rows} aria-label="Squares deep"
+                      onChange={(e) => set({ rows: Number(e.target.value) })} />
+                  </div>
+                  <span className="hint">{cols * 5} × {rows * 5} ft</span>
                 </div>
               </div>
-              <span className="hint">{cols * 5} × {rows * 5} feet. Each square is 5 feet.</span>
+              <fieldset className="field battle-features">
+                <legend>Include <button type="button" className="link-button" onClick={() => set({ features: defaultFeatures(spec.setting) })}>usual for {spec.setting}</button>
+                  {' · '}<button type="button" className="link-button" onClick={() => set({ features: [] })}>none</button></legend>
+                <div className="toggle-chips">
+                  {FEATURE_KEYS.map((f) => {
+                    const on = spec.features.includes(f)
+                    return (
+                      <button key={f} type="button" className="toggle-chip" aria-pressed={on}
+                        onClick={() => set({ features: on ? spec.features.filter((x) => x !== f) : [...spec.features, f] })}>
+                        {BATTLE_FEATURES[f].label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </fieldset>
+              <div className="field">
+                <label htmlFor="bm-extra">Anything else</label>
+                <input id="bm-extra" value={spec.extra} maxLength={600} placeholder="A broken statue in the middle, the north wall half collapsed…"
+                  onChange={(e) => set({ extra: e.target.value })} />
+              </div>
             </div>
             <div className="dz-form">
               <div className="field">

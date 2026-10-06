@@ -250,6 +250,40 @@ export const command = sqliteTable('command', {
   state: text('state').notNull()
 })
 
+// The DM's prep sheet for one session (the one-page prep template, owner 2026-10-06).
+export const sessionPrep = sqliteTable('session_prep', {
+  id: text('id').primaryKey(),
+  number: integer('number').notNull(), // the session it is for
+  title: text('title').notNull(),
+  premise: text('premise').notNull(),
+  pacingMinutes: integer('pacing_minutes').notNull(), // real minutes at the table
+  backupNames: text('backup_names').notNull(), // spare NPC names, one per line
+  notes: text('notes').notNull(),
+  status: text('status').notNull()
+})
+
+// One line of a prep sheet: a discovery, scene, clue, key NPC or threat.
+export const prepItem = sqliteTable('prep_item', {
+  id: text('id').primaryKey(),
+  prepId: text('prep_id').notNull(),
+  kind: text('kind').notNull(), // discovery | scene | clue | npc | threat
+  sort: real('sort').notNull(),
+  title: text('title').notNull(),
+  body: text('body').notNull(), // discovery: the secret; scene: setup; clue: the clue; npc: aspect; threat: attacks and abilities
+  sceneType: text('scene_type'), // scene: social | exploration | combat | other
+  targetStart: integer('target_start'), // scene: real minutes from the start of the session
+  targetEnd: integer('target_end'),
+  entityId: text('entity_id'), // npc or threat: its card
+  locationId: text('location_id'), // scene or clue: where (a Location card)
+  discoveryId: text('discovery_id'), // clue: the discovery it leads to
+  role: text('role').notNull().default(''), // npc: role or faction
+  stats: text('stats').notNull().default(''), // threat: level, CR, AC, HP, initiative
+  tactics: text('tactics').notNull().default(''), // threat: how it fights
+  done: integer('done', { mode: 'boolean' }).notNull().default(false), // revealed, played or found
+  doneAtMin: integer('done_at_min'), // campaign time it was ticked
+  status: text('status').notNull()
+})
+
 // Tables whose rows go through the command log, keyed for undo/redo.
 export const tracked = {
   campaign_settings: { table: campaignSetting, pk: campaignSetting.key },
@@ -272,7 +306,9 @@ export const tracked = {
   region_shape: { table: regionShape, pk: regionShape.id },
   party_position: { table: partyPosition, pk: partyPosition.id },
   travel_link: { table: travelLink, pk: travelLink.id },
-  style_example: { table: styleExample, pk: styleExample.id }
+  style_example: { table: styleExample, pk: styleExample.id },
+  session_prep: { table: sessionPrep, pk: sessionPrep.id },
+  prep_item: { table: prepItem, pk: prepItem.id }
 } as const
 export type TableName = keyof typeof tracked
 
@@ -290,3 +326,5 @@ export type TriggerRow = typeof storyTrigger.$inferSelect
 export type SessionRow = typeof session.$inferSelect
 export type LogRow = typeof logEntry.$inferSelect
 export type RegionRow = typeof regionShape.$inferSelect
+export type PrepRow = typeof sessionPrep.$inferSelect
+export type PrepItemRow = typeof prepItem.$inferSelect

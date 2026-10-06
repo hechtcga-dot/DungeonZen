@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Campaign } from '../src/main/campaign/campaign'
-import { aspectFor, battleMapPrompt, rowsFor } from '../src/shared/battlemap'
+import { aspectFor, battleMapPrompt, defaultFeatures, guessTerrain, rowsFor, settingFor, timeOfDayFor, type BattleMapSpec } from '../src/shared/battlemap'
 import { generateImage, resolve, type Fetch } from '../src/main/ai/client'
 
 let dir: string
@@ -32,14 +32,41 @@ describe('battle map rules', () => {
     expect(rowsFor(20, 1536, 1024)).toBe(13)
   })
 
+  const base: BattleMapSpec = {
+    description: 'A ruined chapel,\n crypt stair.', setting: 'indoors', terrain: 'temple', cols: 24, rows: 16, timeOfDay: 'night',
+    weather: 'rain', season: 'autumn', mood: 'eerie', style: 'painted', features: ['cover', 'secret'], extra: 'A broken statue', withExamples: false
+  }
+
   it('always asks for top-down, the size in squares, and no grid, text or tokens', () => {
-    const p = battleMapPrompt({ description: 'A ruined chapel,\n crypt stair.', setting: 'indoors', cols: 24, rows: 16, light: 'night', withExamples: false })
+    const p = battleMapPrompt(base)
+    expect(p).toContain('game: indoors, temple.')
     expect(p).toContain('directly above')
     expect(p).toContain('24 squares wide and 16 squares deep, each square 5 feet')
     expect(p).toContain('What is there: A ruined chapel, crypt stair.')
+    expect(p).toContain('Include: scattered cover (crates, rubble, low walls, barrels); a subtle hidden passage or secret door.')
+    expect(p).toContain('Also: A broken statue')
+    expect(p).toContain('Mood: eerie.')
+    expect(p).toMatch(/Lighting: night/)
+    expect(p).not.toContain('Weather') // indoors: no sky
     expect(p).toMatch(/No grid lines.*no text.*no people, creatures or tokens/)
     expect(p).not.toContain('example maps')
-    expect(battleMapPrompt({ description: '', setting: 'outdoors', cols: 20, rows: 20, light: 'day', withExamples: true })).toContain('art style')
+    const outside = battleMapPrompt({ ...base, setting: 'outdoors', terrain: 'any', features: [], mood: 'neutral', extra: '', withExamples: true })
+    expect(outside).toContain('game: outdoors.')
+    expect(outside).toContain('Weather: rain. Season: autumn.')
+    expect(outside).not.toContain('Include:')
+    expect(outside).not.toContain('Mood')
+    expect(outside).toContain('art style, colours')
+  })
+
+  it('fills in first guesses the DM can change', () => {
+    expect(guessTerrain('Old Harbour: rotting piers')).toBe('coast')
+    expect(guessTerrain('The crypt beneath the chapel')).toBe('crypt')
+    expect(guessTerrain('A quiet field')).toBe('any')
+    expect(settingFor('crypt')).toBe('underground')
+    expect(settingFor('tavern')).toBe('indoors')
+    expect(settingFor('forest')).toBe('outdoors')
+    expect(defaultFeatures('indoors')).toContain('doors')
+    expect(timeOfDayFor('daylight')).toBe('day')
   })
 
   it('asks image services for the right shape', async () => {

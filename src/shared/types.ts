@@ -1,7 +1,7 @@
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, NoteContent, RowStatus,
-  EncounterFeedback, LogKind, ReviewDecisionKind, RulesEdition, StorylineStatus
+  EncounterFeedback, LogKind, ReviewDecisionKind, RulesEdition, StorylineStatus, PrepKind, SceneType
 } from './schemas'
 import type { AiChoice } from './aiProviders'
 
@@ -97,6 +97,7 @@ export interface HistoryView {
   removedTriggers: Array<{ id: string; label: string; actTitle: string }>
   removedRegions: Array<{ id: string; name: string }>
   removedStyles: Array<{ id: string; name: string }>
+  removedPrep: Array<{ id: string; name: string; what: string }>
   log: LogEntryView[]
 }
 
@@ -321,6 +322,8 @@ export interface SessionView {
   startMin: number
   endMin: number | null
   ended: boolean
+  /** Real date and time the session started (for pacing at the table). */
+  startedAt: string
   sceneText: string
   recap: string
   playerRecap: string
@@ -500,5 +503,83 @@ export interface AiSuggestion {
 export interface BattleMapContext {
   description: string
   placeName: string | null
-  light: string
+  /** From the campaign clock. */
+  timeOfDay: 'dawn' | 'day' | 'dusk' | 'night'
+}
+
+export interface PrepItemView {
+  id: string
+  kind: PrepKind
+  title: string
+  body: string
+  sceneType: SceneType | null
+  /** Real minutes from the start of the session (pacing). */
+  targetStart: number | null
+  targetEnd: number | null
+  entityId: string | null
+  entityName: string | null
+  locationId: string | null
+  locationName: string | null
+  discoveryId: string | null
+  role: string
+  stats: string
+  tactics: string
+  done: boolean
+  doneAtMin: number | null
+}
+
+export interface PrepView {
+  id: string
+  number: number
+  title: string
+  premise: string
+  pacingMinutes: number
+  backupNames: string
+  notes: string
+  items: PrepItemView[]
+}
+
+export interface PrepScreenView {
+  /** Every prep sheet, by session number. */
+  sheets: Array<{ id: string; number: number; title: string }>
+  /** The session that is running, if any, and the next one to be played. */
+  openNumber: number | null
+  nextNumber: number
+  /** Cards to link from the sheet. */
+  people: EntityBrief[]
+  threats: EntityBrief[]
+  locations: EntityBrief[]
+}
+
+/** Live desk: everything about where the party is, for the DM at the table. */
+export interface WhereView {
+  place: { locationId: string; name: string; notes: string; inside: string | null; mapId: string; regionId: string | null } | null
+  cameFrom: { name: string; atMin: number } | null
+  headingTo: { locationId: string; name: string; travel: string | null } | null
+  /** Location cards to choose where they are heading. */
+  places: EntityBrief[]
+  /** People and creatures the cards put here, and whether the party has met them. */
+  people: Array<{ id: string; name: string; type: EntityType; met: boolean; keyNpc: boolean }>
+  /** Things the party could find out here (DM eyes only). */
+  secrets: Array<{ text: string; source: 'string' | 'card' | 'clue'; id: string; done?: boolean }>
+  /** Prep sheet for the running (or next) session. */
+  prep: PrepView | null
+  /** Short reminders built from all of the above. */
+  tips: string[]
+}
+
+/** Player preview: only what the party knows (safe to show the players). */
+export interface PlayersView {
+  campaignName: string
+  when: string
+  light: 'night' | 'dawn' | 'daylight' | 'dusk'
+  recap: { number: number; text: string } | null
+  place: { name: string; inside: string | null; notes: string } | null
+  cameFrom: string | null
+  headingTo: string | null
+  people: Array<{ id: string; name: string; type: EntityType; facts: Array<{ label: string; value: string }> }>
+  discoveries: Array<{ id: string; title: string; text: string; session: number }>
+  connections: string[]
+  /** The map with only the places the party has been, and what the players see there. */
+  map: { view: MapScreenView; notes: Record<string, string> } | null
 }

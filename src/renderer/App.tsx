@@ -9,6 +9,8 @@ import { MapScreen } from './screens/MapScreen'
 import { TimelineScreen } from './screens/TimelineScreen'
 import { LiveScreen } from './screens/LiveScreen'
 import { ReviewScreen } from './screens/ReviewScreen'
+import { PrepScreen } from './screens/PrepScreen'
+import { PlayersScreen } from './screens/PlayersScreen'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
 
@@ -35,6 +37,8 @@ export function App() {
                 : screen === 'timeline' ? <TimelineScreen />
                 : screen === 'live' ? <LiveScreen />
                 : screen === 'review' ? <ReviewScreen />
+                : screen === 'prep' ? <PrepScreen />
+                : screen === 'players' ? <PlayersScreen />
                 : <BoardScreen />}
       {info && view && <BattleMapDialog />}
       <AiSettingsDialog />

@@ -2,13 +2,13 @@ import { z } from 'zod'
 import { GRID_MAX, GRID_MIN } from './battlemap'
 import {
   AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
-  RulesEdition, StorylineStatus, Tags
+  RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
 } from './schemas'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
-  StyleExampleView, PendingImageView, BattleMapContext
+  StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -27,6 +27,13 @@ const AbilityFields = z.object({
 const OptionalNumber = z.number().finite().optional()
 const Minute = z.number().int().min(0).max(1_000_000_000)
 const Short = z.string().max(300)
+const Text = z.string().max(10000)
+const PrepItemFields = z.object({
+  title: z.string().trim().max(300), body: Text, sceneType: SceneType.nullable(),
+  targetStart: z.number().int().min(0).max(1440).nullable(), targetEnd: z.number().int().min(0).max(1440).nullable(),
+  entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(),
+  role: z.string().max(300), stats: z.string().max(1000), tactics: z.string().max(2000)
+}).partial()
 const Polygon = z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(500)
 const GenPerson = z.object({
   name: Name, species: Short, occupation: Short, attitude: Short.min(1), quirk: Short, wants: Short, statblockName: Short, summary: Short
@@ -116,6 +123,29 @@ export const ipcInputs = {
   'ai:models': z.object({ provider: z.string().max(60), baseUrl: z.string().trim().max(500).optional() }),
   'ai:test': z.object({ provider: z.string().max(60), model: z.string().trim().max(200), baseUrl: z.string().trim().max(500) }),
   'ai:sceneText': z.object({ ask: z.string().max(2000) }),
+  'live:where': z.void(),
+  'players:view': z.void(),
+  'live:setHeading': z.object({ locationId: Id.nullable() }),
+  'ai:ask': z.object({ preset: z.enum(['npc', 'scene', 'complication', 'rumours', 'loot', 'names']).nullable(), ask: z.string().max(2000) }),
+  'notes:append': z.object({ text: z.string().trim().min(1).max(20000) }),
+  'prep:screen': z.void(),
+  'prep:view': z.object({ number: z.number().int().min(1).max(100000).optional() }),
+  'prep:create': z.object({ number: z.number().int().min(1).max(100000) }),
+  'prep:update': z.object({
+    id: Id,
+    patch: z.object({
+      number: z.number().int().min(1).max(100000), title: z.string().trim().max(300), premise: Text,
+      pacingMinutes: z.number().int().min(15).max(1440), backupNames: Text, notes: Text
+    }).partial()
+  }),
+  'prep:setStatus': z.object({ id: Id, status: RowStatus }),
+  'prep:spread': z.object({ prepId: Id }),
+  'prep:rollNames': z.object({ count: z.number().int().min(1).max(20) }),
+  'prepItem:add': z.object({ prepId: Id, kind: PrepKind, fields: PrepItemFields.optional() }),
+  'prepItem:update': z.object({ id: Id, patch: PrepItemFields }),
+  'prepItem:done': z.object({ id: Id, done: z.boolean() }),
+  'prepItem:setStatus': z.object({ id: Id, status: RowStatus }),
+  'prepItem:move': z.object({ id: Id, direction: z.union([z.literal(-1), z.literal(1)]) }),
   'style:list': z.void(),
   'style:addDialog': z.void(),
   'style:rename': z.object({ id: Id, name: Name }),
@@ -252,6 +282,23 @@ export interface IpcOutputs {
   'ai:models': string[]
   'ai:test': string
   'ai:sceneText': AiSuggestion
+  'live:where': WhereView
+  'players:view': PlayersView
+  'live:setHeading': void
+  'ai:ask': AiSuggestion
+  'notes:append': void
+  'prep:screen': PrepScreenView
+  'prep:view': PrepView | null
+  'prep:create': string
+  'prep:update': void
+  'prep:setStatus': void
+  'prep:spread': void
+  'prep:rollNames': string[]
+  'prepItem:add': string
+  'prepItem:update': void
+  'prepItem:done': void
+  'prepItem:setStatus': void
+  'prepItem:move': void
   'style:list': StyleExampleView[]
   'style:addDialog': StyleExampleView[] | null
   'style:rename': void

@@ -18,7 +18,7 @@ export function HistoryPanel() {
   if (!history) return <p className="muted">Loading…</p>
   const removedCount = history.removedEntities.length + history.removedStrings.length + history.removedNotes.length +
     history.removedStorylines.length + history.removedMaps.length + history.removedActs.length +
-    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length
+    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length + history.removedPrep.length
 
   return (
     <div className="history">
@@ -90,6 +90,14 @@ export function HistoryPanel() {
             <li key={r.id}>
               <div className="removed-text"><strong>{r.name}</strong><span className="muted">Example map (battle map style)</span></div>
               <button onClick={() => void act('style:setStatus', { id: r.id, status: 'active' })}>Restore</button>
+            </li>
+          ))}
+          {history.removedPrep.map((r) => (
+            <li key={r.id}>
+              <div className="removed-text"><strong>{r.name}</strong><span className="muted">Prep {r.what}</span></div>
+              <button onClick={() => void (r.what === 'prep sheet'
+                ? act('prep:setStatus', { id: r.id, status: 'active' })
+                : act('prepItem:setStatus', { id: r.id, status: 'active' }))}>Restore</button>
             </li>
           ))}
         </ul>

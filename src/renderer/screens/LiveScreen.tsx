@@ -4,6 +4,7 @@ import { DeskFrame } from '../components/DeskFrame'
 import { Candle, D20 } from '../art/props'
 import { ClockDial } from '../art/sky'
 import { MapView } from '../components/MapView'
+import { WhereTheyAre } from '../components/WhereTheyAre'
 import { readOnlyLayer } from '../components/MapOverlay'
 import { Dialog } from '../components/Dialog'
 import { CampaignSettingsDialog } from '../components/EditDialogs'
@@ -126,6 +127,8 @@ function Live({ v }: { v: LiveView }) {
           )}
         </div>
       </section>
+
+      <WhereTheyAre v={v} />
 
       <section className="mat live-mat" aria-label="Table">
         <D20 className="mat-d20" />

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useBoard } from '../store'
+import { useBoard, type Mode } from '../store'
 import { isTyping } from './TopBar'
 
 const ICONS = {
@@ -10,6 +10,8 @@ const ICONS = {
   timeline: <><path d="M3 6h10M7 12h12M3 18h8" /><path d="M16 3v18" strokeDasharray="2 2" /></>,
   live: <><circle cx="12" cy="12" r="3" /><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a12 12 0 0 0 0 17M20.5 3.5a12 12 0 0 1 0 17" /></>,
   ai: <><path d="M12 3l1.8 4.6L18.5 9.5l-4.7 1.9L12 16l-1.8-4.6L5.5 9.5l4.7-1.9z" /><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></>,
+  prep: <><path d="M6 3h9l3 3v15H6z" /><path d="M9 9h6M9 13h6M9 17h4" /></>,
+  players: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M2.5 19q0-5 5.5-5t5.5 5M10.5 19q0-5 5.5-5t5.5 5" /></>,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
 }
 
@@ -22,7 +24,7 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
 
 /** The dark iron-and-wood rail down the left of the desk style screens. */
 export function DeskRail() {
-  const { screen, goTo, closeCampaign, undo, redo, setAiSettingsOpen } = useBoard()
+  const { screen, goTo, closeCampaign, undo, redo, setAiSettingsOpen, mode, setMode } = useBoard()
 
   // Same undo shortcuts as the top bar on the other screens.
   useEffect(() => {
@@ -37,20 +39,39 @@ export function DeskRail() {
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
 
-  const item = (id: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library', label: string) => (
+  const item = (id: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players', label: string, icon: keyof typeof ICONS = id) => (
     <button className="rail-item" aria-current={screen === id ? 'page' : undefined} onClick={() => goTo(id)}>
-      <Icon name={id} /><span>{label}</span>
+      <Icon name={icon} /><span>{label}</span>
     </button>
+  )
+  const modeButton = (m: Mode, label: string, title: string) => (
+    <button className="rail-mode" aria-pressed={mode === m} title={title} onClick={() => setMode(m)}>{label}</button>
   )
   return (
     <nav className="rail" aria-label="Screens">
       <div className="rail-mark" aria-hidden="true">DZ</div>
-      {item('desk', 'Desk')}
-      {item('live', 'Live')}
-      {item('board', 'Board')}
-      {item('map', 'Map')}
-      {item('timeline', 'Timeline')}
-      {item('library', 'Library')}
+      <div className="rail-modes" role="group" aria-label="Mode">
+        {modeButton('prep', 'Prep', 'DM prep: every screen and option')}
+        {modeButton('live', 'Live', 'Live session: what you need at the table, for where the party is')}
+        {modeButton('players', 'Players', 'Player preview: only what the players know, safe to show them')}
+      </div>
+      {mode === 'prep' && (
+        <>
+          {item('desk', 'Desk')}
+          {item('prep', 'Session prep', 'prep')}
+          {item('board', 'Board')}
+          {item('map', 'Map')}
+          {item('timeline', 'Timeline')}
+          {item('library', 'Library')}
+        </>
+      )}
+      {mode === 'live' && (
+        <>
+          {item('live', 'Live desk', 'live')}
+          {item('map', 'Map')}
+        </>
+      )}
+      {mode === 'players' && item('players', 'What they know', 'players')}
       <span className="spacer" />
       <button className="rail-item" onClick={() => setAiSettingsOpen(true)} title="Choose AI services for writing and battle maps">
         <Icon name="ai" /><span>AI</span>

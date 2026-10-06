@@ -8,7 +8,7 @@ export interface SceneContext {
   when: string
   light: 'night' | 'dawn' | 'daylight' | 'dusk'
   moon: string
-  place: { name: string; notes: string; inside: string | null } | null
+  place: { name: string; notes: string; inside: string | null; looks?: string } | null
   /** Who and what the cards place there (names and types only). */
   present: Array<{ name: string; type: string }>
   /** The last few session log lines, newest last. */
@@ -30,6 +30,7 @@ export function scenePrompt(ctx: SceneContext, ask: string): string {
   const lines: string[] = [`Campaign: ${ctx.campaignName}.`, `Time: ${ctx.when} (${ctx.light}). Moon: ${ctx.moon}.`]
   if (ctx.place) {
     lines.push(`Where the party is: ${ctx.place.name}${ctx.place.inside ? `, in ${ctx.place.inside}` : ''}.`)
+    if (ctx.place.looks?.trim()) lines.push(`What the players see there: ${clip(ctx.place.looks, 800)}`)
     if (ctx.place.notes.trim()) lines.push(`DM notes on this place: ${clip(ctx.place.notes, 1200)}`)
   } else {
     lines.push('Where the party is: not placed on a map.')

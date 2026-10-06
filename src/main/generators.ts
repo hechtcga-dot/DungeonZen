@@ -52,6 +52,13 @@ export interface GeneratedCharacter {
   summary: string
 }
 
+/** Spare names for people the party meets unexpectedly (prep sheet: backup names). */
+export function rollNames(rng: Rng, count: number): string[] {
+  const out = new Set<string>()
+  for (let tries = 0; out.size < count && tries < count * 20; tries++) out.add(`${pick(rng, FIRST)} ${pick(rng, LAST)}`)
+  return [...out]
+}
+
 export function rollCharacter(rng: Rng): GeneratedCharacter {
   const [occupation, statblockName] = pick(rng, OCCUPATIONS)
   const c = {

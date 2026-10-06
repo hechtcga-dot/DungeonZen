@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, ReviewView, SheetView, TimelineView } from '../shared/types'
+import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, SheetView, TimelineView } from '../shared/types'
 
 export type Selection =
   | { kind: 'entity'; id: string }
@@ -9,7 +9,10 @@ export type Selection =
   | { kind: 'note'; id: string }
   | null
 
-export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library'
+export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players'
+/** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
+export type Mode = 'prep' | 'live' | 'players'
+export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
 
 interface BoardState {
   info: CampaignInfo | null
@@ -23,6 +26,16 @@ interface BoardState {
   live: LiveView | null
   review: ReviewView | null
   mapScreen: MapScreenView | null
+  mode: Mode
+  setMode(mode: Mode): void
+  prepScreen: PrepScreenView | null
+  /** Live desk: where the party is and what is around them. */
+  where: WhereView | null
+  players: PlayersView | null
+  prep: PrepView | null
+  /** The session number shown on the Prep screen (null: the running or next session). */
+  prepNumber: number | null
+  setPrepNumber(n: number | null): void
   reviewSessionId: string | null
   openReview(sessionId: string): Promise<void>
   sheetId: string | null
@@ -42,7 +55,7 @@ interface BoardState {
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
   showBoard(boardId: string): Promise<void>
-  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library'): void
+  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players'): void
   openSheet(entityId: string): Promise<void>
   showOnBoard(entityId: string): Promise<void>
   refresh(): Promise<void>
@@ -70,6 +83,14 @@ export const useBoard = create<BoardState>((set, get) => ({
   live: null,
   review: null,
   mapScreen: null,
+  mode: 'prep',
+  setMode(mode) { set({ mode, screen: MODE_HOME[mode] }); void get().refresh() },
+  prepScreen: null,
+  where: null,
+  players: null,
+  prep: null,
+  prepNumber: null,
+  setPrepNumber(n) { set({ prepNumber: n }); void get().refresh() },
   aiSettingsOpen: false,
   setAiSettingsOpen(open) { set({ aiSettingsOpen: open }) },
   battleMapOpen: false,
@@ -84,7 +105,7 @@ export const useBoard = create<BoardState>((set, get) => ({
 
   async openCampaign(info) {
     set({
-      info, screen: 'desk', boardId: info.globalBoardId, desk: null, selection: null, view: null, history: null,
+      info, screen: 'desk', mode: 'prep', prepNumber: null, boardId: info.globalBoardId, desk: null, selection: null, view: null, history: null,
       sheet: null, sheetId: null, search: ''
     })
     await get().refresh()
@@ -96,12 +117,14 @@ export const useBoard = create<BoardState>((set, get) => ({
   },
 
   async showBoard(boardId) {
-    set({ boardId, selection: null, screen: 'board' })
+    set({ boardId, selection: null, screen: 'board', mode: 'prep' })
     await get().refresh()
   },
 
   goTo(screen) {
-    set({ screen })
+    // The map belongs to every mode; other screens belong to one.
+    const mode: Mode = screen === 'map' ? get().mode : screen === 'live' ? 'live' : screen === 'players' ? 'players' : 'prep'
+    set({ screen, mode })
     void get().refresh()
   },
 
@@ -123,7 +146,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   },
 
   async refresh() {
-    const { boardId, panel, screen, sheetId, reviewSessionId } = get()
+    const { boardId, panel, screen, sheetId, reviewSessionId, prepNumber } = get()
     if (!boardId) return
     try {
       const [view, history, sheet, desk, info, timeline, live, review] = await Promise.all([
@@ -149,7 +172,12 @@ export const useBoard = create<BoardState>((set, get) => ({
       }
       const mapId = screen === 'live' ? live?.map?.id : screen === 'desk' || screen === 'map' ? desk?.map?.id : undefined
       const mapScreen = mapId ? await call('mapscreen:view', { mapId }).catch(() => null) : get().mapScreen
-      set({ view, history, sheet, desk, timeline, live, review, mapScreen, info: info ?? get().info })
+      const [prepScreen, prep] = screen === 'prep'
+        ? await Promise.all([call('prep:screen', undefined), call('prep:view', prepNumber ? { number: prepNumber } : {})])
+        : [get().prepScreen, get().prep]
+      const where = screen === 'live' ? await call('live:where', undefined).catch(() => null) : get().where
+      const players = screen === 'players' ? await call('players:view', undefined).catch(() => null) : get().players
+      set({ view, history, sheet, desk, timeline, live, review, mapScreen, prepScreen, prep, where, players, info: info ?? get().info })
     } catch (err) {
       get().say((err as Error).message, true)
     }

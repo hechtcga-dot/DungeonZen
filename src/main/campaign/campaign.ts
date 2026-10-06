@@ -5,7 +5,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
-  relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
+  relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
@@ -15,13 +15,13 @@ import type {
 } from '../../shared/schemas'
 import { MINUTES_PER_DAY } from '../../shared/time'
 import { formatClock } from '../../shared/time'
-import { KNOWLEDGE_FIELDS } from '../../shared/schemas'
+import { KNOWLEDGE_FIELDS, type PrepKind, type SceneType } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, RegionDetail, RegionView,
+  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
   SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
 } from '../../shared/types'
@@ -34,6 +34,9 @@ import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from 
 
 export const DB_FILE = 'campaign.db'
 export const ASSETS_DIR = 'assets'
+const PREP_LABELS: Record<PrepKind, string> = { discovery: 'discovery', scene: 'scene', clue: 'clue', npc: 'key NPC', threat: 'threat' }
+export type PrepItemPatch = Partial<Pick<PrepItemRow,
+  'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'role' | 'stats' | 'tactics'>>
 const STYLE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
 const PENDING_ID = /^[0-9a-f-]{36}\.(png|jpg|webp)$/
 function mimeOf(path: string): string {
@@ -51,6 +54,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
+  | 'heading_location_id'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -222,6 +226,12 @@ export class Campaign {
       ...this.removedTimeline(),
       removedRegions: this.db.select().from(regionShape).where(eq(regionShape.status, 'defunct')).all()
         .map((r) => ({ id: r.id, name: this.nameOf(r.locationId) })),
+      removedPrep: [
+        ...this.db.select().from(sessionPrep).where(eq(sessionPrep.status, 'defunct')).all()
+          .map((p) => ({ id: p.id, name: p.title || `Session ${p.number}`, what: 'prep sheet' })),
+        ...this.db.select().from(prepItem).where(eq(prepItem.status, 'defunct')).all()
+          .map((i) => ({ id: i.id, name: i.title || '(untitled)', what: PREP_LABELS[i.kind as PrepKind] }))
+      ],
       removedStyles: this.db.select().from(styleExample).where(eq(styleExample.status, 'defunct')).all()
         .map((r) => ({ id: r.id, name: r.name })),
       log: this.log.recent().map((c) => ({ id: c.id, label: c.label, at: c.at, undone: c.state === 'undone' }))
@@ -1475,9 +1485,7 @@ export class Campaign {
   sceneContext(): SceneContext {
     const nowMin = this.info().clockMin
     const moon = moonOn(nowMin, Number(this.setting('moon_offset_days') ?? 0))
-    // The party's latest position on any map.
-    const party = this.maps().map((m) => this.partyAt(m.id, nowMin)).filter((p): p is PartyMarker => !!p)
-      .sort((a, b) => a.atMin - b.atMin).at(-1) ?? null
+    const party = this.partyNow()
     let place: SceneContext['place'] = null
     let present: SceneContext['present'] = []
     if (party?.locationId) {
@@ -1487,7 +1495,8 @@ export class Campaign {
       const parent = loc?.parentId ? this.db.select({ name: entity.name }).from(entity).where(eq(entity.id, loc.parentId)).get()?.name ?? null : null
       if (loc) {
         const notes = [loc.attributes.description, loc.attributes.notes].filter((x): x is string => typeof x === 'string' && !!x.trim()).join('\n')
-        place = { name: loc.name, notes, inside: parent }
+        const looks = typeof loc.attributes.player_notes === 'string' ? loc.attributes.player_notes.trim() : ''
+        place = { name: loc.name, notes, inside: parent, looks }
       }
       if (detail) present = [...detail.hereNow, ...detail.plotPoints].filter((e) => e.type !== 'PC').map((e) => ({ name: e.name, type: e.type }))
     }
@@ -1640,6 +1649,344 @@ export class Campaign {
   /** Throws away a drawn image the DM did not keep (it was never campaign data). */
   discardPending(pendingId: string): void {
     try { unlinkSync(this.pendingFile(pendingId)) } catch { /* already gone */ }
+  }
+
+  // ---- live: where the party is
+
+  /** The party's latest position on any map, with the map it is on. */
+  private partyNow(): (PartyMarker & { mapId: string }) | null {
+    const nowMin = this.info().clockMin
+    return this.maps().map((m) => { const p = this.partyAt(m.id, nowMin); return p ? { ...p, mapId: m.id } : null })
+      .filter((p): p is PartyMarker & { mapId: string } => !!p)
+      .sort((a, b) => a.atMin - b.atMin).at(-1) ?? null
+  }
+
+  /** People the party has met: a logged meeting, or their name is known. */
+  private metIds(): Set<string> {
+    const met = new Set(this.db.select().from(logEntry).where(and(eq(logEntry.status, 'active'), eq(logEntry.kind, 'meeting'))).all()
+      .map((l) => l.entityId).filter((x): x is string => !!x))
+    for (const k of this.db.select().from(knowledge).where(eq(knowledge.status, 'active')).all()) if (k.field === 'name') met.add(k.entityId)
+    return met
+  }
+
+  liveWhere(): WhereView {
+    const nowMin = this.info().clockMin
+    const party = this.partyNow()
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
+    const prep = this.prepFor()
+    const met = this.metIds()
+    const places = this.db.select().from(entity).all().filter((e) => e.type === 'LOCATION' && (e.status === 'active' || e.status === 'resolved'))
+      .sort((a, b) => a.name.localeCompare(b.name)).map((e) => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus }))
+
+    let place: WhereView['place'] = null
+    let people: WhereView['people'] = []
+    const secrets: WhereView['secrets'] = []
+    if (party?.locationId) {
+      const loc = this.entityRow(party.locationId)
+      const region = this.db.select().from(regionShape).where(and(eq(regionShape.locationId, loc.id), eq(regionShape.status, 'active'))).get()
+      const notes = [loc.attributes.description, loc.attributes.notes].filter((x): x is string => typeof x === 'string' && !!x.trim()).join('\n\n')
+      place = { locationId: loc.id, name: loc.name, notes, inside: loc.parentId ? names.get(loc.parentId) ?? null : null, mapId: party.mapId, regionId: region?.id ?? null }
+      const detail = region ? this.regionDetail(region.id) : null
+      const keyNpcs = new Set((prep?.items ?? []).filter((i) => i.kind === 'npc' && i.entityId).map((i) => i.entityId!))
+      people = (detail?.hereNow ?? []).filter((e) => e.type !== 'PC')
+        .map((e) => ({ id: e.id, name: e.name, type: e.type, met: met.has(e.id), keyNpc: keyNpcs.has(e.id) }))
+        .sort((a, b) => Number(b.keyNpc) - Number(a.keyNpc) || Number(b.met) - Number(a.met) || a.name.localeCompare(b.name))
+      // Secrets: secret strings the party does not know yet that touch this place or someone here.
+      const here = new Set([loc.id, ...people.map((p) => p.id)])
+      const known = new Set(this.db.select().from(relationshipKnown).where(eq(relationshipKnown.status, 'active')).all().map((k) => k.relationshipId))
+      for (const r of this.db.select().from(relationship).where(and(eq(relationship.status, 'active'), eq(relationship.isSecret, true))).all()) {
+        if (known.has(r.id) || !(here.has(r.sourceId) || here.has(r.targetId))) continue
+        secrets.push({ id: r.id, source: 'string', text: `${names.get(r.sourceId) ?? '?'} ${r.type.toLowerCase().replace(/_/g, ' ')} ${names.get(r.targetId) ?? '?'}` })
+      }
+      for (const c of detail?.plotPoints ?? []) if (c.type === 'CLUE') secrets.push({ id: c.id, source: 'card', text: c.name })
+      for (const c of (prep?.items ?? []).filter((i) => i.kind === 'clue' && i.locationId === loc.id)) {
+        const d = prep!.items.find((x) => x.id === c.discoveryId)
+        secrets.push({ id: c.id, source: 'clue', done: c.done, text: `${c.body || c.title}${d ? ` (leads to: ${d.title || 'a discovery'})` : ''}` })
+      }
+    }
+
+    // Where they came from: the last position somewhere else.
+    let cameFrom: WhereView['cameFrom'] = null
+    if (party) {
+      const before = this.db.select().from(partyPosition).where(and(eq(partyPosition.mapId, party.mapId), eq(partyPosition.status, 'active'))).all()
+        .filter((p) => p.atMin <= nowMin && p.locationId !== party.locationId)
+        .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt)).at(-1)
+      if (before) cameFrom = { name: before.locationId ? names.get(before.locationId) ?? 'somewhere' : 'between places', atMin: before.atMin }
+    }
+
+    const headingId = this.setting('heading_location_id')
+    let headingTo: WhereView['headingTo'] = null
+    if (typeof headingId === 'string' && names.has(headingId) && headingId !== party?.locationId) {
+      let travel: string | null = null
+      const region = this.db.select().from(regionShape).where(and(eq(regionShape.locationId, headingId), eq(regionShape.status, 'active'))).get()
+      if (party && region && region.mapId === party.mapId) {
+        const est = this.travelEstimate(party.mapId, centroid(region.polygon))
+        if (est.minutes != null) travel = `about ${Math.floor(est.minutes / 60)} h ${est.minutes % 60} min`
+      }
+      headingTo = { locationId: headingId, name: names.get(headingId)!, travel }
+    }
+
+    const tips: string[] = []
+    if (!party) tips.push('Place the party on the map to see who and what is around them.')
+    if (cameFrom) tips.push(`They came from ${cameFrom.name} (${formatClock(cameFrom.atMin)}).`)
+    if (headingTo) tips.push(`They are heading to ${headingTo.name}${headingTo.travel ? `, ${headingTo.travel} away` : ''}.`)
+    const metHere = people.filter((p) => p.met)
+    if (metHere.length) tips.push(`They have met ${metHere.map((p) => p.name).join(', ')} here before.`)
+    const newHere = people.filter((p) => !p.met && (p.type === 'NPC' || p.keyNpc))
+    if (newHere.length) tips.push(`Not met yet: ${newHere.map((p) => p.name).join(', ')}.`)
+    const open = secrets.filter((x) => !x.done)
+    if (open.length) tips.push(`${open.length} secret${open.length === 1 ? '' : 's'} could come out here.`)
+    const scenesHere = (prep?.items ?? []).filter((i) => i.kind === 'scene' && !i.done && place && i.locationId === place.locationId)
+    for (const sc of scenesHere) tips.push(`Planned here: ${sc.title || 'a scene'}${sc.sceneType ? ` (${sc.sceneType})` : ''}.`)
+    const next = (prep?.items ?? []).find((i) => i.kind === 'scene' && !i.done)
+    if (next && !scenesHere.includes(next)) tips.push(`Next planned scene: ${next.title || 'untitled'}${next.locationName ? ` at ${next.locationName}` : ''}.`)
+    return { place, cameFrom, headingTo, places, people, secrets, prep, tips }
+  }
+
+  /** Adds a paragraph to the DM notes journal (one undo step). */
+  appendDmNotes(text: string): void {
+    const cur = this.setting('dm_notes')
+    const before = typeof cur === 'string' ? cur.trimEnd() : ''
+    this.setSetting('dm_notes', before ? `${before}\n\n${text.trim()}` : text.trim(), 'Added to the DM notes')
+  }
+
+  /** Player preview: what the party has seen and learned, nothing else. */
+  playersView(): PlayersView {
+    const nowMin = this.info().clockMin
+    const all = this.db.select().from(entity).all()
+    const byId = new Map(all.map((e) => [e.id, e]))
+    const text = (e: EntityRow | undefined, k: string) => (e && typeof e.attributes[k] === 'string' ? (e.attributes[k] as string).trim() : '')
+    const where = this.liveWhere()
+    const placeRow = where.place ? byId.get(where.place.locationId) : undefined
+
+    // Recap: the latest player-safe recap written for a session.
+    const recapRow = this.db.select().from(session).where(eq(session.status, 'active')).all()
+      .filter((x) => x.playerRecap.trim()).sort((a, b) => b.number - a.number)[0]
+
+    // People: met in play, or with a known field; only the known fields are shown.
+    const known = new Map<string, Set<string>>()
+    for (const k of this.db.select().from(knowledge).where(eq(knowledge.status, 'active')).all()) {
+      if (k.knownFromMin > nowMin) continue
+      if (!known.has(k.entityId)) known.set(k.entityId, new Set())
+      known.get(k.entityId)!.add(k.field)
+    }
+    const met = this.metIds()
+    const people = [...new Set([...met, ...known.keys()])]
+      .map((id) => byId.get(id)).filter((e): e is EntityRow => !!e && e.status !== 'defunct' && ['NPC', 'FACTION', 'MONSTER'].includes(e.type))
+      .map((e) => {
+        const f = known.get(e.id) ?? new Set<string>()
+        const facts: Array<{ label: string; value: string }> = []
+        if (f.has('location') && text(e, 'location')) facts.push({ label: 'Where', value: text(e, 'location') })
+        if (f.has('motivation') && text(e, 'motivation')) facts.push({ label: 'Wants', value: text(e, 'motivation') })
+        if (f.has('statblock')) { const sb = readStatBlock(e.attributes.statblock); if (sb) facts.push({ label: 'Seen in a fight', value: statLine(sb) }) }
+        if (f.has('bio') && text(e, 'bio')) facts.push({ label: 'About', value: text(e, 'bio') })
+        if (text(e, 'player_notes')) facts.push({ label: 'Note', value: text(e, 'player_notes') })
+        // Met but the name was never learned: they are "a stranger" (same rule as the player recap).
+        const name = f.has('name') ? e.name : 'A stranger'
+        return { id: e.id, name, type: e.type as EntityType, facts }
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    const preps = new Map(this.db.select().from(sessionPrep).where(eq(sessionPrep.status, 'active')).all().map((p) => [p.id, p.number]))
+    const discoveries = this.db.select().from(prepItem).where(and(eq(prepItem.kind, 'discovery'), eq(prepItem.status, 'active'), eq(prepItem.done, true))).all()
+      .filter((i) => preps.has(i.prepId) && (i.doneAtMin ?? 0) <= nowMin)
+      .sort((a, b) => (a.doneAtMin ?? 0) - (b.doneAtMin ?? 0))
+      .map((i) => ({ id: i.id, title: i.title, text: i.body, session: preps.get(i.prepId)! }))
+
+    const knownStrings = new Set(this.db.select().from(relationshipKnown).where(eq(relationshipKnown.status, 'active')).all()
+      .filter((k) => k.knownFromMin <= nowMin).map((k) => k.relationshipId))
+    const connections = this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
+      .filter((r) => knownStrings.has(r.id))
+      .map((r) => `${byId.get(r.sourceId)?.name ?? '?'} ${r.type.toLowerCase().replace(/_/g, ' ')} ${byId.get(r.targetId)?.name ?? '?'}`)
+
+    // The map: only regions of places they have been.
+    let map: PlayersView['map'] = null
+    if (where.place) {
+      const full = this.mapScreen(where.place.mapId)
+      const visited = new Set(this.db.select().from(partyPosition).where(and(eq(partyPosition.status, 'active'), eq(partyPosition.mapId, where.place.mapId))).all()
+        .filter((p) => p.atMin <= nowMin).map((p) => p.locationId).filter((x): x is string => !!x))
+      const regions = full.regions.filter((r) => visited.has(r.locationId))
+      const notes: Record<string, string> = {}
+      for (const r of regions) notes[r.id] = text(byId.get(r.locationId), 'player_notes')
+      map = { view: { ...full, regions, unplacedLocations: [] }, notes }
+    }
+    return {
+      campaignName: this.info().name,
+      when: formatClock(nowMin),
+      light: skyAt(nowMin).light,
+      recap: recapRow ? { number: recapRow.number, text: recapRow.playerRecap } : null,
+      place: placeRow ? { name: placeRow.name, inside: where.place!.inside, notes: text(placeRow, 'player_notes') } : null,
+      cameFrom: where.cameFrom?.name ?? null,
+      headingTo: where.headingTo?.name ?? null,
+      people, discoveries, connections, map
+    }
+  }
+
+  setHeading(locationId: string | null): void {
+    this.setSetting('heading_location_id', locationId, locationId ? `Party heading to ${this.nameOf(locationId)}` : 'Cleared where the party is heading')
+  }
+
+  // ---- session prep (the DM's one-page prep sheet per session)
+
+  /** The session that is running, if any, and the number the next session will get. */
+  private sessionNumbers(): { openNumber: number | null; nextNumber: number } {
+    const all = this.db.select().from(session).all()
+    const open = all.find((x) => x.status === 'active' && x.endedAt === null)
+    return { openNumber: open?.number ?? null, nextNumber: all.reduce((n, x) => Math.max(n, x.number), 0) + 1 }
+  }
+
+  prepScreen(): PrepScreenView {
+    const brief = (e: EntityRow): EntityBrief => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus })
+    const live = this.db.select().from(entity).all().filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
+      .sort((a, b) => a.name.localeCompare(b.name))
+    return {
+      sheets: this.db.select().from(sessionPrep).where(eq(sessionPrep.status, 'active')).all()
+        .sort((a, b) => a.number - b.number).map((p) => ({ id: p.id, number: p.number, title: p.title })),
+      ...this.sessionNumbers(),
+      people: live.filter((e) => e.type === 'NPC' || e.type === 'FACTION').map(brief),
+      threats: live.filter((e) => e.type === 'MONSTER' || e.type === 'NPC').map(brief),
+      locations: live.filter((e) => e.type === 'LOCATION').map(brief)
+    }
+  }
+
+  /** The prep sheet for a session number (by default the running session, else the next one). */
+  prepFor(number?: number): PrepView | null {
+    const n = number ?? (() => { const s = this.sessionNumbers(); return s.openNumber ?? s.nextNumber })()
+    const row = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, n), eq(sessionPrep.status, 'active'))).get()
+    return row ? this.prepView(row.id) : null
+  }
+
+  prepView(id: string): PrepView {
+    const p = this.prepRow(id)
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
+    const items = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, id), eq(prepItem.status, 'active'))).all()
+      .sort((a, b) => a.sort - b.sort)
+      .map((i): PrepItemView => ({
+        id: i.id, kind: i.kind as PrepKind, title: i.title, body: i.body, sceneType: (i.sceneType as SceneType | null) ?? null,
+        targetStart: i.targetStart, targetEnd: i.targetEnd,
+        entityId: i.entityId, entityName: i.entityId ? names.get(i.entityId) ?? null : null,
+        locationId: i.locationId, locationName: i.locationId ? names.get(i.locationId) ?? null : null,
+        discoveryId: i.discoveryId, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin
+      }))
+    return { id: p.id, number: p.number, title: p.title, premise: p.premise, pacingMinutes: p.pacingMinutes, backupNames: p.backupNames, notes: p.notes, items }
+  }
+
+  createPrep(number: number): string {
+    const existing = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, number), eq(sessionPrep.status, 'active'))).get()
+    if (existing) return existing.id
+    const id = randomUUID()
+    this.log.run(`Started the prep sheet for session ${number}`, (w) => {
+      w.insert('session_prep', { id, number, title: '', premise: '', pacingMinutes: 180, backupNames: '', notes: '', status: 'active' })
+    })
+    return id
+  }
+
+  updatePrep(id: string, patch: Partial<Pick<PrepRow, 'number' | 'title' | 'premise' | 'pacingMinutes' | 'backupNames' | 'notes'>>): void {
+    const p = this.prepRow(id)
+    if (patch.number !== undefined && patch.number !== p.number) {
+      const taken = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, patch.number), eq(sessionPrep.status, 'active'))).get()
+      if (taken) throw new Error(`Session ${patch.number} already has a prep sheet`)
+    }
+    this.log.run(`Edited the prep sheet for session ${p.number}`, (w) => { w.update('session_prep', id, patch) })
+  }
+
+  setPrepStatus(id: string, status: RowStatus): void {
+    const p = this.prepRow(id)
+    if (status === 'active') {
+      const taken = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, p.number), eq(sessionPrep.status, 'active'))).get()
+      if (taken && taken.id !== id) throw new Error(`Session ${p.number} already has a prep sheet; change its number first`)
+    }
+    this.log.run(status === 'defunct' ? `Moved the prep sheet for session ${p.number} to History` : `Restored the prep sheet for session ${p.number}`, (w) => {
+      w.update('session_prep', id, { status })
+    })
+  }
+
+  addPrepItem(prepId: string, kind: PrepKind, fields: PrepItemPatch = {}): string {
+    const p = this.prepRow(prepId)
+    const siblings = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, kind))).all()
+    const id = randomUUID()
+    const fromCard = fields.entityId ? this.db.select().from(entity).where(eq(entity.id, fields.entityId)).get() : undefined
+    const title = fields.title ?? fromCard?.name ?? ''
+    const card = fromCard ? this.prepFromCard(kind, fromCard) : {}
+    this.log.run(`Added a ${PREP_LABELS[kind]} to the prep for session ${p.number}`, (w) => {
+      w.insert('prep_item', {
+        id, prepId, kind, sort: siblings.reduce((n, x) => Math.max(n, x.sort), 0) + 1, title, body: '',
+        sceneType: kind === 'scene' ? 'exploration' : null, targetStart: null, targetEnd: null, entityId: null, locationId: null,
+        discoveryId: null, role: '', stats: '', tactics: '', done: false, doneAtMin: null, status: 'active', ...card, ...fields, ...(title ? { title } : {})
+      })
+    })
+    return id
+  }
+
+  /** What a linked card fills in: an NPC's role and look, a monster's stat line. The DM can change it all. */
+  private prepFromCard(kind: PrepKind, e: EntityRow): PrepItemPatch {
+    const a = e.attributes as Record<string, unknown>
+    const text = (k: string) => (typeof a[k] === 'string' ? (a[k] as string).trim() : '')
+    if (kind === 'npc') return { role: [text('occupation') || text('role'), text('faction')].filter(Boolean).join(', '), body: text('appearance') || text('quirk') || text('motivation') }
+    if (kind === 'threat') {
+      const sb = readStatBlock(a.statblock)
+      return { stats: sb ? statLine(sb) : '', tactics: text('tactics') }
+    }
+    return {}
+  }
+
+  updatePrepItem(id: string, patch: PrepItemPatch): void {
+    const i = this.prepItemRow(id)
+    if (patch.entityId) Object.assign(patch, { ...this.prepFromCard(i.kind as PrepKind, this.entityRow(patch.entityId)), ...patch })
+    this.log.run(`Edited ${PREP_LABELS[i.kind as PrepKind]} ${i.title || ''}`.trim(), (w) => { w.update('prep_item', id, patch) })
+  }
+
+  /** Ticks a discovery as revealed, a scene as played or a clue as found, at the campaign time. */
+  setPrepDone(id: string, done: boolean): void {
+    const i = this.prepItemRow(id)
+    const what = i.kind === 'discovery' ? (done ? 'Revealed' : 'Unrevealed') : i.kind === 'scene' ? (done ? 'Played' : 'Unplayed') : done ? 'Found' : 'Unfound'
+    this.log.run(`${what} ${i.title || PREP_LABELS[i.kind as PrepKind]}`, (w) => {
+      w.update('prep_item', id, { done, doneAtMin: done ? this.info().clockMin : null })
+    })
+  }
+
+  setPrepItemStatus(id: string, status: RowStatus): void {
+    const i = this.prepItemRow(id)
+    this.log.run(`${status === 'defunct' ? 'Removed' : 'Restored'} ${PREP_LABELS[i.kind as PrepKind]} ${i.title}`.trim(), (w) => {
+      w.update('prep_item', id, { status })
+    })
+  }
+
+  movePrepItem(id: string, direction: -1 | 1): void {
+    const i = this.prepItemRow(id)
+    const list = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, i.prepId), eq(prepItem.kind, i.kind), eq(prepItem.status, 'active'))).all()
+      .sort((a, b) => a.sort - b.sort)
+    const at = list.findIndex((x) => x.id === id)
+    const other = list[at + direction]
+    if (!other) return
+    this.log.run(`Moved ${PREP_LABELS[i.kind as PrepKind]} ${i.title}`.trim(), (w) => {
+      w.update('prep_item', id, { sort: other.sort })
+      w.update('prep_item', other.id, { sort: i.sort })
+    })
+  }
+
+  /** Spreads the scenes evenly over the pacing target (one undo step). */
+  spreadSceneTimes(prepId: string): void {
+    const p = this.prepRow(prepId)
+    const scenes = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'scene'), eq(prepItem.status, 'active'))).all()
+      .sort((a, b) => a.sort - b.sort)
+    if (!scenes.length) return
+    const each = p.pacingMinutes / scenes.length
+    this.log.run(`Spread the scene times for session ${p.number}`, (w) => {
+      scenes.forEach((x, k) => w.update('prep_item', x.id, { targetStart: Math.round((k * each) / 5) * 5, targetEnd: Math.round(((k + 1) * each) / 5) * 5 }))
+    })
+  }
+
+  private prepRow(id: string): PrepRow {
+    const r = this.db.select().from(sessionPrep).where(eq(sessionPrep.id, id)).get()
+    if (!r) throw new Error(`No prep sheet with id ${id}`)
+    return r
+  }
+
+  private prepItemRow(id: string): PrepItemRow {
+    const r = this.db.select().from(prepItem).where(eq(prepItem.id, id)).get()
+    if (!r) throw new Error(`No prep line with id ${id}`)
+    return r
   }
 
   /** How long the party would take to get to (x, y), and which region that is. Nothing is saved. */
@@ -1860,7 +2207,7 @@ function checkSpan(startMin: number, endMin: number): void {
 
 function toSessionView(r: SessionRow): SessionView {
   return {
-    id: r.id, number: r.number, startMin: r.startMin, endMin: r.endMin, ended: r.endedAt !== null,
+    id: r.id, number: r.number, startMin: r.startMin, endMin: r.endMin, ended: r.endedAt !== null, startedAt: r.startedAt,
     sceneText: r.sceneText, recap: r.recap, playerRecap: r.playerRecap
   }
 }

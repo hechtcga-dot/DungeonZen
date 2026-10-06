@@ -6,6 +6,7 @@ import { MapOverlay, PartyToken } from '../components/MapOverlay'
 import { Candle, CompassRose } from '../art/props'
 import { useLightingPref } from '../art/TableLighting'
 import { Dialog } from '../components/Dialog'
+import { CommitField } from '../components/fields'
 import { MapDialog } from '../components/EditDialogs'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { lightingAt } from '../../shared/sky'
@@ -330,6 +331,10 @@ function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
       {list('Plot points and scenes', detail.plotPoints, 'None tied to this place.')}
       <h3 className="side-h">Notes</h3>
       {detail.notes ? <p className="region-notes">{detail.notes}</p> : <p className="ink-muted">Nothing written on the location card.</p>}
+      <CommitField id={`player-notes-${detail.location.id}`} label="What the players see (shown in Player preview)" multiline rows={3}
+        value={typeof detail.location.attributes.player_notes === 'string' ? detail.location.attributes.player_notes : ''}
+        placeholder="Fog-wet piers, a fish market, the old bell tower…"
+        onCommit={(v) => void act('entity:update', { id: detail.location.id, patch: { attributes: { player_notes: v } } })} />
       <h3 className="side-h">Sub-regions</h3>
       {detail.subRegions.length === 0 ? <p className="ink-muted">None yet.</p> : (
         <ul className="here-list">{detail.subRegions.map((s) => <li key={s.locationId}><button className="ledger-name" onClick={() => onSelect(s.locationId)}>{s.name}</button></li>)}</ul>

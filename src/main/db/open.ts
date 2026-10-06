@@ -137,6 +137,20 @@ const MIGRATIONS: string[] = [
   CREATE TABLE style_example (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, image_path TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL
   );
+  `,
+  `
+  CREATE TABLE session_prep (
+    id TEXT PRIMARY KEY, number INTEGER NOT NULL, title TEXT NOT NULL, premise TEXT NOT NULL, pacing_minutes INTEGER NOT NULL,
+    backup_names TEXT NOT NULL, notes TEXT NOT NULL, status TEXT NOT NULL
+  );
+  CREATE TABLE prep_item (
+    id TEXT PRIMARY KEY, prep_id TEXT NOT NULL REFERENCES session_prep(id), kind TEXT NOT NULL, sort REAL NOT NULL,
+    title TEXT NOT NULL, body TEXT NOT NULL, scene_type TEXT, target_start INTEGER, target_end INTEGER,
+    entity_id TEXT REFERENCES entity(id), location_id TEXT REFERENCES entity(id), discovery_id TEXT,
+    role TEXT NOT NULL DEFAULT '', stats TEXT NOT NULL DEFAULT '', tactics TEXT NOT NULL DEFAULT '',
+    done INTEGER NOT NULL DEFAULT 0, done_at_min INTEGER, status TEXT NOT NULL
+  );
+  CREATE INDEX prep_item_prep ON prep_item(prep_id, kind, sort);
   `
 ]
 

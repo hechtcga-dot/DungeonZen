@@ -96,6 +96,19 @@ must have unit tests before any screen depends on it.
   (top-down, square grid, size in squares, scene facts) and examples; the DM
   can upload their own maps as style references (owner, 2026-10-06). Built.
 
+- Modes (owner, 2026-10-06): DM Prep is the full program (every screen and
+  option). Live trims to the table and works from where the party is: where
+  they came from and are heading, people tied to the place (met or not),
+  secrets they may discover, tonight's prep, and buttons to generate scenes,
+  NPCs, descriptions and to ask the AI anything. Player Preview is what the
+  players know: recap, where they are and are heading, people met, revealed
+  discoveries, and the map of places they have been with notes on hover.
+- Session prep follows the owner's one-page prep template (2026-10-06):
+  premise, pacing target, discoveries, scenes with type and target time, clues
+  for discoveries, key NPCs, threats, backup names, cheat sheet.
+- Battle maps have many switches and settings; some fill in from the program
+  (time of day from the clock, setting and terrain from the place, the
+  description), and every one can be changed (owner, 2026-10-06).
 - AI services: the DM picks the writing service and the battle-map service from
   drop-down lists and can switch at any time (owner, 2026-10-06). Writing:
   Claude, ChatGPT, Gemini, OpenRouter, Mistral, Groq, DeepSeek, Grok, Ollama,
@@ -104,7 +117,6 @@ must have unit tests before any screen depends on it.
   by adding a row to `AI_PROVIDERS` (and an adapter only for a new protocol).
 
 ## Open decisions (do not guess; ask)
-- How DM Prep, Live Session, and Player Preview differ on screen (owner unsure, 2026-10-06)
 - Colours for ITEM and HANDOUT cards (placeholders in `src/renderer/entityStyle.ts`)
 
 ## Current state (2026-10-06)
@@ -202,10 +214,36 @@ built.
   waits in `assets/pending` (cleared on open) until Keep, which makes it a map
   of kind `battle` with a grid, its source and prompt (one undo step). The app
   draws the grid lines (`GridLines`); any map can get a grid in Scale and grid.
+- Modes: the rail's Prep / Live / Players switch (`store.mode`; the rail shows
+  Desk, Session prep, Board, Map, Timeline, Library in Prep; Live desk and Map in
+  Live; What they know in Players). Going to a screen sets its mode; the Map
+  keeps the current one.
+- Session prep (Prep › Session prep, `PrepScreen.tsx`): one sheet per session
+  number (`session_prep`, `prep_item`); title, premise, pacing target, for
+  session; discoveries (Revealed), scenes (type, where, target time, Played,
+  Spread times evenly), clues (leads to a discovery, where, Found), key NPCs and
+  threats (link a card to fill role/look or the stat line; all editable),
+  backup names (Roll 4 names, offline), notes, cheat sheet. Reorder, remove to
+  History and restore, undo.
+- Live › Where they are (`WhereTheyAre.tsx`, `Campaign.liveWhere`): place,
+  came from (last other position), heading to (setting `heading_location_id`,
+  with travel time), tips, notes, who is here (Met / Not met / KEY, They meet),
+  secrets here (unknown secret strings touching the place or people there,
+  CLUE cards, prep clues with Found), tonight's prep (premise, pacing against
+  real time since the session started, tick discoveries and scenes). Ask AI
+  (`src/main/ai/ask.ts`): An NPC here, A scene here, Complications, Rumours,
+  Something to find, Names, or free text; answer is an AI suggestion: Add to
+  session log, Save to DM notes, Copy, Discard.
+- Player preview (`PlayersScreen.tsx`, `Campaign.playersView`): only known
+  things: last player recap, place and its "What the players see"
+  (`attributes.player_notes`, edited in the Map region panel), came from,
+  heading to, people met (name only if known, else "A stranger"; only known
+  fields), revealed discoveries, known strings, the map with only visited
+  regions and their player notes on hover. Tested to leak no DM notes.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: AI notes import; tokens on battle maps; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
-import, exports (Phase 4), DM Prep/Live/Player modes,
-packaging/installer.
+Not yet: AI notes import; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+import, exports (Phase 4), packaging/installer.
+("DM Prep/Live/Player modes" above is built; the line is kept for history.)

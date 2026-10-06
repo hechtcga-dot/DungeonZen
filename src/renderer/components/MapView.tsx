@@ -23,6 +23,8 @@ export function MapView(props: {
   /** When true, double-click does not zoom (drawing tools use it). */
   noDoubleClickZoom?: boolean
   onKeyDown?(e: KeyboardEvent): boolean | void
+  /** The pointer moved over the map (not while dragging): image point and screen point; null when it leaves. */
+  onMapHover?(p: [number, number] | null, client: { x: number; y: number } | null): void
 }) {
   const frame = useRef<HTMLDivElement>(null)
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
@@ -84,6 +86,7 @@ export function MapView(props: {
   }
   const onPointerMove = (e: PointerEvent) => {
     const d = drag.current
+    if (!d && props.onMapHover) props.onMapHover(toImage(e.clientX, e.clientY), { x: e.clientX, y: e.clientY })
     if (!d || d.id !== e.pointerId) return
     if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4) d.moved = true
     if (d.moved) setT((cur) => ({ ...cur, x: d.tx + e.clientX - d.x, y: d.ty + e.clientY - d.y }))
@@ -121,6 +124,7 @@ export function MapView(props: {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => { drag.current = null }}
+        onPointerLeave={() => props.onMapHover?.(null, null)}
         onDoubleClick={(e) => {
           if (props.noDoubleClickZoom) return
           const rect = e.currentTarget.getBoundingClientRect()
