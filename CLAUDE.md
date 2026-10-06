@@ -275,10 +275,27 @@ built.
   seal), bulletin board (QUEST/HANDOUT/CLUE notes with `reward`), A4 or Letter.
   Rendered in a hidden window (printToPDF, capturePage); several JPGs go into a
   chosen folder. Handout text, Signed by and Reward are on the card's second tab.
+- AI notes import (Phase 5; Prep › Import notes, `ImportScreen.tsx`): drop files
+  or Choose files; read locally (`src/main/importers/read.ts`: .txt/.md, .docx via
+  a small zip reader `zip.ts`, PDF via pdfjs-dist text, pictures sent to the AI as
+  images) into parts with locators (¶n, pages); preview shows parts = AI requests.
+  Each part goes to the writing AI with `NOTES_SYSTEM` (`importers/notes.ts`): cards,
+  storylines with acts, strings, questions, each with quote, where and stated or
+  inferred; replies parsed leniently (bad items counted as dropped), parts merged,
+  duplicates matched to existing cards (`findDuplicate`; exact match defaults to
+  merge). Progress events (`import-progress`), Stop after this part. The draft is
+  saved in the campaign folder `imports/<id>.json` (not campaign data, rule 2;
+  status open / committed / discarded). Review: per card Create new / Merge into /
+  Skip, type, name, summary, details, Stated or AI guess badge, source quotes;
+  storylines, strings (secret), questions (answer, options, Later). Create
+  selected = one undo step (`Campaign.commitImport`): merges fill only empty
+  fields; cards keep `attributes.provenance` (shown on the sheet as "Where this
+  came from") and `attributes.imported`; acts one day apart from now; answers go
+  to the card's DM notes or the journal. Images in all three text adapters.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: AI notes import; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: re-reading a draft with your answers; AI help on cards (fill blanks); tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, packaging/installer; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
-with tokens; Phase 5 (AI notes import) is next.
+with tokens. Phases 1 to 5 are built; packaging (installer) is the main step left.

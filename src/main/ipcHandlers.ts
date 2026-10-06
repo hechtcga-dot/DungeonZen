@@ -1,5 +1,5 @@
 import { copyFileSync, writeFileSync } from 'node:fs'
-import { extname, join } from 'node:path'
+import { basename, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { dialog, ipcMain, net, protocol, safeStorage, type BrowserWindow } from 'electron'
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
@@ -12,11 +12,14 @@ import { RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from './exporters/roll20'
 import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './exporters/pages'
 import { renderJpg, renderPdf } from './exporters/render'
+import { NOTE_EXTENSIONS, readNotesFile, type NotesFile } from './importers/read'
+import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
+import type { ImportDraft } from '../shared/notesImport'
 import { AI_PROVIDERS, providerById, type AiChoice } from '../shared/aiProviders'
 import { timeOfDayFor } from '../shared/battlemap'
 import { searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
 import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } from './generators'
-import { ipcInputs, IPC_PREFIX, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
+import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
 import type { z } from 'zod'
 
@@ -201,6 +204,73 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return listModels(r)
   })
   handle('ai:test', async ({ provider, model, baseUrl }) => checkConnection(resolve(choiceFor(provider, { model, baseUrl }), keys.get(provider))))
+  // ---- notes import (Phase 5)
+  let importCancel = false
+  const progress = (p: ImportProgress) => getWindow()?.webContents.send(IPC_PREFIX + 'import-progress', p)
+  handle('import:chooseFiles', async () => {
+    const win = getWindow()
+    const options = {
+      title: 'Choose notes to import', buttonLabel: 'Read these',
+      properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
+      filters: [{ name: 'Notes', extensions: NOTE_EXTENSIONS.map((e) => e.slice(1)) }]
+    }
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return r.canceled ? [] : r.filePaths
+  })
+  handle('import:preview', async ({ paths }) => Promise.all(paths.map(async (path) => {
+    try {
+      const f = await readNotesFile(path)
+      return { path, name: f.name, kind: f.kind, parts: f.chunks.length, chars: f.chunks.reduce((n, c) => n + c.text.length, 0), warnings: f.warnings, error: null }
+    } catch (e) {
+      return { path, name: basename(path), kind: 'unknown', parts: 0, chars: 0, warnings: [], error: (e as Error).message }
+    }
+  })))
+  handle('import:cancel', () => { importCancel = true })
+  handle('import:read', async ({ paths, title }) => {
+    const c = current()
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    importCancel = false
+    const existing = c.importTargets()
+    const answers: ChunkAnswer[] = []
+    const files: ImportDraft['files'] = []
+    for (const path of paths) {
+      let f: NotesFile
+      try { f = await readNotesFile(path) } catch (e) {
+        files.push({ name: basename(path), kind: 'text', parts: 0, warnings: [], error: (e as Error).message })
+        continue
+      }
+      const entry = { name: f.name, kind: f.kind, parts: f.chunks.length, warnings: [...f.warnings], error: null as string | null }
+      files.push(entry)
+      for (let i = 0; i < f.chunks.length; i++) {
+        if (importCancel) { entry.warnings.push('Stopped before the end.'); break }
+        const chunk = f.chunks[i]
+        progress({ file: f.name, part: i + 1, parts: f.chunks.length, message: `Reading ${f.name}, part ${i + 1} of ${f.chunks.length}…` })
+        try {
+          const reply = await generateText(r, {
+            system: NOTES_SYSTEM, json: true, maxTokens: 8000,
+            prompt: notesPrompt({ file: f.name, locator: chunk.locator, text: chunk.text, image: f.image }, existing, c.info().name),
+            images: f.image ? [f.image] : undefined
+          })
+          answers.push({ file: f.name, locator: chunk.locator, result: parseChunkReply(reply) })
+        } catch (e) {
+          entry.warnings.push(`${chunk.locator}: ${(e as Error).message}`)
+          if (f.chunks.length === 1 || /key|credit|reach|address|model/i.test((e as Error).message)) { entry.error = (e as Error).message; break }
+        }
+      }
+    }
+    progress({ file: '', part: 0, parts: 0, message: 'Putting it together…' })
+    const name = title?.trim() || (files.length === 1 ? files[0].name : `${files.length} files`)
+    const draft = buildDraft(answers, existing, { title: name, source: `${r.info.name} · ${r.model || 'default model'}`, files })
+    c.saveImportDraft(draft)
+    return draft
+  })
+  handle('import:drafts', () => current().importDrafts())
+  handle('import:draft', ({ id }) => current().importDraft(id))
+  handle('import:save', ({ draft }) => current().saveImportDraft(draft))
+  handle('import:commit', ({ id }) => current().commitImport(id))
+  handle('import:setStatus', ({ id, status }) => current().setImportStatus(id, status))
+
   // ---- exports: Roll20, files
   const saveAs = async (title: string, defaultPath: string, filters: Array<{ name: string; extensions: string[] }>) => {
     const win = getWindow()

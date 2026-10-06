@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { GRID_MAX, GRID_MIN } from './battlemap'
+import { ImportDraft, type ImportDraftSummary } from './notesImport'
 import {
   AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
@@ -124,6 +125,15 @@ export const ipcInputs = {
   'ai:test': z.object({ provider: z.string().max(60), model: z.string().trim().max(200), baseUrl: z.string().trim().max(500) }),
   'ai:sceneText': z.object({ ask: z.string().max(2000) }),
   'roll20:export': z.object({ entityIds: z.array(Id).min(1).max(200) }),
+  'import:chooseFiles': z.void(),
+  'import:preview': z.object({ paths: z.array(z.string().max(2000)).min(1).max(50) }),
+  'import:read': z.object({ paths: z.array(z.string().max(2000)).min(1).max(50), title: z.string().trim().max(200).optional() }),
+  'import:cancel': z.void(),
+  'import:drafts': z.void(),
+  'import:draft': z.object({ id: z.string().uuid() }),
+  'import:save': z.object({ draft: ImportDraft }),
+  'import:commit': z.object({ id: z.string().uuid() }),
+  'import:setStatus': z.object({ id: z.string().uuid(), status: z.enum(['open', 'discarded']) }),
   'export:pages': z.object({
     kind: z.enum(['sheets', 'letters', 'board']), entityIds: z.array(Id).min(1).max(200),
     format: z.enum(['pdf', 'jpg']), size: z.enum(['A4', 'Letter']),
@@ -309,6 +319,15 @@ export interface IpcOutputs {
   'ai:test': string
   'ai:sceneText': AiSuggestion
   'roll20:export': Roll20Export
+  'import:chooseFiles': string[]
+  'import:preview': Array<{ path: string; name: string; kind: string; parts: number; chars: number; warnings: string[]; error: string | null }>
+  'import:read': ImportDraft
+  'import:cancel': void
+  'import:drafts': ImportDraftSummary[]
+  'import:draft': ImportDraft
+  'import:save': void
+  'import:commit': { created: number; merged: number; storylines: number; links: number }
+  'import:setStatus': void
   'export:pages': string | null
   'file:saveText': string | null
   'map:saveImage': string | null
@@ -400,8 +419,15 @@ export type IpcInput<C extends IpcChannel> = z.input<(typeof ipcInputs)[C]>
 /** Errors cross IPC as plain data so the UI can show the message. */
 export type IpcResult<T> = { ok: true; value: T } | { ok: false; error: string }
 
+/** Progress while the AI reads notes (sent from main to the window). */
+export interface ImportProgress { file: string; part: number; parts: number; message: string }
+
 export interface DungeonZenApi {
   invoke<C extends IpcChannel>(channel: C, input: IpcInput<C>): Promise<IpcResult<IpcOutputs[C]>>
+  /** The path of a file dropped from Explorer. */
+  pathForFile(file: File): string
+  /** Notes import progress; returns a function that stops listening. */
+  onImportProgress(fn: (p: ImportProgress) => void): () => void
 }
 
 export { IPC_PREFIX } from './ipcPrefix'

@@ -163,6 +163,19 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                 hint="Private to you. Never shown to players."
                 onCommit={(notes) => update({ attributes: { notes } })} />
             </section>
+            {Array.isArray(e.attributes.provenance) && e.attributes.provenance.length > 0 && (
+              <section className="panel provenance">
+                <h2 className="panel-heading">Where this came from</h2>
+                <p className="hint">Read from your notes by an AI{typeof (e.attributes.imported as { ai?: string } | undefined)?.ai === 'string' ? ` (${(e.attributes.imported as { ai: string }).ai})` : ''}. Quotes marked “AI guess” were not said outright.</p>
+                <ul>
+                  {(e.attributes.provenance as Array<{ file?: string; locator?: string; quote?: string; basis?: string }>).map((x, i) => (
+                    <li key={i}>
+                      {x.basis === 'inferred' && <span className="basis-badge is-guess">AI guess</span>} “{x.quote}” <span className="muted">— {x.file}, {x.locator}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         )}
 

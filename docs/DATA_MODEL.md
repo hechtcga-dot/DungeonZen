@@ -186,5 +186,9 @@ commands. `group_id` lets a session or an import undo as one step.
   `log_entry.encounter_id` links a fight to the encounter that was run.
   Settings: `house_rules`. Card attributes used by exports: HANDOUT `text`,
   `from`; QUEST `reward`.
+- Notes import (no migration): drafts are JSON files in the campaign folder
+  `imports/<id>.json` (`src/shared/notesImport.ts`), not database rows, until
+  committed. Imported cards carry `attributes.provenance` (file, locator, quote,
+  basis stated | inferred, import, ai) and `attributes.imported` (ai, basis, import).
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

@@ -692,3 +692,53 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .export-pick input { width: 16px; height: 16px; min-height: 16px; }
 .export-pick .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .enc-fields .row.tight select { flex: 1; min-width: 0; }
+
+/* ---- notes import ---- */
+.import-start { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+.import-drop { height: auto; min-height: 320px; gap: 12px; border: 3px dashed transparent; }
+.import-drop.is-over { border-color: #8f2a21; }
+.import-drop p { margin: 0; max-width: 760px; }
+.import-files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.import-files li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 6px 10px; background: rgba(255, 252, 240, 0.55); border: 1px solid rgba(42, 31, 18, 0.25); }
+.import-files li.has-error { border-color: #8f2a21; }
+.import-go { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(42, 31, 18, 0.25); padding-top: 10px; }
+.import-go p { margin: 0; }
+.import-progress { display: flex; flex-direction: column; gap: 4px; }
+.progress-bar { display: block; height: 8px; max-width: 420px; border-radius: 4px; background: rgba(42, 31, 18, 0.15); overflow: hidden; }
+.progress-bar span { display: block; height: 100%; background: #3b4f8a; }
+.import-drafts { gap: 8px; }
+.draft-row { flex-direction: column; align-items: flex-start !important; gap: 0 !important; }
+.basis-badge { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; background: #2a1f12; color: #f6ecd0; vertical-align: middle; }
+.basis-badge.is-guess { background: #dbe4f5; color: #1d2747; border: 1px dashed #3b4f8a; }
+.import-review { display: flex; flex-direction: column; gap: 16px; padding-bottom: 80px; }
+.review-bar { flex-direction: row !important; flex-wrap: wrap; align-items: center; gap: 12px; }
+.import-section { height: auto; min-height: 0; gap: 10px; }
+.proposal { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid rgba(42, 31, 18, 0.28); border-radius: 3px; background: rgba(255, 252, 240, 0.55); }
+.proposal.is-guess { border: 2px dashed #3b4f8a; background: rgba(219, 228, 245, 0.45); }
+.proposal.decision-skip { opacity: 0.5; }
+.proposal-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.proposal-head select { width: auto; }
+.proposal-name { flex: 1; min-width: 200px; font-family: var(--display); font-size: 18px; }
+.proposal-summary { font-size: 14px; }
+.proposal-details { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
+.proposal-details label { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; align-items: center; gap: 6px; font-size: 13px; }
+.proposal-details label span { color: var(--ink-muted); text-transform: capitalize; }
+.proposal-details input { min-height: 32px; font-size: 13px; }
+.dup-note { margin: 0; padding: 4px 8px; font-size: 13px; background: rgba(246, 201, 69, 0.3); border-left: 3px solid #a07a14; }
+.sources { display: flex; flex-direction: column; gap: 4px; }
+.sources blockquote { margin: 0; padding: 4px 10px; font-size: 13px; font-style: italic; border-left: 3px solid #6b5a3a; background: rgba(42, 31, 18, 0.05); }
+.sources blockquote.is-guess { border-left-color: #3b4f8a; }
+.sources cite { display: block; font-style: normal; font-size: 11px; color: var(--ink-muted); }
+.acts-list { margin: 0; padding-left: 22px; font-size: 14px; }
+.question .row.tight input { flex: 1; min-width: 0; }
+.question.q-answered { border-color: #2e5b2a; }
+.question.q-deferred { opacity: 0.65; }
+.question p { margin: 0; }
+.link-row .proposal-head strong { font-family: var(--display); font-weight: 400; font-size: 16px; }
+.commit-bar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; background: #2a1a0c; color: #f1e6c6; border-top: 2px solid #000; box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.45); }
+.commit-bar span { margin-right: auto; }
+.provenance ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+@media (max-width: 1100px) { .import-start { grid-template-columns: minmax(0, 1fr); } }
+.proposal-head > input[type='checkbox'], .proposal-head .field.checkbox input { width: 20px; height: 20px; min-height: 20px; flex: none; accent-color: #2e5b2a; }
+.proposal-head .field.checkbox { flex-direction: row; gap: 6px; font-size: 14px; }

@@ -12,6 +12,7 @@ import { ReviewScreen } from './screens/ReviewScreen'
 import { PrepScreen } from './screens/PrepScreen'
 import { PlayersScreen } from './screens/PlayersScreen'
 import { EncountersScreen } from './screens/EncountersScreen'
+import { ImportScreen } from './screens/ImportScreen'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
 
@@ -41,6 +42,7 @@ export function App() {
                 : screen === 'prep' ? <PrepScreen />
                 : screen === 'players' ? <PlayersScreen />
                 : screen === 'encounters' ? <EncountersScreen />
+                : screen === 'import' ? <ImportScreen />
                 : <BoardScreen />}
       {info && view && <BattleMapDialog />}
       <AiSettingsDialog />

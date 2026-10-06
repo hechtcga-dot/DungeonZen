@@ -10,6 +10,10 @@ export interface TextRequest {
   system: string
   prompt: string
   maxTokens?: number
+  /** Pictures to read (notes photos, hand-drawn maps). Needs a model that can see images. */
+  images?: Array<{ bytes: Buffer; mime: string }>
+  /** Ask for a JSON reply where the service has a switch for it. */
+  json?: boolean
 }
 
 export interface ImageRequest {
@@ -54,7 +58,15 @@ export async function generateText(r: Resolved, req: TextRequest, f: Fetch = fet
       const body = await call(r, f, `${r.baseUrl}/v1/messages`, {
         method: 'POST',
         headers: anthropicHeaders(r),
-        body: JSON.stringify({ model: r.model, max_tokens: max, system: req.system, messages: [{ role: 'user', content: req.prompt }] })
+        body: JSON.stringify({
+          model: r.model, max_tokens: max, system: req.system,
+          messages: [{
+            role: 'user',
+            content: req.images?.length
+              ? [...req.images.map((im) => ({ type: 'image', source: { type: 'base64', media_type: im.mime, data: im.bytes.toString('base64') } })), { type: 'text', text: req.prompt }]
+              : req.prompt
+          }]
+        })
       }, TEXT_TIMEOUT)
       return textOf((body.content as Array<{ type: string; text?: string }> | undefined)?.filter((c) => c.type === 'text').map((c) => c.text ?? '').join(''), r)
     }
@@ -64,7 +76,20 @@ export async function generateText(r: Resolved, req: TextRequest, f: Fetch = fet
       const body = await call(r, f, `${r.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: bearer(r, { 'Content-Type': 'application/json', ...(r.info.id === 'openrouter' ? { 'X-Title': 'Dungeon Zen' } : {}) }),
-        body: JSON.stringify({ model: r.model, messages: [{ role: 'system', content: req.system }, { role: 'user', content: req.prompt }], ...limit })
+        body: JSON.stringify({
+          model: r.model,
+          messages: [
+            { role: 'system', content: req.system },
+            {
+              role: 'user',
+              content: req.images?.length
+                ? [{ type: 'text', text: req.prompt }, ...req.images.map((im) => ({ type: 'image_url', image_url: { url: `data:${im.mime};base64,${im.bytes.toString('base64')}` } }))]
+                : req.prompt
+            }
+          ],
+          ...limit,
+          ...(req.json && r.info.id === 'openai' ? { response_format: { type: 'json_object' } } : {})
+        })
       }, TEXT_TIMEOUT)
       const choices = body.choices as Array<{ message?: { content?: string | null } }> | undefined
       return textOf(choices?.[0]?.message?.content, r)
@@ -75,7 +100,8 @@ export async function generateText(r: Resolved, req: TextRequest, f: Fetch = fet
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': r.key ?? '' },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: req.system }] },
-          contents: [{ role: 'user', parts: [{ text: req.prompt }] }]
+          contents: [{ role: 'user', parts: [...(req.images ?? []).map((im) => ({ inlineData: { mimeType: im.mime, data: im.bytes.toString('base64') } })), { text: req.prompt }] }],
+          ...(req.json ? { generationConfig: { responseMimeType: 'application/json' } } : {})
         })
       }, TEXT_TIMEOUT)
       return textOf(geminiParts(body).map((p) => p.text ?? '').join(''), r)
