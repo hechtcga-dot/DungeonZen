@@ -55,3 +55,6 @@ export type AbilityKind = z.infer<typeof AbilityKind>
 export const KNOWLEDGE_FIELDS = ['name', 'location', 'motivation', 'statblock', 'bio'] as const
 export const KnowledgeField = z.enum(KNOWLEDGE_FIELDS)
 export type KnowledgeField = z.infer<typeof KnowledgeField>
+
+export const LogKind = z.enum(['note', 'fight', 'meeting', 'quest', 'rest', 'travel'])
+export type LogKind = z.infer<typeof LogKind>

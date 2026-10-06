@@ -145,6 +145,33 @@ export const storyTrigger = sqliteTable('story_trigger', {
   status: text('status').notNull()
 })
 
+// Live play (docs/DATA_MODEL.md "Sessions"). Interactions and the day tally are
+// log entries with a kind (meeting, fight, quest), so every one can be edited
+// or removed like any other entry.
+export const session = sqliteTable('session', {
+  id: text('id').primaryKey(),
+  number: integer('number').notNull(),
+  startedAt: text('started_at').notNull(),
+  endedAt: text('ended_at'),
+  startMin: integer('start_min').notNull(),
+  endMin: integer('end_min'),
+  sceneText: text('scene_text').notNull(),
+  recap: text('recap').notNull(),
+  status: text('status').notNull()
+})
+
+export const logEntry = sqliteTable('log_entry', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  atMin: integer('at_min').notNull(),
+  kind: text('kind').notNull(), // note | fight | meeting | quest | rest | travel
+  text: text('text').notNull(),
+  entityId: text('entity_id'),
+  minutesTaken: integer('minutes_taken').notNull(),
+  createdAt: text('created_at').notNull(),
+  status: text('status').notNull()
+})
+
 export interface RowChange {
   table: TableName
   id: string
@@ -178,7 +205,9 @@ export const tracked = {
   map: { table: map, pk: map.id },
   act: { table: act, pk: act.id },
   act_outcome: { table: actOutcome, pk: actOutcome.id },
-  story_trigger: { table: storyTrigger, pk: storyTrigger.id }
+  story_trigger: { table: storyTrigger, pk: storyTrigger.id },
+  session: { table: session, pk: session.id },
+  log_entry: { table: logEntry, pk: logEntry.id }
 } as const
 export type TableName = keyof typeof tracked
 
@@ -193,3 +222,5 @@ export type MapRow = typeof map.$inferSelect
 export type ActRow = typeof act.$inferSelect
 export type OutcomeRow = typeof actOutcome.$inferSelect
 export type TriggerRow = typeof storyTrigger.$inferSelect
+export type SessionRow = typeof session.$inferSelect
+export type LogRow = typeof logEntry.$inferSelect

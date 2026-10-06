@@ -1,7 +1,7 @@
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, NoteContent, RowStatus,
-  RulesEdition, StorylineStatus
+  LogKind, RulesEdition, StorylineStatus
 } from './schemas'
 
 export interface CampaignInfo {
@@ -287,4 +287,63 @@ export interface WhatIfView {
   actId: string
   outcomeId: string
   lines: string[]
+}
+
+export interface SessionView {
+  id: string
+  number: number
+  startMin: number
+  endMin: number | null
+  ended: boolean
+  sceneText: string
+  recap: string
+}
+
+export interface LogView {
+  id: string
+  atMin: number
+  kind: LogKind
+  text: string
+  entityId: string | null
+  entityName: string | null
+  minutesTaken: number
+}
+
+export interface PartyHealth {
+  id: string
+  name: string
+  hp: number
+  maxHp: number
+  ac: string
+  colour: string | null
+}
+
+export interface AdvisorNote {
+  level: 'warn' | 'info'
+  text: string
+}
+
+export interface LiveView {
+  nowMin: number
+  session: SessionView | null
+  sessions: SessionView[]
+  log: LogView[]
+  today: { fights: number; meetings: number; quests: number }
+  party: PartyHealth[]
+  health: { hp: number; maxHp: number; percent: number | null }
+  advisor: AdvisorNote[]
+  partyLevel: number
+  map: MapView | null
+  /** Cards to pick from when logging a meeting. */
+  people: EntityBrief[]
+  lastLongRestMin: number | null
+}
+
+export interface GeneratedView {
+  kind: 'character' | 'encounter' | 'tavern'
+  title: string
+  summary: string
+  lines: string[]
+  /** Opaque data sent back to keep the result. */
+  payload: unknown
 }

@@ -89,6 +89,18 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX act_storyline ON act(storyline_id);
   CREATE INDEX act_outcome_act ON act_outcome(act_id);
+  `,
+  `
+  CREATE TABLE session (
+    id TEXT PRIMARY KEY, number INTEGER NOT NULL, started_at TEXT NOT NULL, ended_at TEXT,
+    start_min INTEGER NOT NULL, end_min INTEGER, scene_text TEXT NOT NULL, recap TEXT NOT NULL, status TEXT NOT NULL
+  );
+  CREATE TABLE log_entry (
+    id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES session(id), at_min INTEGER NOT NULL, kind TEXT NOT NULL,
+    text TEXT NOT NULL, entity_id TEXT REFERENCES entity(id), minutes_taken INTEGER NOT NULL, created_at TEXT NOT NULL,
+    status TEXT NOT NULL
+  );
+  CREATE INDEX log_entry_session ON log_entry(session_id, at_min);
   `
 ]
 

@@ -112,3 +112,13 @@ export function srdCopy(key: string): {
   throw new Error(`No SRD entry ${key}`)
 }
 
+
+export interface SrdMonsterIndexEntry { key: string; name: string; cr: string; creatureType: string }
+
+/** A light list of every SRD monster, for generators. */
+export function srdMonsterIndex(): SrdMonsterIndexEntry[] {
+  return data.monsters.map((m) => {
+    const sb = m.statblock as { cr?: string; creatureType?: string }
+    return { key: m.key, name: m.name, cr: sb.cr ?? '', creatureType: sb.creatureType ?? '' }
+  })
+}

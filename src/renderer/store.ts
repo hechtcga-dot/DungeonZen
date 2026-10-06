@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { BoardView, CampaignInfo, DeskView, HistoryView, SheetView, TimelineView } from '../shared/types'
+import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, SheetView, TimelineView } from '../shared/types'
 
 export type Selection =
   | { kind: 'entity'; id: string }
@@ -9,7 +9,7 @@ export type Selection =
   | { kind: 'note'; id: string }
   | null
 
-export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'sheet' | 'library'
+export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'sheet' | 'library'
 
 interface BoardState {
   info: CampaignInfo | null
@@ -20,6 +20,7 @@ interface BoardState {
   sheet: SheetView | null
   desk: DeskView | null
   timeline: TimelineView | null
+  live: LiveView | null
   sheetId: string | null
   /** A card to bring into view the next time the board shows. */
   focusEntityId: string | null
@@ -31,7 +32,7 @@ interface BoardState {
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
   showBoard(boardId: string): Promise<void>
-  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'library'): void
+  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library'): void
   openSheet(entityId: string): Promise<void>
   showOnBoard(entityId: string): Promise<void>
   refresh(): Promise<void>
@@ -54,6 +55,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   sheet: null,
   desk: null,
   timeline: null,
+  live: null,
   sheetId: null,
   focusEntityId: null,
   panel: 'inspector',
@@ -100,20 +102,21 @@ export const useBoard = create<BoardState>((set, get) => ({
     const { boardId, panel, screen, sheetId } = get()
     if (!boardId) return
     try {
-      const [view, history, sheet, desk, info, timeline] = await Promise.all([
+      const [view, history, sheet, desk, info, timeline, live] = await Promise.all([
         call('board:view', { boardId }),
         panel === 'history' ? call('history:view', undefined) : Promise.resolve(get().history),
         screen === 'sheet' && sheetId ? call('sheet:view', { entityId: sheetId }).catch(() => null) : Promise.resolve(null),
         screen === 'desk' || screen === 'map' ? call('desk:view', undefined) : Promise.resolve(get().desk),
         call('campaign:info', undefined),
-        screen === 'timeline' ? call('timeline:view', undefined) : Promise.resolve(get().timeline)
+        screen === 'timeline' ? call('timeline:view', undefined) : Promise.resolve(get().timeline),
+        screen === 'live' ? call('live:view', undefined) : Promise.resolve(get().live)
       ])
       if (screen === 'sheet' && !sheet) {
         // The entity is gone, for example its creation was just undone.
         set({ view, history, desk, info: info ?? get().info, sheet: null, sheetId: null, screen: 'board' })
         return
       }
-      set({ view, history, sheet, desk, timeline, info: info ?? get().info })
+      set({ view, history, sheet, desk, timeline, live, info: info ?? get().info })
     } catch (err) {
       get().say((err as Error).message, true)
     }

@@ -138,10 +138,22 @@ built.
   dotted trigger connectors with T1/T2 badges, NOW line, zoom, add acts
   (button or double-click), act panel (title, summary, times, outcomes with
   default, This happened, Preview what-if, triggers add/edit/remove).
+- Live session desk (rail: Live): start/end numbered sessions; clock
+  (+10 m, ±1 h, Set); party health (sum of PC hit points, rests: short = 1 h,
+  long = 8 h and full HP); today's tally (fights, meetings, quests, counted for
+  the campaign day); advisor (local rules: fights vs health, nightfall, no long
+  rest, player acts ending or waiting for an outcome); quick-log with time
+  taken (moves the clock in the same undo step), "They met…", "They met someone
+  new"; session log (edit, remove); party cards with HP −5/−1/+1/+5 or exact;
+  read-aloud scene text per session; On the fly (offline): roll a character
+  (made-up name and details plus an SRD stat block), suggest an encounter (2024
+  XP budgets from the SRD), fill a tavern; put on the board or save for later
+  (stashed; Library shows "Put on board"). Battle maps wait for an image
+  generator. End session saves a recap started from the log.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: Session review (conflicts, proposed changes, encounter feedback); AI scene text; route drawing; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, exports (Phase 4), DM Prep/Live/Player modes,
 packaging/installer.

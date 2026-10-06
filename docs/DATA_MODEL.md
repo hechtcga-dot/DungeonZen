@@ -142,5 +142,12 @@ commands. `group_id` lets a session or an import undo as one step.
   `act.number` and `trigger.fired_at_min` are computed by the engine, not
   stored: the engine projects, the DM approves (rule 2). Outcome deltas are
   not stored yet.
+- Sessions (migration 6): `session` (number, started_at, ended_at,
+  start_min, end_min, scene_text, recap, status) and `log_entry` (at_min, kind
+  note|fight|meeting|quest|rest|travel, text, entity_id, minutes_taken,
+  created_at, status). The doc's `interaction` rows are log entries of kind
+  meeting, and the day tally counts log entries, so each can be edited or
+  removed. Settings: party_level, last_long_rest_min. PC current hit points
+  live in `entity.attributes.current_hp`.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

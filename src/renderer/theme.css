@@ -230,3 +230,16 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .whatif ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .trigger-form { gap: 10px; }
 @media (max-width: 1100px) { .timeline-layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* Dialogs and parchment cards on the table use ink tokens, so their fields are light parchment. */
+.desk-theme .dz-dialog, .desk-theme .parchment-note, .desk-theme .parchment-sheet, .desk-theme .otf-card, .desk-theme .otf-result, .desk-theme .dm-panel:not(.advisor) {
+  --text: #2a1f12; --muted: #5a4a32; --ground: rgba(255, 252, 240, 0.85); --border: #8a7350; --border-strong: #7a6440;
+  --selection: #8f2a21; --link: #8f2a21; color: var(--text);
+}
+.desk-theme .dz-dialog :is(input, select, textarea), .desk-theme .parchment-note :is(input, select, textarea),
+.desk-theme .otf-card :is(input, select), .desk-theme .dm-panel:not(.advisor) select {
+  color: var(--ink); background: rgba(255, 252, 240, 0.85); border-color: #8a7350;
+}
+.desk-theme .dz-dialog :is(input, textarea)::placeholder, .desk-theme .parchment-note :is(input, textarea)::placeholder { color: #8a7a5c; }
+.desk-theme .dz-dialog button:hover:not(:disabled), .desk-theme .parchment-note button:hover:not(:disabled) { background: #fffaf0; border-color: var(--ink); }
+.desk-theme .dz-dialog .hint { color: var(--ink-muted); }

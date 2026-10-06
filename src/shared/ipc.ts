@@ -1,11 +1,12 @@
 import { z } from 'zod'
 import {
-  AbilityKind, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, RelationshipType, RowStatus, RulesEdition,
-  StorylineStatus, Tags
+  AbilityKind, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
+  RulesEdition, StorylineStatus, Tags
 } from './schemas'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
-  RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView
+  RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
+  GeneratedView
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -23,6 +24,15 @@ const AbilityFields = z.object({
 })
 const OptionalNumber = z.number().finite().optional()
 const Minute = z.number().int().min(0).max(1_000_000_000)
+const Short = z.string().max(300)
+const GenPerson = z.object({
+  name: Name, species: Short, occupation: Short, attitude: Short.min(1), quirk: Short, wants: Short, statblockName: Short, summary: Short
+})
+const GenTavern = z.object({ name: Name, keeper: GenPerson, patrons: z.array(GenPerson).max(20), rumour: Short, dish: Short, summary: Short })
+const GenEncounter = z.object({
+  summary: Short,
+  groups: z.array(z.object({ key: z.string().min(1).max(200), name: Short, count: z.number().int().min(1).max(100) })).min(1).max(10)
+})
 const TriggerEffect = z.discriminatedUnion('type', [
   z.object({ type: z.literal('shift_act'), actId: Id, minutes: z.number().int().min(-525600).max(525600) }),
   z.object({ type: z.literal('force_outcome'), actId: Id, outcomeId: Id }),
@@ -90,6 +100,29 @@ export const ipcInputs = {
   }),
   'trigger:setStatus': z.object({ id: Id, status: RowStatus }),
   'timeline:whatIf': z.object({ actId: Id, outcomeId: Id }),
+  'live:view': z.void(),
+  'session:start': z.void(),
+  'session:end': z.object({ id: Id }),
+  'session:update': z.object({
+    id: Id, patch: z.object({ number: z.number().int().min(1).max(100000).optional(), sceneText: z.string().max(20000).optional(), recap: z.string().max(50000).optional() })
+  }),
+  'session:setStatus': z.object({ id: Id, status: RowStatus }),
+  'log:add': z.object({ kind: LogKind, text: z.string().max(5000), entityId: Id.nullable().optional(), minutesTaken: z.number().int().min(0).max(525600).optional() }),
+  'log:update': z.object({
+    id: Id, patch: z.object({ text: z.string().max(5000).optional(), kind: LogKind.optional(), atMin: Minute.optional(), entityId: Id.nullable().optional() })
+  }),
+  'log:setStatus': z.object({ id: Id, status: RowStatus }),
+  'party:setHp': z.object({ entityId: Id, hp: z.number().int().min(0).max(100000) }),
+  'party:rest': z.object({ kind: z.enum(['short', 'long']) }),
+  'party:setLevel': z.object({ level: z.number().int().min(1).max(20) }),
+  'generate:character': z.void(),
+  'generate:tavern': z.void(),
+  'generate:encounter': z.object({ difficulty: z.enum(['low', 'moderate', 'high']), creatureType: z.string().max(40).optional() }),
+  'generate:keep': z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('character'), payload: GenPerson, stash: z.boolean() }),
+    z.object({ kind: z.literal('tavern'), payload: GenTavern, stash: z.boolean() }),
+    z.object({ kind: z.literal('encounter'), payload: GenEncounter, stash: z.boolean() })
+  ]),
   'map:setStatus': z.object({ mapId: Id, status: RowStatus }),
   'entity:update': z.object({
     id: Id,
@@ -158,6 +191,21 @@ export interface IpcOutputs {
   'trigger:update': void
   'trigger:setStatus': void
   'timeline:whatIf': WhatIfView
+  'live:view': LiveView
+  'session:start': SessionView
+  'session:end': void
+  'session:update': void
+  'session:setStatus': void
+  'log:add': LogView
+  'log:update': void
+  'log:setStatus': void
+  'party:setHp': void
+  'party:rest': void
+  'party:setLevel': void
+  'generate:character': GeneratedView
+  'generate:tavern': GeneratedView
+  'generate:encounter': GeneratedView | null
+  'generate:keep': string[]
   'map:setStatus': void
   'entity:update': void
   'entity:setStatus': void

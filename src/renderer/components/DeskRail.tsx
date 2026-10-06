@@ -8,6 +8,7 @@ const ICONS = {
   map: <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14" />,
   library: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-1 3 15-3.5 1z" />,
   timeline: <><path d="M3 6h10M7 12h12M3 18h8" /><path d="M16 3v18" strokeDasharray="2 2" /></>,
+  live: <><circle cx="12" cy="12" r="3" /><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a12 12 0 0 0 0 17M20.5 3.5a12 12 0 0 1 0 17" /></>,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
 }
 
@@ -35,7 +36,7 @@ export function DeskRail() {
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
 
-  const item = (id: 'desk' | 'board' | 'map' | 'timeline' | 'library', label: string) => (
+  const item = (id: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library', label: string) => (
     <button className="rail-item" aria-current={screen === id ? 'page' : undefined} onClick={() => goTo(id)}>
       <Icon name={id} /><span>{label}</span>
     </button>
@@ -44,6 +45,7 @@ export function DeskRail() {
     <nav className="rail" aria-label="Screens">
       <div className="rail-mark" aria-hidden="true">DZ</div>
       {item('desk', 'Desk')}
+      {item('live', 'Live')}
       {item('board', 'Board')}
       {item('map', 'Map')}
       {item('timeline', 'Timeline')}

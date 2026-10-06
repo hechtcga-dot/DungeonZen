@@ -4,13 +4,15 @@ import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
-  ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, map, relationship, relationshipKnown,
-  storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type MapRow, type OutcomeRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
+  ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, relationship, relationshipKnown,
+  session, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
+  type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
 import type {
-  AbilityKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, RowStatus, RulesEdition, StorylineStatus
+  AbilityKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, LogKind, RowStatus, RulesEdition, StorylineStatus
 } from '../../shared/schemas'
+import { MINUTES_PER_DAY } from '../../shared/time'
 import { formatClock } from '../../shared/time'
 import { KNOWLEDGE_FIELDS } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
@@ -18,8 +20,10 @@ import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, MapView, RelationshipView, SheetView, TimelineView, TriggerEffectView, WhatIfView
+  LibraryFilters, LibrarySearch, LiveView, LogView, MapView, RelationshipView, SessionView, SheetView, TimelineView,
+  TriggerEffectView, WhatIfView
 } from '../../shared/types'
+import { advise } from '../advisor'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
 export const DB_FILE = 'campaign.db'
@@ -33,7 +37,12 @@ const DEFAULT_CLOCK_MIN = 9 * 60 // Day 1, 09:00
 
 export interface Position { x: number; y: number }
 
-export type SettingKey = 'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id'
+export type SettingKey =
+  'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
+
+interface GeneratedPerson {
+  name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
+}
 
 export interface NewAbility {
   name: string
@@ -213,19 +222,27 @@ export class Campaign {
     abilities?: NewAbility[]
     label?: string
   }): EntityView {
-    const id = randomUUID()
-    this.log.run(input.label ?? `Added ${input.type.toLowerCase()} ${input.name}`, (w) => {
-      w.insert('entity', {
-        id, type: input.type, name: input.name, attributes: input.attributes ?? {}, tags: input.tags ?? [],
-        status: 'active', parentId: null, createdAt: new Date().toISOString()
-      })
-      ;(input.abilities ?? []).forEach((a, i) => this.insertAbility(w, id, a, i))
-      const global = this.globalBoard()
-      this.placeCard(w, global.id, id, input.position)
-      const target = this.boardRow(input.boardId)
-      if (target.storylineId) this.linkToStoryline(w, id, target.storylineId, target.id, input.position)
-    })
+    let id = ''
+    this.log.run(input.label ?? `Added ${input.type.toLowerCase()} ${input.name}`, (w) => { id = this.insertEntity(w, input) })
     return this.entityView(id)
+  }
+
+  /** Creates an entity and its card(s) inside an open command, so several can be one undo step. */
+  private insertEntity(w: Writer, input: {
+    boardId: string; type: EntityType; name: string; position: Position; attributes?: EntityAttributes
+    tags?: string[]; abilities?: NewAbility[]; status?: EntityStatus
+  }): string {
+    const id = randomUUID()
+    w.insert('entity', {
+      id, type: input.type, name: input.name, attributes: input.attributes ?? {}, tags: input.tags ?? [],
+      status: input.status ?? 'active', parentId: null, createdAt: new Date().toISOString()
+    })
+    ;(input.abilities ?? []).forEach((a, i) => this.insertAbility(w, id, a, i))
+    const global = this.globalBoard()
+    this.placeCard(w, global.id, id, input.position)
+    const target = this.boardRow(input.boardId)
+    if (target.storylineId) this.linkToStoryline(w, id, target.storylineId, target.id, input.position)
+    return id
   }
 
   updateEntity(
@@ -489,7 +506,7 @@ export class Campaign {
   // ---- library search -----------------------------------------------------------
 
   search(filters: LibraryFilters): LibrarySearch {
-    const rows = this.db.select().from(entity).all().filter((r) => r.status === 'active' || r.status === 'resolved')
+    const rows = this.db.select().from(entity).all().filter((r) => r.status === 'active' || r.status === 'resolved' || r.status === 'stashed')
     const views = this.entityViews(rows.map((r) => r.id))
     const q = filters.query.trim().toLowerCase()
     const tags = [...new Set(views.flatMap((v) => v.tags))].sort((a, b) => a.localeCompare(b))
@@ -884,6 +901,247 @@ export class Campaign {
     return row
   }
 
+  // ---- live session ----------------------------------------------------------
+
+  private openSession(): SessionRow | null {
+    return this.db.select().from(session).where(eq(session.status, 'active')).all().find((x) => x.endedAt === null) ?? null
+  }
+
+  live(): LiveView {
+    const nowMin = this.info().clockMin
+    const sessions = this.db.select().from(session).where(eq(session.status, 'active')).orderBy(asc(session.number)).all()
+    const open = sessions.find((x) => x.endedAt === null) ?? null
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
+    const log = open
+      ? this.db.select().from(logEntry).where(and(eq(logEntry.sessionId, open.id), eq(logEntry.status, 'active'))).all()
+        .sort((a, b) => b.atMin - a.atMin || b.createdAt.localeCompare(a.createdAt))
+        .map((l) => toLogView(l, names))
+      : []
+    // The day tally counts the whole campaign day, whichever session it was logged in.
+    const dayStart = Math.floor(nowMin / MINUTES_PER_DAY) * MINUTES_PER_DAY
+    const todayRows = this.db.select().from(logEntry).where(eq(logEntry.status, 'active')).all()
+      .filter((l) => l.atMin >= dayStart && l.atMin < dayStart + MINUTES_PER_DAY)
+    const count = (k: LogKind) => todayRows.filter((l) => l.kind === k).length
+    const party = this.partyHealth()
+    const hp = party.reduce((n, p) => n + p.hp, 0)
+    const maxHp = party.reduce((n, p) => n + p.maxHp, 0)
+    const percent = maxHp > 0 ? Math.round((hp / maxHp) * 100) : null
+    const lastLongRest = this.setting('last_long_rest_min')
+    const tl = this.timeline()
+    const playerStories = new Set(tl.storylines.filter((x) => x.projectedStatus === 'player_active').map((x) => x.storylineId))
+    const storyTitle = new Map(tl.storylines.map((x) => [x.storylineId, x.title]))
+    const fights = count('fight')
+    return {
+      nowMin,
+      session: open ? toSessionView(open) : null,
+      sessions: sessions.map(toSessionView),
+      log,
+      today: { fights, meetings: count('meeting'), quests: count('quest') },
+      party,
+      health: { hp, maxHp, percent },
+      advisor: advise({
+        nowMin, fightsToday: fights, healthPercent: percent,
+        lastLongRestMin: typeof lastLongRest === 'number' ? lastLongRest : null,
+        sessionStartMin: open?.startMin ?? null,
+        acts: tl.acts.filter((a) => playerStories.has(a.storylineId) && a.state !== 'resolved')
+          .map((a) => ({ title: `${storyTitle.get(a.storylineId)} · Act ${a.number} (${a.title})`, endMin: a.endMin, awaiting: a.state === 'awaiting' }))
+      }),
+      partyLevel: Number(this.setting('party_level') ?? 1),
+      map: this.desk().map,
+      people: this.db.select({ id: entity.id, type: entity.type, name: entity.name, status: entity.status }).from(entity).all()
+        .filter((e) => e.status === 'active' && ['NPC', 'MONSTER', 'FACTION'].includes(e.type))
+        .map((e) => ({ ...e, type: e.type as EntityType, status: e.status as EntityStatus }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      lastLongRestMin: typeof lastLongRest === 'number' ? lastLongRest : null
+    }
+  }
+
+  private partyHealth() {
+    return this.db.select().from(entity).all()
+      .filter((e) => e.type === 'PC' && e.status === 'active')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((e) => {
+        const sb = readStatBlock(e.attributes.statblock)
+        const maxHp = sb ? leadingNumber(sb.hp) ?? 0 : 0
+        const cur = typeof e.attributes.current_hp === 'number' ? e.attributes.current_hp : maxHp
+        return {
+          id: e.id, name: e.name, hp: cur, maxHp, ac: sb?.ac ? String(leadingNumber(sb.ac) ?? sb.ac) : '',
+          colour: typeof e.attributes.colour === 'string' ? e.attributes.colour : null
+        }
+      })
+  }
+
+  startSession(): SessionView {
+    if (this.openSession()) throw new Error('A session is already running. End it first.')
+    const number = this.db.select().from(session).all().reduce((n, x) => Math.max(n, x.number), 0) + 1
+    const id = randomUUID()
+    const startMin = this.info().clockMin
+    this.log.run(`Started session ${number}`, (w) => {
+      w.insert('session', {
+        id, number, startedAt: new Date().toISOString(), endedAt: null, startMin, endMin: null, sceneText: '', recap: '', status: 'active'
+      })
+    })
+    return toSessionView(this.sessionRow(id))
+  }
+
+  endSession(id: string): void {
+    const sRow = this.sessionRow(id)
+    this.log.run(`Ended session ${sRow.number}`, (w) => {
+      w.update('session', id, { endedAt: new Date().toISOString(), endMin: this.info().clockMin })
+    })
+  }
+
+  updateSession(id: string, patch: { number?: number; sceneText?: string; recap?: string }): void {
+    const sRow = this.sessionRow(id)
+    this.log.run(`Edited session ${patch.number ?? sRow.number}`, (w) => { w.update('session', id, patch) })
+  }
+
+  setSessionStatus(id: string, status: RowStatus): void {
+    const sRow = this.sessionRow(id)
+    this.log.run(status === 'defunct' ? `Moved session ${sRow.number} to History` : `Restored session ${sRow.number}`, (w) => {
+      w.update('session', id, { status })
+    })
+  }
+
+  /** Logs something that happened now; time taken moves the clock on, all as one step. */
+  addLog(input: { kind: LogKind; text: string; entityId?: string | null; minutesTaken?: number }): LogView {
+    const open = this.openSession()
+    if (!open) throw new Error('Start a session first')
+    const minutes = Math.max(0, Math.round(input.minutesTaken ?? 0))
+    const now = this.info().clockMin
+    const id = randomUUID()
+    const label = input.kind === 'note' ? 'Logged a note' : `Logged ${input.kind === 'meeting' ? 'a meeting' : input.kind === 'fight' ? 'a fight' : input.kind === 'quest' ? 'a delivered quest' : input.kind}`
+    this.log.run(label, (w) => {
+      w.insert('log_entry', {
+        id, sessionId: open.id, atMin: now, kind: input.kind, text: input.text, entityId: input.entityId ?? null,
+        minutesTaken: minutes, createdAt: new Date().toISOString(), status: 'active'
+      })
+      if (minutes > 0) w.update('campaign_settings', 'clock_min', { value: now + minutes })
+    })
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
+    return toLogView(this.logRow(id), names)
+  }
+
+  updateLog(id: string, patch: { text?: string; kind?: LogKind; atMin?: number; entityId?: string | null }): void {
+    this.logRow(id)
+    this.log.run('Edited a log entry', (w) => { w.update('log_entry', id, patch) })
+  }
+
+  setLogStatus(id: string, status: RowStatus): void {
+    this.logRow(id)
+    this.log.run(status === 'defunct' ? 'Removed a log entry' : 'Restored a log entry', (w) => { w.update('log_entry', id, { status }) })
+  }
+
+  /** Sets a player character's current hit points (never below 0). */
+  setHp(entityId: string, hp: number): void {
+    const e = this.entityRow(entityId)
+    const value = Math.max(0, Math.round(hp))
+    this.log.run(`${e.name}: ${value} HP`, (w) => {
+      w.update('entity', entityId, { attributes: { ...e.attributes, current_hp: value } })
+    })
+  }
+
+  /** Short rest: one hour passes. Long rest: eight hours pass and the party is back to full hit points. */
+  rest(kind: 'short' | 'long'): void {
+    const open = this.openSession()
+    const now = this.info().clockMin
+    const minutes = kind === 'short' ? 60 : 8 * 60
+    this.log.run(kind === 'short' ? 'Short rest' : 'Long rest', (w) => {
+      if (open) {
+        w.insert('log_entry', {
+          id: randomUUID(), sessionId: open.id, atMin: now, kind: 'rest', text: kind === 'short' ? 'Short rest' : 'Long rest',
+          entityId: null, minutesTaken: minutes, createdAt: new Date().toISOString(), status: 'active'
+        })
+      }
+      w.update('campaign_settings', 'clock_min', { value: now + minutes })
+      if (kind === 'long') {
+        for (const p of this.partyHealth()) {
+          const e = this.entityRow(p.id)
+          w.update('entity', p.id, { attributes: { ...e.attributes, current_hp: p.maxHp } })
+        }
+        if (w.get('campaign_settings', 'last_long_rest_min')) w.update('campaign_settings', 'last_long_rest_min', { value: now + minutes })
+        else w.insert('campaign_settings', { key: 'last_long_rest_min', value: now + minutes })
+      }
+    })
+  }
+
+  /**
+   * Keeps something an on-the-fly generator proposed: puts the cards on the global
+   * board, or saves them for later ("stashed": in the Library, not on the board).
+   * One undo step for the whole thing.
+   */
+  keepGenerated(
+    kind: 'character' | 'tavern' | 'encounter',
+    payload: unknown,
+    copy: (key: string) => { type: 'MONSTER' | 'ITEM'; name: string; attributes: EntityAttributes; abilities: NewAbility[] },
+    keyByName: (name: string) => string | null,
+    stash: boolean
+  ): string[] {
+    const g = this.globalBoard().id
+    const status: EntityStatus = stash ? 'stashed' : 'active'
+    const ids: string[] = []
+    const person = (w: Writer, c: GeneratedPerson, extra: EntityAttributes = {}) => {
+      const key = keyByName(c.statblockName)
+      const base = key ? copy(key) : null
+      const id = this.insertEntity(w, {
+        boardId: g, type: 'NPC', name: c.name, position: this.freeGlobalSpot(), status,
+        attributes: {
+          ...(base?.attributes ?? {}), summary: c.summary, motivation: c.wants,
+          bio: `${c.species} ${c.occupation}. ${c.attitude[0].toUpperCase()}${c.attitude.slice(1)}; ${c.quirk}.`, generated: true, ...extra
+        },
+        abilities: base?.abilities ?? []
+      })
+      ids.push(id)
+      return id
+    }
+    const p = payload as Record<string, unknown>
+    const title = String(p.name ?? p.summary ?? 'generated content')
+    this.log.run(`${stash ? 'Saved for later' : 'Put on the board'}: ${title}`, (w) => {
+      if (kind === 'character') person(w, payload as GeneratedPerson)
+      else if (kind === 'tavern') {
+        const t = payload as { name: string; keeper: GeneratedPerson; patrons: GeneratedPerson[]; rumour: string; dish: string; summary: string }
+        const place = this.insertEntity(w, {
+          boardId: g, type: 'LOCATION', name: t.name, position: this.freeGlobalSpot(), status,
+          attributes: { summary: t.summary, description: `Tonight: ${t.dish}. Rumour: ${t.rumour}`, generated: true }
+        })
+        ids.push(place)
+        for (const c of [t.keeper, ...t.patrons]) {
+          const id = person(w, c, { location: t.name })
+          w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: place, type: 'LOCATED_AT', isSecret: false, status: 'active' })
+        }
+      } else {
+        const e = payload as { summary: string; groups: Array<{ key: string; name: string; count: number }> }
+        const scene = this.insertEntity(w, {
+          boardId: g, type: 'SCENE', name: `Encounter: ${e.groups.map((x) => x.name).join(' and ')}`, position: this.freeGlobalSpot(),
+          status, attributes: { summary: e.summary, generated: true }
+        })
+        ids.push(scene)
+        for (const grp of e.groups) {
+          const c = copy(grp.key)
+          const id = this.insertEntity(w, {
+            boardId: g, type: c.type, name: c.name, position: this.freeGlobalSpot(), status,
+            attributes: { ...c.attributes, summary: `${grp.count} in this encounter`, count: grp.count }, abilities: c.abilities
+          })
+          ids.push(id)
+          w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: scene, type: 'IN_ENCOUNTER', isSecret: false, status: 'active' })
+        }
+      }
+    })
+    return ids
+  }
+
+  private sessionRow(id: string): SessionRow {
+    const row = this.db.select().from(session).where(eq(session.id, id)).get()
+    if (!row) throw new Error(`No session with id ${id}`)
+    return row
+  }
+
+  private logRow(id: string): LogRow {
+    const row = this.db.select().from(logEntry).where(eq(logEntry.id, id)).get()
+    if (!row) throw new Error(`No log entry with id ${id}`)
+    return row
+  }
+
   undo(): string | null { return this.log.undo() }
   redo(): string | null { return this.log.redo() }
 
@@ -1035,4 +1293,18 @@ function toEffect(t: TriggerRow): TriggerEffect {
 function checkSpan(startMin: number, endMin: number): void {
   if (!Number.isInteger(startMin) || !Number.isInteger(endMin) || startMin < 0) throw new Error('Act times must be whole minutes from the campaign start')
   if (endMin <= startMin) throw new Error('An act must end after it starts')
+}
+
+function toSessionView(r: SessionRow): SessionView {
+  return {
+    id: r.id, number: r.number, startMin: r.startMin, endMin: r.endMin, ended: r.endedAt !== null,
+    sceneText: r.sceneText, recap: r.recap
+  }
+}
+
+function toLogView(l: LogRow, names: Map<string, string>): LogView {
+  return {
+    id: l.id, atMin: l.atMin, kind: l.kind as LogKind, text: l.text, entityId: l.entityId,
+    entityName: l.entityId ? names.get(l.entityId) ?? null : null, minutesTaken: l.minutesTaken
+  }
 }

@@ -3,7 +3,8 @@ import { pathToFileURL } from 'node:url'
 import { dialog, ipcMain, net, protocol, type BrowserWindow } from 'electron'
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
-import { searchSrd, srdCopy, SRD_SOURCE } from './srd'
+import { searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
+import { fillTavern, rollCharacter, suggestEncounter } from './generators'
 import { ipcInputs, IPC_PREFIX, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
 import type { z } from 'zod'
@@ -149,6 +150,46 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('trigger:update', ({ id, patch }) => current().updateTrigger(id, patch))
   handle('trigger:setStatus', ({ id, status }) => current().setTriggerStatus(id, status))
   handle('timeline:whatIf', ({ actId, outcomeId }) => current().whatIf(actId, outcomeId))
+  handle('live:view', () => current().live())
+  handle('session:start', () => current().startSession())
+  handle('session:end', ({ id }) => current().endSession(id))
+  handle('session:update', ({ id, patch }) => current().updateSession(id, patch))
+  handle('session:setStatus', ({ id, status }) => current().setSessionStatus(id, status))
+  handle('log:add', (i) => current().addLog(i))
+  handle('log:update', ({ id, patch }) => current().updateLog(id, patch))
+  handle('log:setStatus', ({ id, status }) => current().setLogStatus(id, status))
+  handle('party:setHp', ({ entityId, hp }) => current().setHp(entityId, hp))
+  handle('party:rest', ({ kind }) => current().rest(kind))
+  handle('party:setLevel', ({ level }) => current().setSetting('party_level', level, `Set the party level to ${level}`))
+  handle('generate:character', () => {
+    const c = rollCharacter(Math.random)
+    return {
+      kind: 'character', title: c.name, summary: c.summary, payload: c,
+      lines: [`Wants ${c.wants}.`, `Quirk: ${c.quirk}.`, `Stat block: ${c.statblockName} (SRD 5.2)`]
+    }
+  })
+  handle('generate:tavern', () => {
+    const t = fillTavern(Math.random)
+    return {
+      kind: 'tavern', title: t.name, summary: t.summary, payload: t,
+      lines: [`Keeper: ${t.keeper.name}, ${t.keeper.summary}`, ...t.patrons.map((p) => `${p.name}: ${p.summary}`), `Rumour: ${t.rumour}`]
+    }
+  })
+  handle('generate:encounter', ({ difficulty, creatureType }) => {
+    const live = current().live()
+    const e = suggestEncounter(Math.random, srdMonsterIndex(), live.partyLevel, Math.max(1, live.party.length || 4), difficulty, creatureType)
+    if (!e) return null
+    return {
+      kind: 'encounter', title: `${e.difficulty[0].toUpperCase()}${e.difficulty.slice(1)} encounter: ${e.creatureType}`, summary: e.summary,
+      payload: e,
+      lines: [...e.groups.map((g) => `${g.count} × ${g.name} (CR ${g.cr}, ${g.xp} XP)`),
+        `Budget for ${live.party.length || 4} characters of level ${live.partyLevel}: ${e.budget} XP`]
+    }
+  })
+  handle('generate:keep', ({ kind, payload, stash }) => {
+    const byName = new Map(srdMonsterIndex().map((m) => [m.name, m.key]))
+    return current().keepGenerated(kind, payload, srdCopy, (n) => byName.get(n) ?? null, stash)
+  })
   handle('map:setStatus', ({ mapId, status }) => current().setMapStatus(mapId, status))
   handle('history:view', () => current().history())
   handle('history:undo', () => current().undo())
