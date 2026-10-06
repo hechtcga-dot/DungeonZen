@@ -1654,6 +1654,46 @@ export class Campaign {
     try { unlinkSync(this.pendingFile(pendingId)) } catch { /* already gone */ }
   }
 
+  // ---- fill blanks with AI
+
+  /** Titles of the storylines a card is in (context for the AI). */
+  storylinesOf(entityId: string): string[] {
+    const links = this.db.select().from(storylineEntity).where(and(eq(storylineEntity.entityId, entityId), eq(storylineEntity.status, 'active'))).all()
+    const titles = new Map(this.db.select().from(storyline).all().filter((x) => !x.removed).map((x) => [x.id, x.title]))
+    return links.map((l) => titles.get(l.storylineId)).filter((x): x is string => !!x)
+  }
+
+  /**
+   * Uses the AI suggestions the DM kept, as one undo step. Only fields that are still
+   * empty are written (the DM may have typed one meanwhile); each is marked in
+   * attributes.ai_filled. An SRD base gives a creature without one a stat block and abilities.
+   */
+  applyFill(entityId: string, fields: Record<string, string>, source: string, srd?: SrdCopy | null): string[] {
+    const e = this.entityRow(entityId)
+    const used: string[] = []
+    this.log.run(`Filled blanks on ${e.name} with AI`, (w) => {
+      const attrs: Record<string, unknown> = { ...e.attributes }
+      const filled = { ...(attrs.ai_filled && typeof attrs.ai_filled === 'object' ? attrs.ai_filled as Record<string, string> : {}) }
+      for (const [k, v] of Object.entries(fields)) {
+        if (!v.trim() || ['statblock', 'custom', 'provenance', 'imported', 'ai_filled', 'source'].includes(k)) continue
+        if (typeof attrs[k] === 'string' && (attrs[k] as string).trim()) continue
+        attrs[k] = v.trim()
+        filled[k] = source
+        used.push(k)
+      }
+      if (srd && !readStatBlock(attrs.statblock)) {
+        attrs.statblock = srd.attributes.statblock
+        filled.statblock = `${source}, based on the SRD ${srd.name}`
+        used.push('statblock')
+        const has = this.db.select().from(ability).where(eq(ability.entityId, entityId)).all().some((a) => a.status === 'active')
+        if (!has) srd.abilities.forEach((a, i) => this.insertAbility(w, entityId, a, i))
+      }
+      attrs.ai_filled = filled
+      w.update('entity', entityId, { attributes: attrs })
+    })
+    return used
+  }
+
   // ---- notes import (Phase 5): drafts live in imports/ and are not campaign data until committed
 
   private importsDir(): string {

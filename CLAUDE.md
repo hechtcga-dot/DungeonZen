@@ -292,10 +292,18 @@ built.
   fields; cards keep `attributes.provenance` (shown on the sheet as "Where this
   came from") and `attributes.imported`; acts one day apart from now; answers go
   to the card's DM notes or the journal. Images in all three text adapters.
+- Fill blanks with AI (card sheet › Fill blanks with AI…; `src/main/ai/fill.ts`,
+  fields per type in `src/shared/cardFields.ts`): tick the empty fields (and, for
+  an NPC or monster without one, a stat block from an SRD base), optional hint;
+  the AI sees the card, its strings, storylines, notes and own fields. Suggestions
+  are editable, tick which to keep; Use selected = one undo step
+  (`Campaign.applyFill`), writes only still-empty fields, records
+  `attributes.ai_filled` (labels show "(AI)"). The sheet's Details panel shows and
+  edits every per-type field and any other text a card carries (e.g. from imports).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: re-reading a draft with your answers; AI help on cards (fill blanks); tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, packaging/installer; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
 with tokens. Phases 1 to 5 are built; packaging (installer) is the main step left.

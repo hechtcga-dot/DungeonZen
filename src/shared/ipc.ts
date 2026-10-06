@@ -125,6 +125,8 @@ export const ipcInputs = {
   'ai:test': z.object({ provider: z.string().max(60), model: z.string().trim().max(200), baseUrl: z.string().trim().max(500) }),
   'ai:sceneText': z.object({ ask: z.string().max(2000) }),
   'roll20:export': z.object({ entityIds: z.array(Id).min(1).max(200) }),
+  'ai:fill': z.object({ entityId: Id, keys: z.array(z.string().max(40)).max(30), ask: z.string().max(2000), statblock: z.boolean() }),
+  'card:applyFill': z.object({ entityId: Id, fields: z.record(z.string().max(40), z.string().max(5000)), source: z.string().max(300), srdKey: z.string().max(200).nullable() }),
   'import:chooseFiles': z.void(),
   'import:preview': z.object({ paths: z.array(z.string().max(2000)).min(1).max(50) }),
   'import:read': z.object({ paths: z.array(z.string().max(2000)).min(1).max(50), title: z.string().trim().max(200).optional() }),
@@ -319,6 +321,8 @@ export interface IpcOutputs {
   'ai:test': string
   'ai:sceneText': AiSuggestion
   'roll20:export': Roll20Export
+  'ai:fill': { fields: Record<string, string>; srd: { key: string; name: string; cr: string } | null; source: string }
+  'card:applyFill': string[]
   'import:chooseFiles': string[]
   'import:preview': Array<{ path: string; name: string; kind: string; parts: number; chars: number; warnings: string[]; error: string | null }>
   'import:read': ImportDraft

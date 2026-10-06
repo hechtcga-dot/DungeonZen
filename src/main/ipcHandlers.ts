@@ -9,6 +9,9 @@ import { checkConnection, generateImage, generateText, listModels, resolve } fro
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
 import { RATE_SYSTEM, ratePrompt } from './ai/encounter'
+import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
+import { fillableFields } from '../shared/cardFields'
+import { readStatBlock } from '../shared/statblock'
 import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from './exporters/roll20'
 import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './exporters/pages'
 import { renderJpg, renderPdf } from './exporters/render'
@@ -204,6 +207,24 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return listModels(r)
   })
   handle('ai:test', async ({ provider, model, baseUrl }) => checkConnection(resolve(choiceFor(provider, { model, baseUrl }), keys.get(provider))))
+  // ---- fill blanks with AI
+  handle('ai:fill', async ({ entityId, keys: asked, ask, statblock }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const sheet = c.sheet(entityId)
+    const fields = fillableFields(sheet.entity.type).filter((f) => asked.includes(f.key))
+    const index = srdMonsterIndex()
+    const wantBase = statblock && ['NPC', 'MONSTER'].includes(sheet.entity.type) && !readStatBlock(sheet.entity.attributes.statblock)
+    if (!fields.length && !wantBase) throw new Error('Choose at least one field to fill')
+    const prompt = fillPrompt({ campaignName: c.info().name, sheet, storylines: c.storylinesOf(entityId), srdNames: wantBase ? index.map((m) => `${m.name} (CR ${m.cr})`) : null }, fields, ask)
+    const reply = await generateText(r, { system: FILL_SYSTEM, prompt, json: true, maxTokens: 2000 })
+    const answer = parseFill(reply, fields.map((f) => f.key))
+    const base = wantBase && answer.srdBase ? index.find((m) => m.name.toLowerCase() === answer.srdBase!.replace(/\s*\(CR[^)]*\)\s*$/i, '').trim().toLowerCase()) : undefined
+    return { fields: answer.fields, srd: base ? { key: base.key, name: base.name, cr: base.cr } : null, source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+  handle('card:applyFill', ({ entityId, fields, source, srdKey }) => current().applyFill(entityId, fields, source, srdKey ? srdCopy(srdKey) : null))
+
   // ---- notes import (Phase 5)
   let importCancel = false
   const progress = (p: ImportProgress) => getWindow()?.webContents.send(IPC_PREFIX + 'import-progress', p)

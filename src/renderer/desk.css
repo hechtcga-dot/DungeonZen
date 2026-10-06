@@ -742,3 +742,10 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 @media (max-width: 1100px) { .import-start { grid-template-columns: minmax(0, 1fr); } }
 .proposal-head > input[type='checkbox'], .proposal-head .field.checkbox input { width: 20px; height: 20px; min-height: 20px; flex: none; accent-color: #2e5b2a; }
 .proposal-head .field.checkbox { flex-direction: row; gap: 6px; font-size: 14px; }
+
+/* ---- fill blanks with AI ---- */
+.fill-pick { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; }
+.fill-pick legend { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.fill-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 2px dashed #3b4f8a; border-radius: 4px; background: rgba(219, 228, 245, 0.55); }
+.fill-row.is-off { opacity: 0.55; }
+.fill-row textarea { width: 100%; font-family: var(--display); font-size: 15px; }

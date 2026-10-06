@@ -3,6 +3,9 @@ import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
 import { Roll20Dialog } from '../components/Roll20Dialog'
+import { Dialog } from '../components/Dialog'
+import { call } from '../api'
+import { DETAIL_FIELDS, fillableFields, INTERNAL_KEYS, type CardField } from '../../shared/cardFields'
 import { ExportDialog } from '../components/ExportDialog'
 import { CommitField, ScoreField } from '../components/fields'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
@@ -39,9 +42,13 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const [tab, setTab] = useState<Tab>('sheet')
   const [colourDraft, setColourDraft] = useState('')
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
+  const [filling, setFilling] = useState(false)
   const e = sheet.entity
   const update = (patch: IpcInput<'entity:update'>['patch']) => void act('entity:update', { id: e.id, patch })
   const str = (key: string) => (typeof e.attributes[key] === 'string' ? (e.attributes[key] as string) : '')
+  const aiFilled = (e.attributes.ai_filled && typeof e.attributes.ai_filled === 'object' ? e.attributes.ai_filled : {}) as Record<string, string>
+  /** A field's label, marked when its text was written by AI (rule 10). */
+  const lab = (key: string, label: string) => (aiFilled[key] && str(key) ? `${label} (AI)` : label)
   const source = e.attributes.source as { name?: string } | undefined
   const p = `sheet-${e.id}`
 
@@ -57,6 +64,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
           {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
         </div>
         <button onClick={() => void showOnBoard(e.id)}>Show on board</button>
+        {e.type !== 'PC' && <button onClick={() => setFilling(true)}>Fill blanks with AI…</button>}
         <button onClick={() => setExporting('print')}>{e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…'}</button>
         {['NPC', 'PC', 'MONSTER'].includes(e.type) && <button onClick={() => setExporting('roll20')}>Export to Roll20…</button>}
         <button onClick={async () => {
@@ -68,6 +76,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         }}>{e.status === 'defunct' ? 'Revive' : 'Move to History'}</button>
       </div>
 
+      {filling && <FillDialog sheet={sheet} onClose={() => setFilling(false)} />}
       {exporting === 'roll20' && <Roll20Dialog entityIds={[e.id]} title={`Roll20: ${e.name}`} onClose={() => setExporting(null)} />}
       {exporting === 'print' && <ExportDialog kind={e.type === 'HANDOUT' ? 'letters' : 'sheets'} entityIds={[e.id]} title={e.name} onClose={() => setExporting(null)} />}
       <nav className="tabs" role="tablist" aria-label="Sheet sections">
@@ -109,12 +118,12 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                     {ENTITY_TYPES.map((t) => <option key={t} value={t}>{ENTITY_LABELS[t]}</option>)}
                   </select>
                 </div>
-                <CommitField id={`${p}-summary`} label="One-line summary" value={str('summary')}
+                <CommitField id={`${p}-summary`} label={lab('summary', 'One-line summary')} value={str('summary')}
                   hint={HAS_STATBLOCK.has(e.type) ? 'Leave empty to show the stat block line on the card.' : undefined}
                   onCommit={(summary) => update({ attributes: { summary } })} />
-                <CommitField id={`${p}-location`} label="Default location" value={str('location')}
+                <CommitField id={`${p}-location`} label={lab('location', 'Default location')} value={str('location')}
                   onCommit={(location) => update({ attributes: { location } })} />
-                <CommitField id={`${p}-motivation`} label="Motivation" value={str('motivation')} placeholder="What this character wants"
+                <CommitField id={`${p}-motivation`} label={lab('motivation', 'Motivation')} value={str('motivation')} placeholder="What this character wants"
                   onCommit={(motivation) => update({ attributes: { motivation } })} />
                 <CommitField id={`${p}-tags`} label="Tags" value={e.tags.join(', ')} hint="Separate tags with commas."
                   onCommit={(t) => update({ tags: [...new Set(t.split(',').map((x) => x.trim()).filter(Boolean))] })} />
@@ -133,6 +142,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                   <div className="hint">Shown on the board card and its badge.</div>
                 </div>
               </section>
+              <DetailsPanel sheet={sheet} lab={lab} />
               <CustomFields sheet={sheet} />
               <PartyKnows sheet={sheet} />
             </div>
@@ -143,7 +153,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
           <div className="sheet-main wide">
             {e.type === 'HANDOUT' && (
               <section className="panel">
-                <CommitField id={`${p}-text`} label="Handout text (what the players read)" value={str('text')} multiline rows={10}
+                <CommitField id={`${p}-text`} label={lab('text', 'Handout text (what the players read)')} value={str('text')} multiline rows={10}
                   hint="Printed by Print letter… and on bulletin boards." onCommit={(text) => update({ attributes: { text } })} />
                 <CommitField id={`${p}-from`} label="Signed by" value={str('from')} placeholder="A friend at the harbour"
                   hint="Shown at the bottom of the letter; its first letter goes on the wax seal." onCommit={(from) => update({ attributes: { from } })} />
@@ -151,12 +161,12 @@ function Sheet({ sheet }: { sheet: SheetView }) {
             )}
             {e.type === 'QUEST' && (
               <section className="panel">
-                <CommitField id={`${p}-reward`} label="Reward" value={str('reward')} placeholder="25 gp and a favour"
+                <CommitField id={`${p}-reward`} label={lab('reward', 'Reward')} value={str('reward')} placeholder="25 gp and a favour"
                   hint="Shown on bulletin boards." onCommit={(reward) => update({ attributes: { reward } })} />
               </section>
             )}
             <section className="panel">
-              <CommitField id={`${p}-bio`} label="Bio" value={str('bio')} multiline rows={10}
+              <CommitField id={`${p}-bio`} label={lab('bio', 'Bio')} value={str('bio')} multiline rows={10}
                 hint="Background, appearance, how they talk. Saved when you click away; Ctrl+Enter also saves."
                 onCommit={(bio) => update({ attributes: { bio } })} />
               <CommitField id={`${p}-notes`} label="DM notes" value={str('notes')} multiline rows={8}
@@ -193,6 +203,111 @@ function colourOf(e: SheetView['entity']): string {
 type CustomField = { label: string; value: string }
 
 /** Any extra fields the DM wants on this card, label and value. */
+/** The per-type text fields (and any other text the card carries, e.g. from a notes import). */
+function DetailsPanel({ sheet, lab }: { sheet: SheetView; lab(key: string, label: string): string }) {
+  const act = useBoard((s) => s.act)
+  const e = sheet.entity
+  const fields = DETAIL_FIELDS[e.type]
+  const shown = new Set([...fields.map((f) => f.key), ...fillableFields(e.type).map((f) => f.key)])
+  const others = Object.entries(e.attributes)
+    .filter(([k, v]) => typeof v === 'string' && v.trim() && !shown.has(k) && !INTERNAL_KEYS.has(k))
+    .map(([k]): CardField => ({ key: k, label: k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), long: true }))
+  if (!fields.length && !others.length) return null
+  const val = (k: string) => (typeof e.attributes[k] === 'string' ? (e.attributes[k] as string) : '')
+  return (
+    <section className="panel">
+      <h2 className="panel-heading">Details</h2>
+      {[...fields, ...others].map((f) => (
+        <CommitField key={f.key} id={`detail-${e.id}-${f.key}`} label={lab(f.key, f.label)} value={val(f.key)}
+          multiline={!!f.long} rows={3} hint={f.hint}
+          onCommit={(v) => void act('entity:update', { id: e.id, patch: { attributes: { [f.key]: v } } })} />
+      ))}
+    </section>
+  )
+}
+
+/** Card sheet › Fill blanks with AI: pick empty fields, get suggestions, keep the ones you like. */
+function FillDialog({ sheet, onClose }: { sheet: SheetView; onClose(): void }) {
+  const { act, say, setAiSettingsOpen } = useBoard()
+  const e = sheet.entity
+  const empty = fillableFields(e.type).filter((f) => !(typeof e.attributes[f.key] === 'string' && (e.attributes[f.key] as string).trim()))
+  const canBase = (e.type === 'NPC' || e.type === 'MONSTER') && !readStatBlock(e.attributes.statblock)
+  const [pick, setPick] = useState<Set<string>>(new Set(empty.map((f) => f.key)))
+  const [base, setBase] = useState(canBase)
+  const [ask, setAsk] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [answer, setAnswer] = useState<{ fields: Record<string, string>; srd: { key: string; name: string; cr: string } | null; source: string } | null>(null)
+  const [keep, setKeep] = useState<Set<string>>(new Set())
+  const run = async () => {
+    setBusy(true); setError(null)
+    try {
+      const r = await call('ai:fill', { entityId: e.id, keys: [...pick], ask, statblock: base })
+      setAnswer(r)
+      setKeep(new Set([...Object.keys(r.fields), ...(r.srd ? ['statblock'] : [])]))
+    } catch (err) { setError((err as Error).message) }
+    setBusy(false)
+  }
+  const use = async () => {
+    if (!answer) return
+    const fields = Object.fromEntries(Object.entries(answer.fields).filter(([k]) => keep.has(k)))
+    const done = await act('card:applyFill', { entityId: e.id, fields, source: answer.source, srdKey: keep.has('statblock') && answer.srd ? answer.srd.key : null })
+    if (done) { say(`Filled ${done.length} field${done.length === 1 ? '' : 's'} on ${e.name}. Ctrl+Z undoes it.`); onClose() }
+  }
+  const label = (k: string) => fillableFields(e.type).find((f) => f.key === k)?.label ?? k
+  return (
+    <Dialog title={`Fill blanks: ${e.name}`} open onClose={onClose} wide>
+      {!answer ? (
+        <div className="dz-form">
+          {empty.length === 0 && !canBase ? <p>Every field on this card is filled. Empty a field to have the AI suggest it.</p> : (
+            <>
+              <p className="hint">The AI sees the card, its strings, storylines and your notes, and suggests text for the empty fields you tick. Nothing changes until you choose what to keep.</p>
+              <fieldset className="field fill-pick">
+                <legend>Empty fields</legend>
+                {empty.map((f) => (
+                  <label key={f.key} className="field checkbox">
+                    <input type="checkbox" checked={pick.has(f.key)} onChange={(ev) => setPick((p) => { const n = new Set(p); if (ev.target.checked) n.add(f.key); else n.delete(f.key); return n })} /> {f.label}
+                  </label>
+                ))}
+                {canBase && <label className="field checkbox"><input type="checkbox" checked={base} onChange={(ev) => setBase(ev.target.checked)} /> A stat block (an SRD creature as the base)</label>}
+              </fieldset>
+              <div className="field"><label htmlFor="fill-ask">Anything the AI should know (optional)</label>
+                <input id="fill-ask" value={ask} maxLength={2000} placeholder="Make her secretly kind; keep it grim; she is a halfling…" onChange={(ev) => setAsk(ev.target.value)} /></div>
+            </>
+          )}
+          {error && <p className="field-error" role="alert">{error} {/service/i.test(error) && <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose one…</button>}</p>}
+          <div className="dz-actions">
+            <button onClick={onClose}>Cancel</button>
+            <button className="primary" disabled={busy || (pick.size === 0 && !base)} onClick={() => void run()}>{busy ? 'Thinking…' : 'Suggest'}</button>
+          </div>
+        </div>
+      ) : (
+        <div className="dz-form">
+          <span className="ai-badge">AI suggestion · {answer.source}</span>
+          {Object.keys(answer.fields).length === 0 && !answer.srd && <p>The AI had no suggestions. Try again, or add a hint.</p>}
+          {Object.entries(answer.fields).map(([k, v]) => (
+            <div key={k} className={`fill-row${keep.has(k) ? '' : ' is-off'}`}>
+              <label className="field checkbox"><input type="checkbox" checked={keep.has(k)} onChange={(ev) => setKeep((p) => { const n = new Set(p); if (ev.target.checked) n.add(k); else n.delete(k); return n })} /> <strong>{label(k)}</strong></label>
+              <textarea aria-label={label(k)} rows={v.length > 90 ? 3 : 1} value={v} onChange={(ev) => setAnswer({ ...answer, fields: { ...answer.fields, [k]: ev.target.value } })} />
+            </div>
+          ))}
+          {answer.srd && (
+            <div className={`fill-row${keep.has('statblock') ? '' : ' is-off'}`}>
+              <label className="field checkbox"><input type="checkbox" checked={keep.has('statblock')} onChange={(ev) => setKeep((p) => { const n = new Set(p); if (ev.target.checked) n.add('statblock'); else n.delete('statblock'); return n })} />
+                <strong>Stat block:</strong> the SRD {answer.srd.name} (CR {answer.srd.cr}), with its actions. Edit it freely afterwards.</label>
+            </div>
+          )}
+          <div className="dz-actions">
+            <button onClick={() => setAnswer(null)}>Back</button>
+            <button disabled={busy} onClick={() => void run()}>{busy ? 'Thinking…' : 'Try again'}</button>
+            <button className="primary" disabled={keep.size === 0} onClick={() => void use()}>Use selected</button>
+          </div>
+        </div>
+      )}
+    </Dialog>
+  )
+}
+
 function CustomFields({ sheet }: { sheet: SheetView }) {
   const act = useBoard((s) => s.act)
   const e = sheet.entity
