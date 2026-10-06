@@ -65,7 +65,8 @@ Bump `package.json` + `package-lock.json` version. Push branch `claude/friendly-
 9. Map: Place party token button; PC tokens, Split from party / Merge with party.
 10. Encounters: Save encounter button; scene box; AI chooses and creates monsters (proposals).
 11. Monster/NPC sheet opens on fight summary; AI stat block from description/options; CR up/down; picture upload or AI-drawn.
-Open questions (ask on "go"): hide per board or all boards; metric display-only (recommended); split PC travel moves clock? counts as "here"?; AI encounter monsters onto the board at once or stay in encounter.
+Owner's answers: hide applies to every board. Measurements stored metric (km, km/h, m; grid square 1.5 m), display setting metric (default) or imperial converts; free-text stat blocks keep their words, display converts ft/miles patterns. Split PC travel never moves the clock (clock = party only); split PC counts as "here" in its own region (default, not asked). AI encounter monsters stay in the encounter until "Put on board".
+Open: publish 1.1.0 now or fold into 1.2.0.
 
 ## Remind the owner (until answered)
 - Player preview in a second window (TV): put off by owner; ask again later.
