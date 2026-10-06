@@ -103,8 +103,8 @@
 4. Generate, edit, and export the recap.
 
 ## Open items
-- Roll20: no official stat block import is known. Options to research:
-  Pro-tier API scripts, browser extension, paste-in macro text.
+- Roll20: no official stat block import is known. Built (2026-10-06): paste-in
+  macro text and a Pro-tier API script reading a handout.
 - Battle maps need an image-generating provider, separate from the text AI.
 - Rules edition default (2014 or 2024).
 - Notes import could move earlier than Phase 5; owner chose to continue

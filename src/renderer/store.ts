@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, SheetView, TimelineView } from '../shared/types'
+import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView } from '../shared/types'
 
 export type Selection =
   | { kind: 'entity'; id: string }
@@ -9,7 +9,7 @@ export type Selection =
   | { kind: 'note'; id: string }
   | null
 
-export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players'
+export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters'
 /** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
 export type Mode = 'prep' | 'live' | 'players'
 export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
@@ -32,6 +32,10 @@ interface BoardState {
   /** Live desk: where the party is and what is around them. */
   where: WhereView | null
   players: PlayersView | null
+  encounters: EncountersView | null
+  /** The encounter open on the Encounters screen. */
+  encounterId: string | null
+  openEncounter(id: string | null): void
   prep: PrepView | null
   /** The session number shown on the Prep screen (null: the running or next session). */
   prepNumber: number | null
@@ -55,7 +59,7 @@ interface BoardState {
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
   showBoard(boardId: string): Promise<void>
-  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players'): void
+  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters'): void
   openSheet(entityId: string): Promise<void>
   showOnBoard(entityId: string): Promise<void>
   refresh(): Promise<void>
@@ -88,6 +92,9 @@ export const useBoard = create<BoardState>((set, get) => ({
   prepScreen: null,
   where: null,
   players: null,
+  encounters: null,
+  encounterId: null,
+  openEncounter(id) { set({ encounterId: id, screen: 'encounters', mode: 'prep' }); void get().refresh() },
   prep: null,
   prepNumber: null,
   setPrepNumber(n) { set({ prepNumber: n }); void get().refresh() },
@@ -177,7 +184,8 @@ export const useBoard = create<BoardState>((set, get) => ({
         : [get().prepScreen, get().prep]
       const where = screen === 'live' ? await call('live:where', undefined).catch(() => null) : get().where
       const players = screen === 'players' ? await call('players:view', undefined).catch(() => null) : get().players
-      set({ view, history, sheet, desk, timeline, live, review, mapScreen, prepScreen, prep, where, players, info: info ?? get().info })
+      const encounters = screen === 'encounters' ? await call('encounters:view', undefined).catch(() => null) : get().encounters
+      set({ view, history, sheet, desk, timeline, live, review, mapScreen, prepScreen, prep, where, players, encounters, info: info ?? get().info })
     } catch (err) {
       get().say((err as Error).message, true)
     }

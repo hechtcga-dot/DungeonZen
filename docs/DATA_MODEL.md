@@ -179,5 +179,12 @@ commands. `group_id` lets a session or an import undo as one step.
   discovery_id, role, stats, tactics, done, done_at_min in campaign time,
   status). Campaign settings: `heading_location_id` (where the party is
   heading). Location cards: `attributes.player_notes` (what the players see).
+- Encounters (migration 11): an encounter is an entity of type SCENE with
+  `attributes.encounter = true`, `target` (low | moderate | high), `tactics`,
+  `summary` (notes) and `battle_map_id`; its place is a LOCATED_AT relationship.
+  `encounter_creature` (encounter_id, entity_id, count, notes, sort, status).
+  `log_entry.encounter_id` links a fight to the encounter that was run.
+  Settings: `house_rules`. Card attributes used by exports: HANDOUT `text`,
+  `from`; QUEST `reward`.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

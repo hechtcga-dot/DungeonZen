@@ -151,6 +151,14 @@ const MIGRATIONS: string[] = [
     done INTEGER NOT NULL DEFAULT 0, done_at_min INTEGER, status TEXT NOT NULL
   );
   CREATE INDEX prep_item_prep ON prep_item(prep_id, kind, sort);
+  `,
+  `
+  CREATE TABLE encounter_creature (
+    id TEXT PRIMARY KEY, encounter_id TEXT NOT NULL REFERENCES entity(id), entity_id TEXT NOT NULL REFERENCES entity(id),
+    count INTEGER NOT NULL, notes TEXT NOT NULL, sort REAL NOT NULL, status TEXT NOT NULL
+  );
+  CREATE INDEX encounter_creature_enc ON encounter_creature(encounter_id, sort);
+  ALTER TABLE log_entry ADD COLUMN encounter_id TEXT;
   `
 ]
 

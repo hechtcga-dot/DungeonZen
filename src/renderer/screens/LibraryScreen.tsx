@@ -3,6 +3,7 @@ import { call } from '../api'
 import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
+import { ExportDialog } from '../components/ExportDialog'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { LibraryFilters, LibrarySearch, SrdSearch } from '../../shared/types'
@@ -27,6 +28,7 @@ function num(text: string): number | undefined {
 export function LibraryScreen() {
   const { act, openSheet, showOnBoard, say, view, info } = useBoard()
   const [query, setQuery] = useState('')
+  const [printing, setPrinting] = useState(false)
   const [type, setType] = useState<EntityType | ''>('')
   const [tag, setTag] = useState('')
   const [crMin, setCrMin] = useState('')
@@ -77,6 +79,10 @@ export function LibraryScreen() {
             </button>
           ))}
           <p className="hint">Creates the card on the global board and opens its sheet.</p>
+          <h2 className="panel-heading">Print or save</h2>
+          <button className="template" onClick={() => setPrinting(true)}>Sheets, letters or a bulletin board…</button>
+          <p className="hint">PDF to print, or JPG images to share.</p>
+          {printing && <ExportDialog onClose={() => setPrinting(false)} />}
         </aside>
 
         <main className="library-main">

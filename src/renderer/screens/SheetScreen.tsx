@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
+import { Roll20Dialog } from '../components/Roll20Dialog'
+import { ExportDialog } from '../components/ExportDialog'
 import { CommitField, ScoreField } from '../components/fields'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import {
@@ -36,6 +38,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const { act, goTo, showOnBoard, openSheet } = useBoard()
   const [tab, setTab] = useState<Tab>('sheet')
   const [colourDraft, setColourDraft] = useState('')
+  const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
   const e = sheet.entity
   const update = (patch: IpcInput<'entity:update'>['patch']) => void act('entity:update', { id: e.id, patch })
   const str = (key: string) => (typeof e.attributes[key] === 'string' ? (e.attributes[key] as string) : '')
@@ -54,6 +57,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
           {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
         </div>
         <button onClick={() => void showOnBoard(e.id)}>Show on board</button>
+        <button onClick={() => setExporting('print')}>{e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…'}</button>
+        {['NPC', 'PC', 'MONSTER'].includes(e.type) && <button onClick={() => setExporting('roll20')}>Export to Roll20…</button>}
         <button onClick={async () => {
           const copy = await act('entity:duplicate', { id: e.id })
           if (copy) await openSheet(copy.id)
@@ -63,8 +68,10 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         }}>{e.status === 'defunct' ? 'Revive' : 'Move to History'}</button>
       </div>
 
+      {exporting === 'roll20' && <Roll20Dialog entityIds={[e.id]} title={`Roll20: ${e.name}`} onClose={() => setExporting(null)} />}
+      {exporting === 'print' && <ExportDialog kind={e.type === 'HANDOUT' ? 'letters' : 'sheets'} entityIds={[e.id]} title={e.name} onClose={() => setExporting(null)} />}
       <nav className="tabs" role="tablist" aria-label="Sheet sections">
-        {([['sheet', 'Sheet'], ['bio', 'Bio and notes'], ['connections', `Connections (${sheet.connections.length})`]] as const).map(([id, label]) => (
+        {([['sheet', 'Sheet'], ['bio', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Bio and notes'], ['connections', `Connections (${sheet.connections.length})`]] as const).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
         ))}
       </nav>
@@ -134,6 +141,20 @@ function Sheet({ sheet }: { sheet: SheetView }) {
 
         {tab === 'bio' && (
           <div className="sheet-main wide">
+            {e.type === 'HANDOUT' && (
+              <section className="panel">
+                <CommitField id={`${p}-text`} label="Handout text (what the players read)" value={str('text')} multiline rows={10}
+                  hint="Printed by Print letter… and on bulletin boards." onCommit={(text) => update({ attributes: { text } })} />
+                <CommitField id={`${p}-from`} label="Signed by" value={str('from')} placeholder="A friend at the harbour"
+                  hint="Shown at the bottom of the letter; its first letter goes on the wax seal." onCommit={(from) => update({ attributes: { from } })} />
+              </section>
+            )}
+            {e.type === 'QUEST' && (
+              <section className="panel">
+                <CommitField id={`${p}-reward`} label="Reward" value={str('reward')} placeholder="25 gp and a favour"
+                  hint="Shown on bulletin boards." onCommit={(reward) => update({ attributes: { reward } })} />
+              </section>
+            )}
             <section className="panel">
               <CommitField id={`${p}-bio`} label="Bio" value={str('bio')} multiline rows={10}
                 hint="Background, appearance, how they talk. Saved when you click away; Ctrl+Enter also saves."

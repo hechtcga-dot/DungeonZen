@@ -1,6 +1,6 @@
 import type { EntityType } from '../shared/schemas'
 
-// Entity colours from docs/UI_SPEC.md. ITEM and HANDOUT have no agreed colour yet.
+// Entity colours from docs/UI_SPEC.md (ITEM copper and HANDOUT sepia chosen 2026-10-06; the DM can recolour any card).
 export const ENTITY_COLOURS: Record<EntityType, string> = {
   NPC: '#2f5d8a',
   PC: '#23395b',
@@ -10,8 +10,8 @@ export const ENTITY_COLOURS: Record<EntityType, string> = {
   CLUE: '#5a3f8a',
   FACTION: '#5a3f8a',
   SCENE: '#4a4f57',
-  ITEM: '#6a4526',
-  HANDOUT: '#4a4f57'
+  ITEM: '#9c4f1f',
+  HANDOUT: '#6b5a3a'
 }
 
 export const ENTITY_LABELS: Record<EntityType, string> = {

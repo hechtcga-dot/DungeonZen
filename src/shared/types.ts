@@ -4,6 +4,7 @@ import type {
   EncounterFeedback, LogKind, ReviewDecisionKind, RulesEdition, StorylineStatus, PrepKind, SceneType
 } from './schemas'
 import type { AiChoice } from './aiProviders'
+import type { Adaptation, Difficulty2024 } from './encounter'
 
 export interface CampaignInfo {
   folder: string
@@ -564,6 +565,8 @@ export interface WhereView {
   secrets: Array<{ text: string; source: 'string' | 'card' | 'clue'; id: string; done?: boolean }>
   /** Prep sheet for the running (or next) session. */
   prep: PrepView | null
+  /** Planned encounters at this place. */
+  encounters: Array<{ id: string; name: string; rating: string; totalXp: number; runs: number }>
   /** Short reminders built from all of the above. */
   tips: string[]
 }
@@ -582,4 +585,54 @@ export interface PlayersView {
   connections: string[]
   /** The map with only the places the party has been, and what the players see there. */
   map: { view: MapScreenView; notes: Record<string, string> } | null
+}
+
+export interface EncounterCreatureView {
+  /** The row in the encounter (null for an old encounter made before the planner). */
+  rowId: string | null
+  entityId: string
+  name: string
+  type: EntityType
+  cr: string
+  xpEach: number
+  count: number
+  statLine: string
+  notes: string
+}
+
+export interface EncounterView {
+  id: string
+  name: string
+  locationId: string | null
+  locationName: string | null
+  target: 'low' | 'moderate' | 'high'
+  tactics: string
+  notes: string
+  battleMapId: string | null
+  creatures: EncounterCreatureView[]
+  difficulty: Difficulty2024
+  /** Times it was run in play, with how the party found it. */
+  runs: Array<{ atMin: number; session: number; feedback: string | null }>
+}
+
+export interface EncountersView {
+  encounters: EncounterView[]
+  party: { level: number; size: number }
+  /** True while a session is running (an encounter can be run as a fight). */
+  sessionRunning: boolean
+  adaptation: Adaptation
+  houseRules: string
+  /** Cards that can fight: monsters and NPCs, with their CR. */
+  fighters: Array<EntityBrief & { cr: string }>
+  places: EntityBrief[]
+  battleMaps: Array<{ id: string; name: string }>
+}
+
+export interface Roll20Export {
+  characters: Array<{ entityId: string; name: string; abilities: Array<{ name: string; macro: string; tokenAction: boolean }> }>
+  /** One line of JSON for the import handout's GM notes. */
+  data: string
+  /** The Roll20 API (Mod) script. */
+  script: string
+  handout: string
 }

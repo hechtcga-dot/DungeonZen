@@ -29,7 +29,7 @@ function useElapsed(since: string | null): number | null {
  */
 export function WhereTheyAre({ v }: { v: LiveView }) {
   const where = useBoard((s) => s.where)
-  const { act, openSheet, goTo } = useBoard()
+  const { act, openSheet, goTo, openEncounter } = useBoard()
   if (!where) return null
   const prep = where.prep
   const discoveries = prep?.items.filter((i) => i.kind === 'discovery') ?? []
@@ -58,6 +58,20 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
         <div className="parchment-note where-panel">
           <h3 className="side-h">Tips</h3>
           {where.tips.length ? <ul className="ink-list where-tips">{where.tips.map((t, i) => <li key={i}>{t}</li>)}</ul> : <p className="ink-muted">Nothing to point out.</p>}
+          {where.encounters.length > 0 && (
+            <>
+              <h3 className="side-h">Encounters here</h3>
+              <ul className="here-list">
+                {where.encounters.map((e) => (
+                  <li key={e.id}>
+                    <button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>
+                    <span className="met-badge">{e.rating}{e.runs ? ` · run ${e.runs}×` : ''}</span>
+                    {v.session && <button className="link-button" onClick={() => void act('encounter:run', { encounterId: e.id })}>Start fight</button>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           {where.place?.notes && (<><h3 className="side-h">Notes on {where.place.name}</h3><p className="region-notes">{where.place.notes}</p></>)}
         </div>
 

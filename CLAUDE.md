@@ -116,8 +116,17 @@ must have unit tests before any screen depends on it.
   Stability, Replicate, fal.ai, Stable Diffusion on this computer. Add a service
   by adding a row to `AI_PROVIDERS` (and an adapter only for a new protocol).
 
+- Card colours: Item copper `#9c4f1f`, Handout sepia `#6b5a3a` (chosen by Claude
+  at the owner's request, 2026-10-06; `src/renderer/entityStyle.ts`).
+- The one-page prep template (owner, 2026-10-06) is a reference: use its
+  elements where they fit; the Session prep sheet is built from it.
+
 ## Open decisions (do not guess; ask)
-- Colours for ITEM and HANDOUT cards (placeholders in `src/renderer/entityStyle.ts`)
+- None at the moment.
+
+## Remind the owner (at a good moment, until answered)
+- Player preview in a second window (for a TV or second screen): put off to a
+  future date by the owner (2026-10-06); ask again later.
 
 ## Current state (2026-10-06)
 Phase 1 so far:
@@ -239,9 +248,37 @@ built.
   heading to, people met (name only if known, else "A stranger"; only known
   fields), revealed discoveries, known strings, the map with only visited
   regions and their player notes on hover. Tested to leak no DM notes.
+- Encounter planner (Phase 4; Prep › Encounters, `EncountersScreen.tsx`): an
+  encounter is a SCENE card with `attributes.encounter = true` (old "Suggest an
+  encounter" scenes are taken over), placed with a LOCATED_AT string; who fights
+  is `encounter_creature` (card, count, notes). Add cards, SRD monsters (copied
+  once, then reused) or an SRD suggestion for the target; aiming for Low /
+  Moderate / High, tactics, notes, battle map. 2024 XP meter
+  (`src/shared/encounter.ts`) with budgets adapted to the last 10 fight ratings
+  from the session review (too easy +20% … nearly deadly −25%, 0.7 to 1.4).
+  House rules (setting `house_rules`) and Ask AI to rate (`src/main/ai/encounter.ts`).
+  Run it now logs a fight linked by `log_entry.encounter_id`; past runs and their
+  ratings are listed. Region panel: Plan an encounter here. Live: Encounters here
+  with Start fight.
+- Roll20 export (`src/main/exporters/roll20.ts`, `Roll20Dialog.tsx`; from a card
+  sheet or an encounter): paste-in macros (the card's own macro, else built from
+  the description: attack, damage, save) with token action marks, Copy all / Save;
+  or the API script (Roll20 Pro): install `DUNGEON_ZEN_SCRIPT` once, paste the
+  data into the GM notes of a handout "Dungeon Zen import", type `!dz-import`
+  (`--replace` refreshes). Creates characters with 5E-by-Roll20 NPC attributes
+  and token-action abilities; tested against a stand-in Roll20. Battle maps: Save
+  image for Roll20 with the page size in units.
+- PDF and JPG (`src/main/exporters/pages.ts`, `render.ts`, `ExportDialog.tsx`;
+  Library › Print or save, card sheet › Print or save / Print letter, encounter ›
+  Stat sheets): character sheets (DM copy with notes, or player copy with only
+  known fields), letters (HANDOUT `text`, `from`, handwritten or printed, wax
+  seal), bulletin board (QUEST/HANDOUT/CLUE notes with `reward`), A4 or Letter.
+  Rendered in a hidden window (printToPDF, capturePage); several JPGs go into a
+  chosen folder. Handout text, Signed by and Reward are on the card's second tab.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
 Not yet: AI notes import; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
-import, exports (Phase 4), packaging/installer.
+import, packaging/installer; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
+with tokens; Phase 5 (AI notes import) is next.

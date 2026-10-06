@@ -5,7 +5,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
-  relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
+  relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
@@ -21,7 +21,7 @@ import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, RegionDetail, RegionView,
+  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
   SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
 } from '../../shared/types'
@@ -30,10 +30,12 @@ import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
 import { rowsFor } from '../../shared/battlemap'
+import { adaptation, RATING_LABELS, rateEncounter, xpForCr, type FightFeedback } from '../../shared/encounter'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
 export const DB_FILE = 'campaign.db'
 export const ASSETS_DIR = 'assets'
+export type SrdCopy = { type: 'MONSTER' | 'ITEM'; name: string; attributes: EntityAttributes; abilities: NewAbility[] }
 const PREP_LABELS: Record<PrepKind, string> = { discovery: 'discovery', scene: 'scene', clue: 'clue', npc: 'key NPC', threat: 'threat' }
 export type PrepItemPatch = Partial<Pick<PrepItemRow,
   'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'role' | 'stats' | 'tactics'>>
@@ -54,7 +56,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id'
+  | 'heading_location_id' | 'house_rules'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -1034,7 +1036,7 @@ export class Campaign {
   }
 
   /** Logs something that happened now; time taken moves the clock on, all as one step. */
-  addLog(input: { kind: LogKind; text: string; entityId?: string | null; minutesTaken?: number }): LogView {
+  addLog(input: { kind: LogKind; text: string; entityId?: string | null; minutesTaken?: number; encounterId?: string | null }): LogView {
     const open = this.openSession()
     if (!open) throw new Error('Start a session first')
     const minutes = Math.max(0, Math.round(input.minutesTaken ?? 0))
@@ -1044,7 +1046,7 @@ export class Campaign {
     this.log.run(label, (w) => {
       w.insert('log_entry', {
         id, sessionId: open.id, atMin: now, kind: input.kind, text: input.text, entityId: input.entityId ?? null,
-        minutesTaken: minutes, createdAt: new Date().toISOString(), status: 'active'
+        minutesTaken: minutes, createdAt: new Date().toISOString(), status: 'active', encounterId: input.encounterId ?? null
       })
       if (minutes > 0) w.update('campaign_settings', 'clock_min', { value: now + minutes })
     })
@@ -1474,8 +1476,8 @@ export class Campaign {
       region, location: loc,
       partyHere: !!party && party.locationId === r.locationId,
       hereNow: here.filter((e) => ['NPC', 'MONSTER', 'PC', 'FACTION'].includes(e.type)).map(brief),
-      encounters: here.filter((e) => e.type === 'SCENE' && /^encounter/i.test(e.name)).map(brief),
-      plotPoints: here.filter((e) => ['QUEST', 'CLUE', 'ITEM', 'HANDOUT'].includes(e.type) || (e.type === 'SCENE' && !/^encounter/i.test(e.name))).map(brief),
+      encounters: here.filter((e) => e.type === 'SCENE' && isEncounter(e)).map(brief),
+      plotPoints: here.filter((e) => ['QUEST', 'CLUE', 'ITEM', 'HANDOUT'].includes(e.type) || (e.type === 'SCENE' && !isEncounter(e))).map(brief),
       notes: [loc.attributes.description, loc.attributes.notes].filter((x) => typeof x === 'string' && x.trim()).join('\n\n'),
       subRegions: all.filter((e) => e.parentId === r.locationId && e.type === 'LOCATION').map((e) => ({ locationId: e.id, name: e.name }))
     }
@@ -1651,6 +1653,193 @@ export class Campaign {
     try { unlinkSync(this.pendingFile(pendingId)) } catch { /* already gone */ }
   }
 
+  // ---- encounter planner (an encounter is a SCENE card with attributes.encounter = true)
+
+  /** Encounter cards, including ones made by "Suggest an encounter" before the planner. */
+  private encounterCards(): EntityRow[] {
+    return this.db.select().from(entity).where(eq(entity.type, 'SCENE')).all()
+      .filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
+      .filter(isEncounter)
+  }
+
+  /** Fight feedback from play, oldest first, for the adaptive budgets. */
+  private fightFeedback(): FightFeedback[] {
+    return this.db.select().from(logEntry).where(and(eq(logEntry.status, 'active'), eq(logEntry.kind, 'fight'))).all()
+      .filter((l) => l.feedback)
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+      .map((l) => l.feedback as FightFeedback)
+  }
+
+  private partySize(): number {
+    return Math.max(1, this.partyHealth().length || 4)
+  }
+
+  encountersView(): EncountersView {
+    const level = Number(this.setting('party_level') ?? 1)
+    const size = this.partySize()
+    const adapt = adaptation(this.fightFeedback())
+    const all = this.db.select().from(entity).all()
+    const live = all.filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
+    const brief = (e: EntityRow): EntityBrief => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus })
+    const cr = (e: EntityRow) => readStatBlock(e.attributes.statblock)?.cr ?? ''
+    return {
+      encounters: this.encounterCards().sort((a, b) => a.name.localeCompare(b.name)).map((e) => this.encounterView(e.id, { level, size, factor: adapt.factor })),
+      party: { level, size },
+      sessionRunning: !!this.openSession(),
+      adaptation: adapt,
+      houseRules: String(this.setting('house_rules') ?? ''),
+      fighters: live.filter((e) => e.type === 'MONSTER' || e.type === 'NPC').sort((a, b) => a.name.localeCompare(b.name)).map((e) => ({ ...brief(e), cr: cr(e) })),
+      places: live.filter((e) => e.type === 'LOCATION').sort((a, b) => a.name.localeCompare(b.name)).map(brief),
+      battleMaps: this.maps().filter((m) => m.kind === 'battle').map((m) => ({ id: m.id, name: m.name }))
+    }
+  }
+
+  encounterView(id: string, party?: { level: number; size: number; factor: number }): EncounterView {
+    const e = this.entityRow(id)
+    const p = party ?? { level: Number(this.setting('party_level') ?? 1), size: this.partySize(), factor: adaptation(this.fightFeedback()).factor }
+    const byId = new Map(this.db.select().from(entity).all().map((x) => [x.id, x]))
+    const allRows = this.db.select().from(encounterCreature).where(eq(encounterCreature.encounterId, id)).all()
+    const rows = allRows.filter((r) => r.status === 'active').sort((a, b) => a.sort - b.sort)
+    const view = (entityId: string, count: number, rowId: string | null, notes: string): EncounterCreatureView | null => {
+      const c = byId.get(entityId)
+      if (!c || c.status === 'defunct') return null
+      const sb = readStatBlock(c.attributes.statblock)
+      return {
+        rowId, entityId, name: c.name, type: c.type as EntityType, cr: sb?.cr ?? '', xpEach: xpForCr(sb?.cr ?? ''), count, notes,
+        statLine: sb ? statLine(sb) : ''
+      }
+    }
+    let creatures = rows.map((r) => view(r.entityId, r.count, r.id, r.notes)).filter((x): x is EncounterCreatureView => !!x)
+    if (!allRows.length) {
+      // Made before the planner: monsters linked by IN_ENCOUNTER strings, count on the card.
+      creatures = this.db.select().from(relationship).where(and(eq(relationship.targetId, id), eq(relationship.type, 'IN_ENCOUNTER'), eq(relationship.status, 'active'))).all()
+        .map((r) => view(r.sourceId, Number(byId.get(r.sourceId)?.attributes.count ?? 1) || 1, null, ''))
+        .filter((x): x is EncounterCreatureView => !!x)
+    }
+    const at = this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).get()
+    const sessions = new Map(this.db.select().from(session).all().map((x) => [x.id, x.number]))
+    const runs = this.db.select().from(logEntry).where(and(eq(logEntry.encounterId, id), eq(logEntry.status, 'active'))).all()
+      .sort((a, b) => a.atMin - b.atMin).map((l) => ({ atMin: l.atMin, session: sessions.get(l.sessionId) ?? 0, feedback: l.feedback }))
+    const a = e.attributes as Record<string, unknown>
+    const target = a.target === 'low' || a.target === 'high' ? a.target : 'moderate'
+    return {
+      id, name: e.name, locationId: at?.targetId ?? null, locationName: at ? byId.get(at.targetId)?.name ?? null : null,
+      target, tactics: typeof a.tactics === 'string' ? a.tactics : '', notes: typeof a.summary === 'string' ? a.summary : '',
+      battleMapId: typeof a.battle_map_id === 'string' ? a.battle_map_id : null,
+      creatures, difficulty: rateEncounter(creatures, p.level, p.size, p.factor), runs
+    }
+  }
+
+  createEncounter(input: { name: string; locationId?: string | null }): string {
+    let id = ''
+    this.log.run(`Planned encounter ${input.name}`, (w) => {
+      id = this.insertEntity(w, {
+        boardId: this.globalBoard().id, type: 'SCENE', name: input.name, position: this.freeGlobalSpot(),
+        attributes: { encounter: true, target: 'moderate', tactics: '', summary: '' }
+      })
+      if (input.locationId) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: input.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
+    })
+    return id
+  }
+
+  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; battleMapId?: string | null }): void {
+    const e = this.entityRow(id)
+    this.log.run(`Edited encounter ${patch.name ?? e.name}`, (w) => {
+      const attrs: Record<string, unknown> = { encounter: true }
+      if (patch.target) attrs.target = patch.target
+      if (patch.tactics !== undefined) attrs.tactics = patch.tactics
+      if (patch.notes !== undefined) attrs.summary = patch.notes
+      if (patch.battleMapId !== undefined) attrs.battle_map_id = patch.battleMapId
+      w.update('entity', id, { name: patch.name, attributes: { ...e.attributes, ...attrs } })
+      if (patch.locationId !== undefined) {
+        for (const r of this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).all()) {
+          w.update('relationship', r.id, { status: 'defunct' })
+        }
+        if (patch.locationId) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: patch.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
+      }
+    })
+  }
+
+  /** An old encounter (counts on the cards) gets its own rows the first time it is edited. */
+  private adoptLegacyCreatures(w: Writer, encounterId: string): void {
+    const rows = this.db.select().from(encounterCreature).where(eq(encounterCreature.encounterId, encounterId)).all()
+    if (rows.length) return
+    this.encounterView(encounterId).creatures.forEach((c, i) => {
+      w.insert('encounter_creature', { id: randomUUID(), encounterId, entityId: c.entityId, count: c.count, notes: '', sort: i + 1, status: 'active' })
+    })
+  }
+
+  addEncounterCreature(encounterId: string, entityId: string, count = 1): void {
+    const e = this.entityRow(encounterId)
+    const c = this.entityRow(entityId)
+    this.log.run(`Added ${count} × ${c.name} to ${e.name}`, (w) => this.putCreature(w, encounterId, entityId, count))
+  }
+
+  private putCreature(w: Writer, encounterId: string, entityId: string, count: number): void {
+    this.adoptLegacyCreatures(w, encounterId)
+    const rows = this.db.select().from(encounterCreature).where(and(eq(encounterCreature.encounterId, encounterId), eq(encounterCreature.status, 'active'))).all()
+    const same = rows.find((r) => r.entityId === entityId)
+    if (same) w.update('encounter_creature', same.id, { count: same.count + count })
+    else w.insert('encounter_creature', {
+      id: randomUUID(), encounterId, entityId, count, notes: '', sort: rows.reduce((n, r) => Math.max(n, r.sort), 0) + 1, status: 'active'
+    })
+  }
+
+  /**
+   * Copies an SRD monster into the campaign (or reuses the card already copied from it)
+   * and puts it in the encounter, as one undo step.
+   */
+  addSrdToEncounter(encounterId: string, groups: Array<{ key: string; count: number }>, copy: (key: string) => SrdCopy): void {
+    const e = this.entityRow(encounterId)
+    const cards = this.db.select().from(entity).all().filter((x) => x.status !== 'defunct')
+    this.log.run(`Added ${groups.map((g) => `${g.count} × ${copy(g.key).name}`).join(', ')} to ${e.name}`, (w) => {
+      for (const g of groups) {
+        const existing = cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === g.key)
+        let id = existing?.id
+        if (!id) {
+          const c = copy(g.key)
+          id = this.insertEntity(w, { boardId: this.globalBoard().id, type: c.type, name: c.name, position: this.freeGlobalSpot(), attributes: c.attributes, abilities: c.abilities })
+        }
+        this.putCreature(w, encounterId, id, g.count)
+      }
+    })
+  }
+
+  updateEncounterCreature(rowId: string, patch: { count?: number; notes?: string }): void {
+    const r = this.creatureRow(rowId)
+    this.log.run(`Changed ${this.nameOf(r.entityId)} in ${this.nameOf(r.encounterId)}`, (w) => {
+      w.update('encounter_creature', rowId, patch.count === 0 ? { status: 'defunct' } : patch)
+    })
+  }
+
+  setEncounterCreatureStatus(rowId: string, status: RowStatus): void {
+    const r = this.creatureRow(rowId)
+    this.log.run(`${status === 'defunct' ? 'Took' : 'Put'} ${this.nameOf(r.entityId)} ${status === 'defunct' ? 'out of' : 'back in'} ${this.nameOf(r.encounterId)}`, (w) => {
+      w.update('encounter_creature', rowId, { status })
+    })
+  }
+
+  /** Legacy encounters have no rows yet: turn them into rows, then act on the one for this card. */
+  removeEncounterCreature(encounterId: string, entityId: string): void {
+    this.log.run(`Took ${this.nameOf(entityId)} out of ${this.nameOf(encounterId)}`, (w) => {
+      this.adoptLegacyCreatures(w, encounterId)
+      const row = this.db.select().from(encounterCreature).where(and(eq(encounterCreature.encounterId, encounterId), eq(encounterCreature.entityId, entityId), eq(encounterCreature.status, 'active'))).get()
+      if (row) w.update('encounter_creature', row.id, { status: 'defunct' })
+    })
+  }
+
+  /** Logs the encounter as a fight in the running session, linked to the plan. */
+  runEncounter(encounterId: string): LogView {
+    const e = this.entityRow(encounterId)
+    return this.addLog({ kind: 'fight', text: e.name, encounterId })
+  }
+
+  private creatureRow(id: string) {
+    const r = this.db.select().from(encounterCreature).where(eq(encounterCreature.id, id)).get()
+    if (!r) throw new Error(`No encounter line with id ${id}`)
+    return r
+  }
+
   // ---- live: where the party is
 
   /** The party's latest position on any map, with the map it is on. */
@@ -1726,8 +1915,17 @@ export class Campaign {
       headingTo = { locationId: headingId, name: names.get(headingId)!, travel }
     }
 
+    const encounters: WhereView['encounters'] = []
+    if (place) {
+      const atPlace = new Set(this.db.select().from(relationship).where(and(eq(relationship.targetId, place.locationId), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).all().map((r) => r.sourceId))
+      for (const e of this.encounterCards().filter((x) => atPlace.has(x.id))) {
+        const v = this.encounterView(e.id)
+        encounters.push({ id: e.id, name: e.name, rating: RATING_LABELS[v.difficulty.rating], totalXp: v.difficulty.totalXp, runs: v.runs.length })
+      }
+    }
     const tips: string[] = []
     if (!party) tips.push('Place the party on the map to see who and what is around them.')
+    for (const e of encounters.filter((x) => x.runs === 0)) tips.push(`Encounter planned here: ${e.name} (${e.rating}).`)
     if (cameFrom) tips.push(`They came from ${cameFrom.name} (${formatClock(cameFrom.atMin)}).`)
     if (headingTo) tips.push(`They are heading to ${headingTo.name}${headingTo.travel ? `, ${headingTo.travel} away` : ''}.`)
     const metHere = people.filter((p) => p.met)
@@ -1740,7 +1938,7 @@ export class Campaign {
     for (const sc of scenesHere) tips.push(`Planned here: ${sc.title || 'a scene'}${sc.sceneType ? ` (${sc.sceneType})` : ''}.`)
     const next = (prep?.items ?? []).find((i) => i.kind === 'scene' && !i.done)
     if (next && !scenesHere.includes(next)) tips.push(`Next planned scene: ${next.title || 'untitled'}${next.locationName ? ` at ${next.locationName}` : ''}.`)
-    return { place, cameFrom, headingTo, places, people, secrets, prep, tips }
+    return { place, cameFrom, headingTo, places, people, secrets, prep, encounters, tips }
   }
 
   /** Adds a paragraph to the DM notes journal (one undo step). */
@@ -2176,6 +2374,11 @@ function searchText(v: EntityView): string {
   }
   walk(v.attributes)
   return parts.join(' \n ').toLowerCase()
+}
+
+/** A SCENE card that is a planned encounter (planner) or was made by "Suggest an encounter". */
+function isEncounter(e: EntityRow): boolean {
+  return e.attributes.encounter === true || /^encounter\b/i.test(e.name)
 }
 
 function toMapView(r: MapRow): MapView {

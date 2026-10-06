@@ -8,7 +8,7 @@ import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
-  StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView
+  StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -123,6 +123,32 @@ export const ipcInputs = {
   'ai:models': z.object({ provider: z.string().max(60), baseUrl: z.string().trim().max(500).optional() }),
   'ai:test': z.object({ provider: z.string().max(60), model: z.string().trim().max(200), baseUrl: z.string().trim().max(500) }),
   'ai:sceneText': z.object({ ask: z.string().max(2000) }),
+  'roll20:export': z.object({ entityIds: z.array(Id).min(1).max(200) }),
+  'export:pages': z.object({
+    kind: z.enum(['sheets', 'letters', 'board']), entityIds: z.array(Id).min(1).max(200),
+    format: z.enum(['pdf', 'jpg']), size: z.enum(['A4', 'Letter']),
+    playerSafe: z.boolean().optional(), includeNotes: z.boolean().optional(),
+    hand: z.enum(['handwritten', 'printed']).optional(), seal: z.boolean().optional(), title: z.string().trim().max(200).optional()
+  }),
+  'file:saveText': z.object({ name: z.string().trim().min(1).max(120), content: z.string().max(5_000_000), ext: z.enum(['json', 'js', 'txt']) }),
+  'map:saveImage': z.object({ mapId: Id }),
+  'encounters:view': z.void(),
+  'encounter:create': z.object({ name: Name, locationId: Id.nullable().optional() }),
+  'encounter:update': z.object({
+    id: Id,
+    patch: z.object({
+      name: Name, locationId: Id.nullable(), target: z.enum(['low', 'moderate', 'high']), tactics: z.string().max(5000),
+      notes: z.string().max(5000), battleMapId: Id.nullable()
+    }).partial()
+  }),
+  'encounter:addCreature': z.object({ encounterId: Id, entityId: Id, count: z.number().int().min(1).max(100) }),
+  'encounter:addSrd': z.object({ encounterId: Id, groups: z.array(z.object({ key: z.string().min(1).max(200), count: z.number().int().min(1).max(100) })).min(1).max(10) }),
+  'encounter:creature': z.object({ rowId: Id, patch: z.object({ count: z.number().int().min(0).max(100), notes: z.string().max(1000) }).partial() }),
+  'encounter:removeCreature': z.object({ encounterId: Id, entityId: Id }),
+  'encounter:suggest': z.object({ difficulty: z.enum(['low', 'moderate', 'high']), creatureType: z.string().max(40).optional() }),
+  'encounter:run': z.object({ encounterId: Id }),
+  'encounter:houseRules': z.object({ text: z.string().max(20000) }),
+  'ai:rateEncounter': z.object({ encounterId: Id }),
   'live:where': z.void(),
   'players:view': z.void(),
   'live:setHeading': z.object({ locationId: Id.nullable() }),
@@ -282,6 +308,21 @@ export interface IpcOutputs {
   'ai:models': string[]
   'ai:test': string
   'ai:sceneText': AiSuggestion
+  'roll20:export': Roll20Export
+  'export:pages': string | null
+  'file:saveText': string | null
+  'map:saveImage': string | null
+  'encounters:view': EncountersView
+  'encounter:create': string
+  'encounter:update': void
+  'encounter:addCreature': void
+  'encounter:addSrd': void
+  'encounter:creature': void
+  'encounter:removeCreature': void
+  'encounter:suggest': { groups: Array<{ key: string; name: string; cr: string; count: number; xp: number }>; totalXp: number; budget: number; creatureType: string; summary: string } | null
+  'encounter:run': LogView
+  'encounter:houseRules': void
+  'ai:rateEncounter': AiSuggestion
   'live:where': WhereView
   'players:view': PlayersView
   'live:setHeading': void

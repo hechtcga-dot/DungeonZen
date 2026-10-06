@@ -634,3 +634,61 @@ button.otf-card:hover:not(:disabled) { background-color: #fff6dc; border-color: 
 .map-tip p { margin: 4px 0 0; font-size: 14px; white-space: pre-wrap; }
 @media (max-width: 1100px) { .players-layout { grid-template-columns: minmax(0, 1fr); } }
 .prep-head, .prep-section, .prep-empty { height: auto; min-height: 0; }
+
+/* ---- encounter planner ---- */
+.enc-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.enc-list { gap: 6px; position: sticky; top: 12px; }
+.enc-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.enc-item { width: 100%; min-height: 40px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px 8px; text-align: left;
+  background: rgba(255, 252, 240, 0.4); border: 1px solid rgba(42, 31, 18, 0.25); color: var(--ink); font-size: 14px; }
+.desk-theme .parchment-note .enc-item:hover:not(:disabled) { background: #fffaf0; }
+.enc-item[aria-current='true'] { border: 2px solid #8f2a21; background: rgba(255, 250, 236, 0.9); }
+.rating-chip, .meter-text strong { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 3px; background: #6b5d3f; color: #fff; }
+.meter-text strong { font-size: 15px; padding: 2px 8px; }
+.r-trivial { background: #6b7a8a !important; } .r-low { background: #2e5b2a !important; } .r-moderate { background: #a07a14 !important; }
+.r-high { background: #b0521c !important; } .r-over_high { background: #8f2a21 !important; }
+p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
+.enc-editor { height: auto; min-height: 0; gap: 12px; }
+.enc-fields { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.enc-meter { display: flex; flex-direction: column; gap: 8px; padding: 26px 8px 8px; }
+.meter-bar { position: relative; height: 16px; border-radius: 8px; background: rgba(42, 31, 18, 0.15); border: 1px solid rgba(42, 31, 18, 0.35); }
+.meter-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; background: linear-gradient(90deg, #2e5b2a, #a07a14 55%, #8f2a21); }
+.meter-mark { position: absolute; top: -6px; bottom: -6px; width: 2px; background: #2a1f12; }
+.meter-mark span { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: var(--ink-muted); }
+.meter-mark.is-target { width: 3px; background: #8f2a21; }
+.meter-mark.is-target span { color: #8f2a21; font-weight: 600; }
+.enc-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.enc-table th { text-align: left; font-size: 12px; color: var(--ink-muted); border-bottom: 1px solid rgba(42, 31, 18, 0.35); padding: 4px; }
+.enc-table td { padding: 6px 4px; border-bottom: 1px solid rgba(42, 31, 18, 0.15); vertical-align: top; }
+.enc-table .count .ink-button { min-height: 28px; min-width: 28px; padding: 0 6px; }
+.enc-table .count .mono { min-width: 24px; text-align: center; align-self: center; }
+.enc-stat { font-size: 12px; }
+.enc-add { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+.enc-add .row.tight select, .enc-add .row.tight input:not(.short) { flex: 1; min-width: 0; }
+.enc-add .short { width: 64px; }
+.srd-hits { list-style: none; margin: 4px 0 0; padding: 0; max-height: 220px; overflow: auto; border: 1px solid rgba(42, 31, 18, 0.25); background: rgba(255, 252, 240, 0.7); }
+.srd-hits li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 8px; font-size: 14px; }
+.srd-hits .ink-button { min-height: 26px; padding: 0 8px; }
+.enc-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; font-size: 14px; }
+.enc-actions { padding-top: 6px; border-top: 1px solid rgba(42, 31, 18, 0.25); }
+.enc-side { display: flex; flex-direction: column; gap: 14px; }
+.enc-side .short { width: 64px; }
+@media (max-width: 1300px) { .enc-layout { grid-template-columns: 220px minmax(0, 1fr); } .enc-side { grid-column: 1 / -1; } }
+
+/* ---- Roll20 and print dialogs ---- */
+.tabs-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.dz-dialog .tabs-row button[aria-pressed='true'] { background: #2a1f12; color: #f6ecd0; border-color: #000; }
+.roll20 { display: flex; flex-direction: column; gap: 12px; }
+.roll20-list { max-height: 50vh; overflow: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 6px; }
+.macro-row { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-bottom: 1px solid rgba(42, 31, 18, 0.15); }
+.macro-head { display: flex; align-items: center; gap: 8px; }
+.token-badge { background: #2f5d8a; }
+.macro-text { display: block; white-space: pre-wrap; word-break: break-word; font-size: 12px; padding: 6px 8px; background: rgba(42, 31, 18, 0.07); border-radius: 3px; user-select: all; }
+.roll20-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 14px; font-size: 14px; }
+.roll20-steps .row { margin-top: 6px; }
+.roll20-map { border-top: 1px solid rgba(42, 31, 18, 0.25); padding-top: 8px; }
+.export-pick ul { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; columns: 2; }
+.export-pick li label { display: flex; align-items: center; gap: 6px; font-size: 14px; padding: 2px 0; }
+.export-pick input { width: 16px; height: 16px; min-height: 16px; }
+.export-pick .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.enc-fields .row.tight select { flex: 1; min-width: 0; }

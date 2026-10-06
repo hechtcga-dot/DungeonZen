@@ -10,6 +10,7 @@ const ICONS = {
   timeline: <><path d="M3 6h10M7 12h12M3 18h8" /><path d="M16 3v18" strokeDasharray="2 2" /></>,
   live: <><circle cx="12" cy="12" r="3" /><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a12 12 0 0 0 0 17M20.5 3.5a12 12 0 0 1 0 17" /></>,
   ai: <><path d="M12 3l1.8 4.6L18.5 9.5l-4.7 1.9L12 16l-1.8-4.6L5.5 9.5l4.7-1.9z" /><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></>,
+  encounters: <><path d="M5 19L17 7M17 7V3h4v4h-4" /><path d="M19 19L7 7M7 7V3H3v4h4" /><path d="M8 16l-3 3M16 16l3 3" /></>,
   prep: <><path d="M6 3h9l3 3v15H6z" /><path d="M9 9h6M9 13h6M9 17h4" /></>,
   players: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M2.5 19q0-5 5.5-5t5.5 5M10.5 19q0-5 5.5-5t5.5 5" /></>,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
@@ -39,7 +40,7 @@ export function DeskRail() {
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
 
-  const item = (id: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players', label: string, icon: keyof typeof ICONS = id) => (
+  const item = (id: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters', label: string, icon: keyof typeof ICONS = id) => (
     <button className="rail-item" aria-current={screen === id ? 'page' : undefined} onClick={() => goTo(id)}>
       <Icon name={icon} /><span>{label}</span>
     </button>
@@ -59,6 +60,7 @@ export function DeskRail() {
         <>
           {item('desk', 'Desk')}
           {item('prep', 'Session prep', 'prep')}
+          {item('encounters', 'Encounters', 'encounters')}
           {item('board', 'Board')}
           {item('map', 'Map')}
           {item('timeline', 'Timeline')}

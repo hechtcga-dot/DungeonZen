@@ -217,7 +217,8 @@ export const logEntry = sqliteTable('log_entry', {
   minutesTaken: integer('minutes_taken').notNull(),
   createdAt: text('created_at').notNull(),
   status: text('status').notNull(),
-  feedback: text('feedback') // fights: too_easy | about_right | hard | nearly_deadly
+  feedback: text('feedback'), // fights: too_easy | about_right | hard | nearly_deadly
+  encounterId: text('encounter_id') // fights: the planned encounter (a SCENE card) that was run
 })
 
 // What the DM decided about each review item, so a rejected proposal or a
@@ -284,6 +285,17 @@ export const prepItem = sqliteTable('prep_item', {
   status: text('status').notNull()
 })
 
+// Who is in a planned encounter (the encounter is a SCENE card with attributes.encounter = true).
+export const encounterCreature = sqliteTable('encounter_creature', {
+  id: text('id').primaryKey(),
+  encounterId: text('encounter_id').notNull(),
+  entityId: text('entity_id').notNull(), // a MONSTER or NPC card
+  count: integer('count').notNull(),
+  notes: text('notes').notNull(),
+  sort: real('sort').notNull(),
+  status: text('status').notNull()
+})
+
 // Tables whose rows go through the command log, keyed for undo/redo.
 export const tracked = {
   campaign_settings: { table: campaignSetting, pk: campaignSetting.key },
@@ -308,7 +320,8 @@ export const tracked = {
   travel_link: { table: travelLink, pk: travelLink.id },
   style_example: { table: styleExample, pk: styleExample.id },
   session_prep: { table: sessionPrep, pk: sessionPrep.id },
-  prep_item: { table: prepItem, pk: prepItem.id }
+  prep_item: { table: prepItem, pk: prepItem.id },
+  encounter_creature: { table: encounterCreature, pk: encounterCreature.id }
 } as const
 export type TableName = keyof typeof tracked
 

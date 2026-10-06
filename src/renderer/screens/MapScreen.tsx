@@ -83,7 +83,7 @@ export function MapScreen() {
 }
 
 function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode; setMode(m: Mode): void }) {
-  const { act, query, info } = useBoard()
+  const { act, query, info, say } = useBoard()
   const [selected, setSelected] = useState<string | null>(view.party?.locationId ? view.regions.find((r) => r.locationId === view.party?.locationId)?.id ?? null : null)
   const [detail, setDetail] = useState<RegionDetail | null>(null)
   const [draw, setDraw] = useState<Point[]>([])
@@ -205,6 +205,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
           <div className="ink-muted map-foot">
             Battle map{view.map.gridCols && view.map.gridRows ? `: ${view.map.gridCols} × ${view.map.gridRows} squares (${view.map.gridCols * 5} × ${view.map.gridRows * 5} ft)` : ''}.
             {view.map.source && <> <span className="ai-badge">Drawn by AI · {view.map.source}</span></>}
+            {' '}<button className="link-button" onClick={async () => { const f = await act('map:saveImage', { mapId: view.map.id }); if (f) say(`Saved ${f}. In Roll20, make a page ${view.map.gridCols ?? '?'} × ${view.map.gridRows ?? '?'} units and stretch the image to it.`) }}>Save image for Roll20…</button>
             {view.map.prompt && (
               <details className="map-prompt"><summary>What the AI was asked</summary><p>{view.map.prompt}</p></details>
             )}
@@ -294,7 +295,7 @@ function ConfirmTravel({ view, pending, onDone }: { view: MapScreenView; pending
 function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
   detail: RegionDetail; view: MapScreenView; onMoveHere(): void; onEditShape(): void; onSelect(locationId: string): void
 }) {
-  const { act, openSheet, showOnBoard } = useBoard()
+  const { act, openSheet, showOnBoard, openEncounter } = useBoard()
   const parents = view.regions.filter((r) => r.locationId !== detail.region.locationId)
   const list = (title: string, items: EntityBrief[], empty: string) => (
     <>
@@ -327,7 +328,11 @@ function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
           ))}
         </ul>
       )}
-      {list('Planned encounters', detail.encounters, 'None. Suggest one on the live desk and link it here.')}
+      {list('Planned encounters', detail.encounters, 'None yet.')}
+      <button className="ink-button" onClick={async () => {
+        const id = await act('encounter:create', { name: `Encounter at ${detail.location.name}`, locationId: detail.location.id })
+        if (id) openEncounter(id)
+      }}>Plan an encounter here</button>
       {list('Plot points and scenes', detail.plotPoints, 'None tied to this place.')}
       <h3 className="side-h">Notes</h3>
       {detail.notes ? <p className="region-notes">{detail.notes}</p> : <p className="ink-muted">Nothing written on the location card.</p>}

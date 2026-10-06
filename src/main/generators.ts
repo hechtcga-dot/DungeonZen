@@ -5,6 +5,7 @@
 
 import { crToNumber } from '../shared/statblock'
 import type { SrdMonsterIndexEntry } from './srd'
+import { DIFFICULTIES, encounterBudget, xpForCr, type Difficulty } from '../shared/encounter'
 
 export type Rng = () => number
 
@@ -99,33 +100,7 @@ export function fillTavern(rng: Rng): GeneratedTavern {
   return { name, keeper, patrons, rumour: pick(rng, RUMOURS), dish, summary: `Tavern kept by ${keeper.name} · tonight: ${dish}` }
 }
 
-// 2024 rules: XP budget per character by level (Low, Moderate, High).
-const XP_BUDGET: Record<number, [number, number, number]> = {
-  1: [50, 75, 100], 2: [100, 150, 200], 3: [150, 225, 400], 4: [250, 375, 500], 5: [500, 750, 1100],
-  6: [600, 1000, 1400], 7: [750, 1300, 1700], 8: [1000, 1700, 2100], 9: [1300, 2000, 2600], 10: [1600, 2300, 3100],
-  11: [1900, 2900, 4100], 12: [2200, 3700, 4700], 13: [2600, 4200, 5400], 14: [2900, 4900, 6200], 15: [3300, 5400, 7800],
-  16: [3800, 6100, 9800], 17: [4500, 7200, 11700], 18: [5000, 8700, 14200], 19: [5500, 10700, 17200], 20: [6400, 13200, 22000]
-}
-
-const XP_BY_CR: Record<string, number> = {
-  '0': 10, '1/8': 25, '1/4': 50, '1/2': 100, '1': 200, '2': 450, '3': 700, '4': 1100, '5': 1800, '6': 2300, '7': 2900, '8': 3900,
-  '9': 5000, '10': 5900, '11': 7200, '12': 8400, '13': 10000, '14': 11500, '15': 13000, '16': 15000, '17': 18000, '18': 20000,
-  '19': 22000, '20': 25000, '21': 33000, '22': 41000, '23': 50000, '24': 62000, '25': 75000, '26': 90000, '27': 105000,
-  '28': 120000, '29': 135000, '30': 155000
-}
-
-export const DIFFICULTIES = ['low', 'moderate', 'high'] as const
-export type Difficulty = (typeof DIFFICULTIES)[number]
-
-export function xpForCr(cr: string): number {
-  return XP_BY_CR[cr.trim()] ?? 0
-}
-
-export function encounterBudget(partyLevel: number, partySize: number, difficulty: Difficulty): number {
-  const level = Math.min(20, Math.max(1, Math.round(partyLevel)))
-  const row = XP_BUDGET[level]
-  return row[DIFFICULTIES.indexOf(difficulty)] * Math.max(1, Math.round(partySize))
-}
+export { DIFFICULTIES, encounterBudget, xpForCr, type Difficulty }
 
 export interface EncounterGroup { key: string; name: string; cr: string; count: number; xp: number }
 export interface GeneratedEncounter {
@@ -143,9 +118,10 @@ export interface GeneratedEncounter {
  * left, a pack of weaker ones. Never exceeds the budget.
  */
 export function suggestEncounter(
-  rng: Rng, monsters: SrdMonsterIndexEntry[], partyLevel: number, partySize: number, difficulty: Difficulty, creatureType?: string
+  rng: Rng, monsters: SrdMonsterIndexEntry[], partyLevel: number, partySize: number, difficulty: Difficulty, creatureType?: string,
+  budgetFactor = 1
 ): GeneratedEncounter | null {
-  const budget = encounterBudget(partyLevel, partySize, difficulty)
+  const budget = Math.round(encounterBudget(partyLevel, partySize, difficulty) * budgetFactor)
   const usable = monsters.filter((m) => xpForCr(m.cr) > 0 && xpForCr(m.cr) <= budget)
   const types = [...new Set(usable.map((m) => m.creatureType))].filter(Boolean)
   const type = creatureType && types.includes(creatureType) ? creatureType : pick(rng, types.length ? types : [''])

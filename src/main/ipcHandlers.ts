@@ -1,4 +1,5 @@
-import { join } from 'node:path'
+import { copyFileSync, writeFileSync } from 'node:fs'
+import { extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { dialog, ipcMain, net, protocol, safeStorage, type BrowserWindow } from 'electron'
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
@@ -7,6 +8,10 @@ import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
+import { RATE_SYSTEM, ratePrompt } from './ai/encounter'
+import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from './exporters/roll20'
+import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './exporters/pages'
+import { renderJpg, renderPdf } from './exporters/render'
 import { AI_PROVIDERS, providerById, type AiChoice } from '../shared/aiProviders'
 import { timeOfDayFor } from '../shared/battlemap'
 import { searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
@@ -196,6 +201,105 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return listModels(r)
   })
   handle('ai:test', async ({ provider, model, baseUrl }) => checkConnection(resolve(choiceFor(provider, { model, baseUrl }), keys.get(provider))))
+  // ---- exports: Roll20, files
+  const saveAs = async (title: string, defaultPath: string, filters: Array<{ name: string; extensions: string[] }>) => {
+    const win = getWindow()
+    const options = { title, defaultPath, filters }
+    const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    return r.canceled || !r.filePath ? null : r.filePath
+  }
+  handle('roll20:export', ({ entityIds }) => {
+    const c = current()
+    const sheets = [...new Set(entityIds)].map((id) => c.sheet(id))
+    const chars = sheets.map((s) => roll20Character(s.entity, s.abilities))
+    return {
+      characters: sheets.map((s, i) => ({
+        entityId: s.entity.id, name: s.entity.name,
+        abilities: chars[i].abilities.map((a) => ({ name: a.name, macro: a.action, tokenAction: a.istokenaction }))
+      })),
+      data: roll20Data(chars), script: DUNGEON_ZEN_SCRIPT, handout: IMPORT_HANDOUT
+    }
+  })
+  handle('export:pages', async (o) => {
+    const c = current()
+    const sheets = [...new Set(o.entityIds)].map((id) => c.sheet(id))
+    const name = o.title?.trim() || (sheets.length === 1 ? sheets[0].entity.name : o.kind === 'board' ? 'Notices' : `${sheets.length} ${o.kind}`)
+    // One document per file: a PDF holds every page; JPGs are one image each (or one board).
+    const docs: Array<{ name: string; html: string }> = []
+    if (o.kind === 'board') docs.push({ name, html: boardDocument(name, sheets.map((s) => s.entity), o.size) })
+    else if (o.kind === 'letters') {
+      const style = { hand: o.hand ?? 'handwritten', seal: o.seal ?? true } as const
+      if (o.format === 'pdf') docs.push({ name, html: letterDocument(sheets.map((s) => s.entity), style, o.size) })
+      else for (const s of sheets) docs.push({ name: s.entity.name, html: letterDocument([s.entity], style, o.size) })
+    } else {
+      const page = (s: (typeof sheets)[number]) => sheetPage(s.entity, s.abilities, { playerSafe: !!o.playerSafe, knows: s.partyKnows, includeNotes: o.includeNotes ?? true })
+      if (o.format === 'pdf') docs.push({ name, html: sheetsDocument(name, sheets.map(page), o.size) })
+      else for (const s of sheets) docs.push({ name: s.entity.name, html: sheetsDocument(s.entity.name, [page(s)], o.size) })
+    }
+    if (docs.length === 1) {
+      const ext = o.format
+      const file = await saveAs(`Save ${ext.toUpperCase()}`, `${safeFolderName(docs[0].name)}.${ext}`, [{ name: ext.toUpperCase(), extensions: [ext] }])
+      if (!file) return null
+      writeFileSync(file, ext === 'pdf' ? await renderPdf(docs[0].html, o.size) : await renderJpg(docs[0].html, o.size))
+      return file
+    }
+    const win = getWindow()
+    const options = { title: 'Choose a folder for the images', buttonLabel: 'Save images here', properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> }
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (r.canceled || !r.filePaths[0]) return null
+    const used = new Set<string>()
+    for (const d of docs) {
+      let base = safeFolderName(d.name)
+      for (let n = 2; used.has(base); n++) base = `${safeFolderName(d.name)} ${n}`
+      used.add(base)
+      writeFileSync(join(r.filePaths[0], `${base}.jpg`), await renderJpg(d.html, o.size))
+    }
+    return r.filePaths[0]
+  })
+  handle('file:saveText', async ({ name, content, ext }) => {
+    const label = { json: 'Data', js: 'Script', txt: 'Text' }[ext]
+    const file = await saveAs(`Save ${label.toLowerCase()}`, `${safeFolderName(name)}.${ext}`, [{ name: label, extensions: [ext] }])
+    if (!file) return null
+    writeFileSync(file, content, 'utf8')
+    return file
+  })
+  handle('map:saveImage', async ({ mapId }) => {
+    const c = current()
+    const m = c.maps().find((x) => x.id === mapId)
+    if (!m) throw new Error('That map is not in the campaign')
+    const src = c.assetFile(m.url.replace('dz-asset://campaign/', ''))
+    if (!src) throw new Error('The map image is missing from the campaign folder')
+    const ext = extname(src).slice(1)
+    const file = await saveAs('Save the map image', `${safeFolderName(m.name)}.${ext}`, [{ name: 'Image', extensions: [ext] }])
+    if (!file) return null
+    copyFileSync(src, file)
+    return file
+  })
+
+  // ---- encounter planner
+  handle('encounters:view', () => current().encountersView())
+  handle('encounter:create', ({ name, locationId }) => current().createEncounter({ name, locationId }))
+  handle('encounter:update', ({ id, patch }) => current().updateEncounter(id, patch))
+  handle('encounter:addCreature', ({ encounterId, entityId, count }) => current().addEncounterCreature(encounterId, entityId, count))
+  handle('encounter:addSrd', ({ encounterId, groups }) => current().addSrdToEncounter(encounterId, groups, srdCopy))
+  handle('encounter:creature', ({ rowId, patch }) => current().updateEncounterCreature(rowId, patch))
+  handle('encounter:removeCreature', ({ encounterId, entityId }) => current().removeEncounterCreature(encounterId, entityId))
+  handle('encounter:suggest', ({ difficulty, creatureType }) => {
+    const v = current().encountersView()
+    return suggestEncounter(Math.random, srdMonsterIndex(), v.party.level, v.party.size, difficulty, creatureType, v.adaptation.factor)
+  })
+  handle('encounter:run', ({ encounterId }) => current().runEncounter(encounterId))
+  handle('encounter:houseRules', ({ text }) => current().setSetting('house_rules', text, 'Edited the house rules'))
+  handle('ai:rateEncounter', async ({ encounterId }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const v = c.encountersView()
+    const e = v.encounters.find((x) => x.id === encounterId) ?? c.encounterView(encounterId)
+    const text = await generateText(r, { system: RATE_SYSTEM, prompt: ratePrompt(e, v, e.locationName), maxTokens: 600 })
+    return { text, source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+
   // ---- live: where the party is, and Ask AI
   handle('live:where', () => current().liveWhere())
   handle('players:view', () => current().playersView())

@@ -37,7 +37,8 @@ licensed assets.
 | Card paper | `#efe9da` |
 
 Entity colours: NPC `#2f5d8a`, Monster `#8a2f2f`, Location `#2f6b4f`,
-Quest `#7a5a12`, Clue and Faction `#5a3f8a`, Scene `#4a4f57`.
+Quest `#7a5a12`, Clue and Faction `#5a3f8a`, Scene `#4a4f57`, Item `#9c4f1f`
+(copper), Handout `#6b5a3a` (sepia).
 PC card colours: `#23395b`, `#7a2230`, `#24553a`, `#4b2d6b`.
 
 ### Rules
