@@ -149,5 +149,11 @@ commands. `group_id` lets a session or an import undo as one step.
   meeting, and the day tally counts log entries, so each can be edited or
   removed. Settings: party_level, last_long_rest_min. PC current hit points
   live in `entity.attributes.current_hp`.
+- Review (migration 7): `session.player_recap`, `log_entry.feedback`
+  (too_easy | about_right | hard | nearly_deadly), and `review_decision`
+  (session_id, item_key, decision approved|rejected|flagged|explained|resolved,
+  note, status), which stands in for the doc's `proposal` and `conflict`
+  rows: proposals and conflicts are computed from the engine and the log, and
+  only the DM's decisions are stored.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

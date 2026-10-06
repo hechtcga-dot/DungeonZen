@@ -1,7 +1,7 @@
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, NoteContent, RowStatus,
-  LogKind, RulesEdition, StorylineStatus
+  EncounterFeedback, LogKind, ReviewDecisionKind, RulesEdition, StorylineStatus
 } from './schemas'
 
 export interface CampaignInfo {
@@ -297,6 +297,7 @@ export interface SessionView {
   ended: boolean
   sceneText: string
   recap: string
+  playerRecap: string
 }
 
 export interface LogView {
@@ -346,4 +347,53 @@ export interface GeneratedView {
   lines: string[]
   /** Opaque data sent back to keep the result. */
   payload: unknown
+}
+
+export interface ReviewDecisionView { decision: ReviewDecisionKind; note: string }
+
+export interface ReviewConflict {
+  key: string
+  text: string
+  /** The DM's own words from the log, if the conflict comes from a log entry. */
+  quote: string | null
+  /** What the buttons do, in order. */
+  options: Array<{ action: 'revive' | 'remove_entry'; label: string }>
+  decision: ReviewDecisionView | null
+}
+
+export type ReviewProposal =
+  | {
+    kind: 'act'
+    key: string
+    actId: string
+    what: string
+    sub: string
+    before: string
+    after: string
+    /** Outcome the proposal would record; null when the DM must pick one. */
+    outcomeId: string | null
+    outcomes: Array<{ id: string; label: string }>
+    ripples: string[]
+    decision: ReviewDecisionView | null
+  }
+  | {
+    kind: 'knowledge'
+    key: string
+    entityId: string
+    what: string
+    sub: string
+    before: string
+    after: string
+    fields: KnowledgeField[]
+    decision: ReviewDecisionView | null
+  }
+
+export interface ReviewFight { logId: string; atMin: number; text: string; feedback: EncounterFeedback | null }
+
+export interface ReviewView {
+  session: SessionView
+  during: { startMin: number; endMin: number; entries: number; meetings: number }
+  conflicts: ReviewConflict[]
+  proposals: ReviewProposal[]
+  fights: ReviewFight[]
 }

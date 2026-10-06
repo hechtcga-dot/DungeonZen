@@ -58,3 +58,9 @@ export type KnowledgeField = z.infer<typeof KnowledgeField>
 
 export const LogKind = z.enum(['note', 'fight', 'meeting', 'quest', 'rest', 'travel'])
 export type LogKind = z.infer<typeof LogKind>
+
+export const EncounterFeedback = z.enum(['too_easy', 'about_right', 'hard', 'nearly_deadly'])
+export type EncounterFeedback = z.infer<typeof EncounterFeedback>
+
+export const ReviewDecisionKind = z.enum(['approved', 'rejected', 'flagged', 'explained', 'resolved'])
+export type ReviewDecisionKind = z.infer<typeof ReviewDecisionKind>

@@ -101,6 +101,15 @@ const MIGRATIONS: string[] = [
     status TEXT NOT NULL
   );
   CREATE INDEX log_entry_session ON log_entry(session_id, at_min);
+  `,
+  `
+  ALTER TABLE session ADD COLUMN player_recap TEXT NOT NULL DEFAULT '';
+  ALTER TABLE log_entry ADD COLUMN feedback TEXT;
+  CREATE TABLE review_decision (
+    id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES session(id), item_key TEXT NOT NULL,
+    decision TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL
+  );
+  CREATE INDEX review_decision_session ON review_decision(session_id, item_key);
   `
 ]
 

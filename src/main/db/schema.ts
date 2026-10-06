@@ -157,6 +157,7 @@ export const session = sqliteTable('session', {
   endMin: integer('end_min'),
   sceneText: text('scene_text').notNull(),
   recap: text('recap').notNull(),
+  playerRecap: text('player_recap').notNull().default(''),
   status: text('status').notNull()
 })
 
@@ -168,6 +169,19 @@ export const logEntry = sqliteTable('log_entry', {
   text: text('text').notNull(),
   entityId: text('entity_id'),
   minutesTaken: integer('minutes_taken').notNull(),
+  createdAt: text('created_at').notNull(),
+  status: text('status').notNull(),
+  feedback: text('feedback') // fights: too_easy | about_right | hard | nearly_deadly
+})
+
+// What the DM decided about each review item, so a rejected proposal or a
+// flagged conflict is remembered (the doc's conflict.status, generalised).
+export const reviewDecision = sqliteTable('review_decision', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  itemKey: text('item_key').notNull(),
+  decision: text('decision').notNull(), // approved | rejected | flagged | explained | resolved
+  note: text('note').notNull(),
   createdAt: text('created_at').notNull(),
   status: text('status').notNull()
 })
@@ -207,7 +221,8 @@ export const tracked = {
   act_outcome: { table: actOutcome, pk: actOutcome.id },
   story_trigger: { table: storyTrigger, pk: storyTrigger.id },
   session: { table: session, pk: session.id },
-  log_entry: { table: logEntry, pk: logEntry.id }
+  log_entry: { table: logEntry, pk: logEntry.id },
+  review_decision: { table: reviewDecision, pk: reviewDecision.id }
 } as const
 export type TableName = keyof typeof tracked
 

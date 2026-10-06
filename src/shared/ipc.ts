@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import {
-  AbilityKind, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
+  AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags
 } from './schemas'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
-  GeneratedView
+  GeneratedView, ReviewView
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -101,10 +101,23 @@ export const ipcInputs = {
   'trigger:setStatus': z.object({ id: Id, status: RowStatus }),
   'timeline:whatIf': z.object({ actId: Id, outcomeId: Id }),
   'live:view': z.void(),
+  'review:view': z.object({ sessionId: Id }),
+  'review:decide': z.object({
+    sessionId: Id, key: z.string().min(1).max(200),
+    action: z.enum(['approve', 'reject', 'flag', 'explain', 'revive', 'remove_entry', 'reopen']),
+    outcomeId: Id.optional(), fields: z.array(KnowledgeField).max(5).optional(), note: z.string().max(5000).optional()
+  }),
+  'review:approveAll': z.object({ sessionId: Id }),
+  'review:feedback': z.object({ logId: Id, feedback: EncounterFeedback.nullable() }),
+  'review:draftPlayerRecap': z.object({ sessionId: Id }),
+  'review:undoSession': z.object({ sessionId: Id }),
   'session:start': z.void(),
   'session:end': z.object({ id: Id }),
   'session:update': z.object({
-    id: Id, patch: z.object({ number: z.number().int().min(1).max(100000).optional(), sceneText: z.string().max(20000).optional(), recap: z.string().max(50000).optional() })
+    id: Id, patch: z.object({
+      number: z.number().int().min(1).max(100000).optional(), sceneText: z.string().max(20000).optional(),
+      recap: z.string().max(50000).optional(), playerRecap: z.string().max(50000).optional()
+    })
   }),
   'session:setStatus': z.object({ id: Id, status: RowStatus }),
   'log:add': z.object({ kind: LogKind, text: z.string().max(5000), entityId: Id.nullable().optional(), minutesTaken: z.number().int().min(0).max(525600).optional() }),
@@ -192,6 +205,12 @@ export interface IpcOutputs {
   'trigger:setStatus': void
   'timeline:whatIf': WhatIfView
   'live:view': LiveView
+  'review:view': ReviewView
+  'review:decide': void
+  'review:approveAll': number
+  'review:feedback': void
+  'review:draftPlayerRecap': string
+  'review:undoSession': number
   'session:start': SessionView
   'session:end': void
   'session:update': void

@@ -8,6 +8,7 @@ import { DeskScreen } from './screens/DeskScreen'
 import { MapScreen } from './screens/MapScreen'
 import { TimelineScreen } from './screens/TimelineScreen'
 import { LiveScreen } from './screens/LiveScreen'
+import { ReviewScreen } from './screens/ReviewScreen'
 
 export function App() {
   const info = useBoard((s) => s.info)
@@ -31,6 +32,7 @@ export function App() {
               : screen === 'map' ? <MapScreen />
                 : screen === 'timeline' ? <TimelineScreen />
                 : screen === 'live' ? <LiveScreen />
+                : screen === 'review' ? <ReviewScreen />
                 : <BoardScreen />}
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>

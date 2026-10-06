@@ -150,10 +150,20 @@ built.
   XP budgets from the SRD), fill a tavern; put on the board or save for later
   (stashed; Library shows "Put on board"). Battle maps wait for an image
   generator. End session saves a recap started from the log.
+- Session review (End session and review, or Review on any past session):
+  conflicts first (a logged meeting with a card in History: bring back, remove
+  the entry, explain, leave flagged, reopen); proposed changes table (act
+  outcomes the engine resolved by default or that wait for the DM, with
+  trigger ripples; what the party knows about people met) with Approve, Edit
+  or Choose (with what-if), Reject, Flag; Approve all unflagged (one undo
+  step); encounter feedback per fight; recap and a player-safe recap drafted
+  from the log (unknown people become "a stranger"), Copy, Save to DM notes;
+  Undo whole session (redo brings it back). Decisions are remembered per
+  session.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: Session review (conflicts, proposed changes, encounter feedback); AI scene text; route drawing; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: AI scene text; route drawing; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, exports (Phase 4), DM Prep/Live/Player modes,
 packaging/installer.

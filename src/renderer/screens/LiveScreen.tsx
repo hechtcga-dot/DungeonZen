@@ -149,6 +149,20 @@ function Live({ v }: { v: LiveView }) {
 
       <SetTheScene v={v} />
       <OnTheFly v={v} />
+      {v.sessions.length > 0 && (
+        <section className="past-sessions" aria-labelledby="past-h">
+          <h2 id="past-h" className="mat-heading on-wood">Sessions</h2>
+          <ul>
+            {[...v.sessions].reverse().map((x) => (
+              <li key={x.id} className="parchment-note">
+                <strong className="panel-title">Session {x.number}</strong>
+                <span className="ink-muted">{formatClock(x.startMin)} to {x.endMin === null ? 'now' : formatClock(x.endMin)}{x.ended ? '' : ' · running'}</span>
+                <button className="ink-button" onClick={() => void useBoard.getState().openReview(x.id)}>Review</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {ending && s && <EndSessionDialog v={v} onClose={() => setEnding(false)} />}
       <CampaignSettingsDialog open={settings} onClose={() => setSettings(false)} />
@@ -410,6 +424,7 @@ function EndSessionDialog({ v, onClose }: { v: LiveView; onClose(): void }) {
         await act('session:update', { id: s.id, patch: { recap } })
         await act('session:end', { id: s.id })
         onClose()
+        await useBoard.getState().openReview(s.id)
       }}>
         <div className="field">
           <label htmlFor="end-recap">Recap</label>
@@ -418,7 +433,7 @@ function EndSessionDialog({ v, onClose }: { v: LiveView; onClose(): void }) {
         </div>
         <div className="dz-actions">
           <button type="button" onClick={onClose}>Keep playing</button>
-          <button type="submit" className="primary">End session</button>
+          <button type="submit" className="primary">End session and review</button>
         </div>
       </form>
     </Dialog>

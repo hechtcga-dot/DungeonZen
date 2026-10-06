@@ -5,12 +5,13 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, relationship, relationshipKnown,
-  session, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
+  reviewDecision, session, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
 import type {
-  AbilityKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, LogKind, RowStatus, RulesEdition, StorylineStatus
+  AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, KnowledgeField, LogKind, ReviewDecisionKind,
+  RowStatus, RulesEdition, StorylineStatus
 } from '../../shared/schemas'
 import { MINUTES_PER_DAY } from '../../shared/time'
 import { formatClock } from '../../shared/time'
@@ -20,8 +21,8 @@ import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, LiveView, LogView, MapView, RelationshipView, SessionView, SheetView, TimelineView,
-  TriggerEffectView, WhatIfView
+  LibraryFilters, LibrarySearch, LiveView, LogView, MapView, RelationshipView, ReviewConflict, ReviewProposal, ReviewView,
+  SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
 } from '../../shared/types'
 import { advise } from '../advisor'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
@@ -862,9 +863,11 @@ export class Campaign {
       }
       if (c.field === 'startMin') return `${name(c.actId)}: starts ${formatClock(c.after as number)} instead of ${formatClock(c.before as number)}`
       if (c.field === 'endMin') return `${name(c.actId)}: ends ${formatClock(c.after as number)} instead of ${formatClock(c.before as number)}`
-      return `${name(c.actId)}: ${c.before} becomes ${c.after}`
+      const word = (st: unknown) => ({ upcoming: 'not started', running: 'in progress', resolved: 'over', awaiting: 'waiting for your outcome' } as Record<string, string>)[String(st)] ?? String(st)
+      return `${name(c.actId)}: ${word(c.after)} instead of ${word(c.before)}`
     })
-    for (const s of diff.storylines) lines.push(`${titles.get(s.storylineId)}: ${s.before} becomes ${s.after}`)
+    const status = (st: string) => ({ inactive: 'not started', autonomous: 'running on its own', player_active: 'players active', concluded: 'concluded' } as Record<string, string>)[st] ?? st
+    for (const s of diff.storylines) lines.push(`${titles.get(s.storylineId)}: ${status(s.after)} instead of ${status(s.before)}`)
     return { actId, outcomeId, lines }
   }
 
@@ -991,7 +994,7 @@ export class Campaign {
     })
   }
 
-  updateSession(id: string, patch: { number?: number; sceneText?: string; recap?: string }): void {
+  updateSession(id: string, patch: { number?: number; sceneText?: string; recap?: string; playerRecap?: string }): void {
     const sRow = this.sessionRow(id)
     this.log.run(`Edited session ${patch.number ?? sRow.number}`, (w) => { w.update('session', id, patch) })
   }
@@ -1140,6 +1143,231 @@ export class Campaign {
     const row = this.db.select().from(logEntry).where(eq(logEntry.id, id)).get()
     if (!row) throw new Error(`No log entry with id ${id}`)
     return row
+  }
+
+  // ---- session review ---------------------------------------------------------
+
+  /**
+   * Everything a session changed or left open, for the DM to approve. Proposals
+   * come from the engine (acts resolved by default, acts waiting for an outcome,
+   * with the triggers they set off) and from the log (people the party met).
+   * Nothing here writes; decide() does, one undo step per decision.
+   */
+  review(sessionId: string): ReviewView {
+    const sRow = this.sessionRow(sessionId)
+    const nowMin = this.info().clockMin
+    const endMin = sRow.endMin ?? nowMin
+    const decisions = this.decisions(sessionId)
+    const logs = this.db.select().from(logEntry).where(and(eq(logEntry.sessionId, sessionId), eq(logEntry.status, 'active'))).all()
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+    const entities = new Map(this.db.select().from(entity).all().map((e) => [e.id, e]))
+
+    // Conflicts: the log says they met someone who is in History.
+    const conflicts: ReviewConflict[] = logs
+      .filter((l) => l.kind === 'meeting' && l.entityId && entities.get(l.entityId)?.status === 'defunct')
+      .map((l) => {
+        const name = entities.get(l.entityId!)!.name
+        return {
+          key: `history-meet:${l.id}`,
+          text: `Your log says the party met ${name} at ${formatClock(l.atMin)}, but ${name} is in History.`,
+          quote: l.text || null,
+          options: [
+            { action: 'revive' as const, label: `The log is right: bring ${name} back` },
+            { action: 'remove_entry' as const, label: 'The log is wrong: remove the entry' }
+          ],
+          decision: decisions.get(`history-meet:${l.id}`) ?? null
+        }
+      })
+
+    // Acts: ended by this session's end without an outcome the DM approved.
+    const tl = this.timeline()
+    const storyTitle = new Map(tl.storylines.map((x) => [x.storylineId, x.title]))
+    const actName = (id: string) => {
+      const a = tl.acts.find((x) => x.id === id)
+      return a ? `${storyTitle.get(a.storylineId)} · Act ${a.number} (${a.title})` : 'an act'
+    }
+    const proposals: ReviewProposal[] = []
+    for (const a of tl.acts) {
+      const decided = decisions.get(`act:${a.id}`)
+      // Open items: ended by the session's end with no outcome the DM approved.
+      // Items decided in this review stay listed with their decision.
+      if (!decided) {
+        if (a.chosenOutcomeId || a.endMin > endMin) continue
+        if (!(a.state === 'awaiting' || (a.state === 'resolved' && a.resolvedBy !== 'dm'))) continue
+      }
+      const outcome = a.outcomes.find((o) => o.id === (a.chosenOutcomeId ?? a.outcomeId))
+      const ripples = tl.triggers.filter((t) => t.sourceActId === a.id && t.firedAtMin !== null).map((t) => {
+        const target = storyTitle.get(t.targetStorylineId) ?? '?'
+        const e = t.effect
+        const what = e.type === 'shift_act' ? `moves ${actName(e.actId)} ${e.minutes >= 0 ? 'later' : 'earlier'} by ${Math.abs(e.minutes) / 60} h`
+          : e.type === 'force_outcome' ? `decides how ${actName(e.actId)} ends`
+            : `sets ${target} to ${e.status.replace('_', ' ')}`
+        return `${t.label}: ${what}`
+      })
+      proposals.push({
+        kind: 'act',
+        key: `act:${a.id}`,
+        actId: a.id,
+        what: `${storyTitle.get(a.storylineId)} · Act ${a.number} outcome`,
+        sub: decided?.decision === 'approved' ? 'You decided this in the review.'
+          : a.state === 'awaiting' ? 'The act has ended. The players were in it, so you decide.'
+            : a.resolvedBy === 'trigger' ? 'A trigger decided this.' : 'Ignored by the players: ran on its own.',
+        before: decided?.decision === 'approved' ? 'Open' : a.state === 'awaiting' ? 'Waiting' : 'In progress',
+        after: outcome?.label ?? 'Choose an outcome',
+        outcomeId: outcome?.id ?? null,
+        outcomes: a.outcomes.map((o) => ({ id: o.id, label: o.label })),
+        ripples,
+        decision: decisions.get(`act:${a.id}`) ?? null
+      })
+    }
+
+    // What the party knows: everyone met this session whose name is not yet known.
+    const known = new Set(this.db.select().from(knowledge).where(eq(knowledge.status, 'active')).all()
+      .map((k) => `${k.entityId}:${k.field}`))
+    const met = [...new Set(logs.filter((l) => l.kind === 'meeting' && l.entityId).map((l) => l.entityId!))]
+    for (const id of met) {
+      const e = entities.get(id)
+      if (!e || e.status === 'defunct') continue
+      const decided = decisions.get(`know:${id}`)
+      const unknown: KnowledgeField[] = (['name', 'location'] as const).filter((f) => !known.has(`${id}:${f}`))
+      if (unknown.length === 0 && !decided) continue
+      const fields: KnowledgeField[] = unknown.length ? unknown : ['name', 'location']
+      const already = (['name', 'location'] as const).filter((f) => known.has(`${id}:${f}`))
+      proposals.push({
+        kind: 'knowledge', key: `know:${id}`, entityId: id,
+        what: `${e.name} · what the party knows`, sub: 'They met this session.',
+        before: decided?.decision === 'approved' ? 'DM only' : already.length ? already.map(cap).join(', ') : 'DM only',
+        after: `Known to party: ${fields.map(cap).join(', ')}`,
+        fields, decision: decided ?? null
+      })
+    }
+
+    const fights = logs.filter((l) => l.kind === 'fight')
+      .map((l) => ({ logId: l.id, atMin: l.atMin, text: l.text, feedback: (l.feedback as EncounterFeedback | null) ?? null }))
+    return {
+      session: toSessionView(sRow),
+      during: { startMin: sRow.startMin, endMin, entries: logs.length, meetings: met.length },
+      conflicts, proposals, fights
+    }
+  }
+
+  private decisions(sessionId: string): Map<string, { decision: ReviewDecisionKind; note: string }> {
+    return new Map(this.db.select().from(reviewDecision)
+      .where(and(eq(reviewDecision.sessionId, sessionId), eq(reviewDecision.status, 'active'))).all()
+      .map((d) => [d.itemKey, { decision: d.decision as ReviewDecisionKind, note: d.note }]))
+  }
+
+  private recordDecision(w: Writer, sessionId: string, itemKey: string, decision: ReviewDecisionKind, note = ''): void {
+    const existing = this.db.select().from(reviewDecision)
+      .where(and(eq(reviewDecision.sessionId, sessionId), eq(reviewDecision.itemKey, itemKey))).get()
+    if (existing) w.update('review_decision', existing.id, { decision, note, status: 'active' })
+    else w.insert('review_decision', { id: randomUUID(), sessionId, itemKey, decision, note, createdAt: new Date().toISOString(), status: 'active' })
+  }
+
+  /** One review decision, applied together with what it means, as one undo step. */
+  decide(sessionId: string, input: {
+    key: string
+    action: 'approve' | 'reject' | 'flag' | 'explain' | 'revive' | 'remove_entry' | 'reopen'
+    outcomeId?: string
+    fields?: KnowledgeField[]
+    note?: string
+  }): void {
+    const view = this.review(sessionId)
+    const proposal = view.proposals.find((p) => p.key === input.key)
+    const conflict = view.conflicts.find((c) => c.key === input.key)
+    if (!proposal && !conflict) throw new Error('That review item is no longer open')
+    const label = {
+      approve: 'Approved', reject: 'Rejected', flag: 'Flagged', explain: 'Explained', revive: 'Resolved', remove_entry: 'Resolved', reopen: 'Reopened'
+    }[input.action]
+    const title = proposal?.what ?? conflict?.text ?? input.key
+    this.log.run(`${label}: ${title}`, (w) => this.applyDecision(w, sessionId, input, proposal, conflict))
+  }
+
+  /** Approves every open proposal that is not flagged or rejected and has a clear outcome, as one undo step. */
+  approveAllUnflagged(sessionId: string): number {
+    const view = this.review(sessionId)
+    const open = view.proposals.filter((p) => !p.decision && (p.kind !== 'act' || p.outcomeId))
+    if (open.length === 0) return 0
+    this.log.run(`Approved ${open.length} change${open.length === 1 ? '' : 's'} from session ${view.session.number}`, (w) => {
+      for (const p of open) this.applyDecision(w, sessionId, { key: p.key, action: 'approve' }, p, undefined)
+    })
+    return open.length
+  }
+
+  private applyDecision(
+    w: Writer, sessionId: string,
+    input: { key: string; action: string; outcomeId?: string; fields?: KnowledgeField[]; note?: string },
+    proposal: ReviewProposal | undefined, conflict: ReviewConflict | undefined
+  ): void {
+    if (input.action === 'reopen') {
+      const existing = this.db.select().from(reviewDecision)
+        .where(and(eq(reviewDecision.sessionId, sessionId), eq(reviewDecision.itemKey, input.key))).get()
+      if (existing) w.update('review_decision', existing.id, { status: 'defunct' })
+      return
+    }
+    if (input.action === 'reject') return this.recordDecision(w, sessionId, input.key, 'rejected', input.note ?? '')
+    if (input.action === 'flag') return this.recordDecision(w, sessionId, input.key, 'flagged', input.note ?? '')
+    if (input.action === 'explain') return this.recordDecision(w, sessionId, input.key, 'explained', input.note ?? '')
+    if (conflict) {
+      const logId = input.key.slice('history-meet:'.length)
+      const l = this.logRow(logId)
+      if (input.action === 'revive' && l.entityId) w.update('entity', l.entityId, { status: 'active' })
+      if (input.action === 'remove_entry') w.update('log_entry', logId, { status: 'defunct' })
+      return this.recordDecision(w, sessionId, input.key, 'resolved', input.note ?? '')
+    }
+    if (!proposal || input.action !== 'approve') throw new Error('Nothing to approve')
+    if (proposal.kind === 'act') {
+      const outcomeId = input.outcomeId ?? proposal.outcomeId
+      if (!outcomeId || !proposal.outcomes.some((o) => o.id === outcomeId)) throw new Error('Choose an outcome first')
+      w.update('act', proposal.actId, { chosenOutcomeId: outcomeId })
+    } else {
+      const fields = input.fields ?? proposal.fields
+      const now = this.info().clockMin
+      for (const field of fields) {
+        const existing = this.db.select().from(knowledge)
+          .where(and(eq(knowledge.entityId, proposal.entityId), eq(knowledge.field, field))).get()
+        if (existing) w.update('knowledge', existing.id, { status: 'active', knownFromMin: now })
+        else w.insert('knowledge', { id: randomUUID(), entityId: proposal.entityId, field, knownFromMin: now, status: 'active' })
+      }
+    }
+    this.recordDecision(w, sessionId, input.key, 'approved', input.note ?? '')
+  }
+
+  setFeedback(logId: string, feedback: EncounterFeedback | null): void {
+    const l = this.logRow(logId)
+    this.log.run(`Rated a fight${l.text ? `: ${l.text}` : ''}`, (w) => { w.update('log_entry', logId, { feedback }) })
+  }
+
+  /**
+   * A recap for the players, drafted from the log: meetings name only people
+   * whose name the party knows, everyone else is "a stranger". Not saved.
+   */
+  draftPlayerRecap(sessionId: string): string {
+    this.sessionRow(sessionId)
+    const known = new Set(this.db.select().from(knowledge).where(and(eq(knowledge.status, 'active'), eq(knowledge.field, 'name'))).all()
+      .map((k) => k.entityId))
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
+    return this.db.select().from(logEntry).where(and(eq(logEntry.sessionId, sessionId), eq(logEntry.status, 'active'))).all()
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+      .map((l) => {
+        const when = formatClock(l.atMin)
+        if (l.kind === 'meeting') {
+          const who = l.entityId && known.has(l.entityId) ? names.get(l.entityId) : 'a stranger'
+          return `${when}: The party met ${who}.`
+        }
+        if (l.kind === 'fight') return `${when}: A fight${l.text ? `: ${l.text}` : '.'}`
+        if (l.kind === 'quest') return `${when}: A quest was delivered${l.text ? `: ${l.text}` : '.'}`
+        if (l.kind === 'rest') return `${when}: ${l.text || 'The party rested.'}`
+        return `${when}: ${l.text}`
+      }).join('\n')
+  }
+
+  /** Undoes everything since the session started (the session itself included). Redo brings it back. */
+  undoSession(sessionId: string): number {
+    const started = this.log.recent(5000).find((c) => c.state === 'done' &&
+      c.payload.some((ch) => ch.table === 'session' && ch.id === sessionId && ch.before === null))
+    if (!started) throw new Error('The start of this session is no longer in the change log')
+    return this.undoTo(started.id)
   }
 
   undo(): string | null { return this.log.undo() }
@@ -1298,7 +1526,7 @@ function checkSpan(startMin: number, endMin: number): void {
 function toSessionView(r: SessionRow): SessionView {
   return {
     id: r.id, number: r.number, startMin: r.startMin, endMin: r.endMin, ended: r.endedAt !== null,
-    sceneText: r.sceneText, recap: r.recap
+    sceneText: r.sceneText, recap: r.recap, playerRecap: r.playerRecap
   }
 }
 
@@ -1308,3 +1536,5 @@ function toLogView(l: LogRow, names: Map<string, string>): LogView {
     entityName: l.entityId ? names.get(l.entityId) ?? null : null, minutesTaken: l.minutesTaken
   }
 }
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
