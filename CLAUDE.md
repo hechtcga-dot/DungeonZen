@@ -65,6 +65,11 @@ Bump `package.json` + `package-lock.json` version. Push branch `claude/friendly-
 9. Map: Place party token button; PC tokens, Split from party / Merge with party.
 10. Encounters: Save encounter button; scene box; AI chooses and creates monsters (proposals).
 11. Monster/NPC sheet opens on fight summary; AI stat block from description/options; CR up/down; picture upload or AI-drawn.
+12. SRD monster search pop-up: all SRD monsters, filter/sort by type, CR, size etc.
+13. Sheets and similar screens: Back to the previous screen.
+14. Battle maps: Import a saved map; can draw again after an error; Gemini returns no image (fix, or error says how to fix).
+15. Run encounter (combat tracker): initiative, rounds/turns, HP, conditions with durations, everything trackable; morale/tactics messages (flee at half numbers, guards stay while commander present, Guard Captain boosts guards); double-click a combatant opens its stat block.
+16. Encounter bugs from screenshot: XP meter labels pile up when XP far above budget; Battle map drop-down squashed; SRD captains show size "Small" (2024: Medium or Small).
 Owner's answers: hide applies to every board. Measurements stored metric (km, km/h, m; grid square 1.5 m), display setting metric (default) or imperial converts; free-text stat blocks keep their words, display converts ft/miles patterns. Split PC travel never moves the clock (clock = party only); split PC counts as "here" in its own region (default, not asked). AI encounter monsters stay in the encounter until "Put on board".
 Open: publish 1.1.0 now or fold into 1.2.0.
 
