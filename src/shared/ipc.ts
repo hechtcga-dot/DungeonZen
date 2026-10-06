@@ -6,7 +6,7 @@ import {
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
-  GeneratedView, ReviewView
+  GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -25,6 +25,7 @@ const AbilityFields = z.object({
 const OptionalNumber = z.number().finite().optional()
 const Minute = z.number().int().min(0).max(1_000_000_000)
 const Short = z.string().max(300)
+const Polygon = z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(500)
 const GenPerson = z.object({
   name: Name, species: Short, occupation: Short, attitude: Short.min(1), quirk: Short, wants: Short, statblockName: Short, summary: Short
 })
@@ -102,6 +103,16 @@ export const ipcInputs = {
   'timeline:whatIf': z.object({ actId: Id, outcomeId: Id }),
   'live:view': z.void(),
   'review:view': z.object({ sessionId: Id }),
+  'mapscreen:view': z.object({ mapId: Id }),
+  'region:detail': z.object({ regionId: Id }),
+  'region:create': z.object({
+    mapId: Id, polygon: Polygon, locationId: Id.optional(), newName: Name.optional(), parentLocationId: Id.nullable().optional()
+  }),
+  'region:update': z.object({ id: Id, patch: z.object({ polygon: Polygon.optional(), locationId: Id.optional(), parentLocationId: Id.nullable().optional() }) }),
+  'region:setStatus': z.object({ id: Id, status: RowStatus }),
+  'map:setScale': z.object({ mapId: Id, widthMiles: z.number().positive().max(100000).nullable(), travelMph: z.number().positive().max(500) }),
+  'party:estimate': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite() }),
+  'party:move': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite(), minutes: z.number().int().min(0).max(525600), rememberTime: z.boolean().optional() }),
   'review:decide': z.object({
     sessionId: Id, key: z.string().min(1).max(200),
     action: z.enum(['approve', 'reject', 'flag', 'explain', 'revive', 'remove_entry', 'reopen']),
@@ -206,6 +217,14 @@ export interface IpcOutputs {
   'timeline:whatIf': WhatIfView
   'live:view': LiveView
   'review:view': ReviewView
+  'mapscreen:view': MapScreenView
+  'region:detail': RegionDetail
+  'region:create': string
+  'region:update': void
+  'region:setStatus': void
+  'map:setScale': void
+  'party:estimate': TravelEstimateView
+  'party:move': void
   'review:decide': void
   'review:approveAll': number
   'review:feedback': void

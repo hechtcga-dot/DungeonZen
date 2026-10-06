@@ -94,6 +94,7 @@ export interface HistoryView {
   removedActs: Array<{ id: string; title: string; storylineTitle: string }>
   removedOutcomes: Array<{ id: string; label: string; actTitle: string }>
   removedTriggers: Array<{ id: string; label: string; actTitle: string }>
+  removedRegions: Array<{ id: string; name: string }>
   log: LogEntryView[]
 }
 
@@ -184,6 +185,8 @@ export interface MapView {
   url: string
   width: number | null
   height: number | null
+  widthMiles: number | null
+  travelMph: number
 }
 
 export interface DeskStoryline {
@@ -396,4 +399,53 @@ export interface ReviewView {
   conflicts: ReviewConflict[]
   proposals: ReviewProposal[]
   fights: ReviewFight[]
+}
+
+export interface RegionView {
+  id: string
+  locationId: string
+  name: string
+  polygon: Array<[number, number]>
+  parentLocationId: string | null
+  colour: string | null
+}
+
+export interface PartyMarker {
+  x: number
+  y: number
+  locationId: string | null
+  locationName: string | null
+  atMin: number
+}
+
+export interface MapScreenView {
+  map: MapView
+  regions: RegionView[]
+  party: PartyMarker | null
+  /** Where the party went during the current (or last) session, oldest first. */
+  route: Array<[number, number]>
+  /** True while a session is running (travel is then logged in it). */
+  sessionRunning: boolean
+  /** Location cards not yet drawn on this map, to tie a new region to. */
+  unplacedLocations: EntityBrief[]
+}
+
+export interface RegionDetail {
+  region: RegionView
+  location: EntityView
+  partyHere: boolean
+  hereNow: EntityBrief[]
+  encounters: EntityBrief[]
+  plotPoints: EntityBrief[]
+  notes: string
+  subRegions: Array<{ locationId: string; name: string }>
+}
+
+export interface TravelEstimateView {
+  minutes: number | null
+  miles: number | null
+  basis: string
+  fromName: string | null
+  toName: string | null
+  toLocationId: string | null
 }

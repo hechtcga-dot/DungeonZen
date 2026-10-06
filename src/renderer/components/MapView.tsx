@@ -1,16 +1,36 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { fitTransform, zoomAt, type Transform } from '../../shared/zoom'
+
+export interface MapLayerContext {
+  /** Current zoom (screen pixels per image pixel). Divide sizes by it to keep markers the same size on screen. */
+  scale: number
+  /** Converts a screen point (clientX, clientY) to image pixel coordinates. */
+  toImage(clientX: number, clientY: number): [number, number]
+}
 
 /**
  * A map image you can zoom (mouse wheel, buttons, + and - keys, double-click)
- * and pan (drag, arrow keys). Zoom follows the pointer.
+ * and pan (drag, arrow keys). Zoom follows the pointer. `layer` draws on top of
+ * the image in image pixel coordinates (an SVG the size of the image).
  */
-export function MapView(props: { src: string; alt: string; className?: string }) {
+export function MapView(props: {
+  src: string
+  alt: string
+  className?: string
+  layer?: (ctx: MapLayerContext) => ReactNode
+  /** A click (not a drag) on the map, in image coordinates. */
+  onMapClick?(p: [number, number]): void
+  /** When true, double-click does not zoom (drawing tools use it). */
+  noDoubleClickZoom?: boolean
+  onKeyDown?(e: KeyboardEvent): boolean | void
+}) {
   const frame = useRef<HTMLDivElement>(null)
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
   const [t, setT] = useState<Transform>({ scale: 1, x: 0, y: 0 })
+  const tRef = useRef(t)
+  tRef.current = t
   const [fitScale, setFitScale] = useState(1)
-  const drag = useRef<{ id: number; x: number; y: number; tx: number; ty: number } | null>(null)
+  const drag = useRef<{ id: number; x: number; y: number; tx: number; ty: number; moved: boolean } | null>(null)
 
   const fit = useCallback(() => {
     const el = frame.current
@@ -50,19 +70,32 @@ export function MapView(props: { src: string; alt: string; className?: string })
     return () => el.removeEventListener('wheel', onWheel)
   }, [zoomBy])
 
+  const toImage = useCallback((clientX: number, clientY: number): [number, number] => {
+    const rect = frame.current?.getBoundingClientRect()
+    const cur = tRef.current
+    if (!rect) return [0, 0]
+    return [(clientX - rect.left - cur.x) / cur.scale, (clientY - rect.top - cur.y) / cur.scale]
+  }, [])
+
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, tx: t.x, ty: t.y }
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, tx: t.x, ty: t.y, moved: false }
   }
   const onPointerMove = (e: PointerEvent) => {
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
-    setT((cur) => ({ ...cur, x: d.tx + e.clientX - d.x, y: d.ty + e.clientY - d.y }))
+    if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4) d.moved = true
+    if (d.moved) setT((cur) => ({ ...cur, x: d.tx + e.clientX - d.x, y: d.ty + e.clientY - d.y }))
   }
-  const onPointerUp = () => { drag.current = null }
+  const onPointerUp = (e: PointerEvent) => {
+    const d = drag.current
+    drag.current = null
+    if (d && !d.moved && props.onMapClick) props.onMapClick(toImage(e.clientX, e.clientY))
+  }
 
   const onKey = (e: KeyboardEvent) => {
+    if (props.onKeyDown?.(e)) { e.preventDefault(); return }
     const step = 60
     if (e.key === '+' || e.key === '=') zoomBy(1.25)
     else if (e.key === '-' || e.key === '_') zoomBy(0.8)
@@ -87,20 +120,27 @@ export function MapView(props: { src: string; alt: string; className?: string })
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerCancel={() => { drag.current = null }}
         onDoubleClick={(e) => {
+          if (props.noDoubleClickZoom) return
           const rect = e.currentTarget.getBoundingClientRect()
           zoomBy(1.6, e.clientX - rect.left, e.clientY - rect.top)
         }}
         onKeyDown={onKey}
       >
-        <img
-          src={props.src}
-          alt=""
-          draggable={false}
-          onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-          style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})` }}
-        />
+        <div className="mapview-layer" style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})` }}>
+          <img
+            src={props.src}
+            alt=""
+            draggable={false}
+            onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+          />
+          {natural && props.layer && (
+            <svg className="mapview-svg" width={natural.w} height={natural.h} viewBox={`0 0 ${natural.w} ${natural.h}`}>
+              {props.layer({ scale: t.scale, toImage })}
+            </svg>
+          )}
+        </div>
       </div>
       <div className="mapview-controls" role="group" aria-label="Map zoom">
         <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.25)}>+</button>

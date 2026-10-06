@@ -110,6 +110,24 @@ const MIGRATIONS: string[] = [
     decision TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL
   );
   CREATE INDEX review_decision_session ON review_decision(session_id, item_key);
+  `,
+  `
+  ALTER TABLE map ADD COLUMN width_miles REAL;
+  ALTER TABLE map ADD COLUMN travel_mph REAL NOT NULL DEFAULT 3;
+  CREATE TABLE region_shape (
+    id TEXT PRIMARY KEY, map_id TEXT NOT NULL REFERENCES map(id), location_id TEXT NOT NULL REFERENCES entity(id),
+    polygon TEXT NOT NULL, status TEXT NOT NULL
+  );
+  CREATE TABLE party_position (
+    id TEXT PRIMARY KEY, map_id TEXT NOT NULL REFERENCES map(id), x REAL NOT NULL, y REAL NOT NULL,
+    location_id TEXT REFERENCES entity(id), at_min INTEGER NOT NULL, session_id TEXT, created_at TEXT NOT NULL, status TEXT NOT NULL
+  );
+  CREATE TABLE travel_link (
+    id TEXT PRIMARY KEY, from_location_id TEXT NOT NULL REFERENCES entity(id), to_location_id TEXT NOT NULL REFERENCES entity(id),
+    minutes INTEGER NOT NULL, status TEXT NOT NULL
+  );
+  CREATE INDEX region_shape_map ON region_shape(map_id);
+  CREATE INDEX party_position_map ON party_position(map_id, at_min);
   `
 ]
 

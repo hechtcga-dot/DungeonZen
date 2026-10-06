@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, ReviewView, SheetView, TimelineView } from '../shared/types'
+import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, ReviewView, SheetView, TimelineView } from '../shared/types'
 
 export type Selection =
   | { kind: 'entity'; id: string }
@@ -22,6 +22,7 @@ interface BoardState {
   timeline: TimelineView | null
   live: LiveView | null
   review: ReviewView | null
+  mapScreen: MapScreenView | null
   reviewSessionId: string | null
   openReview(sessionId: string): Promise<void>
   sheetId: string | null
@@ -41,6 +42,8 @@ interface BoardState {
   refresh(): Promise<void>
   /** Runs a change in the main process, then reloads what is on screen. */
   act<C extends IpcChannel>(channel: C, input: IpcInput<C>): Promise<IpcOutputs[C] | undefined>
+  /** A read that changes nothing: no refresh afterwards (refreshing would re-run effects that read). */
+  query<C extends IpcChannel>(channel: C, input: IpcInput<C>): Promise<IpcOutputs[C] | undefined>
   undo(): Promise<void>
   redo(): Promise<void>
   setPanel(panel: 'inspector' | 'history'): void
@@ -60,6 +63,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   timeline: null,
   live: null,
   review: null,
+  mapScreen: null,
   reviewSessionId: null,
   sheetId: null,
   focusEntityId: null,
@@ -133,7 +137,9 @@ export const useBoard = create<BoardState>((set, get) => ({
         set({ view, history, desk, info: info ?? get().info, sheet: null, sheetId: null, screen: 'board' })
         return
       }
-      set({ view, history, sheet, desk, timeline, live, review, info: info ?? get().info })
+      const mapId = screen === 'live' ? live?.map?.id : screen === 'desk' || screen === 'map' ? desk?.map?.id : undefined
+      const mapScreen = mapId ? await call('mapscreen:view', { mapId }).catch(() => null) : get().mapScreen
+      set({ view, history, sheet, desk, timeline, live, review, mapScreen, info: info ?? get().info })
     } catch (err) {
       get().say((err as Error).message, true)
     }
@@ -144,6 +150,15 @@ export const useBoard = create<BoardState>((set, get) => ({
       const value = await call(channel, input)
       await get().refresh()
       return value
+    } catch (err) {
+      get().say((err as Error).message, true)
+      return undefined
+    }
+  },
+
+  async query(channel, input) {
+    try {
+      return await call(channel, input)
     } catch (err) {
       get().say((err as Error).message, true)
       return undefined

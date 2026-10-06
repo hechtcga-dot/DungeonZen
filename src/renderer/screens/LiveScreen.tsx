@@ -4,6 +4,7 @@ import { DeskFrame } from '../components/DeskFrame'
 import { Candle, D20 } from '../art/props'
 import { ClockDial } from '../art/sky'
 import { MapView } from '../components/MapView'
+import { readOnlyLayer } from '../components/MapOverlay'
 import { Dialog } from '../components/Dialog'
 import { CampaignSettingsDialog } from '../components/EditDialogs'
 import { useLightingPref } from '../art/TableLighting'
@@ -36,7 +37,7 @@ function healthWord(p: number | null): string {
 }
 
 function Live({ v }: { v: LiveView }) {
-  const { act } = useBoard()
+  const { act, mapScreen } = useBoard()
   const [lighting] = useLightingPref()
   const [ending, setEnding] = useState(false)
   const [settings, setSettings] = useState(false)
@@ -132,7 +133,7 @@ function Live({ v }: { v: LiveView }) {
         </div>
         <div className="live-map">
           <div className="parchment-sheet">
-            {v.map ? <MapView src={v.map.url} alt={`Map of ${v.map.name}`} className="desk-mapview" />
+            {v.map ? <MapView src={v.map.url} alt={`Map of ${v.map.name}`} className="desk-mapview" layer={readOnlyLayer(mapScreen, v.map.id)} />
               : <div className="map-empty"><h2>No map yet</h2><p>Import one on the desk or the Map screen.</p></div>}
             <div className="row tight wrap map-actions">
               <MetSomeoneNew disabled={!s} />

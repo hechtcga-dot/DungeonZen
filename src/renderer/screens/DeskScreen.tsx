@@ -6,6 +6,7 @@ import { CampaignSettingsDialog, emblemOf, MapDialog, StorylineDialog, STORYLINE
 import { TarotCard } from '../art/TarotCard'
 import { ClockDial, MoonDisc } from '../art/sky'
 import { MapView } from '../components/MapView'
+import { readOnlyLayer } from '../components/MapOverlay'
 import { DeskFrame } from '../components/DeskFrame'
 import { lightingAt, moonOn, skyAt } from '../../shared/sky'
 import { useLightingPref } from '../art/TableLighting'
@@ -23,7 +24,7 @@ export function DeskScreen() {
 }
 
 function Desk({ desk }: { desk: DeskView }) {
-  const { info, act, showBoard, openSheet, goTo, undo, redo, view } = useBoard()
+  const { info, act, showBoard, openSheet, goTo, undo, redo, view, mapScreen } = useBoard()
   const minutes = info?.clockMin ?? 0
   const sky = skyAt(minutes)
   const moon = moonOn(minutes, desk.moonOffsetDays)
@@ -180,7 +181,7 @@ function Desk({ desk }: { desk: DeskView }) {
                   </button>
                 </div>
                 <MapDialog open={mapOpen} onClose={() => setMapOpen(false)} map={desk.map} />
-                <MapView src={desk.map.url} alt={`Map of ${desk.map.name}`} className="desk-mapview" />
+                <MapView src={desk.map.url} alt={`Map of ${desk.map.name}`} className="desk-mapview" layer={readOnlyLayer(mapScreen, desk.map.id)} />
                 <div className="row tight wrap map-actions">
                   <button className="ink-button" onClick={() => goTo('map')}>Open the full map</button>
                   <button className="ink-button" onClick={() => void act('map:importDialog', undefined)}>Import another map</button>

@@ -155,5 +155,15 @@ commands. `group_id` lets a session or an import undo as one step.
   note, status), which stands in for the doc's `proposal` and `conflict`
   rows: proposals and conflicts are computed from the engine and the log, and
   only the DM's decisions are stored.
+- Map regions and travel (migration 8): `map.width_miles` (the map's width,
+  for the scale) and `map.travel_mph` (default 3, walking pace);
+  `region_shape` (map_id, location_id, polygon as JSON `[[x, y], ...]` in image
+  pixels, status); `party_position` (map_id, x, y, location_id or null
+  between places, at_min, session_id, status), one row per move, the latest
+  at or before the clock is where the party is; `travel_link`
+  (from/to location, minutes, status), a remembered trip time, also used for
+  the way back until one is saved for that direction. Sub-regions use
+  `entity.parent_id` of their location card. The doc's `route` table is not
+  built: the route shown is the party's moves in the current or last session.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

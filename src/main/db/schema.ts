@@ -106,6 +106,39 @@ export const map = sqliteTable('map', {
   width: integer('width'),
   height: integer('height'),
   gridSize: integer('grid_size'),
+  status: text('status').notNull(),
+  widthMiles: real('width_miles'), // how many miles the image is across (map scale)
+  travelMph: real('travel_mph').notNull().default(3)
+})
+
+// A region drawn on a map, tied to a Location card (sub-regions: the card's parent_id).
+export const regionShape = sqliteTable('region_shape', {
+  id: text('id').primaryKey(),
+  mapId: text('map_id').notNull(),
+  locationId: text('location_id').notNull(),
+  polygon: text('polygon', { mode: 'json' }).$type<Array<[number, number]>>().notNull(),
+  status: text('status').notNull()
+})
+
+// Where the party is on a map from a given minute on. The latest at or before now counts.
+export const partyPosition = sqliteTable('party_position', {
+  id: text('id').primaryKey(),
+  mapId: text('map_id').notNull(),
+  x: real('x').notNull(),
+  y: real('y').notNull(),
+  locationId: text('location_id'),
+  atMin: integer('at_min').notNull(),
+  sessionId: text('session_id'),
+  createdAt: text('created_at').notNull(),
+  status: text('status').notNull()
+})
+
+// A travel time the DM set between two locations; it beats the distance estimate.
+export const travelLink = sqliteTable('travel_link', {
+  id: text('id').primaryKey(),
+  fromLocationId: text('from_location_id').notNull(),
+  toLocationId: text('to_location_id').notNull(),
+  minutes: integer('minutes').notNull(),
   status: text('status').notNull()
 })
 
@@ -222,7 +255,10 @@ export const tracked = {
   story_trigger: { table: storyTrigger, pk: storyTrigger.id },
   session: { table: session, pk: session.id },
   log_entry: { table: logEntry, pk: logEntry.id },
-  review_decision: { table: reviewDecision, pk: reviewDecision.id }
+  review_decision: { table: reviewDecision, pk: reviewDecision.id },
+  region_shape: { table: regionShape, pk: regionShape.id },
+  party_position: { table: partyPosition, pk: partyPosition.id },
+  travel_link: { table: travelLink, pk: travelLink.id }
 } as const
 export type TableName = keyof typeof tracked
 
@@ -239,3 +275,4 @@ export type OutcomeRow = typeof actOutcome.$inferSelect
 export type TriggerRow = typeof storyTrigger.$inferSelect
 export type SessionRow = typeof session.$inferSelect
 export type LogRow = typeof logEntry.$inferSelect
+export type RegionRow = typeof regionShape.$inferSelect

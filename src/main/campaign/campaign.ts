@@ -4,8 +4,8 @@ import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
-  ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, relationship, relationshipKnown,
-  reviewDecision, session, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
+  ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
+  relationship, relationshipKnown, reviewDecision, session, travelLink, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
@@ -21,10 +21,12 @@ import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, LiveView, LogView, MapView, RelationshipView, ReviewConflict, ReviewProposal, ReviewView,
+  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, RegionDetail, RegionView,
+  RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
   SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
 } from '../../shared/types'
 import { advise } from '../advisor'
+import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
 export const DB_FILE = 'campaign.db'
@@ -207,6 +209,8 @@ export class Campaign {
         .map((r) => ({ storylineId: r.id, title: r.title })),
       removedMaps: this.db.select().from(map).where(eq(map.status, 'defunct')).all().map((m) => ({ id: m.id, name: m.name })),
       ...this.removedTimeline(),
+      removedRegions: this.db.select().from(regionShape).where(eq(regionShape.status, 'defunct')).all()
+        .map((r) => ({ id: r.id, name: this.nameOf(r.locationId) })),
       log: this.log.recent().map((c) => ({ id: c.id, label: c.label, at: c.at, undone: c.state === 'undone' }))
     }
   }
@@ -1370,6 +1374,190 @@ export class Campaign {
     return this.undoTo(started.id)
   }
 
+  // ---- map regions, party token and travel ------------------------------------
+
+  private regionRows(mapId: string): RegionRow[] {
+    return this.db.select().from(regionShape).where(and(eq(regionShape.mapId, mapId), eq(regionShape.status, 'active'))).all()
+  }
+
+  private regionViews(mapId: string): RegionView[] {
+    const ents = new Map(this.db.select().from(entity).all().map((e) => [e.id, e]))
+    return this.regionRows(mapId).flatMap((r) => {
+      const loc = ents.get(r.locationId)
+      if (!loc || loc.status === 'defunct') return []
+      return [{
+        id: r.id, locationId: r.locationId, name: loc.name, polygon: r.polygon, parentLocationId: loc.parentId,
+        colour: typeof loc.attributes.colour === 'string' ? loc.attributes.colour : null
+      }]
+    })
+  }
+
+  /** The party's position on a map at minute `atMin` (the latest move at or before it). */
+  partyAt(mapId: string, atMin: number): PartyMarker | null {
+    const row = this.db.select().from(partyPosition).where(and(eq(partyPosition.mapId, mapId), eq(partyPosition.status, 'active'))).all()
+      .filter((p) => p.atMin <= atMin)
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt)).at(-1)
+    if (!row) return null
+    const name = row.locationId ? this.db.select({ name: entity.name }).from(entity).where(eq(entity.id, row.locationId)).get()?.name ?? null : null
+    return { x: row.x, y: row.y, locationId: row.locationId, locationName: name, atMin: row.atMin }
+  }
+
+  mapScreen(mapId: string): MapScreenView {
+    const m = this.mapRow(mapId)
+    const nowMin = this.info().clockMin
+    const regions = this.regionViews(mapId)
+    const placed = new Set(regions.map((r) => r.locationId))
+    // Route: the party's moves during the running session, or the last one.
+    const sessions = this.db.select().from(session).where(eq(session.status, 'active')).orderBy(asc(session.number)).all()
+    const current = sessions.find((x) => x.endedAt === null) ?? sessions.at(-1) ?? null
+    const moves = this.db.select().from(partyPosition).where(and(eq(partyPosition.mapId, mapId), eq(partyPosition.status, 'active'))).all()
+      .filter((p) => p.atMin <= nowMin).sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+    let route: Array<[number, number]> = []
+    if (current) {
+      const inSession = moves.filter((p) => p.sessionId === current.id)
+      if (inSession.length) {
+        const before = moves.filter((p) => p.atMin <= inSession[0].atMin && p.sessionId !== current.id).at(-1)
+        route = [...(before ? [before] : []), ...inSession].map((p) => [p.x, p.y])
+      }
+    }
+    return {
+      map: toMapView(m),
+      regions,
+      party: this.partyAt(mapId, nowMin),
+      route,
+      sessionRunning: current !== null && current.endedAt === null,
+      unplacedLocations: this.db.select().from(entity).all()
+        .filter((e) => e.type === 'LOCATION' && e.status !== 'defunct' && !placed.has(e.id))
+        .map((e) => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    }
+  }
+
+  regionDetail(regionId: string): RegionDetail {
+    const r = this.db.select().from(regionShape).where(eq(regionShape.id, regionId)).get()
+    if (!r) throw new Error(`No region with id ${regionId}`)
+    const region = this.regionViews(r.mapId).find((x) => x.id === regionId)
+    if (!region) throw new Error('That region is in History')
+    const loc = this.entityView(r.locationId)
+    const all = this.db.select().from(entity).all().filter((e) => e.status === 'active' || e.status === 'resolved')
+    const linked = new Set(this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
+      .filter((x) => x.targetId === r.locationId && ['LOCATED_AT', 'TIED_TO_QUEST', 'IN_ENCOUNTER'].includes(x.type))
+      .map((x) => x.sourceId))
+    const byName = (e: typeof all[number]) => typeof e.attributes.location === 'string' && e.attributes.location.trim().toLowerCase() === loc.name.trim().toLowerCase()
+    const here = all.filter((e) => e.id !== r.locationId && (linked.has(e.id) || byName(e)))
+    const brief = (e: typeof all[number]) => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus })
+    const party = this.partyAt(r.mapId, this.info().clockMin)
+    return {
+      region, location: loc,
+      partyHere: !!party && party.locationId === r.locationId,
+      hereNow: here.filter((e) => ['NPC', 'MONSTER', 'PC', 'FACTION'].includes(e.type)).map(brief),
+      encounters: here.filter((e) => e.type === 'SCENE' && /^encounter/i.test(e.name)).map(brief),
+      plotPoints: here.filter((e) => ['QUEST', 'CLUE', 'ITEM', 'HANDOUT'].includes(e.type) || (e.type === 'SCENE' && !/^encounter/i.test(e.name))).map(brief),
+      notes: [loc.attributes.description, loc.attributes.notes].filter((x) => typeof x === 'string' && x.trim()).join('\n\n'),
+      subRegions: all.filter((e) => e.parentId === r.locationId && e.type === 'LOCATION').map((e) => ({ locationId: e.id, name: e.name }))
+    }
+  }
+
+  /** Draws a region tied to an existing Location card, or to a new one made with it (one undo step). */
+  createRegion(input: { mapId: string; polygon: Point[]; locationId?: string; newName?: string; parentLocationId?: string | null }): string {
+    this.mapRow(input.mapId)
+    if (input.polygon.length < 3) throw new Error('A region needs at least three points')
+    if (!input.locationId && !input.newName?.trim()) throw new Error('Choose a location or give the new one a name')
+    const id = randomUUID()
+    const label = `Drew region ${input.newName?.trim() ?? this.nameOf(input.locationId!)}`
+    this.log.run(label, (w) => {
+      let locationId = input.locationId
+      if (!locationId) {
+        locationId = this.insertEntity(w, {
+          boardId: this.globalBoard().id, type: 'LOCATION', name: input.newName!.trim(), position: this.freeGlobalSpot()
+        })
+      } else this.entityRow(locationId)
+      if (input.parentLocationId !== undefined) w.update('entity', locationId, { parentId: input.parentLocationId })
+      w.insert('region_shape', { id, mapId: input.mapId, locationId, polygon: input.polygon, status: 'active' })
+    })
+    return id
+  }
+
+  updateRegion(id: string, patch: { polygon?: Point[]; locationId?: string; parentLocationId?: string | null }): void {
+    const r = this.db.select().from(regionShape).where(eq(regionShape.id, id)).get()
+    if (!r) throw new Error(`No region with id ${id}`)
+    if (patch.polygon && patch.polygon.length < 3) throw new Error('A region needs at least three points')
+    if (patch.parentLocationId && patch.parentLocationId === (patch.locationId ?? r.locationId)) throw new Error('A region cannot be inside itself')
+    this.log.run(`Edited region ${this.nameOf(patch.locationId ?? r.locationId)}`, (w) => {
+      const { parentLocationId, ...rest } = patch
+      if (Object.keys(rest).length) w.update('region_shape', id, rest)
+      if (parentLocationId !== undefined) w.update('entity', patch.locationId ?? r.locationId, { parentId: parentLocationId })
+    })
+  }
+
+  setRegionStatus(id: string, status: RowStatus): void {
+    const r = this.db.select().from(regionShape).where(eq(regionShape.id, id)).get()
+    if (!r) throw new Error(`No region with id ${id}`)
+    this.log.run(status === 'defunct' ? `Moved region ${this.nameOf(r.locationId)} to History` : `Restored region ${this.nameOf(r.locationId)}`,
+      (w) => { w.update('region_shape', id, { status }) })
+  }
+
+  setMapScale(mapId: string, widthMiles: number | null, travelMph: number): void {
+    const m = this.mapRow(mapId)
+    this.log.run(`Set the scale of ${m.name}`, (w) => { w.update('map', mapId, { widthMiles, travelMph }) })
+  }
+
+  /** How long the party would take to get to (x, y), and which region that is. Nothing is saved. */
+  travelEstimate(mapId: string, to: Point): TravelEstimateView {
+    const m = this.mapRow(mapId)
+    const regions = this.regionViews(mapId)
+    const dest = regionAt(to, regions)
+    const party = this.partyAt(mapId, this.info().clockMin)
+    const from: Point | null = party ? [party.x, party.y] : null
+    if (!from) {
+      return { minutes: 0, miles: null, basis: 'the party is placed here for the first time', fromName: null, toName: dest?.name ?? null, toLocationId: dest?.locationId ?? null }
+    }
+    // A remembered time for this trip, or else for the way back (the same road both ways unless the DM says otherwise).
+    const link = (fromId: string, toId: string) =>
+      this.db.select().from(travelLink).where(and(eq(travelLink.status, 'active'), eq(travelLink.fromLocationId, fromId), eq(travelLink.toLocationId, toId))).get()
+    const saved = party?.locationId && dest ? link(party.locationId, dest.locationId) ?? link(dest.locationId, party.locationId) : undefined
+    // Measure between region centres when both ends are regions, so dropping anywhere inside gives the same answer.
+    const fromRegion = party?.locationId ? regions.find((r) => r.locationId === party.locationId) : undefined
+    const a = fromRegion ? centroid(fromRegion.polygon) : from
+    const b = dest ? centroid(dest.polygon) : to
+    const est = estimateTravel({ from: a, to: b, imageWidth: m.width, widthMiles: m.widthMiles, mph: m.travelMph, savedMinutes: saved?.minutes ?? null })
+    return { ...est, fromName: party?.locationName ?? null, toName: dest?.name ?? null, toLocationId: dest?.locationId ?? null }
+  }
+
+  /**
+   * Moves the party token: the clock moves on by the travel time, the party
+   * arrives at the new place at the new time, and the trip is logged in the
+   * running session. Optionally remembers the time for this route. One undo step.
+   */
+  moveParty(input: { mapId: string; x: number; y: number; minutes: number; rememberTime?: boolean }): void {
+    this.mapRow(input.mapId)
+    const now = this.info().clockMin
+    const minutes = Math.max(0, Math.round(input.minutes))
+    const dest = regionAt([input.x, input.y], this.regionViews(input.mapId))
+    const from = this.partyAt(input.mapId, now)
+    const open = this.openSession()
+    const where = dest?.name ?? 'a new spot'
+    this.log.run(`Party travelled to ${where}${minutes ? ` (${minutes >= 60 ? `${Math.round(minutes / 6) / 10} h` : `${minutes} min`})` : ''}`, (w) => {
+      w.insert('party_position', {
+        id: randomUUID(), mapId: input.mapId, x: input.x, y: input.y, locationId: dest?.locationId ?? null, atMin: now + minutes,
+        sessionId: open?.id ?? null, createdAt: new Date().toISOString(), status: 'active'
+      })
+      if (minutes > 0) w.update('campaign_settings', 'clock_min', { value: now + minutes })
+      if (open && from) {
+        w.insert('log_entry', {
+          id: randomUUID(), sessionId: open.id, atMin: now, kind: 'travel',
+          text: `Travelled from ${from.locationName ?? 'the road'} to ${where}`, entityId: dest?.locationId ?? null,
+          minutesTaken: minutes, createdAt: new Date().toISOString(), status: 'active'
+        })
+      }
+      if (input.rememberTime && from?.locationId && dest) {
+        const existing = this.db.select().from(travelLink).where(and(eq(travelLink.fromLocationId, from.locationId), eq(travelLink.toLocationId, dest.locationId))).get()
+        if (existing) w.update('travel_link', existing.id, { minutes, status: 'active' })
+        else w.insert('travel_link', { id: randomUUID(), fromLocationId: from.locationId, toLocationId: dest.locationId, minutes, status: 'active' })
+      }
+    })
+  }
+
   undo(): string | null { return this.log.undo() }
   redo(): string | null { return this.log.redo() }
 
@@ -1504,7 +1692,10 @@ function searchText(v: EntityView): string {
 }
 
 function toMapView(r: MapRow): MapView {
-  return { id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath, width: r.width, height: r.height }
+  return {
+    id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath, width: r.width, height: r.height,
+    widthMiles: r.widthMiles, travelMph: r.travelMph
+  }
 }
 
 function toOutcomeView(o: OutcomeRow) {

@@ -281,3 +281,8 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 @media (max-width: 1100px) { .review-layout { grid-template-columns: minmax(0, 1fr); } .review-side { position: static; } }
 .proposals td:last-child { min-width: 330px; }
 .proposals td:last-child button { min-height: 40px; padding: 0 12px; }
+
+/* Dark ink and red ink buttons keep their look on parchment panels and in dialogs. */
+.desk-theme button.ink-button.primary-ink:not(:disabled), .desk-theme button.ink-button.primary-ink:hover:not(:disabled) { color: var(--parchment-light, #f6ecd0); }
+.desk-theme button.ink-button.primary-ink:hover:not(:disabled) { background: #3d2c18; border-color: #000; color: #fff; }
+.desk-theme button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; border-color: #7a1e16; color: #fff3e0; }

@@ -18,7 +18,7 @@ export function HistoryPanel() {
   if (!history) return <p className="muted">Loading…</p>
   const removedCount = history.removedEntities.length + history.removedStrings.length + history.removedNotes.length +
     history.removedStorylines.length + history.removedMaps.length + history.removedActs.length +
-    history.removedOutcomes.length + history.removedTriggers.length
+    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length
 
   return (
     <div className="history">
@@ -78,6 +78,12 @@ export function HistoryPanel() {
             <li key={m.id}>
               <div className="removed-text"><strong>{m.name}</strong><span className="muted">Map</span></div>
               <button onClick={() => void act('map:setStatus', { mapId: m.id, status: 'active' })}>Restore</button>
+            </li>
+          ))}
+          {history.removedRegions.map((r) => (
+            <li key={r.id}>
+              <div className="removed-text"><strong>{r.name}</strong><span className="muted">Map region</span></div>
+              <button onClick={() => void act('region:setStatus', { id: r.id, status: 'active' })}>Restore</button>
             </li>
           ))}
         </ul>
