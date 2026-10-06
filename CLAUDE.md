@@ -182,8 +182,7 @@ built.
   read-aloud scene text per session; On the fly (offline): roll a character
   (made-up name and details plus an SRD stat block), suggest an encounter (2024
   XP budgets from the SRD), fill a tavern; put on the board or save for later
-  (stashed; Library shows "Put on board"). Battle maps wait for an image
-  generator. End session saves a recap started from the log.
+  (stashed; Library shows "Put on board"); Draw a battle map. End session saves a recap started from the log.
 - Session review (End session and review, or Review on any past session):
   conflicts first (a logged meeting with a card in History: bring back, remove
   the entry, explain, leave flagged, reopen); proposed changes table (act
@@ -246,4 +245,3 @@ built.
 
 Not yet: AI notes import; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, exports (Phase 4), packaging/installer.
-("DM Prep/Live/Player modes" above is built; the line is kept for history.)
