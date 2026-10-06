@@ -63,8 +63,40 @@ export function docxParagraphs(file: Buffer): string[] {
   return out
 }
 
+/**
+ * pdfjs wants DOMMatrix at load time (for drawing). We only read text, so a small
+ * stand-in avoids shipping its native canvas module with the installer.
+ */
+function ensureDomMatrix(): void {
+  const g = globalThis as Record<string, unknown>
+  if (g.DOMMatrix) return
+  class Matrix {
+    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0
+    constructor(init?: number[]) { if (Array.isArray(init) && init.length >= 6) [this.a, this.b, this.c, this.d, this.e, this.f] = init }
+    multiplySelf(m: Matrix): this {
+      const { a, b, c, d, e, f } = this
+      this.a = a * m.a + c * m.b; this.b = b * m.a + d * m.b
+      this.c = a * m.c + c * m.d; this.d = b * m.c + d * m.d
+      this.e = a * m.e + c * m.f + e; this.f = b * m.e + d * m.f + f
+      return this
+    }
+    preMultiplySelf(m: Matrix): this { const copy = new Matrix([m.a, m.b, m.c, m.d, m.e, m.f]); copy.multiplySelf(this); Object.assign(this, copy); return this }
+    translateSelf(x = 0, y = 0): this { return this.multiplySelf(new Matrix([1, 0, 0, 1, x, y])) }
+    scaleSelf(x = 1, y = x): this { return this.multiplySelf(new Matrix([x, 0, 0, y, 0, 0])) }
+    invertSelf(): this {
+      const det = this.a * this.d - this.b * this.c
+      if (!det) { Object.assign(this, { a: NaN, b: NaN, c: NaN, d: NaN, e: NaN, f: NaN }); return this }
+      const { a, b, c, d, e, f } = this
+      Object.assign(this, { a: d / det, b: -b / det, c: -c / det, d: a / det, e: (c * f - d * e) / det, f: (b * e - a * f) / det })
+      return this
+    }
+  }
+  g.DOMMatrix = Matrix
+}
+
 /** Text of each PDF page (empty for scanned pages). */
 export async function pdfPages(file: Buffer): Promise<string[]> {
+  ensureDomMatrix()
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
   const doc = await pdfjs.getDocument({ data: new Uint8Array(file), disableFontFace: true, useSystemFonts: false, verbosity: 0 }).promise
   const pages: string[] = []

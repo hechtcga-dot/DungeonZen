@@ -6,6 +6,17 @@ import { KeyStore } from './ai/keys'
 
 let mainWindow: BrowserWindow | null = null
 
+// One copy at a time: a second launch brings the open window forward instead of
+// opening the same campaign database twice.
+if (!app.requestSingleInstanceLock()) app.quit()
+app.on('second-instance', () => {
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.focus()
+})
+// Taskbar grouping and pinning on Windows use the installer's app id.
+if (process.platform === 'win32') app.setAppUserModelId('com.dungeonzen.app')
+
 // Campaign images (maps, handouts) are served to the window through this scheme.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'dz-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
@@ -17,7 +28,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 960,
     minHeight: 640,
-    backgroundColor: '#171a1f',
+    backgroundColor: '#2e1c0e',
     title: 'Dungeon Zen',
     show: false,
     autoHideMenuBar: true,

@@ -121,6 +121,10 @@ must have unit tests before any screen depends on it.
 - The one-page prep template (owner, 2026-10-06) is a reference: use its
   elements where they fit; the Session prep sheet is built from it.
 
+- Windows installer must install without admin rights (owner, 2026-10-06): NSIS per-user
+  (`electron-builder.yml`, `build/installer.nsh` forces current-user mode), asInvoker,
+  default `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU uninstall entry. Version 1.0.0.
+
 ## Open decisions (do not guess; ask)
 - None at the moment.
 
@@ -300,10 +304,21 @@ built.
   (`Campaign.applyFill`), writes only still-empty fields, records
   `attributes.ai_filled` (labels show "(AI)"). The sheet's Details panel shows and
   edits every per-type field and any other text a card carries (e.g. from imports).
+- Packaging: `npm run dist:win` (electron-builder, `electron-builder.yml`) makes
+  `dist/Dungeon-Zen-Setup-<version>.exe`: per-user NSIS, no elevation, choose folder,
+  Start menu and desktop shortcuts, data kept on uninstall. Only runtime modules ship
+  (better-sqlite3 with just `win32-x64.node`, drizzle-orm, zod, pdfjs-dist without its
+  native canvas: `read.ts` supplies a small DOMMatrix). Icon from `build/icon.svg`
+  (`npm run icon`). Single-instance lock and app id `com.dungeonzen.app`.
+  `.github/workflows/windows-installer.yml` builds on Windows and attaches the
+  installer to a Release for `v*` tags. Built and test-installed under Wine here
+  (per-user folder, shortcuts, HKCU only); Wine needs a build with
+  `customCheckAppRunning` emptied because it has no PowerShell (test only).
+  Not code-signed yet: SmartScreen warns.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
 Not yet: re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
-import, packaging/installer; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
-with tokens. Phases 1 to 5 are built; packaging (installer) is the main step left.
+import, code signing, auto-update; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
+with tokens. Phases 1 to 5 and the Windows installer (1.0.0) are built.

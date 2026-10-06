@@ -1,0 +1,43 @@
+# Windows installer (owner, 2026-10-06: must install without admin rights).
+# Per-user NSIS: installs to %LOCALAPPDATA%\Programs\Dungeon Zen, Start menu and
+# desktop shortcuts, uninstall from Windows Settings; campaigns and settings are kept.
+appId: com.dungeonzen.app
+productName: Dungeon Zen
+copyright: Copyright © 2026 Dungeon Zen
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - "!**/*.map"
+  # Only the Windows SQLite binary; pdfjs reads text without its native canvas.
+  - "!node_modules/better-sqlite3/{deps,src,binding.gyp}"
+  - "!node_modules/better-sqlite3/prebuilds/!(win32-x64.node)"
+  - "!node_modules/@napi-rs/**"
+  - "!node_modules/pdfjs-dist/{web,image_decoders,types}/**"
+  - "!node_modules/pdfjs-dist/build/**"
+  - "!node_modules/pdfjs-dist/legacy/{web,image_decoders}/**"
+asarUnpack:
+  - "**/*.node"
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  executableName: DungeonZen
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Dungeon Zen
+  uninstallDisplayName: Dungeon Zen
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
+  artifactName: Dungeon-Zen-Setup-${version}.exe

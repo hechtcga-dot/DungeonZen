@@ -1,0 +1,41 @@
+# Builds the Windows installer on Windows (tests first) and, for a version tag
+# (v1.0.0, v1.1.0 …), publishes it on the GitHub Releases page.
+name: Windows installer
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder --win --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dungeon-Zen-installer
+          path: dist/*.exe
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+          body: |
+            **Install:** download `Dungeon-Zen-Setup-${{ github.ref_name }}.exe` (the version without the v) and run it.
+            It installs for your Windows account only, so no administrator rights are needed
+            (default folder: `%LOCALAPPDATA%\Programs\DungeonZen`, with Start menu and desktop shortcuts).
+            Windows SmartScreen may warn that the publisher is unknown (the installer is not code-signed):
+            choose "More info", then "Run anyway".
+            Uninstall from Settings › Apps; your campaigns and settings are kept.
