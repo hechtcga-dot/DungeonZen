@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { Candle, D20 } from '../art/props'
@@ -11,7 +11,9 @@ import { useLightingPref } from '../art/TableLighting'
 import { lightingAt, skyAt } from '../../shared/sky'
 import { formatClock, toClockParts } from '../../shared/time'
 import type { LogKind } from '../../shared/schemas'
-import type { GeneratedView, LiveView, LogView, PartyHealth } from '../../shared/types'
+import type { AiSuggestion, GeneratedView, LiveView, LogView, PartyHealth } from '../../shared/types'
+import { providerById } from '../../shared/aiProviders'
+import { call } from '../api'
 
 const KIND_LABELS: Record<LogKind, string> = {
   note: 'Note', fight: 'Fight', meeting: 'Met', quest: 'Quest delivered', rest: 'Rest', travel: 'Travel'
@@ -37,7 +39,7 @@ function healthWord(p: number | null): string {
 }
 
 function Live({ v }: { v: LiveView }) {
-  const { act, mapScreen } = useBoard()
+  const { act, mapScreen, goTo } = useBoard()
   const [lighting] = useLightingPref()
   const [ending, setEnding] = useState(false)
   const [settings, setSettings] = useState(false)
@@ -138,7 +140,7 @@ function Live({ v }: { v: LiveView }) {
             <div className="row tight wrap map-actions">
               <MetSomeoneNew disabled={!s} />
             </div>
-            <p className="hint ink-hint">Drawing the party's route on the map comes with map regions.</p>
+            <p className="hint ink-hint">The dotted line is where the party went this session. <button className="link-button" onClick={() => goTo('map')}>Open the map</button> to move them.</p>
           </div>
         </div>
         <div className="live-party">
@@ -323,8 +325,8 @@ function SetTheScene({ v }: { v: LiveView }) {
             placeholder="Write what the players see, hear and smell. It stays with this session."
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => { if (s && draft !== s.sceneText) void act('session:update', { id: s.id, patch: { sceneText: draft } }) }} />
-          <p className="ink-muted">It is {formatClock(v.nowMin)}, {sky.light === 'daylight' ? 'daylight' : sky.light}{hour >= 21 || hour < 5 ? ', the streets are quiet' : ''}.
-            AI help to write the description comes with the notes import (Phase 5).</p>
+          <p className="ink-muted">It is {formatClock(v.nowMin)}, {sky.light === 'daylight' ? 'daylight' : sky.light}{hour >= 21 || hour < 5 ? ', the streets are quiet' : ''}.</p>
+          {s && <AiSceneHelper current={draft} onUse={(text) => { setDraft(text); void act('session:update', { id: s.id, patch: { sceneText: text } }) }} />}
         </div>
         <div className="parchment-note read-aloud">
           <span className="eyebrow-ink">Read aloud</span>
@@ -332,6 +334,58 @@ function SetTheScene({ v }: { v: LiveView }) {
         </div>
       </div>
     </section>
+  )
+}
+
+/** Asks the chosen writing service for read-aloud text. The answer stays a suggestion until the DM uses it. */
+function AiSceneHelper({ current, onUse }: { current: string; onUse(text: string): void }) {
+  const setAiSettingsOpen = useBoard((st) => st.setAiSettingsOpen)
+  const aiOpen = useBoard((st) => st.aiSettingsOpen)
+  const [service, setService] = useState<string | null | undefined>(undefined)
+  const [ask, setAsk] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // Which writing service is chosen (read again when the settings close).
+  useEffect(() => {
+    if (aiOpen) return
+    call('ai:settings', undefined).then((st) => setService(st.text.provider ? providerById(st.text.provider)?.name ?? null : null)).catch(() => setService(null))
+  }, [aiOpen])
+  const draftIt = async () => {
+    setBusy(true); setError(null)
+    try { setSuggestion(await call('ai:sceneText', { ask })) } catch (e) { setError((e as Error).message) }
+    setBusy(false)
+  }
+  if (service === undefined) return null
+  if (service === null) {
+    return (
+      <p className="ink-muted ai-off">AI can draft this text from the time, the place and who is there.{' '}
+        <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>
+    )
+  }
+  return (
+    <div className="ai-helper">
+      <div className="row tight">
+        <label htmlFor="scene-ask" className="visually-hidden">What should the AI describe?</label>
+        <input id="scene-ask" value={ask} maxLength={2000} placeholder={current.trim() ? 'Optional: how to change it (darker, shorter, rain…)' : 'Optional: what to describe (the docks at night…)'}
+          onChange={(e) => setAsk(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !busy) void draftIt() }} />
+        <button className="ink-button" disabled={busy} onClick={() => void draftIt()}>{busy ? 'Writing…' : current.trim() ? 'Rework with AI' : 'Draft with AI'}</button>
+      </div>
+      <p className="ink-muted ai-uses">Uses {service}: it is told the time, light, moon, where the party is, the place's notes, who your cards put there, and the last log lines.</p>
+      {error && <p className="field-error" role="alert">{error}</p>}
+      {suggestion && (
+        <div className="ai-suggestion" role="region" aria-label="AI suggestion">
+          <span className="ai-badge">AI suggestion · {suggestion.source}</span>
+          <p className="ai-suggestion-text">{suggestion.text}</p>
+          <div className="row tight wrap">
+            <button className="ink-button primary-ink" onClick={() => { onUse(suggestion.text); setSuggestion(null) }}>Use this</button>
+            {current.trim() && <button className="ink-button" onClick={() => { onUse(`${current.trim()}\n\n${suggestion.text}`); setSuggestion(null) }}>Add below mine</button>}
+            <button className="ink-button" disabled={busy} onClick={() => void draftIt()}>Try again</button>
+            <button className="ink-button" onClick={() => setSuggestion(null)}>Discard</button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

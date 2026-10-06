@@ -1,8 +1,12 @@
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { dialog, ipcMain, net, protocol, type BrowserWindow } from 'electron'
+import { dialog, ipcMain, net, protocol, safeStorage, type BrowserWindow } from 'electron'
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
+import type { KeyStore } from './ai/keys'
+import { checkConnection, generateText, listModels, resolve } from './ai/client'
+import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
+import { AI_PROVIDERS, providerById, type AiChoice } from '../shared/aiProviders'
 import { searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
 import { fillTavern, rollCharacter, suggestEncounter } from './generators'
 import { ipcInputs, IPC_PREFIX, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
@@ -11,7 +15,7 @@ import type { z } from 'zod'
 
 type Handler<C extends IpcChannel> = (input: z.output<(typeof ipcInputs)[C]>) => IpcOutputs[C] | Promise<IpcOutputs[C]>
 
-export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore): void {
+export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore): void {
   let campaign: Campaign | null = null
 
   const current = (): Campaign => {
@@ -153,6 +157,49 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('live:view', () => current().live())
   handle('review:view', ({ sessionId }) => current().review(sessionId))
   handle('mapscreen:view', ({ mapId }) => current().mapScreen(mapId))
+
+  // ---- AI services (Settings › AI services). App-wide, kept in the DM profile, not the campaign.
+  const known = (id: string) => {
+    const info = providerById(id)
+    if (!info) throw new Error(`Unknown AI service ${id}`)
+    return info
+  }
+  /** A service with the DM's saved model and address, or the values being tried in the dialog. */
+  const choiceFor = (id: string, over: { model?: string; baseUrl?: string } = {}): AiChoice => {
+    const info = known(id)
+    const prefs = profile.providerPrefs(id)
+    return {
+      provider: id,
+      model: over.model ?? prefs.model ?? info.defaultModel,
+      baseUrl: info.editableUrl ? (over.baseUrl || prefs.baseUrl || info.baseUrl) : info.baseUrl
+    }
+  }
+  handle('ai:settings', () => ({
+    encryption: safeStorage.isEncryptionAvailable(),
+    text: profile.aiChoice('text'),
+    image: profile.aiChoice('image'),
+    providers: AI_PROVIDERS.map((p) => {
+      const c = choiceFor(p.id)
+      return { id: p.id, hasKey: keys.has(p.id), model: c.model, baseUrl: c.baseUrl }
+    })
+  }))
+  handle('ai:choose', ({ kind, provider, model, baseUrl }) => {
+    if (provider && known(provider).kind !== kind) throw new Error(`${known(provider).name} cannot be used for ${kind === 'text' ? 'writing' : 'battle maps'}`)
+    profile.setAiChoice(kind, provider, provider ? { ...(model !== undefined ? { model } : {}), ...(baseUrl !== undefined ? { baseUrl } : {}) } : undefined)
+  })
+  handle('ai:setKey', ({ provider, key }) => { known(provider); keys.set(provider, key) })
+  handle('ai:removeKey', ({ provider }) => { known(provider); keys.remove(provider) })
+  handle('ai:models', async ({ provider, baseUrl }) => {
+    const r = resolve({ ...choiceFor(provider, { baseUrl }), model: 'list' }, keys.get(provider))
+    return listModels(r)
+  })
+  handle('ai:test', async ({ provider, model, baseUrl }) => checkConnection(resolve(choiceFor(provider, { model, baseUrl }), keys.get(provider))))
+  handle('ai:sceneText', async ({ ask }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const text = await generateText(r, { system: SCENE_SYSTEM, prompt: scenePrompt(current().sceneContext(), ask), maxTokens: 600 })
+    return { text, source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
   handle('region:detail', ({ regionId }) => current().regionDetail(regionId))
   handle('region:create', (i) => current().createRegion(i))
   handle('region:update', ({ id, patch }) => current().updateRegion(id, patch))

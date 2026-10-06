@@ -3,6 +3,7 @@ import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, NoteContent, RowStatus,
   EncounterFeedback, LogKind, ReviewDecisionKind, RulesEdition, StorylineStatus
 } from './schemas'
+import type { AiChoice } from './aiProviders'
 
 export interface CampaignInfo {
   folder: string
@@ -448,4 +449,27 @@ export interface TravelEstimateView {
   fromName: string | null
   toName: string | null
   toLocationId: string | null
+}
+
+export interface AiProviderSetting {
+  id: string
+  hasKey: boolean
+  /** The model and address the DM last chose for this service. */
+  model: string
+  baseUrl: string
+}
+
+export interface AiSettingsView {
+  /** False when the computer cannot encrypt keys; keys then cannot be saved. */
+  encryption: boolean
+  text: AiChoice
+  image: AiChoice
+  providers: AiProviderSetting[]
+}
+
+/** Text an AI wrote, kept apart from the DM's own until the DM uses it (rules 2 and 10). */
+export interface AiSuggestion {
+  text: string
+  /** "Anthropic Claude · claude-sonnet-5-5" */
+  source: string
 }

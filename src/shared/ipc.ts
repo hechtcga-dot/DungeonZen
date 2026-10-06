@@ -6,7 +6,7 @@ import {
 import type {
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
-  GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView
+  GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion
 } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -104,6 +104,16 @@ export const ipcInputs = {
   'live:view': z.void(),
   'review:view': z.object({ sessionId: Id }),
   'mapscreen:view': z.object({ mapId: Id }),
+  'ai:settings': z.void(),
+  'ai:choose': z.object({
+    kind: z.enum(['text', 'image']), provider: z.string().max(60).nullable(),
+    model: z.string().trim().max(200).optional(), baseUrl: z.string().trim().max(500).optional()
+  }),
+  'ai:setKey': z.object({ provider: z.string().max(60), key: z.string().trim().min(8).max(500) }),
+  'ai:removeKey': z.object({ provider: z.string().max(60) }),
+  'ai:models': z.object({ provider: z.string().max(60), baseUrl: z.string().trim().max(500).optional() }),
+  'ai:test': z.object({ provider: z.string().max(60), model: z.string().trim().max(200), baseUrl: z.string().trim().max(500) }),
+  'ai:sceneText': z.object({ ask: z.string().max(2000) }),
   'region:detail': z.object({ regionId: Id }),
   'region:create': z.object({
     mapId: Id, polygon: Polygon, locationId: Id.optional(), newName: Name.optional(), parentLocationId: Id.nullable().optional()
@@ -218,6 +228,13 @@ export interface IpcOutputs {
   'live:view': LiveView
   'review:view': ReviewView
   'mapscreen:view': MapScreenView
+  'ai:settings': AiSettingsView
+  'ai:choose': void
+  'ai:setKey': void
+  'ai:removeKey': void
+  'ai:models': string[]
+  'ai:test': string
+  'ai:sceneText': AiSuggestion
   'region:detail': RegionDetail
   'region:create': string
   'region:update': void

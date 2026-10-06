@@ -32,6 +32,9 @@ interface BoardState {
   selection: Selection
   search: string
   message: { text: string; isError: boolean } | null
+  /** Settings › AI services is open. */
+  aiSettingsOpen: boolean
+  setAiSettingsOpen(open: boolean): void
 
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
@@ -64,6 +67,8 @@ export const useBoard = create<BoardState>((set, get) => ({
   live: null,
   review: null,
   mapScreen: null,
+  aiSettingsOpen: false,
+  setAiSettingsOpen(open) { set({ aiSettingsOpen: open }) },
   reviewSessionId: null,
   sheetId: null,
   focusEntityId: null,

@@ -17,7 +17,9 @@ a live-session desk, and AI-assisted creation from raw notes.
 - SQLite via better-sqlite3 + Drizzle ORM. One database per campaign.
 - Zustand for UI state. `@xyflow/react` (React Flow) for the board.
 - Zod for all validation, including AI structured outputs.
-- Open5e API for SRD content; Anthropic or OpenAI SDK for AI features.
+- Open5e API for SRD content. AI: many services the DM switches between in
+  Settings › AI services (`src/shared/aiProviders.ts`), called over plain HTTPS
+  by adapters in `src/main/ai/client.ts` (no vendor SDKs).
 
 Status: confirmed by the owner (2026-10-05): Electron, React + Vite (no
 Next.js), SQLite with Drizzle, React Flow. Build tooling is electron-vite.
@@ -94,8 +96,14 @@ must have unit tests before any screen depends on it.
   (top-down, square grid, size in squares, scene facts) and examples; the DM
   can upload their own maps as style references (owner, 2026-10-06).
 
+- AI services: the DM picks the writing service and the battle-map service from
+  drop-down lists and can switch at any time (owner, 2026-10-06). Writing:
+  Claude, ChatGPT, Gemini, OpenRouter, Mistral, Groq, DeepSeek, Grok, Ollama,
+  LM Studio, any OpenAI-compatible address. Maps: OpenAI images, Gemini images,
+  Stability, Replicate, fal.ai, Stable Diffusion on this computer. Add a service
+  by adding a row to `AI_PROVIDERS` (and an adapter only for a new protocol).
+
 ## Open decisions (do not guess; ask)
-- Which image service for battle maps (options given to the owner 2026-10-06)
 - How DM Prep, Live Session, and Player Preview differ on screen (owner unsure, 2026-10-06)
 - Colours for ITEM and HANDOUT cards (placeholders in `src/renderer/entityStyle.ts`)
 
@@ -174,10 +182,21 @@ built.
   from the log (unknown people become "a stranger"), Copy, Save to DM notes;
   Undo whole session (redo brings it back). Decisions are remembered per
   session.
+- AI services (rail: AI, or the start screen): service drop-downs for writing
+  and battle maps, API key per service (encrypted with safeStorage in
+  `userData/ai-keys.json`; refused if the computer cannot encrypt), model with
+  the service's own list (Fetch list), address for local services, Test
+  (writing: one short answer; maps: account or model list, no paid image).
+  Choices live in `userData/profile.json`, app-wide, not in campaigns.
+- AI scene text (Live › Set the scene): Draft with AI / Rework with AI, sent the
+  time, light, moon, the party's place and its notes, who the cards put there
+  and the last log lines (`src/main/ai/scene.ts`); the answer is a blue dashed
+  "AI suggestion" box until the DM uses it (Use this, Add below mine, Try
+  again, Discard); using it is an undoable change.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: AI scene text; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: battle map generation (the services are ready); AI notes import; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, exports (Phase 4), DM Prep/Live/Player modes,
 packaging/installer.

@@ -1,7 +1,8 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, protocol, shell } from 'electron'
+import { app, BrowserWindow, protocol, safeStorage, shell } from 'electron'
 import { registerIpc } from './ipcHandlers'
 import { ProfileStore } from './profile'
+import { KeyStore } from './ai/keys'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -41,7 +42,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')))
+  registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')), new KeyStore(app.getPath('userData'), safeStorage))
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })

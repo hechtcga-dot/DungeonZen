@@ -485,3 +485,27 @@ button.otf-card:hover:not(:disabled) { background-color: #fff6dc; border-color: 
   .live-mat { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'left' 'map' 'party'; }
   .scene-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---- AI services and AI suggestions (rule 10: AI text looks different from the DM's) ---- */
+.ai-settings { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.ai-section { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 3px; background: rgba(255, 250, 236, 0.45); }
+.ai-section-h { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; }
+.ai-section-h .hint { font-family: var(--body, inherit); font-size: 13px; }
+.ai-section select { max-width: 360px; }
+.ai-grid { display: flex; flex-direction: column; gap: 10px; }
+.ai-grid .row.tight input { flex: 1; min-width: 0; }
+.ai-key-saved { align-self: center; color: #2e5b2a; font-weight: 600; }
+.ai-ok { color: #2e5b2a; }
+.link-button { min-height: 0; padding: 0; border: 0; background: transparent; color: var(--wax, #8f2a21); text-decoration: underline; text-underline-offset: 3px; font: inherit; cursor: pointer; }
+.link-button:hover:not(:disabled), .desk-theme .parchment-note .link-button:hover:not(:disabled) { background: transparent; color: var(--ink); }
+.ai-helper { display: flex; flex-direction: column; gap: 6px; }
+.ai-helper .row.tight input { flex: 1; min-width: 0; }
+.ai-uses { margin: 0; font-size: 12px; }
+.ai-off { margin: 0; }
+.ai-suggestion {
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(219, 228, 245, 0.92), rgba(204, 214, 238, 0.92));
+  border: 2px dashed #3b4f8a; border-radius: 4px; color: #1d2747;
+}
+.ai-badge { align-self: flex-start; padding: 2px 8px; border-radius: 3px; background: #3b4f8a; color: #eef2ff; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+.ai-suggestion-text { margin: 0; white-space: pre-wrap; font-family: var(--display); font-size: 16px; line-height: 1.45; }

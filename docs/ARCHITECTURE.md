@@ -9,7 +9,7 @@
 | Board | `@xyflow/react` | Custom card nodes, string edges |
 | DB | SQLite, better-sqlite3, Drizzle | Replaces Prisma (packaging issues) |
 | Validation | Zod | Shared between main and renderer |
-| AI | Anthropic or OpenAI SDK | Main process only |
+| AI | Provider adapters over HTTPS (`src/main/ai/client.ts`), DM picks the service | Main process only |
 | Content | Open5e API | SRD only; cached as local copies |
 
 ## 2. Storage

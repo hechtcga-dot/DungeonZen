@@ -70,6 +70,12 @@ export function StartScreen() {
         )}
         <button onClick={() => void attempt(() => call('campaign:openDialog', undefined))}>Open a campaign folder…</button>
       </section>
+
+      <section className="start-panel" aria-labelledby="ai-heading">
+        <h2 id="ai-heading">AI services</h2>
+        <p className="hint">Optional. Choose which service writes scene text and which draws battle maps: Claude, ChatGPT, Gemini, free ones on this computer and more.</p>
+        <button onClick={() => useBoard.getState().setAiSettingsOpen(true)}>Choose AI services…</button>
+      </section>
     </main>
     </div>
   )

@@ -26,6 +26,8 @@ import type {
   SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
 } from '../../shared/types'
 import { advise } from '../advisor'
+import type { SceneContext } from '../ai/scene'
+import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
@@ -1455,6 +1457,39 @@ export class Campaign {
       plotPoints: here.filter((e) => ['QUEST', 'CLUE', 'ITEM', 'HANDOUT'].includes(e.type) || (e.type === 'SCENE' && !/^encounter/i.test(e.name))).map(brief),
       notes: [loc.attributes.description, loc.attributes.notes].filter((x) => typeof x === 'string' && x.trim()).join('\n\n'),
       subRegions: all.filter((e) => e.parentId === r.locationId && e.type === 'LOCATION').map((e) => ({ locationId: e.id, name: e.name }))
+    }
+  }
+
+  /** What the AI scene writer is told: time, light, moon, where the party is and who is there. */
+  sceneContext(): SceneContext {
+    const nowMin = this.info().clockMin
+    const moon = moonOn(nowMin, Number(this.setting('moon_offset_days') ?? 0))
+    // The party's latest position on any map.
+    const party = this.maps().map((m) => this.partyAt(m.id, nowMin)).filter((p): p is PartyMarker => !!p)
+      .sort((a, b) => a.atMin - b.atMin).at(-1) ?? null
+    let place: SceneContext['place'] = null
+    let present: SceneContext['present'] = []
+    if (party?.locationId) {
+      const loc = this.db.select().from(entity).where(eq(entity.id, party.locationId)).get()
+      const region = this.db.select().from(regionShape).where(and(eq(regionShape.locationId, party.locationId), eq(regionShape.status, 'active'))).get()
+      const detail = region ? this.regionDetail(region.id) : null
+      const parent = loc?.parentId ? this.db.select({ name: entity.name }).from(entity).where(eq(entity.id, loc.parentId)).get()?.name ?? null : null
+      if (loc) {
+        const notes = [loc.attributes.description, loc.attributes.notes].filter((x): x is string => typeof x === 'string' && !!x.trim()).join('\n')
+        place = { name: loc.name, notes, inside: parent }
+      }
+      if (detail) present = [...detail.hereNow, ...detail.plotPoints].filter((e) => e.type !== 'PC').map((e) => ({ name: e.name, type: e.type }))
+    }
+    const live = this.live()
+    return {
+      campaignName: this.info().name,
+      when: formatClock(nowMin),
+      light: skyAt(nowMin).light,
+      moon: moon.name,
+      place,
+      present,
+      recent: [...live.log].reverse().map((l) => [l.kind, l.entityName, l.text].filter(Boolean).join(': ')),
+      current: live.session?.sceneText ?? ''
     }
   }
 

@@ -9,6 +9,7 @@ const ICONS = {
   library: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-1 3 15-3.5 1z" />,
   timeline: <><path d="M3 6h10M7 12h12M3 18h8" /><path d="M16 3v18" strokeDasharray="2 2" /></>,
   live: <><circle cx="12" cy="12" r="3" /><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a12 12 0 0 0 0 17M20.5 3.5a12 12 0 0 1 0 17" /></>,
+  ai: <><path d="M12 3l1.8 4.6L18.5 9.5l-4.7 1.9L12 16l-1.8-4.6L5.5 9.5l4.7-1.9z" /><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></>,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
 }
 
@@ -21,7 +22,7 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
 
 /** The dark iron-and-wood rail down the left of the desk style screens. */
 export function DeskRail() {
-  const { screen, goTo, closeCampaign, undo, redo } = useBoard()
+  const { screen, goTo, closeCampaign, undo, redo, setAiSettingsOpen } = useBoard()
 
   // Same undo shortcuts as the top bar on the other screens.
   useEffect(() => {
@@ -51,6 +52,9 @@ export function DeskRail() {
       {item('timeline', 'Timeline')}
       {item('library', 'Library')}
       <span className="spacer" />
+      <button className="rail-item" onClick={() => setAiSettingsOpen(true)} title="Choose AI services for writing and battle maps">
+        <Icon name="ai" /><span>AI</span>
+      </button>
       <button className="rail-item" onClick={() => void closeCampaign()} title="Close this campaign">
         <Icon name="close" /><span>Close</span>
       </button>

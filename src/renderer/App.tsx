@@ -9,6 +9,7 @@ import { MapScreen } from './screens/MapScreen'
 import { TimelineScreen } from './screens/TimelineScreen'
 import { LiveScreen } from './screens/LiveScreen'
 import { ReviewScreen } from './screens/ReviewScreen'
+import { AiSettingsDialog } from './components/AiSettingsDialog'
 
 export function App() {
   const info = useBoard((s) => s.info)
@@ -34,6 +35,7 @@ export function App() {
                 : screen === 'live' ? <LiveScreen />
                 : screen === 'review' ? <ReviewScreen />
                 : <BoardScreen />}
+      <AiSettingsDialog />
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
           {message.text}
