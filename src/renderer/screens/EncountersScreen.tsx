@@ -89,7 +89,8 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
   const [roll20, setRoll20] = useState(false)
   const [pdf, setPdf] = useState(false)
   const d = e.difficulty
-  const max = Math.max(d.budgets.high * 1.35, d.totalXp * 1.05, 1)
+  // The scale stops at 1.5 × the high budget so the marks stay readable; more than that fills the bar.
+  const max = Math.max(d.budgets.high * 1.5, 1)
   const pct = (x: number) => `${Math.min(100, (x / max) * 100)}%`
   const targetBudget = d.budgets[e.target]
 
@@ -116,7 +117,7 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
             <option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option>
           </select>
         </div>
-        <div className="field">
+        <div className="field enc-map-field">
           <label htmlFor="enc-map">Battle map</label>
           <div className="row tight">
             <select id="enc-map" value={e.battleMapId ?? ''} onChange={(ev) => up({ battleMapId: ev.target.value || null })}>
@@ -124,6 +125,10 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
               {v.battleMaps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
             <button className="ink-button" onClick={() => setBattleMapOpen(true)}>Draw…</button>
+            <button className="ink-button" title="Use a battle map picture you already have" onClick={async () => {
+              const m = await act('battlemap:importDialog', { cols: 20 })
+              if (m) { up({ battleMapId: m.id }); say(`Imported ${m.name} with a 20-square grid (change it on the Map under Scale and grid).`) }
+            }}>Import…</button>
           </div>
         </div>
       </div>

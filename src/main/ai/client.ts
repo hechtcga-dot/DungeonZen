@@ -137,13 +137,20 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
     case 'gemini-image': {
       const parts: unknown[] = [{ text: `${req.prompt}\nAspect ratio ${aspect}.` }]
       for (const ref of refs) parts.push({ inlineData: { mimeType: ref.mime, data: ref.bytes.toString('base64') } })
-      const body = await call(r, f, `${r.baseUrl}/models/${encodeURIComponent(r.model)}:generateContent`, {
+      const ask = (p: unknown[]) => call(r, f, `${r.baseUrl}/models/${encodeURIComponent(r.model)}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': r.key ?? '' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } })
+        body: JSON.stringify({ contents: [{ role: 'user', parts: p }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } })
       }, IMAGE_TIMEOUT)
-      const img = geminiParts(body).find((p) => p.inlineData?.data)
-      return b64Image(img?.inlineData?.data, r, img?.inlineData?.mimeType)
+      let body = await ask(parts)
+      let img = geminiParts(body).find((p) => p.inlineData?.data)
+      // Gemini sometimes answers in words only; ask once more, plainly for the picture.
+      if (!img && !geminiBlock(body)) {
+        body = await ask([{ text: `Generate this image now (reply with the image, not text): ${req.prompt}\nAspect ratio ${aspect}.` }, ...parts.slice(1)])
+        img = geminiParts(body).find((p) => p.inlineData?.data)
+      }
+      if (!img) throw new AiError(geminiNoImage(body, r))
+      return b64Image(img.inlineData?.data, r, img.inlineData?.mimeType)
     }
     case 'stability': {
       const form = new FormData()
@@ -293,6 +300,30 @@ function geminiParts(body: Record<string, unknown>): Array<{ text?: string; inli
   return (c?.content?.parts ?? []) as Array<{ text?: string; inlineData?: { data?: string; mimeType?: string } }>
 }
 
+/** Why Gemini blocked a request, if it did. */
+function geminiBlock(body: Record<string, unknown>): string | null {
+  const block = (body.promptFeedback as { blockReason?: string } | undefined)?.blockReason
+  const finish = (body.candidates as Array<{ finishReason?: string }> | undefined)?.[0]?.finishReason
+  if (block) return block
+  if (finish && /SAFETY|PROHIBITED|BLOCKLIST|RECITATION|SPII|IMAGE_OTHER|NO_IMAGE/.test(finish)) return finish
+  return null
+}
+
+/** A plain explanation of why no picture came back, and what to do about it. */
+export function geminiNoImage(body: Record<string, unknown>, r: Resolved): string {
+  const block = geminiBlock(body)
+  if (block) {
+    return `${r.info.name} refused this picture (${block}): its safety filter objected to something in the description. ` +
+      'Open "What the AI is told", remove anything violent, gory or about real people or brands, and draw again.'
+  }
+  const said = geminiParts(body).map((p) => p.text ?? '').join(' ').trim()
+  if (!/image/i.test(r.model)) {
+    return `The model "${r.model}" only writes text, so it cannot draw. In Settings › AI services, set the battle map model to an image model such as gemini-2.5-flash-image.`
+  }
+  return `${r.info.name} answered in words instead of a picture${said ? `: "${said.slice(0, 200)}"` : ''}. ` +
+    'Draw again; if it keeps happening, shorten the description, or check in Google AI Studio that image generation is enabled for your key (it needs billing turned on).'
+}
+
 function textOf(text: string | null | undefined, r: Resolved): string {
   if (!text || !text.trim()) throw new AiError(`${r.info.name} sent back an empty answer. Try again or choose another model.`)
   return text.trim()
@@ -341,6 +372,9 @@ async function call(r: Resolved, f: Fetch, url: string, init: RequestInit, timeo
 function statusMessage(status: number, r: Resolved): string {
   if (status === 401 || status === 403) return `${r.info.name} refused the API key`
   if (status === 404) return `${r.info.name} does not know model “${r.model}” or the address is wrong`
+  if (status === 429 && r.info.protocol === 'gemini-image') {
+    return `${r.info.name} says the key has no image allowance left. Free Gemini keys cannot make images: turn on billing for the key in Google AI Studio, or wait and try again`
+  }
   if (status === 402 || status === 429) return `${r.info.name} says the account is out of credit or busy`
   if (status >= 500) return `${r.info.name} had a problem on its side (${status}); try again later`
   return `${r.info.name} turned the request down (${status})`

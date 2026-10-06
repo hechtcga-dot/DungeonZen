@@ -198,6 +198,26 @@ describe('battle map services', () => {
     expect(parts[2].inlineData.mimeType).toBe('image/jpeg')
   })
 
+  it('Gemini images: asks once more after a words-only answer, then explains', async () => {
+    const words = json({ candidates: [{ content: { parts: [{ text: 'I will create that map for you.' }] }, finishReason: 'STOP' }] })
+    const pic = json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] } }] })
+    const a = fakeFetch(words, pic)
+    expect((await generateImage(pick('gemini-image'), { prompt }, a.f)).bytes.equals(png)).toBe(true)
+    expect(a.sent).toHaveLength(2)
+    const b = fakeFetch(json({ candidates: [{ content: { parts: [{ text: 'Sure.' }] } }] }), json({ candidates: [{ content: { parts: [{ text: 'Sure!' }] } }] }))
+    await expect(generateImage(pick('gemini-image'), { prompt }, b.f)).rejects.toThrow(/answered in words.*Sure!.*billing/)
+    // Blocked by the safety filter: no second try, and says what to change.
+    const c = fakeFetch(json({ candidates: [{ finishReason: 'IMAGE_SAFETY' }] }))
+    await expect(generateImage(pick('gemini-image'), { prompt }, c.f)).rejects.toThrow(/refused this picture \(IMAGE_SAFETY\).*What the AI is told/)
+    expect(c.sent).toHaveLength(1)
+    // A text-only model chosen for maps.
+    const d = fakeFetch(json({ candidates: [{ content: { parts: [{ text: 'A map.' }] } }] }), json({ candidates: [{ content: { parts: [{ text: 'A map.' }] } }] }))
+    await expect(generateImage({ ...pick('gemini-image'), model: 'gemini-2.5-flash' }, { prompt }, d.f)).rejects.toThrow(/only writes text/)
+    // Free keys have no image allowance.
+    const e = fakeFetch(new Response('{"error":{"message":"Quota exceeded"}}', { status: 429 }))
+    await expect(generateImage(pick('gemini-image'), { prompt }, e.f)).rejects.toThrow(/billing/)
+  })
+
   it('Stability: image bytes back; the style endpoint when there is an example', async () => {
     const img = () => new Response(png, { status: 200, headers: { 'content-type': 'image/png' } })
     const { f, sent } = fakeFetch(img(), img())

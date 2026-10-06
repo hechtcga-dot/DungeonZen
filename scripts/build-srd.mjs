@@ -84,11 +84,12 @@ const monsters = creatures.map(({ pk, fields: f }) => ({
   key: pk,
   name: f.name,
   statblock: {
-    size: cap(f.size ?? ''),
+    // Open5e lists the SRD 5.2 NPC humanoids (bandit, guard, captain…) as Small; the SRD says "Medium or Small".
+    size: f.type === 'humanoid' && f.size === 'small' ? 'Medium or Small' : cap(f.size ?? ''),
     creatureType: f.type ?? '',
     alignment: f.alignment ?? '',
     ac: String(f.armor_class ?? ''),
-    acDetail: f.armor_detail ?? '',
+    acDetail: f.type === 'humanoid' && f.armor_detail === 'natural armor' ? '' : f.armor_detail ?? '',
     hp: String(f.hit_points ?? ''),
     hitDice: f.hit_dice ?? '',
     speed: speedText(f),

@@ -204,6 +204,7 @@ export const ipcInputs = {
     prompt: z.string().max(4000), source: z.string().max(300)
   }),
   'battlemap:discard': z.object({ pendingId: z.string().max(80) }),
+  'battlemap:importDialog': z.object({ cols: z.number().int().min(GRID_MIN).max(GRID_MAX) }),
   'map:setGrid': z.object({ mapId: Id, cols: z.number().int().min(GRID_MIN).max(GRID_MAX).nullable() }),
   'world:generate': z.object({
     seed: z.number().int().min(0).max(2147483647), size: z.enum(WORLD_SIZES), land: z.number().min(0.3).max(0.75),
@@ -386,6 +387,7 @@ export interface IpcOutputs {
   'battlemap:draw': PendingImageView & { source: string }
   'battlemap:keep': MapView
   'battlemap:discard': void
+  'battlemap:importDialog': MapView | null
   'map:setGrid': void
   'world:generate': PendingImageView & { regions: PlaceShape[]; source: string }
   'world:draw': PendingImageView & { source: string }

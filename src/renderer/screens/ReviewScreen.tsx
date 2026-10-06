@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BackButton } from '../components/BackButton'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { TopBar } from '../components/TopBar'
@@ -23,13 +24,13 @@ export function ReviewScreen() {
 }
 
 function Review({ r }: { r: ReviewView }) {
-  const { act, goTo, say } = useBoard()
+  const { act, say } = useBoard()
   const [confirmUndo, setConfirmUndo] = useState(false)
   const open = r.proposals.filter((p) => !p.decision && (p.kind !== 'act' || p.outcomeId)).length
   return (
     <>
       <div className="page-head">
-        <button className="link" onClick={() => goTo('live')}>Back to the live desk</button>
+        <BackButton />
         <div className="page-title">
           <h1>Session {r.session.number} review</h1>
           <span className="source-tag">{formatClock(r.during.startMin)} to {formatClock(r.during.endMin)} · {r.during.entries} log entr{r.during.entries === 1 ? 'y' : 'ies'}</span>

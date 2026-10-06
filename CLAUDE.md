@@ -71,7 +71,7 @@ Bump `package.json` + `package-lock.json` version. Push branch `claude/friendly-
 15. Run encounter (combat tracker): initiative, rounds/turns, HP, conditions with durations, everything trackable; morale/tactics messages (flee at half numbers, guards stay while commander present, Guard Captain boosts guards); double-click a combatant opens its stat block.
 16. Encounter bugs from screenshot: XP meter labels pile up when XP far above budget; Battle map drop-down squashed; SRD captains show size "Small" (2024: Medium or Small).
 Owner's answers: hide applies to every board. Measurements stored metric (km, km/h, m; grid square 1.5 m), display setting metric (default) or imperial converts; free-text stat blocks keep their words, display converts ft/miles patterns. Split PC travel never moves the clock (clock = party only); split PC counts as "here" in its own region (default, not asked). AI encounter monsters stay in the encounter until "Put on board".
-Open: publish 1.1.0 now or fold into 1.2.0.
+Combat tracker: no dice, no initiative (DM orders the list); morale/tactics from local rules + optional Ask AI; PC HP in the tracker is manual, not linked to Live. 1.1.0 folds into 1.2.0. Owner said build (2026-10-06).
 
 ## Remind the owner (until answered)
 - Player preview in a second window (TV): put off by owner; ask again later.

@@ -637,8 +637,11 @@ export class Campaign {
     return next
   }
 
-  /** Copies an image into assets/maps and makes it the desk map. */
-  importMap(sourceFile: string, name?: string): MapView {
+  /**
+   * Copies an image into assets/maps. A world map becomes the desk map; a battle map
+   * gets a square grid (`gridCols` squares across). One undo step.
+   */
+  importMap(sourceFile: string, name?: string, battle?: { gridCols: number }): MapView {
     const ext = extname(sourceFile).toLowerCase()
     if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Maps must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
     const id = randomUUID()
@@ -647,11 +650,12 @@ export class Campaign {
     copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
     const size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
     const mapName = name?.trim() || basename(sourceFile, extname(sourceFile))
-    this.log.run(`Imported map ${mapName}`, (w) => {
+    this.log.run(`Imported ${battle ? 'battle ' : ''}map ${mapName}`, (w) => {
       w.insert('map', {
         id, name: mapName, imagePath: rel, width: size?.width ?? null, height: size?.height ?? null,
-        gridSize: null, status: 'active'
+        gridSize: null, status: 'active', ...(battle ? { kind: 'battle', gridCols: battle.gridCols } : {})
       })
+      if (battle) return
       if (w.get('campaign_settings', 'active_map_id')) w.update('campaign_settings', 'active_map_id', { value: id })
       else w.insert('campaign_settings', { key: 'active_map_id', value: id })
     })

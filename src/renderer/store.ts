@@ -12,6 +12,11 @@ export type Selection =
 export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide'
 /** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
 export type Mode = 'prep' | 'live' | 'players'
+export const SCREEN_NAMES: Record<Screen, string> = {
+  desk: 'the desk', board: 'the board', map: 'the map', timeline: 'the timeline', live: 'the live desk', review: 'the review',
+  sheet: 'the previous card', library: 'the library', prep: 'session prep', players: 'player preview', encounters: 'encounters',
+  import: 'import notes', guide: 'getting started'
+}
 export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
 
 interface BoardState {
@@ -43,6 +48,9 @@ interface BoardState {
   reviewSessionId: string | null
   openReview(sessionId: string): Promise<void>
   sheetId: string | null
+  /** Where Back goes: the screens the DM came from (sheet, review). */
+  backStack: Array<{ screen: Screen; sheetId: string | null }>
+  goBack(): Promise<void>
   /** A card to bring into view the next time the board shows. */
   focusEntityId: string | null
   panel: 'inspector' | 'history'
@@ -104,6 +112,13 @@ export const useBoard = create<BoardState>((set, get) => ({
   setBattleMapOpen(open) { set({ battleMapOpen: open }) },
   reviewSessionId: null,
   sheetId: null,
+  backStack: [],
+  async goBack() {
+    const stack = get().backStack
+    const prev = stack.at(-1) ?? { screen: 'board' as Screen, sheetId: null }
+    set({ backStack: stack.slice(0, -1), screen: prev.screen, sheetId: prev.sheetId, sheet: null, mode: prev.screen === 'live' || prev.screen === 'review' ? 'live' : prev.screen === 'players' ? 'players' : get().mode })
+    await get().refresh()
+  },
   focusEntityId: null,
   panel: 'inspector',
   selection: null,
@@ -131,17 +146,19 @@ export const useBoard = create<BoardState>((set, get) => ({
   goTo(screen) {
     // The map belongs to every mode; other screens belong to one.
     const mode: Mode = screen === 'map' ? get().mode : screen === 'live' ? 'live' : screen === 'players' ? 'players' : 'prep'
-    set({ screen, mode })
+    set({ screen, mode, backStack: [] })
     void get().refresh()
   },
 
   async openReview(sessionId) {
-    set({ screen: 'review', reviewSessionId: sessionId, review: null })
+    set({ screen: 'review', reviewSessionId: sessionId, review: null, backStack: [...get().backStack, { screen: get().screen, sheetId: get().sheetId }].slice(-20) })
     await get().refresh()
   },
 
   async openSheet(entityId) {
-    set({ screen: 'sheet', sheetId: entityId, sheet: null })
+    const { screen, sheetId, backStack } = get()
+    if (screen === 'sheet' && sheetId === entityId) return
+    set({ screen: 'sheet', sheetId: entityId, sheet: null, backStack: [...backStack, { screen, sheetId }].slice(-20) })
     await get().refresh()
   },
 

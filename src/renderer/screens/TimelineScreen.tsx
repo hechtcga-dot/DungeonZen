@@ -101,9 +101,11 @@ function Timeline({ t }: { t: TimelineView }) {
                 {t.storylines.map((s) => (
                   <div key={s.storylineId} className="tl-lane" style={{ height: LANE_H }}>
                     <div className="tl-lane-head" style={{ width: LANE_HEAD }}>
-                      <button className="tl-lane-title" onClick={() => setEditStory(s)} title="Edit storyline">{s.title}</button>
-                      <span className="tl-lane-kind">{s.isMajor ? 'Major' : 'Minor'}</span>
-                      <span className={`tl-status st-${s.projectedStatus}`}>{STORYLINE_STATUS_LABELS[s.projectedStatus]}</span>
+                      <button className="tl-lane-title" onClick={() => setEditStory(s)} title={`${s.title} (edit storyline)`}>{s.title}</button>
+                      <span className="tl-lane-row">
+                        <span className="tl-lane-kind">{s.isMajor ? 'Major' : 'Minor'}</span>
+                        <span className={`tl-status st-${s.projectedStatus}`}>{STORYLINE_STATUS_LABELS[s.projectedStatus]}</span>
+                      </span>
                       {s.projectedStatus !== s.status && <span className="tl-lane-kind">after a trigger (now: {STORYLINE_STATUS_LABELS[s.status]})</span>}
                       <button className="tl-add" onClick={() => setAdding({ storylineId: s.storylineId, startMin: Math.floor(t.nowMin / MINUTES_PER_DAY) * MINUTES_PER_DAY })}
                         aria-label={`Add an act to ${s.title}`}>+ Act</button>

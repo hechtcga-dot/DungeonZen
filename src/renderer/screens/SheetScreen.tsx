@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { BackButton } from '../components/BackButton'
 import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
@@ -38,7 +39,7 @@ export function SheetScreen() {
 }
 
 function Sheet({ sheet }: { sheet: SheetView }) {
-  const { act, goTo, showOnBoard, openSheet } = useBoard()
+  const { act, showOnBoard, openSheet } = useBoard()
   const [tab, setTab] = useState<Tab>('sheet')
   const [colourDraft, setColourDraft] = useState('')
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
@@ -55,7 +56,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   return (
     <>
       <div className="page-head">
-        <button className="link" onClick={() => goTo('board')}>Back to board</button>
+        <BackButton />
         <div className="page-title">
           <span className="badge" style={{ background: colourOf(e) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
           <h1>{e.name}</h1>

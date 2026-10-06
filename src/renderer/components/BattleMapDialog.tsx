@@ -129,6 +129,14 @@ export function BattleMapDialog() {
     say(`Kept ${m.name}: it is on the Map screen. Undo removes it.`)
     goTo('map')
   }
+  const importOwn = async () => {
+    const m = await act('battlemap:importDialog', { cols: sizeOk ? cols : 20 })
+    if (!m) return
+    close()
+    await act('map:setActive', { mapId: m.id })
+    say(`Imported ${m.name} with a ${m.gridCols}-square grid: change it under Scale and grid. Undo removes it.`)
+    goTo('map')
+  }
   const addExamples = async () => {
     const added = await act('style:addDialog', undefined)
     if (added?.length) {
@@ -150,6 +158,7 @@ export function BattleMapDialog() {
           <p>Battle maps are drawn by an AI image service. None is chosen yet.</p>
           <div className="dz-actions">
             <button onClick={close}>Close</button>
+            <button onClick={() => void importOwn()}>Import a battle map…</button>
             <button className="primary" onClick={() => setAiSettingsOpen(true)}>Choose an image service…</button>
           </div>
         </div>
@@ -181,7 +190,8 @@ export function BattleMapDialog() {
         </div>
       ) : (
         <div className="dz-form battle-form">
-          <p className="hint">Drawn by <strong>{service.info.name}</strong> ({service.model || 'default model'}). <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Change…</button></p>
+          <p className="hint">Drawn by <strong>{service.info.name}</strong> ({service.model || 'default model'}). <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Change…</button>
+            {' · '}Already have one? <button className="link-button" onClick={() => void importOwn()}>Import a battle map…</button></p>
           <div className="battle-cols">
             <div className="dz-form">
               <div className="field">
@@ -268,7 +278,15 @@ export function BattleMapDialog() {
             <textarea rows={8} value={prompt} maxLength={4000} aria-label="What the AI is told" onChange={(e) => setOwnPrompt(e.target.value)} />
             {ownPrompt !== null && <button className="link-button" onClick={() => setOwnPrompt(null)}>Go back to the generated text</button>}
           </details>
-          {error && <p className="field-error" role="alert">{error}</p>}
+          {error && (
+            <div className="field-error battle-error" role="alert">
+              <span>{error}</span>
+              <span className="row tight">
+                <button disabled={busy || !sizeOk} onClick={() => void draw()}>{busy ? 'Drawing…' : 'Try again'}</button>
+                <button onClick={() => setAiSettingsOpen(true)}>AI services…</button>
+              </span>
+            </div>
+          )}
           <div className="dz-actions">
             <span className="hint">Drawing can take up to a minute. Online services charge per image.</span>
             <button onClick={close}>Cancel</button>
