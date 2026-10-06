@@ -5,6 +5,7 @@ import type {
 } from './schemas'
 import type { AiChoice } from './aiProviders'
 import type { Adaptation, Difficulty2024 } from './encounter'
+import type { Biome, PlaceKind } from './places'
 
 export interface CampaignInfo {
   folder: string
@@ -12,6 +13,8 @@ export interface CampaignInfo {
   rulesEdition: RulesEdition
   clockMin: number
   globalBoardId: string
+  /** A new campaign: show the getting started guide until the DM finishes or skips it. */
+  gettingStarted: boolean
 }
 
 export interface RecentCampaign {
@@ -435,6 +438,9 @@ export interface RegionView {
   polygon: Array<[number, number]>
   parentLocationId: string | null
   colour: string | null
+  /** From the Location card: region, city, town… and the land's biome. */
+  kind: PlaceKind | null
+  biome: Biome | null
 }
 
 export interface PartyMarker {

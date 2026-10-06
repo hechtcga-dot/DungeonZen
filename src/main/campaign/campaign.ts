@@ -30,12 +30,25 @@ import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
 import { rowsFor } from '../../shared/battlemap'
+import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/places'
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
 import { adaptation, RATING_LABELS, rateEncounter, xpForCr, type FightFeedback } from '../../shared/encounter'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
 export const DB_FILE = 'campaign.db'
 export const ASSETS_DIR = 'assets'
+export interface NewRegion {
+  name: string
+  kind: PlaceKind
+  biome: Biome | null
+  polygon: Point[]
+  /** Index of an earlier region in the same list that this one lies inside. */
+  parent?: number | null
+  summary?: string
+  description?: string
+  /** Set when an AI proposed it (shown as such on the card). */
+  source?: string
+}
 export type SrdCopy = { type: 'MONSTER' | 'ITEM'; name: string; attributes: EntityAttributes; abilities: NewAbility[] }
 const PREP_LABELS: Record<PrepKind, string> = { discovery: 'discovery', scene: 'scene', clue: 'clue', npc: 'key NPC', threat: 'threat' }
 export type PrepItemPatch = Partial<Pick<PrepItemRow,
@@ -57,7 +70,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules'
+  | 'heading_location_id' | 'house_rules' | 'getting_started'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -94,7 +107,9 @@ export class Campaign {
       tx.insert(campaignSetting).values([
         { key: 'name', value: name },
         { key: 'rules_edition', value: DEFAULT_RULES_EDITION },
-        { key: 'clock_min', value: DEFAULT_CLOCK_MIN }
+        { key: 'clock_min', value: DEFAULT_CLOCK_MIN },
+        // A new campaign opens on the getting started guide (world map, regions, notes).
+        { key: 'getting_started', value: 'pending' }
       ]).run()
       tx.insert(board).values({ id: randomUUID(), name: 'Global', storylineId: null }).run()
     })
@@ -122,7 +137,8 @@ export class Campaign {
       name: String(settings.get('name') ?? 'Untitled campaign'),
       rulesEdition: (settings.get('rules_edition') as RulesEdition) ?? DEFAULT_RULES_EDITION,
       clockMin: Number(settings.get('clock_min') ?? 0),
-      globalBoardId: this.globalBoard().id
+      globalBoardId: this.globalBoard().id,
+      gettingStarted: settings.get('getting_started') === 'pending'
     }
   }
 
@@ -1413,7 +1429,9 @@ export class Campaign {
       if (!loc || loc.status === 'defunct') return []
       return [{
         id: r.id, locationId: r.locationId, name: loc.name, polygon: r.polygon, parentLocationId: loc.parentId,
-        colour: typeof loc.attributes.colour === 'string' ? loc.attributes.colour : null
+        colour: typeof loc.attributes.colour === 'string' ? loc.attributes.colour : null,
+        kind: isPlaceKind(loc.attributes.place_kind) ? loc.attributes.place_kind : null,
+        biome: isBiome(loc.attributes.biome) ? loc.attributes.biome : null
       }]
     })
   }
@@ -1536,6 +1554,40 @@ export class Campaign {
     return id
   }
 
+  /**
+   * Adds many regions at once (a generated world, or regions an AI found), each with a new
+   * Location card; `parent` is the index of an earlier region it lies inside. One undo step.
+   */
+  addRegions(mapId: string, regions: NewRegion[], label: string): string[] {
+    this.mapRow(mapId)
+    const ids: string[] = []
+    this.log.run(label, (w) => { ids.push(...this.insertRegions(w, mapId, regions)) })
+    return ids
+  }
+
+  private insertRegions(w: Writer, mapId: string, regions: NewRegion[]): string[] {
+    const locs: string[] = []
+    const ids: string[] = []
+    regions.forEach((r, i) => {
+      if (r.polygon.length < 3) throw new Error(`Region ${r.name} needs at least three points`)
+      const parentId = r.parent != null && r.parent < i ? locs[r.parent] : null
+      const loc = this.insertEntity(w, {
+        boardId: this.globalBoard().id, type: 'LOCATION', name: r.name.trim() || 'Unnamed place', position: this.freeGlobalSpot(),
+        attributes: {
+          place_kind: r.kind, ...(r.biome ? { biome: r.biome } : {}),
+          ...(r.summary ? { summary: r.summary } : {}), ...(r.description ? { description: r.description } : {}),
+          ...(r.source ? { imported: { ai: r.source, basis: 'inferred' } } : {})
+        }
+      })
+      if (parentId) w.update('entity', loc, { parentId })
+      const id = randomUUID()
+      w.insert('region_shape', { id, mapId, locationId: loc, polygon: r.polygon, status: 'active' })
+      locs.push(loc)
+      ids.push(id)
+    })
+    return ids
+  }
+
   updateRegion(id: string, patch: { polygon?: Point[]; locationId?: string; parentLocationId?: string | null }): void {
     const r = this.db.select().from(regionShape).where(eq(regionShape.id, id)).get()
     if (!r) throw new Error(`No region with id ${id}`)
@@ -1647,6 +1699,38 @@ export class Campaign {
       })
     })
     return toMapView(this.mapRow(id))
+  }
+
+  /**
+   * Keeps a world map that was made for the getting started guide (the map maker, or an AI
+   * drawing): it becomes the desk map, with its regions and their Location cards. One undo step.
+   */
+  keepWorldMap(input: { pendingId: string; name: string; widthMiles: number | null; source: string; prompt: string | null; regions: NewRegion[] }): MapView {
+    const from = this.pendingFile(input.pendingId)
+    const id = randomUUID()
+    const rel = `maps/${id}${extname(input.pendingId)}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'maps'), { recursive: true })
+    renameSync(from, join(this.folder, ASSETS_DIR, rel))
+    const size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
+    this.log.run(`Kept world map ${input.name}`, (w) => {
+      w.insert('map', {
+        id, name: input.name, imagePath: rel, width: size?.width ?? null, height: size?.height ?? null, gridSize: null,
+        status: 'active', kind: 'world', widthMiles: input.widthMiles, source: input.source, prompt: input.prompt
+      })
+      if (w.get('campaign_settings', 'active_map_id')) w.update('campaign_settings', 'active_map_id', { value: id })
+      else w.insert('campaign_settings', { key: 'active_map_id', value: id })
+      this.insertRegions(w, id, input.regions)
+    })
+    return toMapView(this.mapRow(id))
+  }
+
+  /** The map's picture file and size (for an AI to look at). */
+  mapImage(mapId: string): { file: string; width: number; height: number } {
+    const m = this.mapRow(mapId)
+    const file = join(this.folder, ASSETS_DIR, m.imagePath)
+    const size = m.width && m.height ? { width: m.width, height: m.height } : imageSize(readFileSync(file))
+    if (!size) throw new Error('Could not read the size of this map picture')
+    return { file, width: size.width, height: size.height }
   }
 
   /** Throws away a drawn image the DM did not keep (it was never campaign data). */

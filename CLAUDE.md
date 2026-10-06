@@ -123,7 +123,7 @@ must have unit tests before any screen depends on it.
 
 - Windows installer must install without admin rights (owner, 2026-10-06): NSIS per-user
   (`electron-builder.yml`, `build/installer.nsh` forces current-user mode), asInvoker,
-  default `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU uninstall entry. Version 1.0.0.
+  default `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU uninstall entry. Version 1.1.0.
 
 ## Open decisions (do not guess; ask)
 - None at the moment.
@@ -315,10 +315,26 @@ built.
   (per-user folder, shortcuts, HKCU only); Wine needs a build with
   `customCheckAppRunning` emptied because it has no PowerShell (test only).
   Not code-signed yet: SmartScreen warns.
+- Getting started guide (1.1.0; `GuideScreen.tsx`, screen 'guide'): a new campaign
+  (setting `getting_started` = pending, `CampaignInfo.gettingStarted`) opens on it;
+  Desk › Getting started opens it again. Step 1 world map: Import a map picture,
+  Make one here (`src/main/worldgen.ts`: offline, seeded; Voronoi cells, noise
+  elevation, biomes by height/moisture/temperature and climate, smoothed; regions
+  are merged cells per biome, open sea split N/E/S/W, settlements as small hexagons
+  inside their land; painted to PNG by `src/main/png.ts`), or Have an AI draw one
+  (`worldMapPrompt`, image service). The picture waits in `assets/pending`; Keep
+  (`Campaign.keepWorldMap`) makes it the desk map with all its regions and Location
+  cards (one undo step). Step 2 regions: Find regions with AI (`src/main/ai/regions.ts`:
+  the map, made smaller, goes to the writing AI; outlines on a 0–1000 grid, parsed,
+  towns put inside their land) as ticked proposals, Add selected = `addRegions`, one
+  undo step; or Draw them myself (Map). Step 3: Import notes, the board or the desk.
+  Place kinds and biomes (`src/shared/places.ts`) are on Location cards
+  (`place_kind`, `biome`), editable in the Map region panel; the map colours regions
+  by them and marks settlements; names are placed off each other (`src/shared/labels.ts`).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: rivers and roads on made maps; re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, code signing, auto-update; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
-with tokens. Phases 1 to 5 and the Windows installer (1.0.0) are built.
+with tokens. Phases 1 to 5, the Windows installer (1.0.0) and the getting started guide (1.1.0) are built.

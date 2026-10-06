@@ -57,6 +57,7 @@ function Desk({ desk }: { desk: DeskView }) {
           <h1>{info?.name}</h1>
         </div>
         <div className="desk-head-actions">
+          <button className="brass" onClick={() => goTo('guide')} title="World map, regions and importing notes, step by step">Getting started</button>
           <button className="brass" onClick={() => setSettingsOpen(true)}>Campaign settings</button>
           <button className="brass light-toggle" aria-pressed={lighting} onClick={() => setLighting(!lighting)}
             title="Day and night lighting follows the campaign clock; candles burn at night">

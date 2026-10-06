@@ -186,6 +186,17 @@ commands. `group_id` lets a session or an import undo as one step.
   `log_entry.encounter_id` links a fight to the encounter that was run.
   Settings: `house_rules`. Card attributes used by exports: HANDOUT `text`,
   `from`; QUEST `reward`.
+- World map and places (no migration): Location cards carry
+  `attributes.place_kind` (region | city | town | village | landmark | dungeon |
+  sea) and `attributes.biome` (grassland, farmland, forest, jungle, hills,
+  mountains, desert, badlands, swamp, tundra, snow, coast, water, wasteland),
+  both edited in the Map region panel and used for the region's colour
+  (`src/shared/places.ts`). A world map made by the map maker or drawn by an AI
+  is a `map` row of kind world with `source` (and `prompt` when an AI drew it);
+  keeping it adds its regions and their Location cards in the same undo step.
+  Regions an AI found carry `attributes.imported` (`ai`, basis inferred).
+  Setting `getting_started` = pending on a new campaign until the guide is
+  finished or skipped.
 - Notes import (no migration): drafts are JSON files in the campaign folder
   `imports/<id>.json` (`src/shared/notesImport.ts`), not database rows, until
   committed. Imported cards carry `attributes.provenance` (file, locator, quote,

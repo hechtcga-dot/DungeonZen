@@ -26,6 +26,14 @@
 - Deleted or defunct items move to History and can be revived.
 
 ### Map
+- Getting started (new campaigns, and Desk › Getting started): a world map
+  first (import a picture, make one offline with the map maker, or have the
+  image AI draw one), then its regions (the map maker outlines seas, lands by
+  biome and settlements itself; for other maps a seeing AI proposes outlines
+  the DM ticks, or the DM draws them), then notes (Import notes, the board or
+  the desk).
+- Every region has a kind (region, city, town, village, landmark, dungeon,
+  sea) and a land (biome); the map colours and marks it by them.
 - Regions and sub-regions drawn on an imported map image.
 - Selecting a region shows who is there at the current time, planned
   encounters, plot points, notes, sub-regions.
@@ -74,6 +82,12 @@
 - By name, tag, association, HP, abilities, CR, location.
 
 ## Workflows
+
+### New campaign
+1. Create the campaign; the getting started guide opens.
+2. World map: import, make (offline, roll until you like it) or draw with AI.
+3. Regions: kept with a made map; found by AI (tick which to keep) or drawn.
+4. Notes: import them, or start on the board or the desk.
 
 ### Notes to campaign
 1. DM drops Word, PDF, image, or text files.

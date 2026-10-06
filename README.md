@@ -9,6 +9,9 @@ AI-assisted creation from notes. Planning documents are in `docs/`; start with
 1. Install [Node.js](https://nodejs.org) 22 or newer.
 2. In this folder: `npm install`, then `npm run dev`.
 
+A new campaign opens on a short getting started guide: a world map first (import
+your own, make one in the app, or have an AI draw it), its regions, then your notes.
+
 `npm test` runs the unit tests. Campaigns are ordinary folders (a
 `campaign.db` file plus an `assets` folder) that you choose when creating one.
 

@@ -1,4 +1,5 @@
-import { centroid } from '../../shared/geometry'
+import { placeLabels } from '../../shared/labels'
+import { placeColour } from '../../shared/places'
 import type { MapScreenView, RegionView } from '../../shared/types'
 import type { MapLayerContext } from './MapView'
 
@@ -20,6 +21,8 @@ export function PartyToken({ x, y, scale, onPointerDown, dragging }: {
 }
 
 const FILL = '#c9b07a'
+/** Settlements and landmarks are drawn as a marker, land regions as a tinted area. */
+const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' || r.kind === 'village' || r.kind === 'landmark' || r.kind === 'dungeon'
 
 /** Regions (dashed ink outlines with labels), the route and the party, drawn over a map image. */
 // Clicks are handled by the map (MapView onMapClick + regionAt), because the map
@@ -33,6 +36,7 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
 }) {
   const s = 1 / ctx.scale
   const sorted = [...view.regions].sort((a, b) => area(b) - area(a)) // big regions first, sub-regions on top
+  const at = labels ? placeLabels(sorted.map((r) => ({ polygon: r.polygon, name: r.name, spot: isSpot(r) })), s) : []
   return (
     <>
       {view.map.gridCols && view.map.width && view.map.height && (
@@ -44,23 +48,41 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
         return (
           <g key={r.id} className={`map-region${selected ? ' is-selected' : ''}`}>
             <polygon points={r.polygon.map((p) => p.join(',')).join(' ')}
-              fill={r.colour ?? FILL} fillOpacity={selected ? 0.35 : party ? 0.25 : 0.14}
+              fill={placeColour(r) ?? FILL} fillOpacity={selected ? 0.4 : party ? 0.3 : isSpot(r) ? 0.1 : 0.18}
               stroke={selected ? '#8f2a21' : '#2a1f12'} strokeWidth={(selected ? 4 : 2.5) * s} strokeDasharray={`${10 * s} ${7 * s}`}
               pointerEvents="none" />
           </g>
         )
       })}
-      {labels && sorted.map((r) => {
-        const [c0, c1] = centroid(r.polygon)
-        const fs = 15 * s
+      {labels && sorted.map((r, i) => {
+        const [c0, c1] = at[i]
         // The party banner stands on the centroid of its region: lift the name above it.
         const partyHere = view.party?.locationId === r.locationId
+        if (isSpot(r)) {
+          // Settlements and landmarks: a marker and a small name tag under it.
+          const fs = 12 * s
+          const w = (r.name.length * 6.8 + 16) * s
+          const big = r.kind === 'city' ? 9 : r.kind === 'town' ? 7 : 5.5
+          return (
+            <g key={`l-${r.id}`} className="map-label" transform={`translate(${c0} ${c1})`} pointerEvents="none">
+              {r.kind === 'dungeon' || r.kind === 'landmark'
+                ? <path d={`M0 ${-big * s}L${big * s} 0L0 ${big * s}L${-big * s} 0Z`} fill={placeColour(r) ?? '#5a3f8a'} stroke="#f1e6c6" strokeWidth={1.5 * s} />
+                : <circle r={big * s} fill={placeColour(r) ?? '#8f2a21'} stroke="#f1e6c6" strokeWidth={2 * s} />}
+              {!partyHere && (
+                <>
+                  <rect x={-w / 2} y={(big + 3) * s} width={w} height={fs * 1.5} rx={2 * s} fill="#2a1f12" fillOpacity="0.85" />
+                  <text y={(big + 3) * s + fs * 1.08} textAnchor="middle" fontSize={fs} fill="#f1e6c6" fontFamily="'IM Fell English', Georgia, serif">{r.name}</text>
+                </>
+              )}
+            </g>
+          )
+        }
+        const fs = 17 * s
         const [cx, cy] = [c0, partyHere ? c1 - 44 * s : c1]
-        const w = (r.name.length * 8.4 + 22) * s
         return (
           <g key={`l-${r.id}`} className="map-label" transform={`translate(${cx} ${cy})`} pointerEvents="none">
-            <rect x={-w / 2} y={-fs * 1.05} width={w} height={fs * 1.6} rx={2 * s} fill="#2a1f12" fillOpacity="0.88" />
-            <text y={fs * 0.1} textAnchor="middle" fontSize={fs} fill="#f1e6c6" fontFamily="'IM Fell English', Georgia, serif">{r.name}</text>
+            <text y={fs * 0.35} textAnchor="middle" fontSize={fs} fontStyle="italic" fill="#2a1f12" stroke="#f6ecd0" strokeWidth={4 * s}
+              paintOrder="stroke" strokeLinejoin="round" fontFamily="'IM Fell English', Georgia, serif">{r.name}</text>
           </g>
         )
       })}

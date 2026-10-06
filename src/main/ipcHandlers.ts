@@ -1,7 +1,7 @@
 import { copyFileSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { dialog, ipcMain, net, protocol, safeStorage, type BrowserWindow } from 'electron'
+import { dialog, ipcMain, nativeImage, net, protocol, safeStorage, type BrowserWindow } from 'electron'
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
@@ -10,6 +10,9 @@ import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
 import { RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
+import { parseRegions, REGIONS_SYSTEM, regionsPrompt } from './ai/regions'
+import { generateWorld } from './worldgen'
+import type { PlaceShape } from '../shared/places'
 import { fillableFields } from '../shared/cardFields'
 import { readStatBlock } from '../shared/statblock'
 import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from './exporters/roll20'
@@ -456,8 +459,51 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('battlemap:keep', (input) => current().keepBattleMap(input))
-  handle('battlemap:discard', ({ pendingId }) => current().discardPending(pendingId))
+  handle('battlemap:discard', ({ pendingId }) => { pendingWorlds.delete(pendingId); current().discardPending(pendingId) })
   handle('map:setGrid', ({ mapId, cols }) => current().setMapGrid(mapId, cols))
+
+  // ---- world map (getting started guide): made here or drawn by an AI, waiting until kept
+  const pendingWorlds = new Map<string, { source: string; prompt: string | null; regions: PlaceShape[] }>()
+  handle('world:generate', (o) => {
+    const world = generateWorld(o)
+    const pending = current().savePendingImage(world.png, 'image/png')
+    const source = `Dungeon Zen map maker (seed ${o.seed})`
+    pendingWorlds.set(pending.pendingId, { source, prompt: null, regions: world.regions })
+    return { ...pending, regions: world.regions, source }
+  })
+  handle('world:draw', async ({ prompt }) => {
+    const choice = profile.aiChoice('image')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const image = await generateImage(r, { prompt, aspect: '3:2' })
+    const pending = current().savePendingImage(image.bytes, image.mime)
+    const source = `${r.info.name} · ${r.model || 'default model'}`
+    pendingWorlds.set(pending.pendingId, { source, prompt, regions: [] })
+    return { ...pending, source }
+  })
+  handle('world:keep', ({ pendingId, name, widthMiles }) => {
+    const p = pendingWorlds.get(pendingId)
+    if (!p) throw new Error('That map is gone; make it again')
+    const map = current().keepWorldMap({ pendingId, name, widthMiles, source: p.source, prompt: p.prompt, regions: p.regions })
+    pendingWorlds.delete(pendingId)
+    return map
+  })
+  handle('world:findRegions', async ({ mapId, ask }) => {
+    const c = current()
+    const img = c.mapImage(mapId)
+    // Sent smaller: enough to see the lands, far fewer tokens.
+    let pic = nativeImage.createFromPath(img.file)
+    if (pic.isEmpty()) throw new Error('Could not read this map picture')
+    if (pic.getSize().width > 1568) pic = pic.resize({ width: 1568, quality: 'good' })
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const reply = await generateText(r, {
+      system: REGIONS_SYSTEM, prompt: regionsPrompt(c.info().name, ask), images: [{ bytes: pic.toJPEG(85), mime: 'image/jpeg' }], json: true, maxTokens: 8000
+    })
+    return { ...parseRegions(reply, img.width, img.height), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+  handle('world:addRegions', ({ mapId, regions, source }) =>
+    current().addRegions(mapId, regions.map((x) => ({ ...x, source })), `Added ${regions.length} region${regions.length === 1 ? '' : 's'} found by AI`))
+  handle('guide:finish', () => current().setSetting('getting_started', 'done', 'Finished the getting started guide'))
   handle('ai:sceneText', async ({ ask }) => {
     const choice = profile.aiChoice('text')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)

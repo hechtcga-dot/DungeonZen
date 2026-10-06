@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { GRID_MAX, GRID_MIN } from './battlemap'
 import { ImportDraft, type ImportDraftSummary } from './notesImport'
+import { BIOMES, PLACE_KINDS, WORLD_CLIMATES, WORLD_SIZES, type PlaceShape } from './places'
 import {
   AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
@@ -36,6 +37,11 @@ const PrepItemFields = z.object({
   role: z.string().max(300), stats: z.string().max(1000), tactics: z.string().max(2000)
 }).partial()
 const Polygon = z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(500)
+const PlaceShapeInput = z.object({
+  name: Name, kind: z.enum(PLACE_KINDS), biome: z.enum(BIOMES).nullable(),
+  polygon: z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(3000),
+  parent: z.number().int().min(0).max(500).nullable(), summary: z.string().max(1000)
+})
 const GenPerson = z.object({
   name: Name, species: Short, occupation: Short, attitude: Short.min(1), quirk: Short, wants: Short, statblockName: Short, summary: Short
 })
@@ -199,6 +205,15 @@ export const ipcInputs = {
   }),
   'battlemap:discard': z.object({ pendingId: z.string().max(80) }),
   'map:setGrid': z.object({ mapId: Id, cols: z.number().int().min(GRID_MIN).max(GRID_MAX).nullable() }),
+  'world:generate': z.object({
+    seed: z.number().int().min(0).max(2147483647), size: z.enum(WORLD_SIZES), land: z.number().min(0.3).max(0.75),
+    climate: z.enum(WORLD_CLIMATES), settlements: z.number().int().min(0).max(30)
+  }),
+  'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000) }),
+  'world:keep': z.object({ pendingId: z.string().max(80), name: Name, widthMiles: z.number().positive().max(100000).nullable() }),
+  'world:findRegions': z.object({ mapId: Id, ask: z.string().max(2000) }),
+  'world:addRegions': z.object({ mapId: Id, regions: z.array(PlaceShapeInput).min(1).max(200), source: z.string().max(300) }),
+  'guide:finish': z.void(),
   'region:detail': z.object({ regionId: Id }),
   'region:create': z.object({
     mapId: Id, polygon: Polygon, locationId: Id.optional(), newName: Name.optional(), parentLocationId: Id.nullable().optional()
@@ -372,6 +387,12 @@ export interface IpcOutputs {
   'battlemap:keep': MapView
   'battlemap:discard': void
   'map:setGrid': void
+  'world:generate': PendingImageView & { regions: PlaceShape[]; source: string }
+  'world:draw': PendingImageView & { source: string }
+  'world:keep': MapView
+  'world:findRegions': { regions: PlaceShape[]; dropped: number; source: string }
+  'world:addRegions': string[]
+  'guide:finish': void
   'region:detail': RegionDetail
   'region:create': string
   'region:update': void

@@ -9,7 +9,7 @@ export type Selection =
   | { kind: 'note'; id: string }
   | null
 
-export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import'
+export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide'
 /** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
 export type Mode = 'prep' | 'live' | 'players'
 export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
@@ -59,7 +59,7 @@ interface BoardState {
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
   showBoard(boardId: string): Promise<void>
-  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import'): void
+  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide'): void
   openSheet(entityId: string): Promise<void>
   showOnBoard(entityId: string): Promise<void>
   refresh(): Promise<void>
@@ -112,7 +112,7 @@ export const useBoard = create<BoardState>((set, get) => ({
 
   async openCampaign(info) {
     set({
-      info, screen: 'desk', mode: 'prep', prepNumber: null, boardId: info.globalBoardId, desk: null, selection: null, view: null, history: null,
+      info, screen: info.gettingStarted ? 'guide' : 'desk', mode: 'prep', prepNumber: null, boardId: info.globalBoardId, desk: null, selection: null, view: null, history: null,
       sheet: null, sheetId: null, search: ''
     })
     await get().refresh()

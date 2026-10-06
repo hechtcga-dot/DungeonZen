@@ -13,6 +13,7 @@ import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { centroid, regionAt, type Point } from '../../shared/geometry'
 import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
+import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
 
 type Mode = 'view' | 'draw' | 'edit'
@@ -344,6 +345,24 @@ function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
       {detail.subRegions.length === 0 ? <p className="ink-muted">None yet.</p> : (
         <ul className="here-list">{detail.subRegions.map((s) => <li key={s.locationId}><button className="ledger-name" onClick={() => onSelect(s.locationId)}>{s.name}</button></li>)}</ul>
       )}
+      <div className="row tight wrap region-kind">
+        <div className="field">
+          <label htmlFor="region-kind">Kind of place</label>
+          <select id="region-kind" className="ink-select" value={detail.region.kind ?? ''}
+            onChange={(e) => void act('entity:update', { id: detail.location.id, patch: { attributes: { place_kind: e.target.value || null } } })}>
+            <option value="">Not set</option>
+            {PLACE_KINDS.map((k) => <option key={k} value={k}>{PLACE_KIND_LABELS[k]}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="region-biome">Land (biome)</label>
+          <select id="region-biome" className="ink-select" value={detail.region.biome ?? ''}
+            onChange={(e) => void act('entity:update', { id: detail.location.id, patch: { attributes: { biome: e.target.value || null } } })}>
+            <option value="">Not set</option>
+            {BIOMES.map((b) => <option key={b} value={b}>{b[0].toUpperCase() + b.slice(1)}</option>)}
+          </select>
+        </div>
+      </div>
       <div className="field">
         <label htmlFor="region-parent">Inside</label>
         <select id="region-parent" className="ink-select" value={detail.region.parentLocationId ?? ''}
