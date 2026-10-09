@@ -8,7 +8,7 @@ import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
-import { RATE_SYSTEM, ratePrompt } from './ai/encounter'
+import { BUILD_SYSTEM, buildPrompt, parseBuild, RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
 import { STATBLOCK_SYSTEM, parseStatBlock, statBlockPrompt } from './ai/statblock'
 import { parseRegions, REGIONS_SYSTEM, regionsPrompt } from './ai/regions'
@@ -452,6 +452,18 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const text = await generateText(r, { system: RATE_SYSTEM, prompt: ratePrompt(e, v, e.locationName), maxTokens: 600 })
     return { text, source: `${r.info.name} · ${r.model || 'default model'}` }
   })
+
+  handle('ai:buildEncounter', async ({ encounterId, ask }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const v = c.encountersView()
+    const e = v.encounters.find((x) => x.id === encounterId) ?? c.encounterView(encounterId)
+    const index = srdMonsterIndex()
+    const reply = await generateText(r, { system: BUILD_SYSTEM, prompt: buildPrompt(e, v, index.map((m) => `${m.name} (${m.cr})`), ask), json: true, maxTokens: 6000 })
+    return { ...parseBuild(reply, index), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+  handle('encounter:addProposals', ({ encounterId, items, tactics, source }) => current().addEncounterProposals(encounterId, items, tactics, source, srdCopy))
 
   // ---- live: where the party is, and Ask AI
   handle('live:where', () => current().liveWhere())

@@ -1,4 +1,5 @@
 import type { Units } from './units'
+import type { StatBlock } from './statblock'
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, BoardItemContent, RowStatus,
@@ -667,7 +668,16 @@ export interface EncounterCreatureView {
   count: number
   statLine: string
   notes: string
+  /** Not on the board yet (made by AI for this encounter): "Put on board" shows it. */
+  stashed: boolean
+  /** Its stat block was written by an AI (rule 10). */
+  aiMade: boolean
 }
+
+/** One creature an AI proposed for an encounter: an SRD monster, or a new one with its stat block. */
+export type BuiltCreature =
+  | { kind: 'srd'; key: string; name: string; cr: string; count: number; notes: string }
+  | { kind: 'new'; name: string; statblock: StatBlock; actions: Array<{ name: string; kind: AbilityKind; description: string }>; count: number; notes: string }
 
 export interface EncounterView {
   id: string
@@ -677,6 +687,8 @@ export interface EncounterView {
   target: 'low' | 'moderate' | 'high'
   tactics: string
   notes: string
+  /** What the place looks like and what is going on; the AI builds from it. */
+  scene: string
   battleMapId: string | null
   creatures: EncounterCreatureView[]
   difficulty: Difficulty2024

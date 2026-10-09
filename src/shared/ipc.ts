@@ -7,7 +7,7 @@ import {
   AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
 } from './schemas'
-import type { SrdMonsterRow,
+import type { BuiltCreature, SrdMonsterRow,
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
@@ -169,7 +169,7 @@ export const ipcInputs = {
     id: Id,
     patch: z.object({
       name: Name, locationId: Id.nullable(), target: z.enum(['low', 'moderate', 'high']), tactics: z.string().max(5000),
-      notes: z.string().max(5000), battleMapId: Id.nullable()
+      notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable()
     }).partial()
   }),
   'encounter:addCreature': z.object({ encounterId: Id, entityId: Id, count: z.number().int().min(1).max(100) }),
@@ -178,6 +178,15 @@ export const ipcInputs = {
   'encounter:removeCreature': z.object({ encounterId: Id, entityId: Id }),
   'encounter:suggest': z.object({ difficulty: z.enum(['low', 'moderate', 'high']), creatureType: z.string().max(40).optional() }),
   'encounter:run': z.object({ encounterId: Id }),
+  'ai:buildEncounter': z.object({ encounterId: Id, ask: z.string().max(2000) }),
+  'encounter:addProposals': z.object({
+    encounterId: Id, tactics: z.string().max(3000), source: z.string().max(200),
+    items: z.array(z.object({
+      srdKey: z.string().max(200).optional(), name: Name, count: z.number().int().min(1).max(30), notes: z.string().max(1000),
+      statblock: StatBlock.optional(),
+      actions: z.array(z.object({ name: Name, kind: AbilityKind, description: z.string().max(5000) })).max(30).optional()
+    })).min(1).max(12)
+  }),
   'encounter:houseRules': z.object({ text: z.string().max(20000) }),
   'ai:rateEncounter': z.object({ encounterId: Id }),
   'live:where': z.void(),
@@ -385,6 +394,8 @@ export interface IpcOutputs {
   'encounters:view': EncountersView
   'encounter:create': string
   'encounter:update': void
+  'ai:buildEncounter': { creatures: BuiltCreature[]; tactics: string; source: string }
+  'encounter:addProposals': void
   'encounter:addCreature': void
   'encounter:addSrd': void
   'encounter:creature': void

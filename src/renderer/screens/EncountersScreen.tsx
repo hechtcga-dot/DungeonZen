@@ -14,6 +14,8 @@ import { RATING_LABELS } from '../../shared/encounter'
 import type { AiSuggestion, EncountersView, EncounterView, SrdSearch } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { SrdBrowser } from '../components/SrdBrowser'
+import { StatBlockView } from '../components/FightSummary'
+import type { IpcOutputs } from '../../shared/ipc'
 
 type Suggestion = NonNullable<Awaited<ReturnType<typeof call<'encounter:suggest'>>>>
 const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about right', hard: 'hard', nearly_deadly: 'nearly deadly' }
@@ -139,6 +141,10 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
         </div>
       </div>
 
+      <CommitField id="enc-scene" label="Scene" multiline rows={3} value={e.scene}
+        placeholder="A collapsed watchtower in the rain; smugglers unload crates by lantern light…"
+        hint="What the place looks like and what is going on. Build with AI works from it." onCommit={(scene) => up({ scene })} />
+
       <div className="enc-meter" role="img" aria-label={`${d.totalXp} XP: ${RATING_LABELS[d.rating]}`}>
         <div className="meter-bar">
           <span className="meter-fill" style={{ width: pct(d.totalXp) }} />
@@ -162,7 +168,10 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
           <tbody>
             {e.creatures.map((c) => (
               <tr key={c.entityId}>
-                <td><button className="ledger-name" onClick={() => void openSheet(c.entityId)}>{c.name}</button>{c.statLine && <div className="ink-muted enc-stat">{c.statLine}</div>}</td>
+                <td><button className="ledger-name" onClick={() => void openSheet(c.entityId)}>{c.name}</button>
+                  {c.aiMade && <span className="ai-badge enc-ai">AI</span>}
+                  {c.statLine && <div className="ink-muted enc-stat">{c.statLine}</div>}
+                  {c.stashed && <div className="enc-stash"><span className="ink-muted">Only in this encounter.</span> <button className="link-button" onClick={() => void act('entity:setStatus', { id: c.entityId, status: 'active' })}>Put on board</button></div>}</td>
                 <td>{c.cr || '—'}</td>
                 <td>{c.xpEach || '—'}</td>
                 <td>
@@ -199,6 +208,7 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
         <SrdAdd encounterId={e.id} />
         <Suggest e={e} />
       </div>
+      <BuildWithAi e={e} />
 
       <div className="prep-row-fields two">
         <CommitField id="enc-tactics" label="Tactics" multiline rows={3} value={e.tactics} placeholder="Archers stay on the ledge; the leader flees at half HP…" onCommit={(tactics) => up({ tactics })} />
@@ -225,6 +235,8 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
       )}
 
       <div className="row tight wrap enc-actions">
+        <button className="ink-button primary-ink" title="Everything saves as you go; this makes sure the field you are typing in is kept too"
+          onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); say(`Saved ${e.name}`) }}>Save encounter</button>
         {v.sessionRunning
           ? <button className="ink-button primary-ink" onClick={async () => { if (await act('encounter:run', { encounterId: e.id })) say(`Logged the fight: ${e.name}`) }}>Run it now (log the fight)</button>
           : <span className="ink-muted">Start a session to run it as a logged fight.</span>}
@@ -237,6 +249,64 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
       {roll20 && <Roll20Dialog entityIds={e.creatures.map((c) => c.entityId)} title={`Roll20: ${e.name}`} mapId={e.battleMapId} onClose={() => setRoll20(false)} />}
       {pdf && <ExportDialog kind="sheets" entityIds={e.creatures.map((c) => c.entityId)} title={e.name} onClose={() => setPdf(false)} />}
     </section>
+  )
+}
+
+/** Build with AI: the AI picks SRD monsters or makes new ones for the scene; the DM ticks what to add. */
+function BuildWithAi({ e }: { e: EncounterView }) {
+  const { act, setAiSettingsOpen } = useBoard()
+  const [ask, setAsk] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [plan, setPlan] = useState<IpcOutputs['ai:buildEncounter'] | null>(null)
+  const [skip, setSkip] = useState<Set<number>>(new Set())
+  const [open, setOpen] = useState<number | null>(null)
+  const build = async () => {
+    setBusy(true); setError(null)
+    try { setPlan(await call('ai:buildEncounter', { encounterId: e.id, ask })); setSkip(new Set()) } catch (err) { setError((err as Error).message) } finally { setBusy(false) }
+  }
+  const add = async () => {
+    if (!plan) return
+    const items = plan.creatures.filter((_, i) => !skip.has(i)).map((c) => c.kind === 'srd'
+      ? { srdKey: c.key, name: c.name, count: c.count, notes: c.notes }
+      : { name: c.name, count: c.count, notes: c.notes, statblock: c.statblock, actions: c.actions })
+    if (items.length) await act('encounter:addProposals', { encounterId: e.id, items, tactics: plan.tactics, source: plan.source })
+    setPlan(null)
+  }
+  return (
+    <div className="enc-build">
+      <div className="field">
+        <label htmlFor="enc-build">Build with AI <span className="ink-muted">(it chooses SRD monsters or makes new ones for the scene)</span></label>
+        <div className="row tight">
+          <input id="enc-build" value={ask} maxLength={2000} placeholder="Optional: goblins with a pet wolf; one should try to flee and warn the camp" onChange={(ev) => setAsk(ev.target.value)} />
+          <button className="ink-button primary-ink" disabled={busy} onClick={() => void build()}>{busy ? 'Building…' : plan ? 'Build again' : 'Build with AI'}</button>
+        </div>
+      </div>
+      {error && <p className="field-error battle-error" role="alert"><span>{error}</span><span className="row tight"><button disabled={busy} onClick={() => void build()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></p>}
+      {plan && (
+        <div className="ai-suggestion" role="region" aria-label="AI encounter">
+          <span className="ai-badge">AI suggestion · {plan.source}</span>
+          <ul className="enc-plan">
+            {plan.creatures.map((c, i) => (
+              <li key={i}>
+                <label className="act-tick"><input type="checkbox" checked={!skip.has(i)} onChange={() => setSkip((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })} />
+                  <strong>{c.count} × {c.name}</strong></label>
+                <span className="ink-muted"> {c.kind === 'srd' ? `SRD, CR ${c.cr}` : `new monster, CR ${c.statblock.cr || '?'}`}</span>
+                {c.kind === 'new' && <button className="link-button" onClick={() => setOpen(open === i ? null : i)}>{open === i ? 'Hide stat block' : 'Stat block'}</button>}
+                {c.notes && <div className="ink-muted">{c.notes}</div>}
+                {c.kind === 'new' && open === i && <StatBlockView name={c.name} sb={c.statblock} actions={c.actions} />}
+              </li>
+            ))}
+          </ul>
+          {plan.tactics && <p><strong>Tactics:</strong> {plan.tactics}</p>}
+          <div className="row tight wrap">
+            <button className="ink-button primary-ink" disabled={skip.size === plan.creatures.length} onClick={() => void add()}>Add ticked to the encounter</button>
+            <button className="ink-button" onClick={() => setPlan(null)}>Discard</button>
+          </div>
+          <p className="hint">New monsters stay in this encounter, off the board, until you press Put on board. Tactics fill in when yours are empty.</p>
+        </div>
+      )}
+    </div>
   )
 }
 

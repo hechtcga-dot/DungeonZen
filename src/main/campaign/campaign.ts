@@ -2260,7 +2260,8 @@ export class Campaign {
       const sb = readStatBlock(c.attributes.statblock)
       return {
         rowId, entityId, name: c.name, type: c.type as EntityType, cr: sb?.cr ?? '', xpEach: xpForCr(sb?.cr ?? ''), count, notes,
-        statLine: sb ? statLine(sb) : ''
+        statLine: sb ? statLine(sb) : '', stashed: c.status === 'stashed',
+        aiMade: !!(c.attributes.ai_filled as Record<string, string> | undefined)?.statblock
       }
     }
     let creatures = rows.map((r) => view(r.entityId, r.count, r.id, r.notes)).filter((x): x is EncounterCreatureView => !!x)
@@ -2279,6 +2280,7 @@ export class Campaign {
     return {
       id, name: e.name, locationId: at?.targetId ?? null, locationName: at ? byId.get(at.targetId)?.name ?? null : null,
       target, tactics: typeof a.tactics === 'string' ? a.tactics : '', notes: typeof a.summary === 'string' ? a.summary : '',
+      scene: typeof a.scene === 'string' ? a.scene : '',
       battleMapId: typeof a.battle_map_id === 'string' ? a.battle_map_id : null,
       creatures, difficulty: rateEncounter(creatures, p.level, p.size, p.factor), runs
     }
@@ -2296,13 +2298,14 @@ export class Campaign {
     return id
   }
 
-  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; battleMapId?: string | null }): void {
+  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null }): void {
     const e = this.entityRow(id)
     this.log.run(`Edited encounter ${patch.name ?? e.name}`, (w) => {
       const attrs: Record<string, unknown> = { encounter: true }
       if (patch.target) attrs.target = patch.target
       if (patch.tactics !== undefined) attrs.tactics = patch.tactics
       if (patch.notes !== undefined) attrs.summary = patch.notes
+      if (patch.scene !== undefined) attrs.scene = patch.scene
       if (patch.battleMapId !== undefined) attrs.battle_map_id = patch.battleMapId
       w.update('entity', id, { name: patch.name, attributes: { ...e.attributes, ...attrs } })
       if (patch.locationId !== undefined) {
@@ -2356,6 +2359,37 @@ export class Campaign {
         }
         this.putCreature(w, encounterId, id, g.count)
       }
+    })
+  }
+
+  /**
+   * Adds what the DM ticked from an AI-built encounter: SRD monsters (the card already copied,
+   * or a new copy) and new monsters, both kept off the board until "Put on board"; empty
+   * tactics get the AI's. One undo step.
+   */
+  addEncounterProposals(encounterId: string, items: Array<{ srdKey?: string; name: string; statblock?: StatBlock; actions?: NewAbility[]; count: number; notes: string }>, tactics: string, source: string, copy: (key: string) => SrdCopy): void {
+    const e = this.entityRow(encounterId)
+    const cards = this.db.select().from(entity).all().filter((x) => x.status !== 'defunct')
+    this.log.run(`AI built ${e.name}: ${items.map((i) => `${i.count} × ${i.name}`).join(', ')}`, (w) => {
+      for (const it of items) {
+        let id = it.srdKey ? cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === it.srdKey)?.id : undefined
+        if (!id && it.srdKey) {
+          const c = copy(it.srdKey)
+          id = this.insertEntity(w, { boardId: this.globalBoard().id, type: c.type, name: c.name, position: this.freeGlobalSpot(), status: 'stashed', attributes: c.attributes, abilities: c.abilities })
+        }
+        if (!id) {
+          id = this.insertEntity(w, {
+            boardId: this.globalBoard().id, type: 'MONSTER', name: it.name, position: this.freeGlobalSpot(), status: 'stashed',
+            attributes: { statblock: it.statblock, summary: it.notes, ai_filled: { statblock: source } }, abilities: it.actions ?? []
+          })
+        }
+        this.putCreature(w, encounterId, id, it.count)
+        if (it.notes) {
+          const row = this.db.select().from(encounterCreature).where(and(eq(encounterCreature.encounterId, encounterId), eq(encounterCreature.entityId, id), eq(encounterCreature.status, 'active'))).get()
+          if (row && !row.notes) w.update('encounter_creature', row.id, { notes: it.notes })
+        }
+      }
+      if (tactics && !String(e.attributes.tactics ?? '').trim()) w.update('entity', encounterId, { attributes: { ...e.attributes, tactics } })
     })
   }
 
