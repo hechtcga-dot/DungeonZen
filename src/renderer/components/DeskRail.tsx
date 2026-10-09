@@ -15,6 +15,7 @@ const ICONS = {
   import: <><path d="M12 3v11M7 9l5 5 5-5" /><path d="M4 15v5h16v-5" /></>,
   prep: <><path d="M6 3h9l3 3v15H6z" /><path d="M9 9h6M9 13h6M9 17h4" /></>,
   players: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M2.5 19q0-5 5.5-5t5.5 5M10.5 19q0-5 5.5-5t5.5 5" /></>,
+  notes: <><path d="M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6z" /><path d="M6 3v18M9 8h6M9 12h6M9 16h4" /><path d="M4 6h2M4 10h2M4 14h2M4 18h2" /></>,
   setup: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" /></>,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
 }
@@ -68,7 +69,7 @@ export function DeskRail() {
           {item('map', 'Map')}
           {item('timeline', 'Timeline')}
           {item('library', 'Library')}
-          {item('import', 'Import notes', 'import')}
+          {item('import', 'Notes', 'notes')}
         </>
       )}
       {mode === 'live' && (

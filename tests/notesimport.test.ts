@@ -224,3 +224,27 @@ describe('creating what the DM kept', () => {
     expect(c.timeline().acts).toEqual([])
   })
 })
+
+describe('merging changed notes', () => {
+  it('replaces only the fields the DM ticked', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const { Campaign } = await import('../src/main/campaign/campaign')
+    const dir = mkdtempSync(join(tmpdir(), 'dungeonzen-'))
+    const c = Campaign.create(join(dir, 'M'), 'M')
+    try {
+      const e = c.createEntity({ boardId: c.info().globalBoardId, type: 'NPC', name: 'Mara', position: { x: 0, y: 0 }, attributes: { summary: 'A sailor', occupation: 'sailor' } })
+      const id = '11111111-1111-4111-8111-111111111111'
+      c.saveImportDraft({
+        id, title: 'Notes (changes)', createdAt: new Date().toISOString(), source: 'test', status: 'open', files: [], dropped: 0,
+        cards: [{ id: 'c1', type: 'NPC', name: 'Mara', summary: 'A spy', details: { occupation: 'harbour master', voice: 'whispers' }, tags: [], sources: [], basis: 'stated',
+          duplicateOf: { id: e.id, name: 'Mara', type: 'NPC', exact: true }, decision: 'merge', overwrite: ['occupation'] }],
+        storylines: [], links: [], questions: []
+      })
+      c.commitImport(id)
+      const a = c.sheet(e.id).entity.attributes
+      expect([a.summary, a.occupation, a.voice]).toEqual(['A sailor', 'harbour master', 'whispers'])
+    } finally { c.close(); rmSync(dir, { recursive: true, force: true }) }
+  })
+})

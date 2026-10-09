@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, dialog, ipcMain, nativeImage, net, protocol, safeStorage, type BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
@@ -21,7 +21,9 @@ import { readStatBlock } from '../shared/statblock'
 import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from './exporters/roll20'
 import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './exporters/pages'
 import { renderJpg, renderPdf } from './exporters/render'
-import { NOTE_EXTENSIONS, readNotesFile, type NotesFile } from './importers/read'
+import { chunkBlocks, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
+import { writeDocx } from './importers/docx'
+import { changedLines, textToBlocks } from '../shared/noteDoc'
 import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
 import type { ImportDraft } from '../shared/notesImport'
 import { AI_PROVIDERS, maxReferences, providerById, type AiChoice } from '../shared/aiProviders'
@@ -34,7 +36,10 @@ import type { z } from 'zod'
 
 type Handler<C extends IpcChannel> = (input: z.output<(typeof ipcInputs)[C]>) => IpcOutputs[C] | Promise<IpcOutputs[C]>
 
-export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore): void {
+// Writes the popped-out DM notes window and the main window share: the other one refreshes.
+const SHARED_WRITES = new Set<IpcChannel>(['notes:set', 'notes:append', 'session:notes', 'history:undo', 'history:redo'])
+
+export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void): void {
   let campaign: Campaign | null = null
 
   const current = (): Campaign => {
@@ -52,11 +57,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   }
 
   function handle<C extends IpcChannel>(channel: C, fn: Handler<C>): void {
-    ipcMain.handle(IPC_PREFIX + channel, async (_event, raw): Promise<IpcResult<IpcOutputs[C]>> => {
+    ipcMain.handle(IPC_PREFIX + channel, async (event, raw): Promise<IpcResult<IpcOutputs[C]>> => {
       const parsed = ipcInputs[channel].safeParse(raw)
       if (!parsed.success) return { ok: false, error: `Invalid request for ${channel}: ${parsed.error.message}` }
       try {
-        return { ok: true, value: await fn(parsed.data as never) }
+        const value = await fn(parsed.data as never)
+        if (SHARED_WRITES.has(channel)) {
+          for (const w of BrowserWindow.getAllWindows()) if (w.webContents !== event.sender) w.webContents.send(IPC_PREFIX + 'changed')
+        }
+        return { ok: true, value }
       } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) }
       }
@@ -190,7 +199,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return current().importMap(result.filePaths[0])
   })
   handle('map:setActive', ({ mapId }) => current().setSetting('active_map_id', mapId, 'Changed the desk map'))
-  handle('notes:set', ({ text }) => current().setSetting('dm_notes', text, 'Edited DM notes'))
+  handle('notes:set', ({ text }) => current().setDmNotes(text))
   handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
   handle('clock:set', ({ minutes }) => current().setClock(minutes))
   handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle }) => {
@@ -361,7 +370,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     }
   })))
   handle('import:cancel', () => { importCancel = true })
-  handle('import:read', async ({ paths, title }) => {
+  /** Sends each part of the notes to the writing AI and puts the proposals together as a draft (rule 2). */
+  const proposeFrom = async (read: Array<{ name: string; file: NotesFile | null; error?: string }>, title: string | undefined) => {
     const c = current()
     const choice = profile.aiChoice('text')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
@@ -369,12 +379,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const existing = c.importTargets()
     const answers: ChunkAnswer[] = []
     const files: ImportDraft['files'] = []
-    for (const path of paths) {
-      let f: NotesFile
-      try { f = await readNotesFile(path) } catch (e) {
-        files.push({ name: basename(path), kind: 'text', parts: 0, warnings: [], error: (e as Error).message })
-        continue
-      }
+    for (const { name: fileName, file: f, error } of read) {
+      if (!f) { files.push({ name: fileName, kind: 'text', parts: 0, warnings: [], error: error ?? 'Could not read it' }); continue }
       const entry = { name: f.name, kind: f.kind, parts: f.chunks.length, warnings: [...f.warnings], error: null as string | null }
       files.push(entry)
       for (let i = 0; i < f.chunks.length; i++) {
@@ -399,6 +405,80 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const draft = buildDraft(answers, existing, { title: name, source: `${r.info.name} · ${r.model || 'default model'}`, files })
     c.saveImportDraft(draft)
     return draft
+  }
+  handle('import:read', async ({ paths, title, replace }) => {
+    const read: Array<{ name: string; file: NotesFile | null; error?: string }> = []
+    for (const path of paths) {
+      try {
+        read.push({ name: basename(path), file: await readNotesFile(path) })
+        // The Notes screen keeps every file it read (or replaces the note the DM chose).
+        current().addNoteDoc(path, replace?.[path])
+      } catch (e) { read.push({ name: basename(path), file: null, error: (e as Error).message }) }
+    }
+    return proposeFrom(read, title)
+  })
+  handle('notes:screen', () => current().notesScreen())
+  handle('notes:popout', () => openJournal())
+  handle('session:notes', ({ id, text }) => current().setSessionNotes(id, text))
+  handle('notedoc:content', async ({ id }) => {
+    const c = current()
+    const doc = c.notesScreen().docs.find((d) => d.id === id)
+    if (!doc) throw new Error('That note is gone')
+    const file = c.noteFile(id)
+    const rel = file.slice(join(c.folder, 'assets').length + 1).replace(/\\/g, '/')
+    return { blocks: await noteBlocks(file, doc.kind), url: doc.kind === 'picture' ? `dz-asset://campaign/${rel}` : null }
+  })
+  handle('notedoc:create', ({ title }) => current().createNoteDoc(title, writeDocx([])))
+  handle('notedoc:save', async ({ id, blocks }) => {
+    const c = current()
+    const doc = c.notesScreen().docs.find((d) => d.id === id)
+    const before = doc ? await noteBlocks(c.noteFile(id), doc.kind).catch(() => []) : []
+    c.saveNoteVersion(id, writeDocx(blocks))
+    return { changed: changedLines(before, blocks) }
+  })
+  handle('notedoc:rename', ({ id, title }) => current().renameNoteDoc(id, title))
+  handle('notedoc:setStatus', ({ id, status }) => current().setNoteDocStatus(id, status))
+  handle('notedoc:restore', ({ id, file }) => current().restoreNoteVersion(id, file))
+  handle('notedoc:openInWord', async ({ id }) => {
+    const c = current()
+    const doc = c.notesScreen().docs.find((d) => d.id === id)
+    const target = doc?.kind === 'word' ? c.editCopy(id) : c.noteFile(id)
+    const err = await shell.openPath(target)
+    if (err) throw new Error(`Windows could not open it: ${err}`)
+  })
+  handle('notedoc:saveCopy', async ({ id }) => {
+    const c = current()
+    const doc = c.notesScreen().docs.find((d) => d.id === id)
+    if (!doc) throw new Error('That note is gone')
+    const win = getWindow()
+    const options = { title: 'Save a copy as a Word file', defaultPath: `${doc.title}.docx`, filters: [{ name: 'Word document', extensions: ['docx'] }] }
+    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (result.canceled || !result.filePath) return null
+    if (doc.kind === 'word') copyFileSync(c.noteFile(id), result.filePath)
+    else writeFileSync(result.filePath, writeDocx(await noteBlocks(c.noteFile(id), doc.kind)))
+    return result.filePath
+  })
+  handle('notedoc:edited', () => current().editedInWord())
+  handle('notedoc:takeEdit', async ({ id }) => {
+    const c = current()
+    const doc = c.notesScreen().docs.find((d) => d.id === id)
+    const before = doc ? await noteBlocks(c.noteFile(id), doc.kind).catch(() => []) : []
+    c.takeWordEdit(id)
+    return { changed: changedLines(before, await noteBlocks(c.noteFile(id), 'word')) }
+  })
+  handle('notedoc:updateCards', async ({ id, lines }) => {
+    const doc = current().notesScreen().docs.find((d) => d.id === id)
+    const name = `${doc?.title ?? 'Note'} (changes)`
+    return proposeFrom([{ name, file: { name, kind: 'text', chunks: chunkBlocks(lines, 'paragraph'), image: null, warnings: [] } }], name)
+  })
+  handle('notedoc:named', ({ names }) => current().noteDocsNamed(names))
+  handle('file:saveDocx', async ({ name, text }) => {
+    const win = getWindow()
+    const options = { title: 'Save as a Word file', defaultPath: `${name}.docx`, filters: [{ name: 'Word document', extensions: ['docx'] }] }
+    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (result.canceled || !result.filePath) return null
+    writeFileSync(result.filePath, writeDocx(textToBlocks(text)))
+    return result.filePath
   })
   handle('import:drafts', () => current().importDrafts())
   handle('import:draft', ({ id }) => current().importDraft(id))

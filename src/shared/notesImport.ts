@@ -29,7 +29,9 @@ export const CardProposal = z.object({
   basis: Basis,
   /** A card already in the campaign that looks like the same thing. */
   duplicateOf: z.object({ id: z.string(), name: z.string(), type: z.string(), exact: z.boolean() }).nullable(),
-  decision: z.enum(['create', 'merge', 'skip'])
+  decision: z.enum(['create', 'merge', 'skip']),
+  /** Merge: fields to replace even though the card already has text there (changed notes). */
+  overwrite: z.array(z.string().max(60)).max(60).optional()
 })
 export type CardProposal = z.infer<typeof CardProposal>
 

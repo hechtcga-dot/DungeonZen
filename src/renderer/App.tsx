@@ -15,14 +15,22 @@ import { EncountersScreen } from './screens/EncountersScreen'
 import { ImportScreen } from './screens/ImportScreen'
 import { CombatScreen } from './screens/CombatScreen'
 import { GuideScreen } from './screens/GuideScreen'
+import { JournalWindow } from './screens/JournalWindow'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
 
 export function App() {
+  return window.location.hash === '#journal' ? <JournalWindow /> : <MainApp />
+}
+
+function MainApp() {
   const info = useBoard((s) => s.info)
   const view = useBoard((s) => s.view)
   const screen = useBoard((s) => s.screen)
   const message = useBoard((s) => s.message)
+
+  // The popped-out DM notes changed something: show it here too.
+  useEffect(() => window.dungeonzen.onChanged(() => void useBoard.getState().refresh()), [])
 
   // Messages fade after a few seconds; errors stay a little longer.
   useEffect(() => {

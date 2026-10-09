@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useBoard } from '../store'
+import { call } from '../api'
 import { Candle, CompassRose, D20, Leaf, Potion, Quill } from '../art/props'
 import { PartyEmblem, roman, StoryEmblemArt } from '../art/emblems'
 import { CampaignSettingsDialog, emblemOf, MapDialog, StorylineDialog, STORYLINE_STATUS_LABELS } from '../components/EditDialogs'
@@ -209,7 +210,7 @@ function Desk({ desk }: { desk: DeskView }) {
         </div>
 
         <div className="mat-journal">
-          <Journal notes={desk.dmNotes} />
+          <Journal notes={desk.dmNotes} session={desk.dmNotesSession} />
           <div className="chest" aria-label="Quick actions">
             <h2 className="mat-heading">The chest</h2>
             <button className="brass" onClick={() => void newCard('NPC')}>New NPC</button>
@@ -238,7 +239,7 @@ function Desk({ desk }: { desk: DeskView }) {
   )
 }
 
-function Journal({ notes }: { notes: string }) {
+function Journal({ notes, session }: { notes: string; session: number | null }) {
   const act = useBoard((s) => s.act)
   const [draft, setDraft] = useState(notes)
   const [last, setLast] = useState(notes)
@@ -247,11 +248,15 @@ function Journal({ notes }: { notes: string }) {
     <div className="journal">
       <div className="journal-page">
         <Quill className="journal-quill" />
-        <label htmlFor="dm-journal" className="journal-title">DM notes</label>
+        <div className="journal-top">
+          <label htmlFor="dm-journal" className="journal-title">DM notes{session ? ` · Session ${session}` : ''}</label>
+          <button className="journal-pop" title="Open the notes in their own window; drag it to another screen"
+            onClick={() => void call('notes:popout', undefined)}>Pop out</button>
+        </div>
         <textarea id="dm-journal" value={draft} placeholder="Plans, reminders, names you made up on the spot…"
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => { if (draft !== notes) void act('notes:set', { text: draft }) }} />
-        <span className="journal-hint">Saved when you click away. Only you see these.</span>
+        <span className="journal-hint">Saved when you click away. Only you see these. All notes: Notes.</span>
       </div>
     </div>
   )

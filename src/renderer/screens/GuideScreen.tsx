@@ -411,7 +411,7 @@ function NotesStep({ onChoose }: { onChoose(to: 'import' | 'board' | 'desk'): vo
           <h2 className="panel-title">Import my notes</h2>
           <p>Drop Word files, PDFs, text, or photos of handwritten notes. An AI reads them and proposes cards: people, places, factions, quests,
             storylines and how they connect. Places it finds can be matched to your regions. You decide what to keep.</p>
-          <button className="ink-button primary-ink" onClick={() => onChoose('import')}>Import notes…</button>
+          <button className="ink-button primary-ink" onClick={() => { useBoard.setState({ notesTab: 'import' }); onChoose('import') }}>Import notes…</button>
         </section>
         <section className="parchment-sheet guide-choice">
           <h2 className="panel-title">Start on the board</h2>

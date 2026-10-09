@@ -194,6 +194,15 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE style_example ADD COLUMN folder TEXT NOT NULL DEFAULT 'Art';
   ALTER TABLE style_example ADD COLUMN style_for TEXT NOT NULL DEFAULT '["battle"]';
+  `,
+  // 1.3.0: the Notes screen: notes files the DM imported or wrote (each save a new file, earlier ones listed),
+  // and DM notes per session.
+  `
+  CREATE TABLE note_doc (
+    id TEXT PRIMARY KEY, title TEXT NOT NULL, kind TEXT NOT NULL, file TEXT NOT NULL, original_name TEXT NOT NULL,
+    versions TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  ALTER TABLE session ADD COLUMN dm_notes TEXT NOT NULL DEFAULT '';
   `
 ]
 

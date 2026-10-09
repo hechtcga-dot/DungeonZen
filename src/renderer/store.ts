@@ -17,7 +17,7 @@ export type Mode = 'prep' | 'live' | 'players'
 export const SCREEN_NAMES: Record<Screen, string> = {
   desk: 'the desk', board: 'the board', map: 'the map', timeline: 'the timeline', live: 'the live desk', review: 'the review',
   sheet: 'the previous card', library: 'the library', prep: 'session prep', players: 'player preview', encounters: 'encounters',
-  import: 'import notes', guide: 'getting started', combat: 'the fight'
+  import: 'notes', guide: 'getting started', combat: 'the fight'
 }
 export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
 
@@ -66,6 +66,8 @@ interface BoardState {
   /** Settings › AI services is open. */
   aiSettingsOpen: boolean
   setAiSettingsOpen(open: boolean): void
+  /** Notes screen: open on Import (the getting started guide) instead of Your notes. */
+  notesTab: 'notes' | 'import'
   /** The battle map dialog is open. */
   battleMapOpen: boolean
   setBattleMapOpen(open: boolean): void
@@ -121,6 +123,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   setPrepNumber(n) { set({ prepNumber: n }); void get().refresh() },
   aiSettingsOpen: false,
   setAiSettingsOpen(open) { set({ aiSettingsOpen: open }) },
+  notesTab: 'notes',
   battleMapOpen: false,
   setBattleMapOpen(open) { set({ battleMapOpen: open }) },
   reviewSessionId: null,

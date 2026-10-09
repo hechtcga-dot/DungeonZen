@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
-import { combat,
+import { combat, noteDoc,
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
   actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
@@ -23,7 +23,7 @@ import type { CombatView, PcToken,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
-  SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView, LibraryPictureView, PicturesView, StyleUse
+  SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView, LibraryPictureView, PicturesView, StyleUse, NoteDocView, NotesScreenView
 } from '../../shared/types'
 import { STYLE_USES } from '../../shared/types'
 import { advise } from '../advisor'
@@ -65,6 +65,11 @@ function mimeOf(path: string): string {
 export const MAP_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
 /** Address the app's asset protocol serves files from the open campaign's assets folder under. */
 export const ASSET_URL_PREFIX = 'dz-asset://campaign/'
+/** What kind of note a file is, by its extension. */
+export function noteKind(ext: string): 'word' | 'pdf' | 'text' | 'picture' {
+  const e = ext.toLowerCase()
+  return e === '.docx' ? 'word' : e === '.pdf' ? 'pdf' : ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(e) ? 'picture' : 'text'
+}
 /** Library › Pictures folders that always exist. */
 const DEFAULT_PICTURE_FOLDERS = ['Art', 'Portraits', 'Places', 'Items', 'Maps', 'Battle maps', 'Background pictures']
 /** The folder a card's picture shows in. */
@@ -979,7 +984,8 @@ export class Campaign {
       party,
       map: maps.find((m) => m.id === activeId) ?? maps[0] ?? null,
       maps,
-      dmNotes: String(this.setting('dm_notes') ?? ''),
+      dmNotes: this.openSession()?.dmNotes ?? String(this.setting('dm_notes') ?? ''),
+      dmNotesSession: this.openSession()?.number ?? null,
       moonOffsetDays: Number(this.setting('moon_offset_days') ?? 0),
       counts: { cards: visible.size, strings, removed: entities.filter((e) => e.status === 'defunct').length }
     }
@@ -2237,7 +2243,7 @@ export class Campaign {
           const e = this.db.select().from(entity).where(eq(entity.id, c.duplicateOf.id)).get()
           if (e && e.status !== 'defunct') {
             const attrs: Record<string, unknown> = { ...e.attributes }
-            const fill = (k: string, v: string) => { if (v && !(typeof attrs[k] === 'string' && (attrs[k] as string).trim())) attrs[k] = v }
+            const fill = (k: string, v: string) => { if (v && (c.overwrite?.includes(k) || !(typeof attrs[k] === 'string' && (attrs[k] as string).trim()))) attrs[k] = v }
             fill('summary', c.summary)
             for (const [k, v] of Object.entries(c.details)) fill(k, v)
             attrs.provenance = [...(Array.isArray(attrs.provenance) ? attrs.provenance : []), ...provenanceOf(c.sources)]
@@ -2700,9 +2706,172 @@ export class Campaign {
 
   /** Adds a paragraph to the DM notes journal (one undo step). */
   appendDmNotes(text: string): void {
-    const cur = this.setting('dm_notes')
+    const open = this.openSession()
+    const cur = open ? open.dmNotes : this.setting('dm_notes')
     const before = typeof cur === 'string' ? cur.trimEnd() : ''
-    this.setSetting('dm_notes', before ? `${before}\n\n${text.trim()}` : text.trim(), 'Added to the DM notes')
+    this.setDmNotes(before ? `${before}\n\n${text.trim()}` : text.trim(), 'Added to the DM notes')
+  }
+
+  /** The desk journal: the running session's notes, else the notes between sessions. */
+  setDmNotes(text: string, label = 'Edited DM notes'): void {
+    const open = this.openSession()
+    if (open) this.log.run(`${label} (session ${open.number})`, (w) => { w.update('session', open.id, { dmNotes: text }) })
+    else this.setSetting('dm_notes', text, label)
+  }
+
+  // ---- Notes screen: notes files (imported or written here) and session notes
+
+  notesScreen(): NotesScreenView {
+    const open = this.openSession()
+    return {
+      docs: this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all()
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .map((r) => ({ id: r.id, title: r.title, kind: r.kind as NoteDocView['kind'], originalName: r.originalName, updatedAt: r.updatedAt, versions: r.versions })),
+      sessions: this.db.select().from(session).where(eq(session.status, 'active')).all()
+        .sort((a, b) => b.number - a.number)
+        .map((r) => ({ id: r.id, number: r.number, startedAt: r.startedAt, running: r.id === open?.id, dmNotes: r.dmNotes, recap: r.recap })),
+      dmNotes: String(this.setting('dm_notes') ?? '')
+    }
+  }
+
+  setSessionNotes(id: string, text: string): void {
+    const r = this.sessionRow(id)
+    this.log.run(`Edited the notes of session ${r.number}`, (w) => { w.update('session', id, { dmNotes: text }) })
+  }
+
+  private noteRow(id: string) {
+    const r = this.db.select().from(noteDoc).where(eq(noteDoc.id, id)).get()
+    if (!r) throw new Error('That note is gone')
+    return r
+  }
+
+  /** The note's current file on disk. */
+  noteFile(id: string): string {
+    return join(this.folder, ASSETS_DIR, this.noteRow(id).file)
+  }
+
+  /** Copies a file into the notes folder (never changed after; a save writes a new one). */
+  private storeNoteFile(from: { file: string } | { bytes: Buffer; ext: string }): string {
+    const ext = 'file' in from ? extname(from.file).toLowerCase() : from.ext
+    const rel = `notes/${randomUUID()}${ext}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'notes'), { recursive: true })
+    if ('file' in from) copyFileSync(from.file, join(this.folder, ASSETS_DIR, rel))
+    else writeFileSync(join(this.folder, ASSETS_DIR, rel), from.bytes)
+    return rel
+  }
+
+  /** Keeps a notes file (from an import or Word). With `replaceId`, it becomes that note's new version. */
+  addNoteDoc(sourceFile: string, replaceId?: string): string {
+    const ext = extname(sourceFile).toLowerCase()
+    const kind = noteKind(ext)
+    const rel = this.storeNoteFile({ file: sourceFile })
+    const now = new Date().toISOString()
+    if (replaceId) {
+      const r = this.noteRow(replaceId)
+      this.log.run(`Replaced the note ${r.title}`, (w) => {
+        w.update('note_doc', r.id, { file: rel, kind, updatedAt: now, versions: [{ file: r.file, at: r.updatedAt }, ...r.versions].slice(0, 50) })
+      })
+      return r.id
+    }
+    const id = randomUUID()
+    const title = basename(sourceFile, extname(sourceFile))
+    this.log.run(`Kept the notes file ${basename(sourceFile)}`, (w) => {
+      w.insert('note_doc', { id, title, kind, file: rel, originalName: basename(sourceFile), versions: [], status: 'active', createdAt: now, updatedAt: now })
+    })
+    return id
+  }
+
+  createNoteDoc(title: string, bytes: Buffer): string {
+    const rel = this.storeNoteFile({ bytes, ext: '.docx' })
+    const id = randomUUID()
+    const now = new Date().toISOString()
+    this.log.run(`New note ${title}`, (w) => {
+      w.insert('note_doc', { id, title, kind: 'word', file: rel, originalName: `${title}.docx`, versions: [], status: 'active', createdAt: now, updatedAt: now })
+    })
+    return id
+  }
+
+  /** Saves a new version of a note as a Word file (one undo step; the old version stays listed). */
+  saveNoteVersion(id: string, bytes: Buffer, label = 'Saved the note'): void {
+    const r = this.noteRow(id)
+    const rel = this.storeNoteFile({ bytes, ext: '.docx' })
+    this.log.run(`${label} ${r.title}`, (w) => {
+      w.update('note_doc', id, { file: rel, kind: 'word', updatedAt: new Date().toISOString(), versions: [{ file: r.file, at: r.updatedAt }, ...r.versions].slice(0, 50) })
+    })
+  }
+
+  /** Brings an earlier version back (the current one joins the earlier versions). */
+  restoreNoteVersion(id: string, file: string): void {
+    const r = this.noteRow(id)
+    const v = r.versions.find((x) => x.file === file)
+    if (!v) throw new Error('That version is gone')
+    this.log.run(`Brought back an earlier version of ${r.title}`, (w) => {
+      w.update('note_doc', id, {
+        file: v.file, kind: noteKind(extname(v.file)), updatedAt: new Date().toISOString(),
+        versions: [{ file: r.file, at: r.updatedAt }, ...r.versions.filter((x) => x.file !== file)]
+      })
+    })
+  }
+
+  renameNoteDoc(id: string, title: string): void {
+    const r = this.noteRow(id)
+    this.log.run(`Renamed note ${r.title} to ${title}`, (w) => { w.update('note_doc', id, { title }) })
+  }
+
+  setNoteDocStatus(id: string, status: RowStatus): void {
+    const r = this.noteRow(id)
+    this.log.run(status === 'defunct' ? `Moved note ${r.title} to History` : `Restored note ${r.title}`, (w) => { w.update('note_doc', id, { status }) })
+  }
+
+  /** Notes whose original file has the same name (asked before an import: replace or keep both). */
+  noteDocsNamed(names: string[]): Array<{ id: string; title: string; originalName: string }> {
+    const want = new Set(names.map((n) => n.toLowerCase()))
+    return this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all()
+      .filter((r) => want.has(r.originalName.toLowerCase())).map((r) => ({ id: r.id, title: r.title, originalName: r.originalName }))
+  }
+
+  // Open in Word: a copy with the note's name in notes-edit/ (Word changes it there, not the kept versions).
+  private editState(): Record<string, { path: string; mtime: number }> {
+    try { return JSON.parse(readFileSync(join(this.folder, 'notes-edit', 'state.json'), 'utf8')) } catch { return {} }
+  }
+  private saveEditState(st: Record<string, { path: string; mtime: number }>): void {
+    mkdirSync(join(this.folder, 'notes-edit'), { recursive: true })
+    writeFileSync(join(this.folder, 'notes-edit', 'state.json'), JSON.stringify(st))
+  }
+
+  /** The Word copy to open (made fresh from the current version unless Word has unsaved-here changes). */
+  editCopy(id: string): string {
+    const r = this.noteRow(id)
+    const st = this.editState()
+    const known = st[id]
+    if (known && existsSync(known.path) && statSync(known.path).mtimeMs > known.mtime) return known.path
+    const safe = r.title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').trim().slice(0, 80) || 'Note'
+    const path = join(this.folder, 'notes-edit', `${safe}${extname(r.file)}`)
+    mkdirSync(join(this.folder, 'notes-edit'), { recursive: true })
+    copyFileSync(join(this.folder, ASSETS_DIR, r.file), path)
+    st[id] = { path, mtime: statSync(path).mtimeMs }
+    this.saveEditState(st)
+    return path
+  }
+
+  /** Notes changed in Word since they were opened from here. */
+  editedInWord(): Array<{ id: string; title: string }> {
+    const st = this.editState()
+    return Object.entries(st).flatMap(([id, e]) => {
+      if (!existsSync(e.path) || statSync(e.path).mtimeMs <= e.mtime) return []
+      const r = this.db.select().from(noteDoc).where(eq(noteDoc.id, id)).get()
+      return r && r.status === 'active' ? [{ id, title: r.title }] : []
+    })
+  }
+
+  /** Brings Word's changes in as a new version. */
+  takeWordEdit(id: string): void {
+    const st = this.editState()
+    const e = st[id]
+    if (!e || !existsSync(e.path)) throw new Error('The Word copy is gone')
+    this.saveNoteVersion(id, readFileSync(e.path), 'Brought in Word changes to')
+    st[id] = { ...e, mtime: statSync(e.path).mtimeMs }
+    this.saveEditState(st)
   }
 
   /** Player preview: what the party has seen and learned, nothing else. */

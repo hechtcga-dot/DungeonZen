@@ -15,6 +15,8 @@ import type { BuiltCreature, CombatView, SrdMonsterRow,
   StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export, PicturesView
 } from './types'
 import { STYLE_USES } from './types'
+import type { NotesScreenView } from './types'
+import { Blocks, type Block } from './noteDoc'
 
 // The typed contract between the renderer (UI) and the main process.
 // Every input is checked with Zod in the main process before it is used.
@@ -165,7 +167,27 @@ export const ipcInputs = {
   'card:applyFill': z.object({ entityId: Id, fields: z.record(z.string().max(40), z.string().max(5000)), source: z.string().max(300), srdKey: z.string().max(200).nullable() }),
   'import:chooseFiles': z.void(),
   'import:preview': z.object({ paths: z.array(z.string().max(2000)).min(1).max(50) }),
-  'import:read': z.object({ paths: z.array(z.string().max(2000)).min(1).max(50), title: z.string().trim().max(200).optional() }),
+  'import:read': z.object({
+    paths: z.array(z.string().max(2000)).min(1).max(50), title: z.string().trim().max(200).optional(),
+    /** Notes to replace with a file of the same name (path → note id); the others are kept as new notes. */
+    replace: z.record(z.string().max(2000), Id).optional()
+  }),
+  'notes:screen': z.void(),
+  'notes:popout': z.void(),
+  'session:notes': z.object({ id: Id, text: z.string().max(100000) }),
+  'notedoc:content': z.object({ id: Id }),
+  'notedoc:create': z.object({ title: Name }),
+  'notedoc:save': z.object({ id: Id, blocks: Blocks }),
+  'notedoc:rename': z.object({ id: Id, title: Name }),
+  'notedoc:setStatus': z.object({ id: Id, status: RowStatus }),
+  'notedoc:restore': z.object({ id: Id, file: z.string().max(300) }),
+  'notedoc:openInWord': z.object({ id: Id }),
+  'notedoc:saveCopy': z.object({ id: Id }),
+  'notedoc:edited': z.void(),
+  'notedoc:takeEdit': z.object({ id: Id }),
+  'notedoc:updateCards': z.object({ id: Id, lines: z.array(z.string().max(20000)).min(1).max(5000) }),
+  'notedoc:named': z.object({ names: z.array(z.string().max(300)).max(50) }),
+  'file:saveDocx': z.object({ name: z.string().trim().min(1).max(120), text: z.string().max(1_000_000) }),
   'import:cancel': z.void(),
   'import:drafts': z.void(),
   'import:draft': z.object({ id: z.string().uuid() }),
@@ -419,6 +441,22 @@ export interface IpcOutputs {
   'import:chooseFiles': string[]
   'import:preview': Array<{ path: string; name: string; kind: string; parts: number; chars: number; warnings: string[]; error: string | null }>
   'import:read': ImportDraft
+  'notes:screen': NotesScreenView
+  'notes:popout': void
+  'session:notes': void
+  'notedoc:content': { blocks: Block[]; url: string | null }
+  'notedoc:create': string
+  'notedoc:save': { changed: string[] }
+  'notedoc:rename': void
+  'notedoc:setStatus': void
+  'notedoc:restore': void
+  'notedoc:openInWord': void
+  'notedoc:saveCopy': string | null
+  'notedoc:edited': Array<{ id: string; title: string }>
+  'notedoc:takeEdit': { changed: string[] }
+  'notedoc:updateCards': ImportDraft
+  'notedoc:named': Array<{ id: string; title: string; originalName: string }>
+  'file:saveDocx': string | null
   'import:cancel': void
   'import:drafts': ImportDraftSummary[]
   'import:draft': ImportDraft
@@ -549,6 +587,8 @@ export interface DungeonZenApi {
   pathForFile(file: File): string
   /** Notes import progress; returns a function that stops listening. */
   onImportProgress(fn: (p: ImportProgress) => void): () => void
+  /** Another window (the popped-out DM notes) changed something; returns a function that stops listening. */
+  onChanged(fn: () => void): () => void
 }
 
 export { IPC_PREFIX } from './ipcPrefix'

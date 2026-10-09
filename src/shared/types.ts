@@ -326,6 +326,8 @@ export interface DeskView {
   map: MapView | null
   maps: MapView[]
   dmNotes: string
+  /** While a session runs the journal holds that session's notes (Notes › Session notes). */
+  dmNotesSession: number | null
   moonOffsetDays: number
   counts: { cards: number; strings: number; removed: number }
 }
@@ -759,3 +761,16 @@ export interface Roll20Export {
   script: string
   handout: string
 }
+
+/** Notes screen: a notes file (Word, PDF, text or a picture) kept in the campaign. */
+export interface NoteDocView {
+  id: string
+  title: string
+  kind: 'word' | 'pdf' | 'text' | 'picture'
+  originalName: string
+  updatedAt: string
+  versions: Array<{ file: string; at: string }>
+}
+/** Notes screen: DM notes kept per session (the desk journal while that session runs). */
+export interface SessionNotesView { id: string; number: number; startedAt: string; running: boolean; dmNotes: string; recap: string }
+export interface NotesScreenView { docs: NoteDocView[]; sessions: SessionNotesView[]; dmNotes: string }

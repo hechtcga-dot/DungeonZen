@@ -11,6 +11,8 @@ import { RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import { IMPORT_CARD_TYPES, type CardProposal, type ImportDraft, type ImportDraftSummary, type Source } from '../../shared/notesImport'
 import type { ImportProgress } from '../../shared/ipc'
 import { useSidePanel } from '../components/Splitter'
+import { Dialog } from '../components/Dialog'
+import { NotesLibrary } from '../components/NotesLibrary'
 
 type Preview = Awaited<ReturnType<typeof call<'import:preview'>>>
 
@@ -22,23 +24,39 @@ const LINK_WORDS: Record<string, string> = {
   KNOWS: 'knows', HOSTILE_TO: 'is hostile to', ALLIED_WITH: 'is allied with', LOCATED_AT: 'is at', TIED_TO_QUEST: 'is tied to quest', MEMBER_OF: 'is a member of'
 }
 
-/** DM Prep › Import notes: the AI reads your notes and proposes cards; you choose what to keep (rule 2). */
+/**
+ * DM Prep › Notes: every note kept in the campaign (imported files, notes written here, DM notes per
+ * session), and Import: the AI reads notes and proposes cards; you choose what to keep (rule 2).
+ */
 export function ImportScreen() {
   const info = useBoard((s) => s.info)
   const [lighting] = useLightingPref()
   const [draft, setDraft] = useState<ImportDraft | null>(null)
+  const [tab, setTab] = useState<'notes' | 'import'>(() => {
+    const first = useBoard.getState().notesTab
+    useBoard.setState({ notesTab: 'notes' })
+    return first
+  })
   return (
     <DeskFrame>
-      <main className="desk import-screen" aria-label="Import notes">
+      <main className="desk import-screen" aria-label="Notes">
         <header className="desk-head">
           <Candle className="desk-candle" lit={!lighting || lightingAt(info?.clockMin ?? 0).candlesLit} />
           <div className="desk-title">
-            <span className="desk-eyebrow">DM prep · AI reads, you decide</span>
-            <h1>{draft ? `Import: ${draft.title}` : 'Import notes'}</h1>
+            <span className="desk-eyebrow">DM prep · your notes; the AI reads, you decide</span>
+            <h1>{draft ? `Import: ${draft.title}` : 'Notes'}</h1>
           </div>
-          {draft && <div className="desk-head-actions"><button className="brass" onClick={() => setDraft(null)}>Back to imports</button></div>}
+          {draft
+            ? <div className="desk-head-actions"><button className="brass" onClick={() => setDraft(null)}>Back to notes</button></div>
+            : (
+              <div className="desk-head-actions segmented" role="tablist" aria-label="Notes">
+                <button role="tab" aria-selected={tab === 'notes'} aria-pressed={tab === 'notes'} onClick={() => setTab('notes')}>Your notes</button>
+                <button role="tab" aria-selected={tab === 'import'} aria-pressed={tab === 'import'} onClick={() => setTab('import')}>Import notes</button>
+              </div>
+            )}
         </header>
-        {draft ? <Review key={draft.id} initial={draft} onDone={() => setDraft(null)} /> : <Start onOpen={setDraft} />}
+        {draft ? <Review key={draft.id} initial={draft} onDone={() => setDraft(null)} />
+          : tab === 'notes' ? <NotesLibrary onOpen={setDraft} onImport={() => setTab('import')} /> : <Start onOpen={setDraft} />}
       </main>
     </DeskFrame>
   )
@@ -80,11 +98,22 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
   }
   const usable = files.filter((f) => !f.error)
   const requests = usable.reduce((n, f) => n + f.parts, 0)
-  const read = async () => {
+  const [clash, setClash] = useState<Array<{ id: string; title: string; originalName: string }> | null>(null)
+  const read = async (replace?: Record<string, string>) => {
+    setClash(null)
+    if (!replace) {
+      // A note with the same file name: ask whether to replace it or keep both.
+      const same = await call('notedoc:named', { names: usable.map((f) => f.name) }).catch(() => [])
+      if (same.length) { setClash(same); return }
+    }
     setBusy(true); setError(null); setProgress(null)
-    try { onOpen(await call('import:read', { paths: usable.map((f) => f.path), title: title || undefined })) } catch (e) { setError((e as Error).message) }
+    try { onOpen(await call('import:read', { paths: usable.map((f) => f.path), title: title || undefined, replace })) } catch (e) { setError((e as Error).message) }
     setBusy(false)
   }
+  const replaceAll = () => Object.fromEntries((clash ?? []).flatMap((n) => {
+    const f = usable.find((x) => x.name.toLowerCase() === n.originalName.toLowerCase())
+    return f ? [[f.path, n.id]] : []
+  }))
 
   return (
     <div className="import-start" style={side.style}>
@@ -128,6 +157,15 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
             {error && <p className="field-error" role="alert">{error}</p>}
           </div>
         )}
+        <Dialog title="These notes are already here" open={!!clash} onClose={() => setClash(null)}>
+          <p>{clash?.map((n) => n.title).join(', ')} {clash?.length === 1 ? 'is' : 'are'} already in your notes.</p>
+          <p className="hint">Replace: the new file becomes the note and the old one stays under Earlier versions (bring it back any time). Keep both: the new file is a separate note.</p>
+          <div className="dz-actions">
+            <button onClick={() => setClash(null)}>Cancel</button>
+            <button onClick={() => void read({})}>Keep both</button>
+            <button className="primary" onClick={() => void read(replaceAll())}>Replace</button>
+          </div>
+        </Dialog>
       </section>
       <aside className="parchment-note import-drafts">
         {side.grip}
@@ -149,7 +187,7 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
         <ul className="ink-list">
           <li>The AI proposes people, places, factions, quests, clues, items, storylines, strings and questions, each with the words it read.</li>
           <li><span className="basis-badge is-guess">AI guess</span> marks anything the notes did not say outright.</li>
-          <li>Cards that look like ones you already have can be merged: only empty fields are filled.</li>
+          <li>Cards that look like ones you already have can be merged: empty fields are filled, and you tick Replace to change what a card already says.</li>
           <li>Nothing changes until you press Create selected, and one Ctrl+Z takes it all back.</li>
         </ul>
       </aside>
@@ -222,9 +260,10 @@ function Review({ initial, onDone }: { initial: ImportDraft; onDone(): void }) {
                 </div>
                 {c.duplicateOf && (
                   <p className="dup-note">{c.duplicateOf.exact ? 'Already in the campaign' : 'Looks like'} “{c.duplicateOf.name}” ({c.duplicateOf.type.toLowerCase()}).
-                    {c.decision === 'merge' ? ' Merging fills only its empty fields and adds the quotes.' : ''}</p>
+                    {c.decision === 'merge' ? ' Merging fills its empty fields and adds the quotes; tick Replace below to change what it already says.' : ''}</p>
                 )}
                 <input aria-label="Summary" className="proposal-summary" value={c.summary} placeholder="One line" disabled={readOnly} onChange={(e) => card(c.id, { summary: e.target.value })} />
+                {c.decision === 'merge' && c.duplicateOf && <Compare c={c} readOnly={readOnly} onChange={(overwrite) => card(c.id, { overwrite })} />}
                 <div className="proposal-details">
                   {Object.entries(c.details).map(([k, v]) => (
                     <label key={k}>
@@ -347,5 +386,32 @@ function Sources({ sources }: { sources: Source[] }) {
       ))}
       {sources.length > 4 && <p className="ink-muted">and {sources.length - 4} more places</p>}
     </div>
+  )
+}
+
+/**
+ * Merging into a card you have: what the card says now beside what the notes say. Fields the card
+ * already has stay unless ticked "Replace" (for notes you changed); empty ones are filled.
+ */
+function Compare({ c, readOnly, onChange }: { c: CardProposal; readOnly: boolean; onChange(overwrite: string[]): void }) {
+  const existing = useBoard((s) => (c.duplicateOf ? s.view?.entities[c.duplicateOf.id] : undefined))
+  if (!existing) return null
+  const now = (k: string) => (typeof existing.attributes[k] === 'string' ? (existing.attributes[k] as string).trim() : '')
+  const differs = [['summary', c.summary], ...Object.entries(c.details)].filter(([k, v]) => v.trim() && now(k) && now(k) !== v.trim())
+  if (!differs.length) return <p className="ink-muted compare-note">Every field it fills is empty on “{existing.name}” now.</p>
+  const over = new Set(c.overwrite ?? [])
+  return (
+    <table className="compare">
+      <thead><tr><th>Field</th><th>“{existing.name}” now</th><th>Your notes say</th><th>Replace</th></tr></thead>
+      <tbody>
+        {differs.map(([k, v]) => (
+          <tr key={k}>
+            <td>{k}</td><td>{now(k)}</td><td>{v}</td>
+            <td><input type="checkbox" aria-label={`Replace ${k}`} checked={over.has(k)} disabled={readOnly}
+              onChange={(e) => { const n = new Set(over); if (e.target.checked) n.add(k); else n.delete(k); onChange([...n]) }} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { basename, extname } from 'node:path'
 import { readZipEntry } from './zip'
+import { readDocxBlocks } from './docx'
+import { textToBlocks, type Block } from '../../shared/noteDoc'
 
 // Notes import, step 1: read the DM's files on this computer (nothing leaves it yet).
 // Text comes out in chunks with a locator ("paragraphs 4–18", "page 3") so every
@@ -139,4 +141,16 @@ export async function readNotesFile(path: string): Promise<NotesFile> {
   }
   const text = bytes.toString('utf8').replace(/^﻿/, '').replace(/\r\n?/g, '\n')
   return { name, kind: 'text', chunks: chunkBlocks(text.split(/\n\s*\n/).filter((p) => p.trim()), 'paragraph'), image: null, warnings: [] }
+}
+
+/** A kept note's text with its formatting, for the Notes screen (pictures have none). */
+export async function noteBlocks(path: string, kind: 'word' | 'pdf' | 'text' | 'picture'): Promise<Block[]> {
+  if (kind === 'picture') return []
+  const bytes = readFileSync(path)
+  if (kind === 'word') return readDocxBlocks(bytes)
+  if (kind === 'pdf') {
+    const pages = await pdfPages(bytes)
+    return pages.flatMap((p, i): Block[] => (pages.length > 1 ? [{ kind: 'h3', runs: [{ text: `Page ${i + 1}` }] }, ...textToBlocks(p)] : textToBlocks(p)))
+  }
+  return textToBlocks(bytes.toString('utf8').replace(/^\uFEFF/, ''))
 }

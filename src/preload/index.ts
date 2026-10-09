@@ -11,6 +11,11 @@ const api: DungeonZenApi = {
     const listener = (_e: unknown, p: Parameters<typeof fn>[0]) => fn(p)
     ipcRenderer.on(IPC_PREFIX + 'import-progress', listener)
     return () => { ipcRenderer.removeListener(IPC_PREFIX + 'import-progress', listener) }
+  },
+  onChanged: (fn) => {
+    const listener = () => fn()
+    ipcRenderer.on(IPC_PREFIX + 'changed', listener)
+    return () => { ipcRenderer.removeListener(IPC_PREFIX + 'changed', listener) }
   }
 }
 

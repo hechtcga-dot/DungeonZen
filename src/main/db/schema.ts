@@ -233,7 +233,22 @@ export const session = sqliteTable('session', {
   sceneText: text('scene_text').notNull(),
   recap: text('recap').notNull(),
   playerRecap: text('player_recap').notNull().default(''),
-  status: text('status').notNull()
+  status: text('status').notNull(),
+  dmNotes: text('dm_notes').notNull().default('')
+})
+
+// Notes screen: a notes file the DM imported or wrote. `file` is the current version (assets/notes/…,
+// never changed once written); `versions` the earlier ones, newest first.
+export const noteDoc = sqliteTable('note_doc', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  kind: text('kind').notNull(), // word | pdf | text | picture
+  file: text('file').notNull(), // relative to assets/
+  originalName: text('original_name').notNull(),
+  versions: text('versions', { mode: 'json' }).$type<Array<{ file: string; at: string }>>().notNull().default([]),
+  status: text('status').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull()
 })
 
 export const logEntry = sqliteTable('log_entry', {
@@ -352,7 +367,8 @@ export const tracked = {
   session_prep: { table: sessionPrep, pk: sessionPrep.id },
   prep_item: { table: prepItem, pk: prepItem.id },
   encounter_creature: { table: encounterCreature, pk: encounterCreature.id },
-  act_entity: { table: actEntity, pk: actEntity.id }
+  act_entity: { table: actEntity, pk: actEntity.id },
+  note_doc: { table: noteDoc, pk: noteDoc.id }
 } as const
 export type TableName = keyof typeof tracked
 
