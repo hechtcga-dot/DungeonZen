@@ -4,7 +4,7 @@ import { useBoard } from '../store'
 import { CommitField } from './fields'
 import { AttackPicker, type PickerTab } from './AttackPicker'
 import { macroFor, spellLevel } from '../../shared/attacks'
-import { ACTIONS_IN_COMBAT, abilityRow, applyHp, classLine, classesOf, hitDice, usesOf, type ClassLevel, type LimitedUse } from '../../shared/charsheet'
+import { ACTIONS_IN_COMBAT, abilityRow, applyHp, classLine, classesOf, hitDice, usesOf, xpProgress, type ClassLevel, type LimitedUse } from '../../shared/charsheet'
 import { ABILITY_KEYS, abilityModifier, castingAbility, formatModifier, readStatBlock, statLine, type StatBlock } from '../../shared/statblock'
 import { AbilityKind } from '../../shared/schemas'
 import type { IpcInput } from '../../shared/ipc'
@@ -38,6 +38,7 @@ export function ClassStrip({ sheet, sb, save }: { sheet: SheetView; sb: StatBloc
   return (
     <div className="cs-card cs-classes">
       <p className="cs-class-line"><strong>{[sb.creatureType, classLine(classes)].filter(Boolean).join(' · ') || 'Species and class not set'}</strong>{level && <> · Level {level}</>}</p>
+      {e.type === 'PC' && <XpLine sheet={sheet} />}
       <div className="cs-class-rows">
         <CommitField id={`${p}-species`} label="Species" value={sb.creatureType} placeholder="Half-Elf" className="cs-inline" onCommit={(creatureType) => save({ creatureType })} />
         {classes.map((c, i) => (
@@ -51,6 +52,22 @@ export function ClassStrip({ sheet, sb, save }: { sheet: SheetView; sb: StatBloc
         ))}
         <button className="align-start" onClick={() => put([...classes, { name: '', subclass: '', level: classes.length ? 1 : Number.parseInt(level, 10) || 1 }])}>{classes.length ? 'Add a class (multiclass)' : 'Add class'}</button>
       </div>
+    </div>
+  )
+}
+
+/** A character's experience points: the running total (fights add to it; type to change) and the next level. */
+function XpLine({ sheet }: { sheet: SheetView }) {
+  const e = sheet.entity
+  const setAttr = useSetAttr(e.id)
+  const xp = typeof e.attributes.xp === 'number' ? e.attributes.xp : 0
+  const level = classesOf(e.attributes).reduce((n, c) => n + c.level, 0) || Number.parseInt(String(e.attributes.level ?? ''), 10) || 0
+  const p = xpProgress(xp, level)
+  return (
+    <div className={`cs-xp${p.levelUp || p.close ? ' is-close' : ''}`}>
+      <CommitField id={`xp-${e.id}`} label="XP" value={String(xp)} className="cs-inline cs-narrow"
+        onCommit={(v) => { const n = Math.max(0, Number.parseInt(v.replace(/[^0-9]/g, ''), 10) || 0); if (n !== xp) setAttr({ xp: n }) }} />
+      <span className="ink-muted">{p.levelUp ? `Enough XP for level ${p.xpLevel}: level up!` : p.toNext === null ? 'Top level' : `${p.toNext.toLocaleString()} XP to level ${level + 1 || 2}${p.close ? ': almost there' : ''}`}</span>
     </div>
   )
 }

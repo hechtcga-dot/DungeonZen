@@ -1272,3 +1272,6 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .spell-link { display: inline; min-height: 0; padding: 0; border: none; background: none; box-shadow: none; font: inherit; color: #7a2230; text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
 .spell-link:hover { color: #a3191c; }
 .spell-own { margin-bottom: 10px; }
+
+.cs-xp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.cs-xp.is-close .ink-muted, .pc-xp-close { color: #8f2a21; font-weight: 700; }

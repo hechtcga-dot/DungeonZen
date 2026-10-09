@@ -311,6 +311,9 @@ export interface DeskPartyMember {
   passivePerception: number | null
   /** The DM's card colour, if set. */
   colour: string | null
+  /** Experience points and level (total of the classes, else the level field). */
+  xp: number
+  level: number
   /** At the table: hit points now (max when never changed), temporary hit points, size, resistances, conditions. */
   currentHp: number | null
   maxHp: number | null

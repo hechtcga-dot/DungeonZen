@@ -619,11 +619,16 @@ function EndFight({ v, onClose }: { v: CombatView; onClose(): void }) {
     `${s.round} round${s.round === 1 ? '' : 's'}. XP ${xp.toLocaleString()} (${each.toLocaleString()} each for ${party.length}).`,
     party.some((c) => c.maxHp) ? `Party: ${party.map((c) => `${c.name} ${c.hp}/${c.maxHp} HP`).join(', ')}.` : ''
   ].filter(Boolean).join(' '))
+  const [giveXp, setGiveXp] = useState(true)
+  const pcIds = [...new Set(party.map((c) => c.entityId).filter((x): x is string => !!x))]
   const nameOf = (id: string) => s.combatants.find((c) => c.entityId === id)?.name.replace(/\s+\d+$/, '') ?? 'Card'
   return (
     <Dialog title="End combat" open onClose={onClose} wide>
       <div className="dz-form">
         <p><strong>XP earned: {xp.toLocaleString()}</strong> from {beaten.length} defeated (down, fled or surrendered) · <strong>{each.toLocaleString()} XP each</strong> for {party.length} player character{party.length === 1 ? '' : 's'}.</p>
+        {each > 0 && pcIds.length > 0 && (
+          <label className="field checkbox"><input type="checkbox" checked={giveXp} onChange={(e) => setGiveXp(e.target.checked)} /> Add {each.toLocaleString()} XP to each character's total ({party.map((c) => c.name).join(', ')})</label>
+        )}
         {cards.length > 0 && (
           <fieldset className="field">
             <legend>Mark these cards resolved (greyed on the board; undo brings them back)</legend>
@@ -640,7 +645,7 @@ function EndFight({ v, onClose }: { v: CombatView; onClose(): void }) {
         <div className="dz-actions">
           <button onClick={onClose}>Keep fighting</button>
           <button className="primary" onClick={async () => {
-            await act('combat:end', { id: v.id, resolveIds: [...resolve], summary: v.sessionRunning ? summary : undefined })
+            await act('combat:end', { id: v.id, resolveIds: [...resolve], summary: v.sessionRunning ? summary : undefined, xp: giveXp && each > 0 ? { each, pcIds } : undefined })
             say(`Fight over${v.sessionRunning ? ': logged in the session' : ''}. Ctrl+Z undoes it.`)
             onClose()
           }}>End combat</button>

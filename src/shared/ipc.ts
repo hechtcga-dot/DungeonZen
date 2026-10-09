@@ -262,7 +262,7 @@ export const ipcInputs = {
   'combat:start': z.object({ encounterId: Id }),
   'combat:view': z.object({ id: Id }),
   'combat:update': z.object({ id: Id, state: CombatState, label: z.string().min(1).max(300) }),
-  'combat:end': z.object({ id: Id, resolveIds: z.array(Id).max(200).optional(), summary: z.string().max(5000).optional() }),
+  'combat:end': z.object({ id: Id, resolveIds: z.array(Id).max(200).optional(), summary: z.string().max(5000).optional(), xp: z.object({ each: z.number().int().min(0).max(1000000), pcIds: z.array(Id).max(50) }).optional() }),
   'ai:combatAdvice': z.object({ id: Id, ask: z.string().max(1000), focusId: z.string().max(80).optional() }),
   'encounter:houseRules': z.object({ text: z.string().max(20000) }),
   'ai:rateEncounter': z.object({ encounterId: Id }),

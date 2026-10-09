@@ -1063,6 +1063,8 @@ export class Campaign {
           hp: sb?.hp ? String(leadingNumber(sb.hp) ?? sb.hp) : '',
           passivePerception: sb ? passiveScore(sb, 'Perception') : null,
           colour: typeof a.colour === 'string' ? a.colour : null,
+          xp: typeof a.xp === 'number' ? a.xp : 0,
+          level: classesOf(a).reduce((n, c) => n + c.level, 0) || Number.parseInt(String(a.level ?? ''), 10) || 0,
           currentHp: typeof a.current_hp === 'number' ? a.current_hp : maxHp,
           maxHp,
           tempHp: typeof a.temp_hp === 'number' ? a.temp_hp : 0,
@@ -2999,12 +3001,17 @@ export class Campaign {
   }
 
   /** Ends the fight (one undo step): optionally marks defeated cards resolved and logs a summary in the running session. */
-  endCombat(id: string, opts: { resolveIds?: string[]; summary?: string } = {}): void {
+  endCombat(id: string, opts: { resolveIds?: string[]; summary?: string; xp?: { each: number; pcIds: string[] } } = {}): void {
     const row = this.db.select().from(combat).where(eq(combat.id, id)).get()
     if (!row) throw new Error('That fight is no longer here')
     const open = this.openSession()
     this.log.run(`Ended the fight: ${this.nameOf(row.encounterId)}`, (w) => {
       w.update('combat', id, { status: 'ended' })
+      // XP shared equally (owner, 1.6.0): added to each character's running total.
+      for (const pid of opts.xp && opts.xp.each > 0 ? opts.xp.pcIds : []) {
+        const e = this.db.select().from(entity).where(eq(entity.id, pid)).get()
+        if (e) w.update('entity', pid, { attributes: { ...e.attributes, xp: (typeof e.attributes.xp === 'number' ? e.attributes.xp : 0) + opts.xp!.each } })
+      }
       for (const eid of opts.resolveIds ?? []) {
         const e = this.db.select().from(entity).where(eq(entity.id, eid)).get()
         if (e && e.status === 'active') w.update('entity', eid, { status: 'resolved' })

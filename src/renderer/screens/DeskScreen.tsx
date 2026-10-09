@@ -13,6 +13,7 @@ import { lightingAt, moonOn, skyAt } from '../../shared/sky'
 import { useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
 import { ImportCharSheet } from '../components/ImportCharSheet'
+import { xpProgress } from '../../shared/charsheet'
 import type { DeskPartyMember, DeskView } from '../../shared/types'
 
 
@@ -106,7 +107,7 @@ function Desk({ desk }: { desk: DeskView }) {
                 {desk.party.map((p) => (
                   <li key={p.id}>
                     <button className="ledger-name" onClick={() => void openSheet(p.id)}>{p.name}</button>
-                    <span className="mono">{p.hp ? `HP ${p.hp}` : ''}{p.ac ? ` · AC ${p.ac}` : ''}</span>
+                    <span className="mono">{p.hp ? `HP ${p.hp}` : ''}{p.ac ? ` · AC ${p.ac}` : ''} · XP {p.xp.toLocaleString()}</span>
                   </li>
                 ))}
               </ul>
@@ -303,6 +304,11 @@ function PartyCard({ p, index }: { p: DeskPartyMember; index: number }) {
           </span>
           {(p.inspiration || p.exhaustion > 0) && <span className="pc-line">{p.inspiration ? '★ Heroic Inspiration' : ''}{p.inspiration && p.exhaustion ? ' · ' : ''}{p.exhaustion ? `Exhaustion ${p.exhaustion}` : ''}</span>}
           {p.resistances && <span className="pc-line" title={p.resistances}>{p.resistances}</span>}
+          {(() => {
+            const x = xpProgress(p.xp, p.level)
+            return <span className={`pc-line${x.levelUp || x.close ? ' pc-xp-close' : ''}`} title="Experience points (fights add to them; change on the sheet)">
+              XP {p.xp.toLocaleString()}{x.levelUp ? ` · level ${x.xpLevel} reached` : x.toNext !== null ? ` · ${x.toNext.toLocaleString()} to next level` : ''}</span>
+          })()}
           <input className="pc-conditions" value={conditions} placeholder="No conditions" aria-label={`${p.name} conditions`}
             onChange={(e) => setConditions(e.target.value)} onBlur={saveConditions} onKeyDown={blurOnEnter} />
           <button type="button" className="pc-open" onClick={() => void openSheet(p.id)}>Open sheet</button>

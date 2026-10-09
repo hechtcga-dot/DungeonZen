@@ -69,3 +69,19 @@ export function abilityRow(description: string, kind: string): AbilityRow {
 
 /** What any creature can do on its turn (2024 Player's Handbook). */
 export const ACTIONS_IN_COMBAT = 'Attack, Dash, Disengage, Dodge, Grapple, Help, Hide, Improvise, Influence, Magic, Ready, Search, Shove, Study, Utilize'
+
+/** XP needed for each level (PHB, same in 2014 and 2024): index = level - 1. */
+export const XP_FOR_LEVEL = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
+
+/** Where a character's XP stands: the level it is worth, XP to the next one, and "close" (90% of the way or more). */
+export function xpProgress(xp: number, level: number): { xpLevel: number; next: number | null; toNext: number | null; close: boolean; levelUp: boolean } {
+  const xpLevel = XP_FOR_LEVEL.filter((n) => xp >= n).length
+  const lvl = Math.max(1, Math.min(20, level || xpLevel))
+  const next = lvl < 20 ? XP_FOR_LEVEL[lvl] : null
+  const from = XP_FOR_LEVEL[lvl - 1]
+  return {
+    xpLevel, next, toNext: next === null ? null : Math.max(0, next - xp),
+    close: next !== null && xp < next && (xp - from) / (next - from) >= 0.9,
+    levelUp: xpLevel > lvl
+  }
+}
