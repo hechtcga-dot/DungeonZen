@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
-import type { EntityAttributes, NoteContent } from '../../shared/schemas'
+import type { BoardItemContent, EntityAttributes } from '../../shared/schemas'
 
 // Phase 1 tables from docs/DATA_MODEL.md. Column names match the doc (snake_case);
 // enum-like columns are plain strings checked with Zod (src/shared/schemas.ts).
@@ -19,7 +19,8 @@ export const entity = sqliteTable('entity', {
   tags: text('tags', { mode: 'json' }).$type<string[]>().notNull(),
   status: text('status').notNull(),
   parentId: text('parent_id'),
-  createdAt: text('created_at').notNull()
+  createdAt: text('created_at').notNull(),
+  hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false) // hidden on every board (Show hidden shows it greyed)
 })
 
 export const relationship = sqliteTable('relationship', {
@@ -28,7 +29,9 @@ export const relationship = sqliteTable('relationship', {
   targetId: text('target_id').notNull(),
   type: text('type').notNull(),
   isSecret: integer('is_secret', { mode: 'boolean' }).notNull(),
-  status: text('status').notNull()
+  status: text('status').notNull(),
+  hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
+  boardId: text('board_id') // null = on every board; set while strings are kept per board
 })
 
 export const storyline = sqliteTable('storyline', {
@@ -38,7 +41,8 @@ export const storyline = sqliteTable('storyline', {
   status: text('status').notNull(),
   bbegEntityId: text('bbeg_entity_id'),
   emblem: text('emblem'), // tarot emblem on the desk; null = chosen from the id
-  removed: integer('removed', { mode: 'boolean' }).notNull().default(false) // in History
+  removed: integer('removed', { mode: 'boolean' }).notNull().default(false), // in History
+  colour: text('colour') // tints its cards on the board; null = no tint
 })
 
 // Composite key in the doc; a surrogate id keeps undo generic.
@@ -64,7 +68,16 @@ export const boardItem = sqliteTable('board_item', {
   y: real('y').notNull(),
   w: real('w'),
   h: real('h'),
-  content: text('content', { mode: 'json' }).$type<NoteContent | null>(),
+  content: text('content', { mode: 'json' }).$type<BoardItemContent | null>(),
+  status: text('status').notNull(),
+  hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false)
+})
+
+// A card marked as part of an act (shown on the card as the act's roman numeral).
+export const actEntity = sqliteTable('act_entity', {
+  id: text('id').primaryKey(),
+  actId: text('act_id').notNull(),
+  entityId: text('entity_id').notNull(),
   status: text('status').notNull()
 })
 
@@ -321,7 +334,8 @@ export const tracked = {
   style_example: { table: styleExample, pk: styleExample.id },
   session_prep: { table: sessionPrep, pk: sessionPrep.id },
   prep_item: { table: prepItem, pk: prepItem.id },
-  encounter_creature: { table: encounterCreature, pk: encounterCreature.id }
+  encounter_creature: { table: encounterCreature, pk: encounterCreature.id },
+  act_entity: { table: actEntity, pk: actEntity.id }
 } as const
 export type TableName = keyof typeof tracked
 

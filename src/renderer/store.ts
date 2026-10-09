@@ -9,6 +9,7 @@ export type Selection =
   | { kind: 'note'; id: string }
   | null
 
+export type BoardPanel = 'inspector' | 'history' | 'connections' | 'storylines'
 export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide'
 /** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
 export type Mode = 'prep' | 'live' | 'players'
@@ -53,7 +54,7 @@ interface BoardState {
   goBack(): Promise<void>
   /** A card to bring into view the next time the board shows. */
   focusEntityId: string | null
-  panel: 'inspector' | 'history'
+  panel: BoardPanel
   selection: Selection
   search: string
   message: { text: string; isError: boolean } | null
@@ -77,7 +78,7 @@ interface BoardState {
   query<C extends IpcChannel>(channel: C, input: IpcInput<C>): Promise<IpcOutputs[C] | undefined>
   undo(): Promise<void>
   redo(): Promise<void>
-  setPanel(panel: 'inspector' | 'history'): void
+  setPanel(panel: BoardPanel): void
   select(selection: Selection): void
   setSearch(text: string): void
   say(text: string, isError?: boolean): void

@@ -27,7 +27,8 @@ export function Inspector() {
   }
   if (selection.kind === 'note') {
     const item = view.items.find((i) => i.id === selection.id)
-    if (item) return <NoteInspector key={item.id} itemId={item.id} text={item.content?.text ?? ''} />
+    if (item?.kind === 'image') return <ImageInspector key={item.id} itemId={item.id} />
+    if (item) return <NoteInspector key={item.id} itemId={item.id} text={item.content?.text ?? ''} hidden={item.hidden} />
   }
   return null
 }
@@ -108,6 +109,8 @@ function EntityInspector({ entity }: { entity: EntityView }) {
       </fieldset>
 
       <div className="actions">
+        <button onClick={() => void act('board:setHidden', { kind: 'entity', id: entity.id, hidden: !entity.hidden })}
+          title="Hidden cards leave every board; Show hidden shows them greyed">{entity.hidden ? 'Unhide' : 'Hide on every board'}</button>
         <button className="danger" onClick={async () => { await act('entity:setStatus', { id: entity.id, status: 'defunct' }); select(null) }}>
           Move to History
         </button>
@@ -130,7 +133,7 @@ function StringInspector({ id }: { id: string }) {
       <CommitField id={`rel-${id}-type`} label="Link type" value={rel.type.replace(/_/g, ' ')} list="relationship-types" required
         hint="Pick a suggestion or type your own." onCommit={(type) => void act('relationship:update', { id, patch: { type } })} />
       <datalist id="relationship-types">
-        {RELATIONSHIP_TYPES.map((t) => <option key={t} value={t.replace(/_/g, ' ')} />)}
+        {[...new Set([...RELATIONSHIP_TYPES, ...view.settings.stringTypes.map((t) => t.type)])].map((t) => <option key={t} value={t.replace(/_/g, ' ')} />)}
       </datalist>
       <div className="field checkbox">
         <input id={`rel-${id}-secret`} type="checkbox" checked={rel.isSecret}
@@ -138,6 +141,7 @@ function StringInspector({ id }: { id: string }) {
         <label htmlFor={`rel-${id}-secret`}>Secret link (dashed): the party doesn't know about it</label>
       </div>
       <div className="actions">
+        <button onClick={() => void act('board:setHidden', { kind: 'string', id, hidden: !rel.hidden })}>{rel.hidden ? 'Unhide' : 'Hide'}</button>
         <button className="danger" onClick={async () => { await act('relationship:setStatus', { id, status: 'defunct' }); select(null) }}>
           Remove string
         </button>
@@ -146,7 +150,7 @@ function StringInspector({ id }: { id: string }) {
   )
 }
 
-function NoteInspector({ itemId, text }: { itemId: string; text: string }) {
+function NoteInspector({ itemId, text, hidden }: { itemId: string; text: string; hidden: boolean }) {
   const act = useBoard((s) => s.act)
   const select = useBoard((s) => s.select)
   return (
@@ -155,9 +159,40 @@ function NoteInspector({ itemId, text }: { itemId: string; text: string }) {
       <CommitField id={`note-${itemId}`} label="Text" value={text} multiline
         hint="Saved when you click away. Ctrl+Enter also saves." onCommit={(t) => void act('note:update', { itemId, text: t })} />
       <div className="actions">
+        <button onClick={() => void act('board:setHidden', { kind: 'item', id: itemId, hidden: !hidden })}>{hidden ? 'Unhide' : 'Hide'}</button>
         <button className="danger" onClick={async () => { await act('note:setStatus', { itemId, status: 'defunct' }); select(null) }}>
           Remove note
         </button>
+      </div>
+    </div>
+  )
+}
+
+function ImageInspector({ itemId }: { itemId: string }) {
+  const act = useBoard((s) => s.act)
+  const select = useBoard((s) => s.select)
+  const view = useView()
+  const item = view.items.find((i) => i.id === itemId)!
+  const c = item.content ?? {}
+  const opacity = c.opacity ?? 0.6
+  return (
+    <div className="inspector">
+      <h2 className="panel-heading">Picture under the cards</h2>
+      <CommitField id={`pic-${itemId}-name`} label="Name" value={c.name ?? ''} required onCommit={(name) => void act('boardImage:update', { itemId, patch: { name } })} />
+      <div className="field">
+        <label htmlFor={`pic-${itemId}-op`}>How solid ({Math.round(opacity * 100)}%)</label>
+        <input id={`pic-${itemId}-op`} type="range" min={0.1} max={1} step={0.05} defaultValue={opacity}
+          onPointerUp={(e) => void act('boardImage:update', { itemId, patch: { opacity: Number(e.currentTarget.value) } })}
+          onKeyUp={(e) => void act('boardImage:update', { itemId, patch: { opacity: Number(e.currentTarget.value) } })} />
+      </div>
+      <div className="field checkbox">
+        <input id={`pic-${itemId}-lock`} type="checkbox" checked={!!c.locked} onChange={(e) => void act('boardImage:update', { itemId, patch: { locked: e.target.checked } })} />
+        <label htmlFor={`pic-${itemId}-lock`}>Locked: it stays put while you arrange cards on top</label>
+      </div>
+      <p className="hint">Drag a corner to resize it (unlock it first). Display › Pictures under the cards turns them all off and on.</p>
+      <div className="actions">
+        <button onClick={() => void act('board:setHidden', { kind: 'item', id: itemId, hidden: !item.hidden })}>{item.hidden ? 'Unhide' : 'Hide'}</button>
+        <button className="danger" onClick={async () => { await act('note:setStatus', { itemId, status: 'defunct' }); select(null) }}>Remove picture</button>
       </div>
     </div>
   )

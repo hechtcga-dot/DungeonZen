@@ -251,7 +251,7 @@ function Desk({ desk }: { desk: DeskView }) {
       <CampaignSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {editStory && (
         <StorylineDialog open onClose={() => setEditStory(null)} storylineId={editStory.storylineId}
-          detail={{ title: editStory.title, status: editStory.status, isMajor: editStory.isMajor, emblem: editStory.emblem }} />
+          detail={{ title: editStory.title, status: editStory.status, isMajor: editStory.isMajor, emblem: editStory.emblem, colour: editStory.colour }} />
       )}
     </main>
   )

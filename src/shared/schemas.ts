@@ -45,6 +45,14 @@ export const Tags = z.array(z.string().trim().min(1).max(40)).max(50)
 
 export const NoteContent = z.object({ text: z.string().max(5000) })
 export type NoteContent = z.infer<typeof NoteContent>
+/** What a board item holds: a note's text, or a picture under the cards (path under assets/). */
+export interface BoardItemContent {
+  text?: string
+  image?: string
+  name?: string
+  opacity?: number
+  locked?: boolean
+}
 
 export const Id = z.string().uuid()
 

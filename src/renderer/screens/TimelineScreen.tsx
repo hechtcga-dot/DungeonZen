@@ -157,7 +157,7 @@ function Timeline({ t }: { t: TimelineView }) {
       {adding && <AddActDialog t={t} initial={adding} onClose={() => setAdding(null)} onAdded={(id) => setSelected(id)} />}
       {editStory && (
         <StorylineDialog open onClose={() => setEditStory(null)} storylineId={editStory.storylineId}
-          detail={{ title: editStory.title, status: editStory.status, isMajor: editStory.isMajor, emblem: editStory.emblem }} />
+          detail={{ title: editStory.title, status: editStory.status, isMajor: editStory.isMajor, emblem: editStory.emblem, colour: editStory.colour }} />
       )}
     </>
   )

@@ -94,7 +94,7 @@ export const ipcInputs = {
     storylineId: Id,
     patch: z.object({
       title: Name.optional(), status: StorylineStatus.optional(), isMajor: z.boolean().optional(),
-      emblem: z.string().max(40).nullable().optional()
+      emblem: z.string().max(40).nullable().optional(), colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional()
     })
   }),
   'storyline:setRemoved': z.object({ storylineId: Id, removed: z.boolean() }),
@@ -269,7 +269,7 @@ export const ipcInputs = {
   'entity:setStatus': z.object({ id: Id, status: EntityStatus }),
   'entity:addToStoryline': z.object({ entityId: Id, storylineId: Id, position: Position }),
   'entity:removeFromStoryline': z.object({ entityId: Id, storylineId: Id }),
-  'relationship:create': z.object({ sourceId: Id, targetId: Id, type: RelationshipType, isSecret: z.boolean() }),
+  'relationship:create': z.object({ sourceId: Id, targetId: Id, type: RelationshipType, isSecret: z.boolean(), boardId: Id.optional() }),
   'relationship:update': z.object({
     id: Id, patch: z.object({ type: RelationshipType.optional(), isSecret: z.boolean().optional() })
   }),
@@ -278,6 +278,15 @@ export const ipcInputs = {
   'note:update': z.object({ itemId: Id, text: z.string().max(5000) }),
   'note:setStatus': z.object({ itemId: Id, status: RowStatus }),
   'items:move': z.object({ moves: z.array(Position.extend({ itemId: Id })).max(500) }),
+  'item:resize': z.object({ itemId: Id, size: z.object({ w: z.number().min(40).max(20000), h: z.number().min(30).max(20000) }).nullable() }),
+  'board:setHidden': z.object({ kind: z.enum(['entity', 'string', 'item']), id: Id, hidden: z.boolean() }),
+  'act:mark': z.object({ entityId: Id, actId: Id, on: z.boolean() }),
+  'stringTypes:set': z.object({ types: z.array(z.object({ type: RelationshipType, colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable() })).max(100) }),
+  'stringTypes:rename': z.object({ from: z.string().min(1).max(40), to: RelationshipType }),
+  'board:linkPositions': z.object({ on: z.boolean(), winner: z.enum(['global', 'storyline']) }),
+  'board:sharedStrings': z.object({ on: z.boolean(), winner: z.enum(['global', 'storyline']) }),
+  'boardImage:add': z.object({ boardId: Id, mapId: Id.nullable(), position: Position }),
+  'boardImage:update': z.object({ itemId: Id, patch: z.object({ opacity: z.number().min(0.05).max(1).optional(), locked: z.boolean().optional(), name: Name.optional() }) }),
   'storyline:create': z.object({ title: Name }),
   'history:view': z.void(),
   'history:undo': z.void(),
@@ -433,6 +442,15 @@ export interface IpcOutputs {
   'note:update': void
   'note:setStatus': void
   'items:move': void
+  'item:resize': void
+  'board:setHidden': void
+  'act:mark': void
+  'stringTypes:set': void
+  'stringTypes:rename': number
+  'board:linkPositions': void
+  'board:sharedStrings': void
+  'boardImage:add': BoardItemView | null
+  'boardImage:update': void
   'storyline:create': BoardSummary
   'history:view': HistoryView
   'history:undo': string | null

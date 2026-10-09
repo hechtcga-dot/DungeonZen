@@ -5,7 +5,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import {
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
-  relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
+  actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
 } from '../db/schema'
 import { CommandLog, type Writer } from './commandLog'
@@ -20,7 +20,7 @@ import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type {
-  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
+  AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
   SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
@@ -70,7 +70,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -160,7 +160,7 @@ export class Campaign {
       name: story?.title ?? b.name,
       storylineId: b.storylineId,
       storyline: story
-        ? { title: story.title, status: story.status as StorylineStatus, isMajor: story.isMajor, emblem: story.emblem }
+        ? { title: story.title, status: story.status as StorylineStatus, isMajor: story.isMajor, emblem: story.emblem, colour: story.colour }
         : null
     }))
     // Global first, then storylines in creation order (rowid order).
@@ -180,12 +180,14 @@ export class Campaign {
     const entities = this.entityViews(entityIds).filter((e) => e.status === 'active' || e.status === 'resolved')
     const visible = new Set(entities.map((e) => e.id))
     const visibleItems = items.filter((i) => i.kind !== 'card' || (i.entityId !== null && visible.has(i.entityId)))
+    const settings = this.boardSettings()
+    // Shared strings show on every board; strings kept per board show only on theirs.
     const relationships = visible.size === 0 ? [] : this.db
       .select()
       .from(relationship)
       .where(and(eq(relationship.status, 'active'), inArray(relationship.sourceId, [...visible])))
       .all()
-      .filter((r) => visible.has(r.targetId))
+      .filter((r) => visible.has(r.targetId) && (settings.sharedStrings ? r.boardId === null : r.boardId === boardId))
     const boards = this.boards()
     return {
       board: boards.find((s) => s.id === boardId) ?? { id: b.id, name: b.name, storylineId: b.storylineId, storyline: null },
@@ -193,7 +195,30 @@ export class Campaign {
       items: visibleItems.map(toItemView),
       entities: Object.fromEntries(entities.map((e) => [e.id, e])),
       relationships: relationships.map(toRelationshipView),
-      undo: this.log.state()
+      undo: this.log.state(),
+      settings,
+      acts: this.numberedActs()
+    }
+  }
+
+  private numberedActs(): Array<{ id: string; storylineId: string; number: number; title: string }> {
+    const removed = new Set(this.db.select().from(storyline).where(eq(storyline.removed, true)).all().map((x) => x.id))
+    const acts = this.db.select().from(act).where(eq(act.status, 'active')).all().filter((a) => !removed.has(a.storylineId))
+      .sort((a, b) => a.startMin - b.startMin)
+    const count = new Map<string, number>()
+    return acts.map((a) => {
+      const n = (count.get(a.storylineId) ?? 0) + 1
+      count.set(a.storylineId, n)
+      return { id: a.id, storylineId: a.storylineId, number: n, title: a.title }
+    })
+  }
+
+  boardSettings(): BoardSettings {
+    const types = this.setting('string_types')
+    return {
+      linkPositions: this.setting('link_positions') === true,
+      sharedStrings: this.setting('shared_strings') !== false,
+      stringTypes: Array.isArray(types) ? (types as StringType[]) : []
     }
   }
 
@@ -205,7 +230,8 @@ export class Campaign {
       .from(storylineEntity)
       .where(and(inArray(storylineEntity.entityId, ids), eq(storylineEntity.status, 'active')))
       .all()
-    return rows.map((r) => toEntityView(r, links.filter((l) => l.entityId === r.id).map((l) => l.storylineId)))
+    const marks = this.actMarks(ids)
+    return rows.map((r) => toEntityView(r, links.filter((l) => l.entityId === r.id).map((l) => l.storylineId), marks.get(r.id) ?? []))
   }
 
   entityView(id: string): EntityView {
@@ -225,10 +251,10 @@ export class Campaign {
       .from(boardItem)
       .innerJoin(board, eq(boardItem.boardId, board.id))
       .leftJoin(storyline, eq(board.storylineId, storyline.id))
-      .where(and(eq(boardItem.kind, 'note'), eq(boardItem.status, 'defunct')))
+      .where(and(inArray(boardItem.kind, ['note', 'image']), eq(boardItem.status, 'defunct')))
       .all()
     return {
-      removedEntities: removed.map((r) => toEntityView(r, [])),
+      removedEntities: removed.map((r) => toEntityView(r, [], [])),
       removedStrings: strings.map((r) => ({
         ...toRelationshipView(r),
         sourceName: names.get(r.sourceId) ?? '?',
@@ -237,7 +263,7 @@ export class Campaign {
       removedNotes: notes.map((n) => ({
         itemId: n.item.id,
         boardName: n.title ?? n.boardName,
-        text: n.item.content?.text ?? ''
+        text: n.item.kind === 'image' ? `Picture: ${n.item.content?.name ?? ''}` : n.item.content?.text ?? ''
       })),
       removedStorylines: this.db.select().from(storyline).where(eq(storyline.removed, true)).all()
         .map((r) => ({ storylineId: r.id, title: r.title })),
@@ -340,13 +366,16 @@ export class Campaign {
     })
   }
 
-  createRelationship(input: { sourceId: string; targetId: string; type: string; isSecret: boolean }): RelationshipView {
+  /** Ties a string. While strings are kept per board, it belongs to `boardId` (the board it was tied on). */
+  createRelationship(input: { sourceId: string; targetId: string; type: string; isSecret: boolean; boardId?: string }): RelationshipView {
     if (input.sourceId === input.targetId) throw new Error('A string needs two different cards')
     const a = this.entityRow(input.sourceId)
     const b = this.entityRow(input.targetId)
     const id = randomUUID()
+    const { boardId, ...rest } = input
+    const owner = this.boardSettings().sharedStrings ? null : boardId ?? this.globalBoard().id
     this.log.run(`Linked ${a.name} to ${b.name}`, (w) => {
-      w.insert('relationship', { id, ...input, status: 'active' })
+      w.insert('relationship', { id, ...rest, boardId: owner, status: 'active' })
     })
     return toRelationshipView(this.db.select().from(relationship).where(eq(relationship.id, id)).get()!)
   }
@@ -386,8 +415,9 @@ export class Campaign {
 
   setNoteStatus(itemId: string, status: RowStatus): void {
     const item = this.itemRow(itemId)
-    if (item.kind !== 'note') throw new Error('Not a note')
-    this.log.run(status === 'defunct' ? 'Removed a note' : 'Restored a note', (w) => {
+    if (item.kind === 'card') throw new Error('Not a note or picture')
+    const what = item.kind === 'image' ? 'picture' : 'note'
+    this.log.run(status === 'defunct' ? `Removed a ${what}` : `Restored a ${what}`, (w) => {
       w.update('board_item', itemId, { status })
     })
   }
@@ -395,9 +425,206 @@ export class Campaign {
   moveItems(moves: Array<{ itemId: string } & Position>): void {
     if (moves.length === 0) return
     const label = moves.length === 1 ? this.moveLabel(moves[0].itemId) : `Moved ${moves.length} items`
+    const linked = this.boardSettings().linkPositions
     this.log.run(label, (w) => {
-      for (const m of moves) w.update('board_item', m.itemId, { x: m.x, y: m.y })
+      for (const m of moves) {
+        w.update('board_item', m.itemId, { x: m.x, y: m.y })
+        if (linked) for (const twin of this.twins(m.itemId)) w.update('board_item', twin.id, { x: m.x, y: m.y })
+      }
     })
+  }
+
+  /** Resizes a card, note or picture (null: back to the normal size). Linked boards resize the card everywhere. */
+  resizeItem(itemId: string, size: { w: number; h: number } | null): void {
+    const item = this.itemRow(itemId)
+    const patch = size ? { w: Math.round(size.w), h: Math.round(size.h) } : { w: null, h: null }
+    const label = size ? `Resized ${item.entityId ? this.nameOf(item.entityId) : `a ${item.kind === 'image' ? 'picture' : 'note'}`}` : 'Reset the size'
+    this.log.run(label, (w) => {
+      w.update('board_item', itemId, patch)
+      if (this.boardSettings().linkPositions) for (const twin of this.twins(itemId)) w.update('board_item', twin.id, patch)
+    })
+  }
+
+  /** The same card on the other boards. */
+  private twins(itemId: string): BoardItemRow[] {
+    const item = this.itemRow(itemId)
+    if (item.kind !== 'card' || !item.entityId) return []
+    return this.db.select().from(boardItem).where(and(eq(boardItem.entityId, item.entityId), eq(boardItem.kind, 'card'), eq(boardItem.status, 'active'))).all()
+      .filter((i) => i.id !== itemId)
+  }
+
+  // ---- hiding, colours, act marks, string types, linked boards, pictures
+
+  /** Hides (or shows again) a card on every board, a string, or a note or picture on its board. */
+  setHidden(kind: 'entity' | 'string' | 'item', id: string, hidden: boolean): void {
+    const verb = hidden ? 'Hid' : 'Unhid'
+    if (kind === 'entity') {
+      const e = this.entityRow(id)
+      this.log.run(`${verb} ${e.name}`, (w) => { w.update('entity', id, { hidden }) })
+    } else if (kind === 'string') {
+      const r = this.relationshipRow(id)
+      this.log.run(`${verb} string ${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`, (w) => { w.update('relationship', id, { hidden }) })
+    } else {
+      const item = this.itemRow(id)
+      if (item.kind === 'card' && item.entityId) return this.setHidden('entity', item.entityId, hidden)
+      this.log.run(`${verb} a ${item.kind === 'image' ? 'picture' : 'note'}`, (w) => { w.update('board_item', id, { hidden }) })
+    }
+  }
+
+  /** Marks a card as part of an act, or takes the mark off. The card joins the act's storyline if needed. */
+  setActMark(entityId: string, actId: string, on: boolean): void {
+    const e = this.entityRow(entityId)
+    const a = this.actRow(actId)
+    const existing = this.db.select().from(actEntity).where(and(eq(actEntity.entityId, entityId), eq(actEntity.actId, actId))).get()
+    this.log.run(on ? `Put ${e.name} in act ${a.title}` : `Took ${e.name} out of act ${a.title}`, (w) => {
+      if (existing) w.update('act_entity', existing.id, { status: on ? 'active' : 'defunct' })
+      else if (on) w.insert('act_entity', { id: randomUUID(), actId, entityId, status: 'active' })
+      if (on) {
+        const b = this.db.select().from(board).where(eq(board.storylineId, a.storylineId)).get()
+        const global = this.cardItems(this.globalBoard().id, entityId)[0]
+        if (b) this.linkToStoryline(w, entityId, a.storylineId, b.id, global ? { x: global.x, y: global.y } : this.freeGlobalSpot())
+      }
+    })
+  }
+
+  /** Act marks per card: the act's number in its storyline (by planned start), like the Timeline. */
+  private actMarks(entityIds: string[]): Map<string, CardActMark[]> {
+    const out = new Map<string, CardActMark[]>()
+    if (entityIds.length === 0) return out
+    const links = this.db.select().from(actEntity).where(and(inArray(actEntity.entityId, entityIds), eq(actEntity.status, 'active'))).all()
+    if (links.length === 0) return out
+    const removed = new Set(this.db.select().from(storyline).where(eq(storyline.removed, true)).all().map((x) => x.id))
+    const acts = this.db.select().from(act).where(eq(act.status, 'active')).all().filter((a) => !removed.has(a.storylineId))
+    const number = new Map<string, number>()
+    const byStory = new Map<string, ActRow[]>()
+    for (const a of acts) byStory.set(a.storylineId, [...(byStory.get(a.storylineId) ?? []), a])
+    for (const list of byStory.values()) list.sort((x, y) => x.startMin - y.startMin).forEach((a, i) => number.set(a.id, i + 1))
+    const actById = new Map(acts.map((a) => [a.id, a]))
+    for (const l of links) {
+      const a = actById.get(l.actId)
+      if (!a) continue
+      out.set(l.entityId, [...(out.get(l.entityId) ?? []), { actId: a.id, storylineId: a.storylineId, number: number.get(a.id)!, title: a.title }])
+    }
+    for (const list of out.values()) list.sort((x, y) => x.storylineId.localeCompare(y.storylineId) || x.number - y.number)
+    return out
+  }
+
+  /** The DM's own kinds of string (with an optional colour). */
+  setStringTypes(types: StringType[]): void {
+    this.setSetting('string_types', types, 'Changed the kinds of string')
+  }
+
+  /** Renames a kind of string everywhere: every string of that kind and the list (one undo step). */
+  renameStringType(from: string, to: string): number {
+    const rows = this.db.select().from(relationship).where(eq(relationship.type, from)).all()
+    const types = this.boardSettings().stringTypes.map((t) => (t.type === from ? { ...t, type: to } : t))
+    this.log.run(`Renamed string kind ${from} to ${to}`, (w) => {
+      for (const r of rows) w.update('relationship', r.id, { type: to })
+      if (w.get('campaign_settings', 'string_types')) w.update('campaign_settings', 'string_types', { value: types })
+      else w.insert('campaign_settings', { key: 'string_types', value: types })
+    })
+    return rows.length
+  }
+
+  /**
+   * Turns "moving a card moves it on every board" on or off. Turning it on lines the boards up:
+   * `winner` global puts every card where the global board has it; storyline puts the global
+   * card (and other storyline copies) where its storyline board has it.
+   */
+  setLinkPositions(on: boolean, winner: 'global' | 'storyline' = 'global'): void {
+    this.log.run(on ? `Linked card positions across boards (${winner} layout kept)` : 'Unlinked card positions', (w) => {
+      if (w.get('campaign_settings', 'link_positions')) w.update('campaign_settings', 'link_positions', { value: on })
+      else w.insert('campaign_settings', { key: 'link_positions', value: on })
+      if (!on) return
+      const globalId = this.globalBoard().id
+      const cards = this.db.select().from(boardItem).where(and(eq(boardItem.kind, 'card'), eq(boardItem.status, 'active'))).all()
+      const byEntity = new Map<string, BoardItemRow[]>()
+      for (const c of cards) if (c.entityId) byEntity.set(c.entityId, [...(byEntity.get(c.entityId) ?? []), c])
+      for (const list of byEntity.values()) {
+        if (list.length < 2) continue
+        const source = winner === 'global'
+          ? list.find((i) => i.boardId === globalId)
+          : list.find((i) => i.boardId !== globalId)
+        if (!source) continue
+        for (const i of list) if (i.id !== source.id) w.update('board_item', i.id, { x: source.x, y: source.y, w: source.w, h: source.h })
+      }
+    })
+  }
+
+  /**
+   * Strings on every board (on) or kept per board (off). Turning it off gives each board its own
+   * copy of every string it shows. Turning it on keeps one set: `winner` global keeps the global
+   * board's strings; storyline keeps the storyline boards' strings (and global ones between cards
+   * on no storyline board together). One undo step.
+   */
+  setSharedStrings(on: boolean, winner: 'global' | 'storyline' = 'global'): void {
+    const globalId = this.globalBoard().id
+    const active = this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
+    const items = this.db.select().from(boardItem).where(and(eq(boardItem.kind, 'card'), eq(boardItem.status, 'active'))).all()
+    const onBoard = new Map<string, Set<string>>()
+    for (const i of items) if (i.entityId) onBoard.set(i.boardId, (onBoard.get(i.boardId) ?? new Set()).add(i.entityId))
+    const boardsWith = (a: string, b: string) => [...onBoard.entries()].filter(([, set]) => set.has(a) && set.has(b)).map(([id]) => id)
+    this.log.run(on ? `Strings shared by every board again (${winner} strings kept)` : 'Strings kept per board', (w) => {
+      if (w.get('campaign_settings', 'shared_strings')) w.update('campaign_settings', 'shared_strings', { value: on })
+      else w.insert('campaign_settings', { key: 'shared_strings', value: on })
+      if (!on) {
+        for (const r of active.filter((x) => x.boardId === null)) {
+          for (const boardId of boardsWith(r.sourceId, r.targetId)) {
+            w.insert('relationship', { ...r, id: randomUUID(), boardId })
+          }
+          w.update('relationship', r.id, { status: 'defunct' })
+        }
+        return
+      }
+      const local = active.filter((x) => x.boardId !== null)
+      const keep = (r: RelationshipRow) => winner === 'global'
+        ? r.boardId === globalId
+        : r.boardId !== globalId || boardsWith(r.sourceId, r.targetId).every((b) => b === globalId)
+      const seen = new Set<string>()
+      for (const r of local) {
+        const key = `${r.sourceId}|${r.targetId}|${r.type}|${r.isSecret}`
+        if (keep(r) && !seen.has(key)) { seen.add(key); w.update('relationship', r.id, { boardId: null }) }
+        else w.update('relationship', r.id, { status: 'defunct' })
+      }
+    })
+  }
+
+  /** Puts a picture under the cards: a campaign map, or a picture file copied into the campaign. */
+  addBoardImage(boardId: string, from: { mapId: string } | { file: string }, position: Position): BoardItemView {
+    this.boardRow(boardId)
+    let rel: string, name: string, size: { width: number; height: number } | null
+    if ('mapId' in from) {
+      const m = this.mapRow(from.mapId)
+      rel = m.imagePath; name = m.name
+      size = m.width && m.height ? { width: m.width, height: m.height } : null
+    } else {
+      const ext = extname(from.file).toLowerCase()
+      if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Pictures must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
+      rel = `board/${randomUUID()}${ext}`
+      mkdirSync(join(this.folder, ASSETS_DIR, 'board'), { recursive: true })
+      copyFileSync(from.file, join(this.folder, ASSETS_DIR, rel))
+      name = basename(from.file, ext)
+      size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
+    }
+    // Starts 1200 px wide (keeping its shape); resize it on the board.
+    const wPx = 1200
+    const hPx = size ? Math.round((wPx * size.height) / size.width) : 800
+    const id = randomUUID()
+    this.log.run(`Put the picture ${name} on the board`, (w) => {
+      w.insert('board_item', {
+        id, boardId, kind: 'image', entityId: null, x: position.x, y: position.y, w: wPx, h: hPx,
+        content: { image: rel, name, opacity: 0.6, locked: false }, status: 'active'
+      })
+    })
+    return toItemView(this.itemRow(id))
+  }
+
+  updateBoardImage(itemId: string, patch: { opacity?: number; locked?: boolean; name?: string }): void {
+    const item = this.itemRow(itemId)
+    if (item.kind !== 'image') throw new Error('Not a picture')
+    const content = { ...(item.content ?? {}), ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) }
+    const label = patch.locked !== undefined ? (patch.locked ? 'Locked a picture' : 'Unlocked a picture') : patch.opacity !== undefined ? 'Changed a picture\'s opacity' : 'Renamed a picture'
+    this.log.run(label, (w) => { w.update('board_item', itemId, { content }) })
   }
 
   createStoryline(title: string): BoardSummary {
@@ -411,13 +638,13 @@ export class Campaign {
     })
     return {
       id: boardId, name: title, storylineId,
-      storyline: { title, status: 'inactive', isMajor: false, emblem: null }
+      storyline: { title, status: 'inactive', isMajor: false, emblem: null, colour: null }
     }
   }
 
   updateStoryline(
     storylineId: string,
-    patch: { title?: string; status?: StorylineStatus; isMajor?: boolean; emblem?: string | null }
+    patch: { title?: string; status?: StorylineStatus; isMajor?: boolean; emblem?: string | null; colour?: string | null }
   ): void {
     const s = this.storylineRow(storylineId)
     this.log.run(`Edited storyline ${patch.title ?? s.title}`, (w) => {
@@ -678,7 +905,7 @@ export class Campaign {
     const storylines = this.db
       .select({
         boardId: board.id, storylineId: storyline.id, title: storyline.title, status: storyline.status,
-        isMajor: storyline.isMajor, emblem: storyline.emblem, removed: storyline.removed
+        isMajor: storyline.isMajor, emblem: storyline.emblem, colour: storyline.colour, removed: storyline.removed
       })
       .from(board).innerJoin(storyline, eq(board.storylineId, storyline.id)).all()
       .filter((s) => !s.removed)
@@ -762,6 +989,13 @@ export class Campaign {
         .forEach((a, i) => actNumber.set(a.id, i + 1))
     }
     const fired = new Map(projection.fired.map((f) => [f.triggerId, f.atMin]))
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name, status: entity.status }).from(entity).all()
+      .filter((e) => e.status !== 'defunct').map((e) => [e.id, e.name]))
+    const actCards = new Map<string, Array<{ id: string; name: string }>>()
+    for (const l of this.db.select().from(actEntity).where(eq(actEntity.status, 'active')).all()) {
+      const name = names.get(l.entityId)
+      if (name) actCards.set(l.actId, [...(actCards.get(l.actId) ?? []), { id: l.entityId, name }])
+    }
     // Labels follow creation order over every trigger ever made, so they never renumber.
     const labels = new Map(rows.triggers.map((t, i) => [t.id, `T${i + 1}`]))
     return {
@@ -770,7 +1004,7 @@ export class Campaign {
       storylines: rows.stories.map((s) => ({
         storylineId: s.id, boardId: boardOf.get(s.id) ?? '', title: s.title, status: s.status as StorylineStatus,
         projectedStatus: projection.storylineStatus.get(s.id) ?? (s.status as StorylineStatus),
-        isMajor: s.isMajor, emblem: s.emblem
+        isMajor: s.isMajor, emblem: s.emblem, colour: s.colour
       })),
       acts: rows.acts.map((a) => {
         const p = projection.acts.get(a.id)!
@@ -779,7 +1013,8 @@ export class Campaign {
           plannedStartMin: a.startMin, plannedEndMin: a.endMin, startMin: p.startMin, endMin: p.endMin,
           shiftedBy: p.shiftedBy, chosenOutcomeId: a.chosenOutcomeId, state: p.state, outcomeId: p.outcomeId,
           resolvedBy: p.resolvedBy, forcedOutcomeId: p.forcedOutcomeId, defaultOutcomeId: p.defaultOutcomeId,
-          outcomes: rows.outcomes.filter((o) => o.actId === a.id).map(toOutcomeView)
+          outcomes: rows.outcomes.filter((o) => o.actId === a.id).map(toOutcomeView),
+          cards: actCards.get(a.id) ?? []
         }
       }).sort((a, b) => a.startMin - b.startMin),
       triggers: rows.triggers
@@ -2538,7 +2773,10 @@ export class Campaign {
     else w.insert('storyline_entity', { id: randomUUID(), storylineId, entityId, status: 'active' })
     const items = this.cardItems(boardId, entityId, true)
     if (items.length > 0) for (const item of items) w.update('board_item', item.id, { status: 'active' })
-    else this.placeCard(w, boardId, entityId, p)
+    else {
+      const global = this.boardSettings().linkPositions ? this.cardItems(this.globalBoard().id, entityId)[0] : undefined
+      this.placeCard(w, boardId, entityId, global ? { x: global.x, y: global.y } : p)
+    }
   }
 
   /** Card items for an entity on a board (one SQLite connection, so this sees the open transaction). */
@@ -2566,7 +2804,7 @@ export class Campaign {
 
   private moveLabel(itemId: string): string {
     const item = this.itemRow(itemId)
-    return item.entityId ? `Moved ${this.nameOf(item.entityId)}` : 'Moved a note'
+    return item.entityId ? `Moved ${this.nameOf(item.entityId)}` : item.kind === 'image' ? 'Moved a picture' : 'Moved a note'
   }
 
   private nameOf(entityId: string): string {
@@ -2598,24 +2836,24 @@ export class Campaign {
   }
 }
 
-function toEntityView(r: EntityRow, storylineIds: string[]): EntityView {
+function toEntityView(r: EntityRow, storylineIds: string[], acts: CardActMark[]): EntityView {
   return {
     id: r.id, type: r.type as EntityType, name: r.name, attributes: r.attributes, tags: r.tags,
-    status: r.status as EntityStatus, parentId: r.parentId, storylineIds
+    status: r.status as EntityStatus, parentId: r.parentId, storylineIds, hidden: r.hidden, acts
   }
 }
 
 function toRelationshipView(r: RelationshipRow): RelationshipView {
   return {
     id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type, isSecret: r.isSecret,
-    status: r.status as RowStatus
+    status: r.status as RowStatus, hidden: r.hidden, boardId: r.boardId
   }
 }
 
 function toItemView(r: BoardItemRow): BoardItemView {
   return {
     id: r.id, kind: r.kind as BoardItemView['kind'], entityId: r.entityId, x: r.x, y: r.y, w: r.w, h: r.h,
-    content: r.content ?? null
+    content: r.content ?? null, hidden: r.hidden
   }
 }
 

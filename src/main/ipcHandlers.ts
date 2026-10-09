@@ -132,6 +132,25 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('note:update', ({ itemId, text }) => current().updateNote(itemId, text))
   handle('note:setStatus', ({ itemId, status }) => current().setNoteStatus(itemId, status))
   handle('items:move', ({ moves }) => current().moveItems(moves))
+  handle('item:resize', ({ itemId, size }) => current().resizeItem(itemId, size))
+  handle('board:setHidden', ({ kind, id, hidden }) => current().setHidden(kind, id, hidden))
+  handle('act:mark', ({ entityId, actId, on }) => current().setActMark(entityId, actId, on))
+  handle('stringTypes:set', ({ types }) => current().setStringTypes(types))
+  handle('stringTypes:rename', ({ from, to }) => current().renameStringType(from, to))
+  handle('board:linkPositions', ({ on, winner }) => current().setLinkPositions(on, winner))
+  handle('board:sharedStrings', ({ on, winner }) => current().setSharedStrings(on, winner))
+  handle('boardImage:add', async ({ boardId, mapId, position }) => {
+    if (mapId) return current().addBoardImage(boardId, { mapId }, position)
+    const win = getWindow()
+    const options = {
+      title: 'Choose a picture to put under the cards', buttonLabel: 'Put on board', properties: ['openFile'] as Array<'openFile'>,
+      filters: [{ name: 'Images', extensions: MAP_EXTENSIONS.map((e) => e.slice(1)) }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    return current().addBoardImage(boardId, { file: result.filePaths[0] }, position)
+  })
+  handle('boardImage:update', ({ itemId, patch }) => current().updateBoardImage(itemId, patch))
   handle('storyline:create', ({ title }) => current().createStoryline(title))
   handle('desk:view', () => current().desk())
   handle('map:importDialog', async () => {

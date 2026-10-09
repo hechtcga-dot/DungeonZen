@@ -159,6 +159,17 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX encounter_creature_enc ON encounter_creature(encounter_id, sort);
   ALTER TABLE log_entry ADD COLUMN encounter_id TEXT;
+  `,
+  `
+  ALTER TABLE entity ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE relationship ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE relationship ADD COLUMN board_id TEXT;
+  ALTER TABLE board_item ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE storyline ADD COLUMN colour TEXT;
+  CREATE TABLE act_entity (
+    id TEXT PRIMARY KEY, act_id TEXT NOT NULL REFERENCES act(id), entity_id TEXT NOT NULL REFERENCES entity(id), status TEXT NOT NULL
+  );
+  CREATE INDEX act_entity_entity ON act_entity(entity_id);
   `
 ]
 

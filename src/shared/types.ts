@@ -1,6 +1,6 @@
 // Plain data the main process sends to the renderer over IPC.
 import type {
-  AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, NoteContent, RowStatus,
+  AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, BoardItemContent, RowStatus,
   EncounterFeedback, LogKind, ReviewDecisionKind, RulesEdition, StorylineStatus, PrepKind, SceneType
 } from './schemas'
 import type { AiChoice } from './aiProviders'
@@ -32,6 +32,23 @@ export interface EntityView {
   status: EntityStatus
   parentId: string | null
   storylineIds: string[]
+  /** Hidden on every board (shown greyed only with Show hidden). */
+  hidden: boolean
+  /** Acts the card is marked with: its storyline and the act's number there (I, II …). */
+  acts: CardActMark[]
+}
+
+export interface CardActMark { actId: string; storylineId: string; number: number; title: string }
+
+/** A kind of string the DM named, with an optional colour. */
+export interface StringType { type: string; colour: string | null }
+
+export interface BoardSettings {
+  /** Moving or resizing a card moves it on every board. */
+  linkPositions: boolean
+  /** Strings show on every board (off: each board keeps its own). */
+  sharedStrings: boolean
+  stringTypes: StringType[]
 }
 
 export interface RelationshipView {
@@ -41,6 +58,9 @@ export interface RelationshipView {
   type: string
   isSecret: boolean
   status: RowStatus
+  hidden: boolean
+  /** Null: on every board; else the board that keeps it (strings kept per board). */
+  boardId: string | null
 }
 
 export interface BoardItemView {
@@ -51,7 +71,8 @@ export interface BoardItemView {
   y: number
   w: number | null
   h: number | null
-  content: NoteContent | null
+  content: BoardItemContent | null
+  hidden: boolean
 }
 
 export interface StorylineDetail {
@@ -60,6 +81,8 @@ export interface StorylineDetail {
   isMajor: boolean
   /** Desk tarot emblem key; null means one is chosen automatically. */
   emblem: string | null
+  /** Tints its cards on the board; null = none. */
+  colour: string | null
 }
 
 export interface BoardSummary {
@@ -81,6 +104,9 @@ export interface BoardView {
   entities: Record<string, EntityView>
   relationships: RelationshipView[]
   undo: UndoState
+  settings: BoardSettings
+  /** Every act of every storyline, numbered like the Timeline (for act marks). */
+  acts: Array<{ id: string; storylineId: string; number: number; title: string }>
 }
 
 export interface LogEntryView {
@@ -224,6 +250,7 @@ export interface DeskStoryline {
   status: StorylineStatus
   isMajor: boolean
   emblem: string | null
+  colour: string | null
   cardCount: number
 }
 
@@ -281,6 +308,8 @@ export interface ActView {
   forcedOutcomeId: string | null
   defaultOutcomeId: string | null
   outcomes: OutcomeView[]
+  /** Cards marked with this act (also shown on the cards). */
+  cards: Array<{ id: string; name: string }>
 }
 
 export interface TriggerView {
@@ -304,6 +333,7 @@ export interface TimelineStoryline {
   projectedStatus: StorylineStatus
   isMajor: boolean
   emblem: string | null
+  colour: string | null
 }
 
 export interface TimelineView {
