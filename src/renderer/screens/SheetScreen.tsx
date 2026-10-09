@@ -20,6 +20,7 @@ import type { IpcInput } from '../../shared/ipc'
 import type { AbilityView, SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
+import { slotsFromText } from '../../shared/combat'
 import { PicturePanel } from '../components/Pictures'
 
 type Tab = 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
@@ -480,6 +481,9 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
   const tempHp = typeof e.attributes.temp_hp === 'number' ? e.attributes.temp_hp : 0
   const walk = /\d+\s*(ft|m)\.?/i.exec(sb.speed)?.[0] ?? sb.speed
   const num = (v: string) => { const n = Number.parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : 0 }
+  const slots = Array.isArray(e.attributes.spell_slots)
+    ? Array.from({ length: 9 }, (_, k) => Math.max(0, Number((e.attributes.spell_slots as unknown[])[k]) || 0))
+    : slotsFromText(sb.traits.map((t) => `${t.name} ${t.desc}`).join('\n'))
   const defenses = [['Resistances', sb.resistances], ['Immunities', sb.immunities], ['Vulnerabilities', sb.vulnerabilities], ['Condition immunities', sb.conditionImmunities]].filter(([, v]) => v)
 
   return (
@@ -542,6 +546,21 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
               <div key={s2} className="cs-passive"><span className="cs-passive-n">{passiveScore(sb, s2)}</span>Passive {s2}</div>
             ))}
             {sb.senses && <p className="cs-small">{sb.senses}</p>}
+          </div>
+          <div className="cs-card">
+            <h3 className="cs-title">Spell slots</h3>
+            <div className="cs-slots">
+              {Array.from({ length: 9 }, (_, k) => (
+                <label key={k}>{k + 1}
+                  <input inputMode="numeric" aria-label={`Level ${k + 1} spell slots`} defaultValue={slots[k] || ''} key={`${k}-${slots[k]}`} placeholder="–"
+                    onBlur={(ev) => {
+                      const n = Math.max(0, Math.min(9, Math.round(Number(ev.target.value)) || 0))
+                      if (n !== slots[k]) setAttr({ spell_slots: slots.map((x, j) => (j === k ? n : x)) })
+                    }} />
+                </label>
+              ))}
+            </div>
+            <p className="cs-small">Most slots per level. Used ones are ticked in a fight; Long rest refills them.{!Array.isArray(e.attributes.spell_slots) && slots.some(Boolean) ? ' Read from its Spellcasting text.' : ''}</p>
           </div>
           <div className="cs-card">
             <h3 className="cs-title">Proficiencies and languages</h3>

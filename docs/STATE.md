@@ -275,6 +275,28 @@ built.
     Re-importing a file of the same name asks Replace / Keep both. DM notes: between sessions (setting) and per
     session (`session.dm_notes`, the desk journal while it runs); Pop out opens them in their own window
     (`#journal`, `JournalWindow.tsx`; windows refresh each other via the `changed` event).
+- 1.4.0 (owner's list, 2026-10-09), Run encounter (`CombatScreen.tsx`, `src/shared/combat.ts`):
+  - CR on every row (creatures) or level (PCs: `attributes.level`, else the party level); balance bar: foes ≈ CR of
+    their total XP (`crForXp`) against the party ≈ CR of one creature worth their 2024 High budget, with the rating;
+    only those still fighting count.
+  - The fight follows its encounter (`Campaign.syncFight` inside every encounter-creature change): new creatures
+    join at full HP; fewer take unhurt copies out first; new PCs join (`joinFights`). "Someone joins" is gone.
+  - Damage types: resistance halves, immunity zeroes, vulnerability doubles (stat block text). Split (trait named
+    Split, or text "splits into two" as on the 2024 Black Pudding reaction): on its damage types or on becoming
+    Bloodied, 10+ HP, Medium or larger (`shrink` per split), two with half each. Mirror Image (3 duplicates, AC
+    10 + Dex), Displacement (off when damaged, on at the start of its turn). Death saves at 0 HP (damage adds a
+    failure). Bloodied rows in red.
+  - Selected row (click; the current turn by default; Shift-click several for group damage with half on a save):
+    `turnTips` (effects, recharge, legendary actions, slots left, targets) and its actions; Ask AI focused on it.
+  - Terrain and spell effects (`state.effects`, presets `EFFECT_PRESETS`): everyone or chosen creatures, save and
+    DC, damage, trigger, rounds (count down at round end); reminders on the row at its turn.
+  - Expanded rows: HP/AC/DC/PP circle, last 5 rounds (damage, healing, reaction, concentration), legendary actions
+    (back at its turn), legendary resistance, lair, limited uses (`limitedUses`: Recharge, n/Day, n/Day each
+    spells; breath weapons with a save default to Recharge 5–6), Refresh and Refresh all; spell slots
+    (`attributes.spell_slots` from the Full sheet or `slotsFromText`, used in `slots_used`, Long rest refills).
+  - Notes pop-up (⤢). End combat dialog: XP total and per PC, defeated cards to resolve (NPCs ticked), summary
+    to the session log; one undo step. Keys: N, P, digits type damage for the selected row (Enter damage,
+    Shift+Enter heal).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.

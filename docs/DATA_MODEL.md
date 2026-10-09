@@ -219,5 +219,8 @@ commands. `group_id` lets a session or an import undo as one step.
   sessions). Card attributes: `secret` (Secrets tab), `history`, `sights`, `sounds`, `smells`, `ideals`, `bonds`,
   `flaws`, `background`, `lore`, `stakes` (per type, `src/shared/cardFields.ts`), PC `level`, `temp_hp`,
   `conditions` (text). Import drafts: `overwrite` (fields a merge replaces).
+- 1.4.0 (no migration): `combat.state` JSON gains `effects` and per combatant `rounds`, `legendaryUsed`, `used`,
+  `mirror`, `displacement`, `death`, `stable`, `shrink` (all defaulted when an older fight is read). Card
+  attributes `spell_slots` (most per level 1–9), `slots_used`.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

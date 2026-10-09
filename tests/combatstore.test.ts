@@ -31,3 +31,29 @@ it('runs an encounter: party then foes, numbered copies, undoable changes, one f
   expect(c.combatView(id).status).toBe('ended')
   expect(c.startCombat(enc)).not.toBe(id)
 })
+
+it('follows the encounter while the fight runs, takes in new player characters, and ends with a summary', () => {
+  const g = c.info().globalBoardId
+  const enc = c.createEncounter({ name: 'Bridge' })
+  c.addSrdToEncounter(enc, [{ key: 'srd-2024_guard', count: 1 }], srdCopy)
+  const id = c.startCombat(enc)
+  const names = () => c.combatView(id).state.combatants.map((x) => x.name)
+  expect(names()).toEqual(['Guard'])
+  c.addSrdToEncounter(enc, [{ key: 'srd-2024_guard', count: 2 }], srdCopy)
+  expect(names()).toEqual(['Guard 1', 'Guard 2', 'Guard 3'])
+  // Hurt Guard 1, then lower the count: the unhurt ones leave first.
+  const v = c.combatView(id)
+  c.updateCombat(id, changeHp(v.state, v.state.combatants[0].id, -3), 'hit')
+  const row = c.encounterView(enc).creatures[0]
+  c.updateEncounterCreature(row.rowId!, { count: 1 })
+  expect(names()).toEqual(['Guard 1'])
+  c.undo()
+  expect(names()).toHaveLength(3)
+  const pc = c.createEntity({ boardId: g, type: 'PC', name: 'Late Larry', position: { x: 0, y: 0 } })
+  expect(c.combatView(id).state.combatants.at(-1)).toMatchObject({ name: 'Late Larry', side: 'party', entityId: pc.id })
+  const guardCard = c.combatView(id).state.combatants[0].entityId!
+  c.endCombat(id, { resolveIds: [guardCard], summary: 'Won at the bridge.' })
+  expect(c.sheet(guardCard).entity.status).toBe('resolved')
+  c.undo()
+  expect(c.sheet(guardCard).entity.status).not.toBe('resolved')
+})

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { boostsAllies, changeHp, combatHints, nextTurn, previousTurn, type CombatState, type Combatant } from '../src/shared/combat'
+import { boostsAllies, changeHp, combatHints, crForXp, deathSave, effectLine, legendaryCount, limitedUses, newCombatant, nextTurn, previousTurn, slotsFromText, splitCombatant, type CombatantInfo, type CombatState, type Combatant } from '../src/shared/combat'
 
 const c = (id: string, name: string, side: Combatant['side'], hp = 10, extra: Partial<Combatant> = {}): Combatant =>
-  ({ id, entityId: id, name, side, hp, maxHp: hp, tempHp: 0, ac: '12', conditions: [], notes: '', out: null, ...extra })
-const state = (list: Combatant[]): CombatState => ({ round: 1, turn: 0, combatants: list, log: [] })
-const plain = { creatureType: 'humanoid', leader: false, boosts: [], legendary: false, recharge: [] }
+  newCombatant({ id, entityId: id, name, side, hp, maxHp: hp, ac: '12', ...extra })
+const state = (list: Combatant[]): CombatState => ({ round: 1, turn: 0, combatants: list, log: [], effects: [] })
+const plain: CombatantInfo = {
+  creatureType: 'humanoid', leader: false, boosts: [], legendary: false, recharge: [], cr: '1', level: null, xp: 200, pp: 10, saveDc: null, dexMod: 0,
+  resist: '', immune: '', vuln: '', limited: [], legendaryActions: 0, lair: false, split: null, mirrorImage: false, displacement: false, actions: [], slots: [], slotsUsed: [], cardType: 'MONSTER', size: 'Large', splitOnBloodied: false
+}
 
 describe('turns', () => {
   it('skips creatures out of the fight and counts conditions down each round', () => {
@@ -55,5 +58,61 @@ describe('morale and tactics', () => {
   it('spots traits that help allies', () => {
     expect(boostsAllies('Each ally within 10 feet of the captain has Advantage on attack rolls.')).toBe(true)
     expect(boostsAllies('The bandit makes two attacks.')).toBe(false)
+  })
+})
+
+describe('1.4.0 fight rules', () => {
+  const info = (extra: Partial<CombatantInfo>): CombatantInfo => ({ ...plain, ...extra })
+  it('halves resisted damage, ignores immune, doubles vulnerable', () => {
+    const s = state([c('p', 'Black Pudding', 'foe', 85), c('g', 'Ghost', 'foe', 45)])
+    const i = { p: info({ immune: 'acid, cold, lightning, slashing', split: ['lightning', 'slashing'] }), g: info({ resist: 'acid, fire', vuln: 'radiant' }) }
+    expect(changeHp(s, 'g', -11, 'fire', i).combatants[1].hp).toBe(40)
+    expect(changeHp(s, 'g', -10, 'radiant', i).combatants[1].hp).toBe(25)
+    expect(changeHp(s, 'g', -10, '', i).combatants[1].hp).toBe(35)
+  })
+  it('splits on its damage types with at least 10 HP, into two with half each', () => {
+    const s = state([c('p', 'Black Pudding', 'foe', 85)])
+    const i = { p: info({ split: ['lightning', 'slashing'] }) }
+    const after = changeHp(s, 'p', -10, 'slashing', i)
+    expect(after.combatants.map((x) => [x.name, x.hp, x.maxHp])).toEqual([['Black Pudding A', 37, 37], ['Black Pudding B', 37, 37]])
+    expect(splitCombatant(state([c('p', 'Black Pudding', 'foe', 9)]), 'p').combatants).toHaveLength(1)
+    // Large → Medium → Small: a Small pudding no longer splits.
+    const twice = splitCombatant(after, after.combatants[0].id, 'Large')
+    expect(twice.combatants).toHaveLength(3)
+    expect(splitCombatant(twice, twice.combatants[0].id, 'Large').combatants).toHaveLength(3)
+    // 2024 Black Pudding: also when it becomes bloodied.
+    const bl = changeHp(state([c('p', 'Black Pudding', 'foe', 85)]), 'p', -45, '', { p: info({ split: ['lightning', 'slashing'], splitOnBloodied: true }) })
+    expect(bl.combatants).toHaveLength(2)
+  })
+  it('turns Displacement off when hit and back on at the start of its turn; refreshes legendary actions', () => {
+    let s = state([c('a', 'Mira', 'party', 20), c('d', 'Displacer Beast', 'foe', 85, { displacement: 'on', legendaryUsed: 2 })])
+    s = changeHp(s, 'd', -5)
+    expect(s.combatants[1].displacement).toBe('off')
+    s = nextTurn(s)
+    expect(s.combatants[1]).toMatchObject({ displacement: 'on', legendaryUsed: 0 })
+  })
+  it('counts death saves for the party at 0 HP and records each round', () => {
+    let s = state([c('a', 'Mira', 'party', 5)])
+    s = changeHp(s, 'a', -5)
+    s = changeHp(s, 'a', -3)
+    expect(s.combatants[0].death).toEqual({ s: 0, f: 1 })
+    s = deathSave(deathSave(deathSave(s, 'a', 's', true), 'a', 's', true), 'a', 's', true)
+    expect(s.combatants[0].stable).toBe(true)
+    expect(s.combatants[0].rounds['1']).toMatchObject({ dmg: 8 })
+    s = changeHp(s, 'a', 4)
+    expect(s.combatants[0]).toMatchObject({ hp: 4, stable: false, death: { s: 0, f: 0 } })
+  })
+  it('counts effects down with the rounds', () => {
+    const fx = { id: 'w', name: 'Web', scope: 'some' as const, ids: ['a'], save: 'DEX' as const, dc: 14, damage: '', onSave: '', trigger: 'enter' as const, rounds: 1, source: 'Mira', note: 'Restrained on a failure.' }
+    const s = nextTurn({ ...state([c('a', 'Bandit', 'foe')]), effects: [fx] })
+    expect(s.effects).toEqual([])
+    expect(effectLine(fx)).toBe('Web: DEX save DC 14, when it enters or starts its turn there. Restrained on a failure.')
+  })
+  it('reads limited uses, legendary actions and spell slots from the stat block', () => {
+    expect(limitedUses([{ name: 'Fire Breath (Recharge 5–6)', text: '' }, { name: 'Legendary Resistance (4/Day, or 5/Day in Lair)', text: '' }, { name: 'Spellcasting', text: '- **2/Day Each:** Fireball, Fly' }, { name: 'Cold Breath', text: 'Constitution Saving Throw: DC 15' }]).map((l) => [l.kind, l.name, l.max]))
+      .toEqual([['recharge', 'Fire Breath', 1], ['legendaryResist', 'Legendary Resistance', 4], ['perDay', 'Fireball', 2], ['perDay', 'Fly', 2], ['recharge', 'Cold Breath', 1]])
+    expect(legendaryCount(['Legendary Action Uses: 2.'], true)).toBe(2)
+    expect(slotsFromText('1st level (4 slots): x\n3rd level (2 slots): y').slice(0, 3)).toEqual([4, 0, 2])
+    expect(crForXp(5000)).toBe('9')
   })
 })

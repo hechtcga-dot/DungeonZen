@@ -31,7 +31,7 @@ import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
 import { scaleToCr } from '../../shared/crscale'
-import { boostsAllies, isLeaderName, type CombatantInfo, type CombatState } from '../../shared/combat'
+import { boostsAllies, CombatState, DAMAGE_TYPES, isLeaderName, legendaryCount, limitedUses, newCombatant, slotsFromText, type Combatant, type CombatantInfo } from '../../shared/combat'
 import { rowsFor } from '../../shared/battlemap'
 import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/places'
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
@@ -325,7 +325,10 @@ export class Campaign {
     label?: string
   }): EntityView {
     let id = ''
-    this.log.run(input.label ?? `Added ${input.type.toLowerCase()} ${input.name}`, (w) => { id = this.insertEntity(w, input) })
+    this.log.run(input.label ?? `Added ${input.type.toLowerCase()} ${input.name}`, (w) => {
+      id = this.insertEntity(w, input)
+      if (input.type === 'PC') this.joinFights(w, id)
+    })
     return this.entityView(id)
   }
 
@@ -1392,7 +1395,7 @@ export class Campaign {
       if (kind === 'long') {
         for (const p of this.partyHealth()) {
           const e = this.entityRow(p.id)
-          w.update('entity', p.id, { attributes: { ...e.attributes, current_hp: p.maxHp } })
+          w.update('entity', p.id, { attributes: { ...e.attributes, current_hp: p.maxHp, slots_used: null } })
         }
         if (w.get('campaign_settings', 'last_long_rest_min')) w.update('campaign_settings', 'last_long_rest_min', { value: now + minutes })
         else w.insert('campaign_settings', { key: 'last_long_rest_min', value: now + minutes })
@@ -2441,7 +2444,7 @@ export class Campaign {
   addEncounterCreature(encounterId: string, entityId: string, count = 1): void {
     const e = this.entityRow(encounterId)
     const c = this.entityRow(entityId)
-    this.log.run(`Added ${count} × ${c.name} to ${e.name}`, (w) => this.putCreature(w, encounterId, entityId, count))
+    this.log.run(`Added ${count} × ${c.name} to ${e.name}`, (w) => { this.putCreature(w, encounterId, entityId, count); this.syncFight(w, encounterId) })
   }
 
   private putCreature(w: Writer, encounterId: string, entityId: string, count: number): void {
@@ -2471,6 +2474,7 @@ export class Campaign {
         }
         this.putCreature(w, encounterId, id, g.count)
       }
+      this.syncFight(w, encounterId)
     })
   }
 
@@ -2502,60 +2506,148 @@ export class Campaign {
         }
       }
       if (tactics && !String(e.attributes.tactics ?? '').trim()) w.update('entity', encounterId, { attributes: { ...e.attributes, tactics } })
+      this.syncFight(w, encounterId)
     })
   }
 
   // ---- run encounter (combat tracker)
+
+  /** A creature or player character as it enters a fight: hit points and AC from its card. */
+  private fightCombatant(entityId: string, side: Combatant['side'], name: string): Combatant {
+    const e = this.entityRow(entityId)
+    const sb = readStatBlock(e.attributes.statblock)
+    const max = leadingNumber(sb?.hp ?? '') ?? 0
+    const hp = side === 'party' && typeof e.attributes.current_hp === 'number' ? e.attributes.current_hp : max
+    const texts = [...(sb?.traits ?? []).map((t) => `${t.name} ${t.desc}`), ...this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all().map((a) => a.name)]
+    return newCombatant({
+      id: randomUUID(), entityId, name, side, hp, maxHp: max, ac: String(leadingNumber(sb?.ac ?? '') ?? ''),
+      tempHp: side === 'party' && typeof e.attributes.temp_hp === 'number' ? e.attributes.temp_hp : 0,
+      displacement: texts.some((t) => /^displacement\b/i.test(t)) ? 'on' : null
+    })
+  }
 
   /** Starts a fight from an encounter (or returns the one still running): the party, then the foes in the encounter's order. */
   startCombat(encounterId: string): string {
     const running = this.db.select().from(combat).where(and(eq(combat.encounterId, encounterId), eq(combat.status, 'active'))).get()
     if (running) return running.id
     const enc = this.encounterView(encounterId)
-    const hp = (id: string) => {
-      const sb = readStatBlock(this.entityRow(id).attributes.statblock)
-      return { hp: leadingNumber(sb?.hp ?? '') ?? 0, ac: String(leadingNumber(sb?.ac ?? '') ?? '') }
-    }
-    const combatants: CombatState['combatants'] = this.partyHealth().map((p) => ({
-      id: randomUUID(), entityId: p.id, name: p.name, side: 'party' as const, hp: p.hp, maxHp: p.maxHp, tempHp: 0, ac: String(leadingNumber(p.ac) ?? ''), conditions: [], notes: '', out: null
-    }))
+    const combatants: Combatant[] = this.partyHealth().map((p) => this.fightCombatant(p.id, 'party', p.name))
     for (const cr of enc.creatures) {
-      const h = hp(cr.entityId)
-      for (let i = 1; i <= cr.count; i++) {
-        combatants.push({
-          id: randomUUID(), entityId: cr.entityId, name: cr.count > 1 ? `${cr.name} ${i}` : cr.name, side: 'foe', hp: h.hp, maxHp: h.hp, tempHp: 0, ac: h.ac,
-          conditions: [], notes: cr.notes, out: null
-        })
-      }
+      for (let i = 1; i <= cr.count; i++) combatants.push({ ...this.fightCombatant(cr.entityId, 'foe', cr.count > 1 ? `${cr.name} ${i}` : cr.name), notes: cr.notes })
     }
     const id = randomUUID()
     this.log.run(`Started the fight: ${enc.name}`, (w) => {
-      w.insert('combat', { id, encounterId, status: 'active', createdAt: new Date().toISOString(), state: { round: 1, turn: 0, combatants, log: [`Round 1: ${enc.name} begins.`] } })
+      w.insert('combat', { id, encounterId, status: 'active', createdAt: new Date().toISOString(), state: { round: 1, turn: 0, combatants, log: [`Round 1: ${enc.name} begins.`], effects: [] } })
     })
     return id
+  }
+
+  /**
+   * The running fight follows its encounter (owner, 1.4.0): more creatures join at the end of the order
+   * with full hit points; fewer take unhurt copies out first. Runs inside the change to the encounter.
+   */
+  private syncFight(w: Writer, encounterId: string): void {
+    const row = this.db.select().from(combat).where(and(eq(combat.encounterId, encounterId), eq(combat.status, 'active'))).get()
+    if (!row) return
+    const st = CombatState.parse(row.state)
+    const want = new Map<string, number>()
+    for (const r of this.db.select().from(encounterCreature).where(and(eq(encounterCreature.encounterId, encounterId), eq(encounterCreature.status, 'active'))).all()) {
+      want.set(r.entityId, (want.get(r.entityId) ?? 0) + r.count)
+    }
+    let list = [...st.combatants]
+    const log = [...st.log]
+    const ids = new Set([...want.keys(), ...list.filter((c) => c.side === 'foe' && c.entityId).map((c) => c.entityId!)])
+    for (const eid of ids) {
+      const mine = list.filter((c) => c.side === 'foe' && c.entityId === eid)
+      const need = want.get(eid) ?? 0
+      if (need > mine.length) {
+        const name = this.entityRow(eid).name
+        // "Bandit" becomes "Bandit 1" once a second one joins.
+        if (mine.length === 1 && mine[0].name === name) list = list.map((c) => (c.id === mine[0].id ? { ...c, name: `${name} 1` } : c))
+        const used = new Set(list.map((c) => c.name))
+        let k = 1
+        for (let n = mine.length; n < need; n++) {
+          while (used.has(`${name} ${k}`)) k++
+          const label = need > 1 ? `${name} ${k}` : name
+          used.add(label)
+          list.push(this.fightCombatant(eid, 'foe', label))
+          log.push(`Round ${st.round}: ${label} joins the fight.`)
+        }
+      } else if (need < mine.length) {
+        const unhurt = (c: Combatant) => c.hp >= c.maxHp && !c.conditions.length && !c.out
+        const leave = [...mine].sort((a, b) => Number(unhurt(b)) - Number(unhurt(a)) || list.indexOf(b) - list.indexOf(a)).slice(0, mine.length - need)
+        for (const c of leave) log.push(`Round ${st.round}: ${c.name} leaves the fight (taken out of the encounter).`)
+        const current = list[st.turn]?.id
+        list = list.filter((c) => !leave.includes(c))
+        st.turn = Math.max(0, list.findIndex((c) => c.id === current))
+      }
+    }
+    w.update('combat', row.id, { state: { ...st, combatants: list, log, turn: Math.min(st.turn, Math.max(0, list.length - 1)) } })
+  }
+
+  /** A new player character joins every running fight on the party side. */
+  private joinFights(w: Writer, entityId: string): void {
+    for (const row of this.db.select().from(combat).where(eq(combat.status, 'active')).all()) {
+      const st = CombatState.parse(row.state)
+      const c = this.fightCombatant(entityId, 'party', this.entityRow(entityId).name)
+      w.update('combat', row.id, { state: { ...st, combatants: [...st.combatants, c], log: [...st.log, `Round ${st.round}: ${c.name} joins the fight.`] } })
+    }
+  }
+
+  /** What the tracker knows about a card: hints, CR or level, limited abilities, defences, spell slots. */
+  private combatantInfo(entityId: string, partyLevel: number): CombatantInfo | null {
+    const e = this.db.select().from(entity).where(eq(entity.id, entityId)).get()
+    if (!e) return null
+    const sb = readStatBlock(e.attributes.statblock)
+    const acts = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
+    const texts = [...(sb?.traits ?? []).map((t) => ({ name: t.name, text: t.desc })), ...acts.map((a) => ({ name: a.name, text: a.description }))]
+    const all = texts.map((t) => `${t.name}. ${t.text}`).join('\n')
+    const split = texts.find((t) => /^split\b/i.test(t.name) || /\bsplits? into two\b/i.test(t.text))
+    const lvl = Number.parseInt(String(e.attributes.level ?? ''), 10)
+    const level = e.type === 'PC' ? (Number.isFinite(lvl) && lvl > 0 ? lvl : null) : null
+    const nums = (v: unknown) => (Array.isArray(v) ? Array.from({ length: 9 }, (_, i) => Math.max(0, Number(v[i]) || 0)) : null)
+    const dc = /spell save DC\s*(\d+)/i.exec(all) ?? /\bDC\s*(\d+)/.exec(all)
+    return {
+      creatureType: sb?.creatureType ?? '',
+      leader: isLeaderName(e.name) || texts.some((t) => /\bleadership\b/i.test(t.name)),
+      boosts: texts.filter((t) => boostsAllies(t.text)).map((t) => ({ name: t.name, text: t.text.length > 220 ? `${t.text.slice(0, 220)}…` : t.text })),
+      legendary: acts.some((a) => a.kind === 'LEGENDARY_ACTION'),
+      recharge: limitedUses(texts).filter((l) => l.kind === 'recharge').map((l) => `${l.name} (Recharge ${l.recharge})`),
+      cr: e.type === 'PC' ? '' : sb?.cr ?? '',
+      level: e.type === 'PC' ? level ?? partyLevel : null,
+      xp: e.type === 'PC' ? 0 : xpForCr(sb?.cr ?? ''),
+      pp: sb ? passiveScore(sb, 'Perception') : null,
+      saveDc: dc ? Number(dc[1]) : null,
+      dexMod: sb ? Math.floor((sb.dex - 10) / 2) : 0,
+      resist: sb?.resistances ?? '', immune: sb?.immunities ?? '', vuln: sb?.vulnerabilities ?? '',
+      limited: limitedUses(texts),
+      legendaryActions: legendaryCount(texts.map((t) => t.text), acts.some((a) => a.kind === 'LEGENDARY_ACTION')),
+      lair: /lair action/i.test(all),
+      split: split ? DAMAGE_TYPES.filter((d) => new RegExp(`\\b${d}\\b`, 'i').test(split.text)) : null,
+      splitOnBloodied: !!split && /becomes bloodied/i.test(split.text),
+      mirrorImage: /mirror image/i.test(all),
+      displacement: texts.some((t) => /^displacement\b/i.test(t.name)),
+      actions: acts.map((a) => ({ name: a.name, kind: a.kind, text: a.description.length > 300 ? `${a.description.slice(0, 300)}…` : a.description })),
+      slots: nums(e.attributes.spell_slots) ?? slotsFromText(all),
+      slotsUsed: nums(e.attributes.slots_used) ?? Array<number>(9).fill(0),
+      cardType: e.type,
+      size: sb?.size ?? ''
+    }
   }
 
   combatView(id: string): CombatView {
     const row = this.db.select().from(combat).where(eq(combat.id, id)).get()
     if (!row || row.status === 'defunct') throw new Error('That fight is no longer here')
+    const state = CombatState.parse(row.state)
+    const partyLevel = Number(this.setting('party_level') ?? 1)
     const info: Record<string, CombatantInfo> = {}
-    for (const entityId of new Set(row.state.combatants.map((c) => c.entityId).filter((x): x is string => !!x))) {
-      const e = this.db.select().from(entity).where(eq(entity.id, entityId)).get()
-      if (!e) continue
-      const sb = readStatBlock(e.attributes.statblock)
-      const acts = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
-      const texts = [...(sb?.traits ?? []).map((t) => ({ name: t.name, text: t.desc })), ...acts.map((a) => ({ name: a.name, text: a.description }))]
-      info[entityId] = {
-        creatureType: sb?.creatureType ?? '',
-        leader: isLeaderName(e.name) || texts.some((t) => /\bleadership\b/i.test(t.name)),
-        boosts: texts.filter((t) => boostsAllies(t.text)).map((t) => ({ name: t.name, text: t.text.length > 220 ? `${t.text.slice(0, 220)}…` : t.text })),
-        legendary: acts.some((a) => a.kind === 'LEGENDARY_ACTION'),
-        recharge: texts.filter((t) => /recharge/i.test(t.name)).map((t) => t.name)
-      }
+    for (const entityId of new Set(state.combatants.map((c) => c.entityId).filter((x): x is string => !!x))) {
+      const i = this.combatantInfo(entityId, partyLevel)
+      if (i) info[entityId] = i
     }
     return {
       id, encounterId: row.encounterId, encounterName: this.nameOf(row.encounterId), status: row.status === 'ended' ? 'ended' : 'active',
-      state: row.state, info, sessionRunning: !!this.openSession()
+      state, info, sessionRunning: !!this.openSession()
     }
   }
 
@@ -2564,16 +2656,31 @@ export class Campaign {
     this.log.run(label, (w) => { w.update('combat', id, { state }) })
   }
 
-  endCombat(id: string): void {
+  /** Ends the fight (one undo step): optionally marks defeated cards resolved and logs a summary in the running session. */
+  endCombat(id: string, opts: { resolveIds?: string[]; summary?: string } = {}): void {
     const row = this.db.select().from(combat).where(eq(combat.id, id)).get()
     if (!row) throw new Error('That fight is no longer here')
-    this.log.run(`Ended the fight: ${this.nameOf(row.encounterId)}`, (w) => { w.update('combat', id, { status: 'ended' }) })
+    const open = this.openSession()
+    this.log.run(`Ended the fight: ${this.nameOf(row.encounterId)}`, (w) => {
+      w.update('combat', id, { status: 'ended' })
+      for (const eid of opts.resolveIds ?? []) {
+        const e = this.db.select().from(entity).where(eq(entity.id, eid)).get()
+        if (e && e.status === 'active') w.update('entity', eid, { status: 'resolved' })
+      }
+      if (open && opts.summary?.trim()) {
+        w.insert('log_entry', {
+          id: randomUUID(), sessionId: open.id, atMin: this.info().clockMin, kind: 'fight', text: opts.summary.trim().slice(0, 5000),
+          entityId: null, minutesTaken: 0, createdAt: new Date().toISOString(), status: 'active', encounterId: row.encounterId
+        })
+      }
+    })
   }
 
   updateEncounterCreature(rowId: string, patch: { count?: number; notes?: string }): void {
     const r = this.creatureRow(rowId)
     this.log.run(`Changed ${this.nameOf(r.entityId)} in ${this.nameOf(r.encounterId)}`, (w) => {
       w.update('encounter_creature', rowId, patch.count === 0 ? { status: 'defunct' } : patch)
+      this.syncFight(w, r.encounterId)
     })
   }
 
@@ -2581,6 +2688,7 @@ export class Campaign {
     const r = this.creatureRow(rowId)
     this.log.run(`${status === 'defunct' ? 'Took' : 'Put'} ${this.nameOf(r.entityId)} ${status === 'defunct' ? 'out of' : 'back in'} ${this.nameOf(r.encounterId)}`, (w) => {
       w.update('encounter_creature', rowId, { status })
+      this.syncFight(w, r.encounterId)
     })
   }
 
@@ -2590,6 +2698,7 @@ export class Campaign {
       this.adoptLegacyCreatures(w, encounterId)
       const row = this.db.select().from(encounterCreature).where(and(eq(encounterCreature.encounterId, encounterId), eq(encounterCreature.entityId, entityId), eq(encounterCreature.status, 'active'))).get()
       if (row) w.update('encounter_creature', row.id, { status: 'defunct' })
+      this.syncFight(w, encounterId)
     })
   }
 

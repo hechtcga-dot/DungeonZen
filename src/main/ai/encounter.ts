@@ -94,7 +94,7 @@ export const COMBAT_SYSTEM = [
   'this round (targets, positioning, abilities to use) and whether any flee, surrender or call for help, with the reason.'
 ].join(' ')
 
-export function combatPrompt(v: CombatView, hints: string[], houseRules: string, ask: string): string {
+export function combatPrompt(v: CombatView, hints: string[], houseRules: string, ask: string, focusId?: string): string {
   const s = v.state
   const line = (c: CombatView['state']['combatants'][number]) =>
     `- ${c.name} (${c.side}): ${c.hp}/${c.maxHp} HP, AC ${c.ac || '?'}${c.conditions.length ? `, ${c.conditions.map((k) => `${k.name}${k.rounds ? ` ${k.rounds} rd` : ''}`).join(', ')}` : ''}${c.out ? `, ${c.out}` : ''}${c.notes ? `; ${c.notes}` : ''}`
@@ -102,6 +102,14 @@ export function combatPrompt(v: CombatView, hints: string[], houseRules: string,
   if (hints.length) lines.push(`Local rules say: ${hints.join(' ')}`)
   if (s.log.length) lines.push(`Recent events: ${s.log.slice(-8).join(' ')}`)
   if (houseRules.trim()) lines.push(`House rules:\n${houseRules.trim().slice(0, 3000)}`)
+  const focus = focusId ? s.combatants.find((c) => c.id === focusId) : undefined
+  if (focus) {
+    const i = focus.entityId ? v.info[focus.entityId] : undefined
+    const opts = i?.actions.map((a) => `${a.name}: ${a.text}`).join('\n') ?? ''
+    lines.push(focus.side === 'party'
+      ? `Answer only for ${focus.name} (a player character): their best options this turn, so the DM can remind the player.${opts ? `\nTheir abilities:\n${opts}` : ''}`
+      : `Answer only for ${focus.name}: its best tactic this turn (target, movement, which attack, spell or ability, legendary actions).${opts ? `\nIts abilities:\n${opts}` : ''}`)
+  }
   if (ask.trim()) lines.push(`The DM asks: ${ask.trim().slice(0, 600)}`)
   return lines.join('\n')
 }

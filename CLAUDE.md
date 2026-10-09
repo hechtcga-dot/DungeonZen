@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.3.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.4.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -60,6 +60,10 @@ Owner's decisions: hide applies to every board; measurements stored metric, disp
 ## 1.3.0 (built 2026-10-09)
 Owner's list: Setup menu (save, copy, about, uninstall), background pictures with a Cards/Background move switch, Ctrl+drag pans, menus close on click, New link from the card menu (types with colours), strings on six card points, sheet tabs (traits/descriptions with AI fill, Secrets, Factions), character-sheet Full sheet, desk party cards, pictures on every card and Library › Pictures with style examples, Draw windows show the prompt, Notes screen. Details in `docs/STATE.md`.
 Owner's decisions: link colour belongs to the link type; Setup holds file actions and Uninstall; every card type gets a fill-in tab; NPC, PC and places get a Factions field; art style plan approved (uploads are style examples for everything until unticked; Draw window can untick per drawing); "base character sheets on library art" = choose the AI's style examples (option b); notes are for the DM only.
+
+## 1.4.0 (built 2026-10-09)
+Run encounter upgrades: CR/level and balance bar, fight follows the encounter (no "Someone joins"), damage types, Split / Mirror Image / Displacement, death saves, bloodied, selected-row tactics and Ask AI, terrain and spell effects, expandable rows (round track, reactions, concentration, legendary actions and resistances, limited uses with Refresh, spell slots), notes pop-up, group damage with saves, End combat summary, keys. Details in `docs/STATE.md`.
+Owner's decisions: creatures join a fight only through the encounter (and new PCs); spell slots live on the card, Long rest refills; suggestion "players' view of the fight on a TV" not taken this build.
 
 ## Remind the owner (until answered)
 - Player preview in a second window (TV): put off by owner; ask again later.

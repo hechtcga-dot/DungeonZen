@@ -600,14 +600,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('combat:start', ({ encounterId }) => current().startCombat(encounterId))
   handle('combat:view', ({ id }) => current().combatView(id))
   handle('combat:update', ({ id, state, label }) => current().updateCombat(id, state, label))
-  handle('combat:end', ({ id }) => current().endCombat(id))
-  handle('ai:combatAdvice', async ({ id, ask }) => {
+  handle('combat:end', ({ id, resolveIds, summary }) => current().endCombat(id, { resolveIds, summary }))
+  handle('ai:combatAdvice', async ({ id, ask, focusId }) => {
     const choice = profile.aiChoice('text')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
     const c = current()
     const v = c.combatView(id)
     const hints = combatHints(v.state, v.info).map((h) => h.text)
-    const text = await generateText(r, { system: COMBAT_SYSTEM, prompt: combatPrompt(v, hints, c.encountersView().houseRules, ask), maxTokens: 500 })
+    const text = await generateText(r, { system: COMBAT_SYSTEM, prompt: combatPrompt(v, hints, c.encountersView().houseRules, ask, focusId), maxTokens: 500 })
     return { text, source: `${r.info.name} · ${r.model || 'default model'}` }
   })
 
