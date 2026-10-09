@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameS
 import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
-import {
+import { combat,
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
   actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
@@ -19,7 +19,7 @@ import { KNOWLEDGE_FIELDS, type PrepKind, type SceneType } from '../../shared/sc
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
-import type { PcToken,
+import type { CombatView, PcToken,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
@@ -30,6 +30,7 @@ import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
 import { scaleToCr } from '../../shared/crscale'
+import { boostsAllies, isLeaderName, type CombatantInfo, type CombatState } from '../../shared/combat'
 import { rowsFor } from '../../shared/battlemap'
 import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/places'
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
@@ -2391,6 +2392,71 @@ export class Campaign {
       }
       if (tactics && !String(e.attributes.tactics ?? '').trim()) w.update('entity', encounterId, { attributes: { ...e.attributes, tactics } })
     })
+  }
+
+  // ---- run encounter (combat tracker)
+
+  /** Starts a fight from an encounter (or returns the one still running): the party, then the foes in the encounter's order. */
+  startCombat(encounterId: string): string {
+    const running = this.db.select().from(combat).where(and(eq(combat.encounterId, encounterId), eq(combat.status, 'active'))).get()
+    if (running) return running.id
+    const enc = this.encounterView(encounterId)
+    const hp = (id: string) => {
+      const sb = readStatBlock(this.entityRow(id).attributes.statblock)
+      return { hp: leadingNumber(sb?.hp ?? '') ?? 0, ac: String(leadingNumber(sb?.ac ?? '') ?? '') }
+    }
+    const combatants: CombatState['combatants'] = this.partyHealth().map((p) => ({
+      id: randomUUID(), entityId: p.id, name: p.name, side: 'party' as const, hp: p.hp, maxHp: p.maxHp, tempHp: 0, ac: String(leadingNumber(p.ac) ?? ''), conditions: [], notes: '', out: null
+    }))
+    for (const cr of enc.creatures) {
+      const h = hp(cr.entityId)
+      for (let i = 1; i <= cr.count; i++) {
+        combatants.push({
+          id: randomUUID(), entityId: cr.entityId, name: cr.count > 1 ? `${cr.name} ${i}` : cr.name, side: 'foe', hp: h.hp, maxHp: h.hp, tempHp: 0, ac: h.ac,
+          conditions: [], notes: cr.notes, out: null
+        })
+      }
+    }
+    const id = randomUUID()
+    this.log.run(`Started the fight: ${enc.name}`, (w) => {
+      w.insert('combat', { id, encounterId, status: 'active', createdAt: new Date().toISOString(), state: { round: 1, turn: 0, combatants, log: [`Round 1: ${enc.name} begins.`] } })
+    })
+    return id
+  }
+
+  combatView(id: string): CombatView {
+    const row = this.db.select().from(combat).where(eq(combat.id, id)).get()
+    if (!row || row.status === 'defunct') throw new Error('That fight is no longer here')
+    const info: Record<string, CombatantInfo> = {}
+    for (const entityId of new Set(row.state.combatants.map((c) => c.entityId).filter((x): x is string => !!x))) {
+      const e = this.db.select().from(entity).where(eq(entity.id, entityId)).get()
+      if (!e) continue
+      const sb = readStatBlock(e.attributes.statblock)
+      const acts = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
+      const texts = [...(sb?.traits ?? []).map((t) => ({ name: t.name, text: t.desc })), ...acts.map((a) => ({ name: a.name, text: a.description }))]
+      info[entityId] = {
+        creatureType: sb?.creatureType ?? '',
+        leader: isLeaderName(e.name) || texts.some((t) => /\bleadership\b/i.test(t.name)),
+        boosts: texts.filter((t) => boostsAllies(t.text)).map((t) => ({ name: t.name, text: t.text.length > 220 ? `${t.text.slice(0, 220)}…` : t.text })),
+        legendary: acts.some((a) => a.kind === 'LEGENDARY_ACTION'),
+        recharge: texts.filter((t) => /recharge/i.test(t.name)).map((t) => t.name)
+      }
+    }
+    return {
+      id, encounterId: row.encounterId, encounterName: this.nameOf(row.encounterId), status: row.status === 'ended' ? 'ended' : 'active',
+      state: row.state, info, sessionRunning: !!this.openSession()
+    }
+  }
+
+  /** The DM's change to the fight (damage, a condition, the next turn…): one undo step each. */
+  updateCombat(id: string, state: CombatState, label: string): void {
+    this.log.run(label, (w) => { w.update('combat', id, { state }) })
+  }
+
+  endCombat(id: string): void {
+    const row = this.db.select().from(combat).where(eq(combat.id, id)).get()
+    if (!row) throw new Error('That fight is no longer here')
+    this.log.run(`Ended the fight: ${this.nameOf(row.encounterId)}`, (w) => { w.update('combat', id, { status: 'ended' }) })
   }
 
   updateEncounterCreature(rowId: string, patch: { count?: number; notes?: string }): void {

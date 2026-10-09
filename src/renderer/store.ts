@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView } from '../shared/types'
+import type { CombatView, BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView } from '../shared/types'
 import type { Units } from '../shared/units'
 
 export type Selection =
@@ -11,13 +11,13 @@ export type Selection =
   | null
 
 export type BoardPanel = 'inspector' | 'history' | 'connections' | 'storylines'
-export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide'
+export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'combat'
 /** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
 export type Mode = 'prep' | 'live' | 'players'
 export const SCREEN_NAMES: Record<Screen, string> = {
   desk: 'the desk', board: 'the board', map: 'the map', timeline: 'the timeline', live: 'the live desk', review: 'the review',
   sheet: 'the previous card', library: 'the library', prep: 'session prep', players: 'player preview', encounters: 'encounters',
-  import: 'import notes', guide: 'getting started'
+  import: 'import notes', guide: 'getting started', combat: 'the fight'
 }
 export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
 
@@ -43,6 +43,10 @@ interface BoardState {
   /** The encounter open on the Encounters screen. */
   encounterId: string | null
   openEncounter(id: string | null): void
+  /** Run encounter: the fight on the combat screen. */
+  combatId: string | null
+  combat: CombatView | null
+  openCombat(id: string): Promise<void>
   prep: PrepView | null
   /** The session number shown on the Prep screen (null: the running or next session). */
   prepNumber: number | null
@@ -104,6 +108,13 @@ export const useBoard = create<BoardState>((set, get) => ({
   players: null,
   encounters: null,
   encounterId: null,
+  combatId: null,
+  combat: null,
+  async openCombat(id) {
+    const { screen, sheetId, backStack } = get()
+    set({ screen: 'combat', combatId: id, combat: null, backStack: screen === 'combat' ? backStack : [...backStack, { screen, sheetId }].slice(-20) })
+    await get().refresh()
+  },
   openEncounter(id) { set({ encounterId: id, screen: 'encounters', mode: 'prep' }); void get().refresh() },
   prep: null,
   prepNumber: null,
@@ -204,7 +215,15 @@ export const useBoard = create<BoardState>((set, get) => ({
       const where = screen === 'live' ? await call('live:where', undefined).catch(() => null) : get().where
       const players = screen === 'players' ? await call('players:view', undefined).catch(() => null) : get().players
       const encounters = screen === 'encounters' ? await call('encounters:view', undefined).catch(() => null) : get().encounters
-      set({ view, history, sheet, desk, timeline, live, review, mapScreen, prepScreen, prep, where, players, encounters, info: info ?? get().info })
+      const combatId = get().combatId
+      const combat = screen === 'combat' && combatId ? await call('combat:view', { id: combatId }).catch(() => null) : get().combat
+      if (screen === 'combat' && !combat) {
+        // The fight is gone (its start was undone): back to the encounters.
+        set({ screen: 'encounters', combatId: null, combat: null })
+        await get().refresh()
+        return
+      }
+      set({ view, history, sheet, desk, timeline, live, review, mapScreen, prepScreen, prep, where, players, encounters, combat, info: info ?? get().info })
     } catch (err) {
       get().say((err as Error).message, true)
     }

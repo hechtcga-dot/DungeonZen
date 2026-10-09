@@ -8,13 +8,14 @@ import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
-import { BUILD_SYSTEM, buildPrompt, parseBuild, RATE_SYSTEM, ratePrompt } from './ai/encounter'
+import { BUILD_SYSTEM, buildPrompt, COMBAT_SYSTEM, combatPrompt, parseBuild, RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
 import { STATBLOCK_SYSTEM, parseStatBlock, statBlockPrompt } from './ai/statblock'
 import { parseRegions, REGIONS_SYSTEM, regionsPrompt } from './ai/regions'
 import { generateWorld } from './worldgen'
 import type { PlaceShape } from '../shared/places'
 import { fillableFields } from '../shared/cardFields'
+import { combatHints } from '../shared/combat'
 import { readStatBlock } from '../shared/statblock'
 import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from './exporters/roll20'
 import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './exporters/pages'
@@ -464,6 +465,20 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { ...parseBuild(reply, index), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('encounter:addProposals', ({ encounterId, items, tactics, source }) => current().addEncounterProposals(encounterId, items, tactics, source, srdCopy))
+
+  handle('combat:start', ({ encounterId }) => current().startCombat(encounterId))
+  handle('combat:view', ({ id }) => current().combatView(id))
+  handle('combat:update', ({ id, state, label }) => current().updateCombat(id, state, label))
+  handle('combat:end', ({ id }) => current().endCombat(id))
+  handle('ai:combatAdvice', async ({ id, ask }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const v = c.combatView(id)
+    const hints = combatHints(v.state, v.info).map((h) => h.text)
+    const text = await generateText(r, { system: COMBAT_SYSTEM, prompt: combatPrompt(v, hints, c.encountersView().houseRules, ask), maxTokens: 500 })
+    return { text, source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
 
   // ---- live: where the party is, and Ask AI
   handle('live:where', () => current().liveWhere())

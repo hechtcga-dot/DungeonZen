@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { StatBlock } from './statblock'
+import { CombatState } from './combat'
 import { GRID_MAX, GRID_MIN } from './battlemap'
 import { ImportDraft, type ImportDraftSummary } from './notesImport'
 import { BIOMES, PLACE_KINDS, WORLD_CLIMATES, WORLD_SIZES, type PlaceShape } from './places'
@@ -7,7 +8,7 @@ import {
   AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
 } from './schemas'
-import type { BuiltCreature, SrdMonsterRow,
+import type { BuiltCreature, CombatView, SrdMonsterRow,
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
@@ -187,6 +188,11 @@ export const ipcInputs = {
       actions: z.array(z.object({ name: Name, kind: AbilityKind, description: z.string().max(5000) })).max(30).optional()
     })).min(1).max(12)
   }),
+  'combat:start': z.object({ encounterId: Id }),
+  'combat:view': z.object({ id: Id }),
+  'combat:update': z.object({ id: Id, state: CombatState, label: z.string().min(1).max(300) }),
+  'combat:end': z.object({ id: Id }),
+  'ai:combatAdvice': z.object({ id: Id, ask: z.string().max(1000) }),
   'encounter:houseRules': z.object({ text: z.string().max(20000) }),
   'ai:rateEncounter': z.object({ encounterId: Id }),
   'live:where': z.void(),
@@ -396,6 +402,11 @@ export interface IpcOutputs {
   'encounter:update': void
   'ai:buildEncounter': { creatures: BuiltCreature[]; tactics: string; source: string }
   'encounter:addProposals': void
+  'combat:start': string
+  'combat:view': CombatView
+  'combat:update': void
+  'combat:end': void
+  'ai:combatAdvice': AiSuggestion
   'encounter:addCreature': void
   'encounter:addSrd': void
   'encounter:creature': void

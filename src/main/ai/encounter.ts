@@ -3,7 +3,7 @@
 // the model to work from"). The answer is advice shown as an AI suggestion; nothing changes.
 
 import { RATING_LABELS } from '../../shared/encounter'
-import type { BuiltCreature, EncounterView, EncountersView } from '../../shared/types'
+import type { BuiltCreature, CombatView, EncounterView, EncountersView } from '../../shared/types'
 import { extractJson } from '../importers/notes'
 import { parseStatBlock } from './statblock'
 
@@ -85,4 +85,23 @@ export function parseBuild(reply: string, index: Array<{ key: string; name: stri
   }
   if (!creatures.length) throw new Error('The AI answer had no creatures in it. Try again, or a different model.')
   return { creatures, tactics: typeof raw.tactics === 'string' ? raw.tactics.trim().slice(0, 3000) : '' }
+}
+
+// Run encounter › Ask AI: what the foes do now (tactics, morale), from the state of the fight.
+export const COMBAT_SYSTEM = [
+  'You help a Dungeon Master run a Dungeons & Dragons 5e (2024 rules) fight.',
+  "Follow the DM's house rules when given. Answer in under 120 words: for the foes still standing, what each group does",
+  'this round (targets, positioning, abilities to use) and whether any flee, surrender or call for help, with the reason.'
+].join(' ')
+
+export function combatPrompt(v: CombatView, hints: string[], houseRules: string, ask: string): string {
+  const s = v.state
+  const line = (c: CombatView['state']['combatants'][number]) =>
+    `- ${c.name} (${c.side}): ${c.hp}/${c.maxHp} HP, AC ${c.ac || '?'}${c.conditions.length ? `, ${c.conditions.map((k) => `${k.name}${k.rounds ? ` ${k.rounds} rd` : ''}`).join(', ')}` : ''}${c.out ? `, ${c.out}` : ''}${c.notes ? `; ${c.notes}` : ''}`
+  const lines = [`Fight: ${v.encounterName}, round ${s.round}. Turn of ${s.combatants[s.turn]?.name ?? '?'}.`, 'Combatants:', ...s.combatants.map(line)]
+  if (hints.length) lines.push(`Local rules say: ${hints.join(' ')}`)
+  if (s.log.length) lines.push(`Recent events: ${s.log.slice(-8).join(' ')}`)
+  if (houseRules.trim()) lines.push(`House rules:\n${houseRules.trim().slice(0, 3000)}`)
+  if (ask.trim()) lines.push(`The DM asks: ${ask.trim().slice(0, 600)}`)
+  return lines.join('\n')
 }

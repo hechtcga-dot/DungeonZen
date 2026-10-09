@@ -1,3 +1,4 @@
+import type { CombatantInfo, CombatState } from './combat'
 import type { Units } from './units'
 import type { StatBlock } from './statblock'
 // Plain data the main process sends to the renderer over IPC.
@@ -672,6 +673,17 @@ export interface EncounterCreatureView {
   stashed: boolean
   /** Its stat block was written by an AI (rule 10). */
   aiMade: boolean
+}
+
+/** Run encounter: the fight, and what the hints need to know about each card. */
+export interface CombatView {
+  id: string
+  encounterId: string
+  encounterName: string
+  status: 'active' | 'ended'
+  state: CombatState
+  info: Record<string, CombatantInfo>
+  sessionRunning: boolean
 }
 
 /** One creature an AI proposed for an encounter: an SRD monster, or a new one with its stat block. */

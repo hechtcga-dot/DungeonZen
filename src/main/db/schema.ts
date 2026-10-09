@@ -1,3 +1,4 @@
+import type { CombatState } from '../../shared/combat'
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
 import type { BoardItemContent, EntityAttributes } from '../../shared/schemas'
 
@@ -160,6 +161,15 @@ export const partyPosition = sqliteTable('party_position', {
   // Set for a player character's own token (split from the party); joined = back with the party.
   entityId: text('entity_id'),
   joined: integer('joined', { mode: 'boolean' }).notNull().default(false)
+})
+
+// Run encounter: a fight in progress (status active) or finished (ended); the state is the whole tracker.
+export const combat = sqliteTable('combat', {
+  id: text('id').primaryKey(),
+  encounterId: text('encounter_id').notNull(),
+  state: text('state', { mode: 'json' }).$type<CombatState>().notNull(),
+  status: text('status').notNull(),
+  createdAt: text('created_at').notNull()
 })
 
 // A travel time the DM set between two locations; it beats the distance estimate.
@@ -333,6 +343,7 @@ export const tracked = {
   review_decision: { table: reviewDecision, pk: reviewDecision.id },
   region_shape: { table: regionShape, pk: regionShape.id },
   party_position: { table: partyPosition, pk: partyPosition.id },
+  combat: { table: combat, pk: combat.id },
   travel_link: { table: travelLink, pk: travelLink.id },
   style_example: { table: styleExample, pk: styleExample.id },
   session_prep: { table: sessionPrep, pk: sessionPrep.id },

@@ -183,6 +183,12 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE party_position ADD COLUMN entity_id TEXT;
   ALTER TABLE party_position ADD COLUMN joined INTEGER NOT NULL DEFAULT 0;
+  `,
+  // 1.2.0: Run encounter (combat tracker): the whole fight as one JSON state.
+  `
+  CREATE TABLE combat (
+    id TEXT PRIMARY KEY, encounter_id TEXT NOT NULL REFERENCES entity(id), state TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL
+  );
   `
 ]
 

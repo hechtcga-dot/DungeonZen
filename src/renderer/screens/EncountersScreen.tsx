@@ -87,7 +87,7 @@ function groupByPlace(v: EncountersView): Array<[string, EncounterView[]]> {
 }
 
 function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
-  const { act, openSheet, say, setBattleMapOpen, setAiSettingsOpen } = useBoard()
+  const { act, openSheet, openCombat, say, setBattleMapOpen, setAiSettingsOpen } = useBoard()
   const up = (patch: Parameters<typeof call<'encounter:update'>>[1]['patch']) => void act('encounter:update', { id: e.id, patch })
   const [pick, setPick] = useState('')
   const [pickCount, setPickCount] = useState(1)
@@ -235,6 +235,8 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
       )}
 
       <div className="row tight wrap enc-actions">
+        <button className="ink-button primary-ink" disabled={e.creatures.length === 0} title="Opens the combat tracker: rounds, turns, hit points, conditions, morale"
+          onClick={async () => { const id = await act('combat:start', { encounterId: e.id }); if (id) await openCombat(id) }}>Run encounter</button>
         <button className="ink-button primary-ink" title="Everything saves as you go; this makes sure the field you are typing in is kept too"
           onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); say(`Saved ${e.name}`) }}>Save encounter</button>
         {v.sessionRunning
