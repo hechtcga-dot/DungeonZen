@@ -139,6 +139,9 @@ describe('D&D Beyond parts', () => {
     expect(abilityRow(ws.description, 'SPELL').notes).toBe('Concentration')
     const dagger = buildAttack(weaponSpec(srd.weapons.find((w) => w.name === 'Dagger')!, { ...emptyStatBlock(), dex: 16 }, 3, { proficient: true, magic: 0 }))
     expect(abilityRow(dagger.description, 'ACTION')).toMatchObject({ time: 'action', range: '5 ft. or 20/60 ft.', hitDc: '+6', effect: '1d4+3 Piercing', attack: true })
+    const hw = buildAttack(spellSpec(spells.find((x) => x.name === 'Healing Word')!, 4, 3, 9))
+    expect(hw.macroText).toContain('{{healing=[[2d4+4]]}}')
+    expect(abilityRow(hw.description, 'SPELL').effect).toBe('2d4+4 Healing')
     expect(abilityRow('Fire Breath (Recharge 5–6). Dexterity Saving Throw: DC 13.', 'ACTION')).toMatchObject({ limited: true, hitDc: 'DEX 13' })
   })
 

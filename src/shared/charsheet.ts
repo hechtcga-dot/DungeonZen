@@ -54,6 +54,7 @@ export function abilityRow(description: string, kind: string): AbilityRow {
   const save = /(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+Saving Throw:\s*DC\s*(\d+)/i.exec(d)
     ?? /DC\s*(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)/i.exec(d)
   const dc = save ? (/^\d+$/.test(save[1]) ? `${save[2].slice(0, 3).toUpperCase()} ${save[1]}` : `${save[1].slice(0, 3).toUpperCase()} ${save[2]}`) : ''
+  const heal = /\((\d+d\d+(?:\s*[+\-−]\s*\d+)?)\)\s*Hit Points regained/i.exec(d)
   const dmg = /\((\d+d\d+(?:\s*[+\-−]\s*\d+)?)\)\s*([A-Za-z]+)\s+damage/i.exec(d) ?? /(\d+d\d+(?:\s*[+\-−]\s*\d+)?)\s+([A-Za-z]+)\s+damage/i.exec(d)
   const reach = [...d.matchAll(/(?:reach|range)\s+([\d/]+\s*(?:ft\.|feet))/gi)].map((m) => m[1]).join(' or ')
   const time = head[1] ?? ({ BONUS_ACTION: 'bonus action', REACTION: 'reaction', ACTION: 'action' } as Record<string, string>)[kind] ?? ''
@@ -61,7 +62,7 @@ export function abilityRow(description: string, kind: string): AbilityRow {
     /\(Recharge [^)]*\)|\(\d+\/Day[^)]*\)/i.exec(d)?.[0]].filter(Boolean).join(', ')
   return {
     time, range: head[2] ?? reach, hitDc: hit ? hit[1] : dc,
-    effect: dmg ? `${dmg[1].replace(/\s+/g, '')} ${dmg[2]}` : '', notes, attack: !!hit,
+    effect: heal ? `${heal[1].replace(/\s+/g, '')} Healing` : dmg ? `${dmg[1].replace(/\s+/g, '')} ${dmg[2]}` : '', notes, attack: !!hit,
     limited: /\(Recharge|\/Day|per (long|short) rest|once per/i.test(d)
   }
 }

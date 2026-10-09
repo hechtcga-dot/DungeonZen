@@ -38,7 +38,7 @@ export function average(dice: string, bonus = 0): number | null {
 /** The 2024-style description and a Roll20 macro (template default) for an attack or spell. */
 export function buildAttack(s: AttackSpec): { name: string; kind: AbilityKind; description: string; macroText: string } {
   const dmg = s.damage.filter((d) => d.dice.trim())
-  const hitText = dmg.map((d) => `${average(d.dice, d.bonus) ?? '?'} (${dicePart(d.dice, d.bonus)})${d.type ? ` ${d.type}` : ''} damage`).join(' plus ')
+  const hitText = dmg.map((d) => `${average(d.dice, d.bonus) ?? '?'} (${dicePart(d.dice, d.bonus)})${d.type === 'Healing' ? ' Hit Points regained' : `${d.type ? ` ${d.type}` : ''} damage`}`).join(' plus ')
   const parts: string[] = []
   if (s.header) parts.push(`${s.header}.`)
   if (s.toHit !== null) parts.push(`${stop(`${s.attackType ?? 'Melee'} Attack Roll: ${formatModifier(s.toHit)}${s.reach ? `, ${s.reach}` : ''}`)}${hitText ? ` Hit: ${hitText}.` : ''}`)
@@ -48,7 +48,7 @@ export function buildAttack(s: AttackSpec): { name: string; kind: AbilityKind; d
   if (s.note.trim()) parts.push(s.note.trim())
   const macro = [`&{template:default} {{name=${clean(s.name)}}}`]
   if (s.toHit !== null) macro.push(`{{attack=[[1d20${formatModifier(s.toHit)}]]}}`)
-  dmg.forEach((d, i) => macro.push(`{{${i === 0 ? 'damage' : `damage ${i + 1}`}=[[${d.dice.toLowerCase()}${d.bonus ? formatModifier(d.bonus) : ''}]]${d.type ? ` ${d.type.toLowerCase()}` : ''}}}`))
+  dmg.forEach((d, i) => macro.push(d.type === 'Healing' ? `{{healing=[[${d.dice.toLowerCase()}${d.bonus ? formatModifier(d.bonus) : ''}]]}}` : `{{${i === 0 ? 'damage' : `damage ${i + 1}`}=[[${d.dice.toLowerCase()}${d.bonus ? formatModifier(d.bonus) : ''}]]${d.type ? ` ${d.type.toLowerCase()}` : ''}}}`))
   if (s.save) macro.push(`{{save=DC ${s.save.dc} ${s.save.ability.slice(0, 3)}}}`)
   const words = clean([s.header, s.note].filter(Boolean).join('. '))
   if (words) macro.push(`{{description=${words.slice(0, 900)}}}`)
@@ -84,7 +84,8 @@ export function spellSpec(s: SrdSpell, castMod: number, prof: number, charLevel:
   return {
     name: s.name, kind: 'SPELL', header, toHit: s.attack ? castMod + prof : null, attackType: 'Ranged spell', reach: '',
     save: s.save ? { dc: 8 + castMod + prof, ability: s.save } : null,
-    damage: s.dice ? [{ dice: cantripDice(s, charLevel), bonus: 0, type: s.types[0] ?? '' }] : [],
+    // Healing spells (Cure Wounds, Healing Word) add the caster's modifier to Hit Points regained.
+    damage: !s.dice ? [] : !s.types.length && /regain/i.test(s.desc) ? [{ dice: s.dice, bonus: castMod, type: 'Healing' }] : [{ dice: cantripDice(s, charLevel), bonus: 0, type: s.types[0] ?? '' }],
     note: `${s.desc}${s.higher ? ` ${s.level === 0 ? 'Cantrip upgrade' : 'Using a higher-level spell slot'}: ${s.higher}` : ''}`
   }
 }
