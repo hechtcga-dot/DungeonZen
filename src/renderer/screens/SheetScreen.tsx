@@ -22,6 +22,7 @@ import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
 import { slotsFromText } from '../../shared/combat'
 import { PicturePanel } from '../components/Pictures'
+import { SheetFileMenu } from '../components/ImportCharSheet'
 import { ActionsTable, ClassStrip, Extras, HpAdjust, InspirationBox, LimitedUses, SpellsTable, VitalsCard } from '../components/SheetExtras'
 
 type Tab = 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
@@ -116,6 +117,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         </div>
         <button onClick={() => void showOnBoard(e.id)}>Show on board</button>
         <button onClick={() => setFilling([])}>Fill blanks with AI…</button>
+        {(e.type === 'PC' || e.type === 'NPC') && <SheetFileMenu entityId={e.id} name={e.name} />}
         <button onClick={() => setExporting('print')}>{e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…'}</button>
         {['NPC', 'PC', 'MONSTER'].includes(e.type) && <button onClick={() => setExporting('roll20')}>Export to Roll20…</button>}
         <button onClick={async () => {

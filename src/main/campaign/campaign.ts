@@ -998,6 +998,33 @@ export class Campaign {
     return toMapView(this.db.select().from(map).where(eq(map.id, id)).get()!)
   }
 
+  /**
+   * Re-import: a new picture for a map (the old file stays in the folder). Regions and party
+   * positions are stretched to the new size so they stay on the same places. One undo step.
+   */
+  replaceMapImage(mapId: string, sourceFile: string): MapView {
+    const m = this.mapRow(mapId)
+    const ext = extname(sourceFile).toLowerCase()
+    if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Maps must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
+    const rel = `maps/${randomUUID()}${ext}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'maps'), { recursive: true })
+    copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
+    const size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
+    const sx = m.width && size?.width ? size.width / m.width : 1
+    const sy = m.height && size?.height ? size.height / m.height : 1
+    this.log.run(`New picture for the map ${m.name}`, (w) => {
+      w.update('map', mapId, { imagePath: rel, width: size?.width ?? m.width, height: size?.height ?? m.height })
+      if (sx === 1 && sy === 1) return
+      for (const r of this.db.select().from(regionShape).where(eq(regionShape.mapId, mapId)).all()) {
+        w.update('region_shape', r.id, { polygon: r.polygon.map(([x, y]) => [Math.round(x * sx * 10) / 10, Math.round(y * sy * 10) / 10] as [number, number]) })
+      }
+      for (const p of this.db.select().from(partyPosition).where(eq(partyPosition.mapId, mapId)).all()) {
+        w.update('party_position', p.id, { x: p.x * sx, y: p.y * sy })
+      }
+    })
+    return toMapView(this.mapRow(mapId))
+  }
+
   maps(): MapView[] {
     return this.db.select().from(map).where(eq(map.status, 'active')).all().map(toMapView)
   }

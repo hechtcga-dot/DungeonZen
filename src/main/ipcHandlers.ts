@@ -244,6 +244,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     if (result.canceled || result.filePaths.length === 0) return null
     return current().importMap(result.filePaths[0])
   })
+  handle('map:reimport', async ({ mapId }) => {
+    const win = getWindow()
+    const options = { title: 'A new picture for this map', buttonLabel: 'Use this picture', properties: ['openFile'] as Array<'openFile'>, filters: [{ name: 'Images', extensions: MAP_EXTENSIONS.map((e) => e.slice(1)) }] }
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (r.canceled || !r.filePaths[0]) return null
+    return current().replaceMapImage(mapId, r.filePaths[0])
+  })
   handle('map:setActive', ({ mapId }) => current().setSetting('active_map_id', mapId, 'Changed the desk map'))
   handle('notes:set', ({ text }) => current().setDmNotes(text))
   handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
@@ -530,6 +537,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return current().copyFolderIntoEncounter(id, result.filePaths[0])
   })
   handle('encounter:resetFolder', ({ id }) => current().bringEncounterFolderIn(id))
+  // Re-import one picture: the new file takes its name; the old one goes to Removed.
+  handle('encounter:replacePicture', async ({ id, name }) => {
+    const win = getWindow()
+    const options = { title: `A new copy of ${name}`, buttonLabel: 'Replace', properties: ['openFile'] as Array<'openFile'>, filters: [{ name: 'Pictures, maps and PDFs', extensions: [...MAP_EXTENSIONS.map((e) => e.slice(1)), 'pdf'] }] }
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (r.canceled || !r.filePaths[0]) return false
+    const c = current()
+    c.removeEncounterPicture(id, name)
+    copyFileSync(r.filePaths[0], join(c.encounterFolder(id, true), `${basename(name, extname(name))}${extname(r.filePaths[0])}`))
+    return true
+  })
   handle('encounter:removePicture', ({ id, name }) => current().removeEncounterPicture(id, name))
   handle('notes:screen', () => current().notesScreen())
   handle('notes:popout', () => openJournal())
@@ -584,6 +602,28 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const doc = current().notesScreen().docs.find((d) => d.id === id)
     const name = `${doc?.title ?? 'Note'} (changes)`
     return proposeFrom([{ name, file: { name, kind: 'text', chunks: chunkBlocks(lines, 'paragraph'), image: null, warnings: [] } }], name)
+  })
+  // Re-import: a new copy of the file for this note (the old one stays as an earlier version).
+  handle('notedoc:reimport', async ({ id }) => {
+    const c = current()
+    const doc = c.notesScreen().docs.find((d) => d.id === id)
+    if (!doc) throw new Error('That note is gone')
+    const win = getWindow()
+    const options = { title: `New copy of ${doc.title}`, buttonLabel: 'Re-import', properties: ['openFile'] as Array<'openFile'>, filters: [{ name: 'Notes', extensions: NOTE_EXTENSIONS.map((e) => e.slice(1)) }] }
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (r.canceled || !r.filePaths[0]) return null
+    await readNotesFile(r.filePaths[0])
+    const before = doc.kind === 'picture' ? [] : await noteBlocks(c.noteFile(id), doc.kind).catch(() => [])
+    c.addNoteDoc(r.filePaths[0], id)
+    const now = c.notesScreen().docs.find((d) => d.id === id)!
+    return { changed: now.kind === 'picture' ? [] : changedLines(before, await noteBlocks(c.noteFile(id), now.kind)) }
+  })
+  // Read again with AI: every line of the note, for "propose card changes".
+  handle('notedoc:allLines', async ({ id }) => {
+    const c = current()
+    const doc = c.notesScreen().docs.find((d) => d.id === id)
+    if (!doc || doc.kind === 'picture') return []
+    return blockLines(await noteBlocks(c.noteFile(id), doc.kind)).filter((l) => l.trim())
   })
   handle('notedoc:named', ({ names }) => current().noteDocsNamed(names))
   handle('file:saveDocx', async ({ name, text }) => {

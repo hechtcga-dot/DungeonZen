@@ -25,7 +25,7 @@ const sbLine = (sb: StatBlock) => [
  * Notes › a character sheet file › Make a character card: the AI reads the ticked files and copies
  * them into a PC card (new or one you have); tick what to keep. Nothing changes until "Use selected".
  */
-export function CharSheetDialog({ doc, docs, ids, onClose }: { doc: NoteDocView; docs: NoteDocView[]; ids?: string[]; onClose(): void }) {
+export function CharSheetDialog({ doc, docs, ids, targetId, onClose }: { doc: NoteDocView; docs: NoteDocView[]; ids?: string[]; targetId?: string; onClose(): void }) {
   const { act, say, openSheet, setAiSettingsOpen } = useBoard()
   const texts = docs
   const first = doc.title.toLowerCase().split(/[^a-z0-9]+/)[0]
@@ -43,7 +43,7 @@ export function CharSheetDialog({ doc, docs, ids, onClose }: { doc: NoteDocView;
     try {
       const r = await call('ai:charsheet', { docIds: [...pick] })
       setAnswer({ ...r, name: r.name || doc.title.replace(/[_-]+/g, ' ').replace(/\bcharacter sheet\b/i, '').trim() })
-      setTarget(r.match ?? '')
+      setTarget(targetId ?? r.match ?? '')
       setKeep(new Set([
         ...Object.keys(r.fields), 'statblock', ...(r.actions.length ? ['actions'] : []), ...(r.level ? ['level'] : []),
         ...(r.currentHp !== null ? ['currentHp'] : []), ...(r.spellSlots ? ['spellSlots'] : [])

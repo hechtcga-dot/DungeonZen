@@ -198,6 +198,8 @@ function DocNote({ doc, docs, onOpenDraft, onChanged }: { doc: NoteDocView; docs
           <button className="ink-button" onClick={() => void act('notedoc:openInWord', { id: doc.id }).then(() => {
             if (doc.kind === 'word') say('Opened in Word. Save there; when you come back, Dungeon Zen offers to bring the changes in.')
           })}>{doc.kind === 'word' ? 'Open in Word' : doc.kind === 'pdf' ? 'Open the PDF' : doc.kind === 'picture' ? 'Open the picture' : 'Open the file'}</button>
+          <button className="ink-button" title="A new copy of the file; this one stays under Earlier versions" onClick={async () => { const r = await act('notedoc:reimport', { id: doc.id }); if (r) { onChanged(); if (r.changed.length) setChanged(r.changed); else say('Re-imported. Nothing new for the cards.') } }}>Re-import file…</button>
+          {doc.kind !== 'picture' && <button className="ink-button" title="The AI reads the whole note again and proposes card changes" onClick={async () => { const l = await act('notedoc:allLines', { id: doc.id }); if (l?.length) setChanged(l) }}>Read again with AI…</button>}
           {<button className="ink-button" title="The AI copies a character sheet (and its other files) into a character card" onClick={() => setMaking(true)}>Make a character card…</button>}
           {doc.kind !== 'picture' && <button className="ink-button" onClick={async () => { const p = await act('notedoc:saveCopy', { id: doc.id }); if (p) say(`Saved ${p}`) }}>Save a copy as Word…</button>}
           <button className="ink-button danger-ink" onClick={() => void act('notedoc:setStatus', { id: doc.id, status: 'defunct' }).then(onChanged)}>Move to History</button>

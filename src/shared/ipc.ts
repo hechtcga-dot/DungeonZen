@@ -70,6 +70,10 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:delete': z.void(),
+  'map:reimport': z.object({ mapId: Id }),
+  'notedoc:reimport': z.object({ id: Id }),
+  'notedoc:allLines': z.object({ id: Id }),
+  'encounter:replacePicture': z.object({ id: Id, name: z.string().max(260) }),
   'backups:view': z.void(),
   'backups:now': z.void(),
   'backups:open': z.void(),
@@ -402,6 +406,10 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:delete': string
+  'map:reimport': MapView | null
+  'notedoc:reimport': { changed: string[] } | null
+  'notedoc:allLines': string[]
+  'encounter:replacePicture': boolean
   'backups:view': { folder: string; own: boolean; list: Array<{ name: string; at: string }> }
   'backups:now': string
   'backups:open': void

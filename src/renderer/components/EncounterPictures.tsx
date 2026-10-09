@@ -37,6 +37,7 @@ export function EncounterPictures({ id, compact }: { id: string; compact?: boole
                 {f.picture ? <img src={f.url} alt={f.name} loading="lazy" /> : <span className="enc-pdf">PDF</span>}
                 <span className="enc-thumb-name">{f.name}</span>
               </button>
+              {!compact && <button className="link-button" aria-label={`Replace ${f.name}`} title="Re-import: a new file takes its place (the old one goes to Removed)" onClick={() => void act('encounter:replacePicture', { id, name: f.name }).then(load)}>Replace</button>}
               {!compact && <button className="link-button danger-ink" aria-label={`Remove ${f.name}`} onClick={() => void act('encounter:removePicture', { id, name: f.name }).then(load)}>Remove</button>}
             </li>
           ))}

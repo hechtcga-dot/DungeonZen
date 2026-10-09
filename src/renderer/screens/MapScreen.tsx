@@ -233,6 +233,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             {view.map.prompt && (
               <details className="map-prompt"><summary>What the AI was asked</summary><p>{view.map.prompt}</p></details>
             )}
+            {' · '}<button className="link-button" onClick={() => void act('map:reimport', { mapId: view.map.id })}>Re-import picture…</button>
             {' · '}<OpenFolder sub="maps" label="Open maps folder" />
           </div>
         ) : (
@@ -240,6 +241,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             {view.party ? <>Party location: <strong>{view.party.locationName ?? 'between places'}</strong> since {formatClock(view.party.atMin)}. Drag the banner to move them.</>
               : <>The party is not on this map yet. <button className="link-button" onClick={() => void askTravel(centre)}>Place party token</button></>}
             {!view.map.widthKm && ' Set the map scale to get travel time estimates.'}
+            {' · '}<button className="link-button" title="A new version of the picture; regions and the party stay on their places" onClick={() => void act('map:reimport', { mapId: view.map.id })}>Re-import picture…</button>
             {' · '}<OpenFolder sub="maps" label="Open maps folder" />
           </p>
         )}
