@@ -313,7 +313,7 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
 .chest { display: flex; flex-direction: column; gap: 8px; }
 
 /* ---- full map screen ---- */
-.map-layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; min-height: 0; }
+.map-layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 300px); gap: 22px; min-height: 0; }
 .map-sheet { min-height: calc(100vh - 140px); }
 .full-mapview { min-height: 0; }
 .map-side { align-self: start; gap: 10px; }
@@ -405,7 +405,7 @@ button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; color: 
 .advisor-notes li.note-warn { border-left-color: #d2453a; }
 .advisor-quiet { margin: 0; color: #cdb68a; font-style: italic; }
 
-.live-mat { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(250px, 300px); grid-template-areas: 'left map party'; }
+.live-mat { grid-template-columns: var(--left-w, 340px) minmax(0, 1fr) var(--side-w, 300px); grid-template-areas: 'left map party'; }
 .live-left { grid-area: left; display: flex; flex-direction: column; gap: 16px; min-width: 0; z-index: 1; }
 .live-map { grid-area: map; min-width: 0; z-index: 1; }
 .live-party { grid-area: party; display: flex; flex-direction: column; gap: 12px; min-width: 0; z-index: 1; }
@@ -560,7 +560,7 @@ button.otf-card:hover:not(:disabled) { background-color: #fff6dc; border-color: 
 
 /* ---- session prep ---- */
 .prep-screen { gap: 18px; }
-.prep-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
+.prep-layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 300px); gap: 22px; align-items: start; }
 .prep-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .prep-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 12px; }
 .prep-empty { max-width: 720px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
@@ -620,7 +620,7 @@ button.otf-card:hover:not(:disabled) { background-color: #fff6dc; border-color: 
 @media (max-width: 800px) { .where-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- player preview ---- */
-.players-layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; min-height: 0; align-items: start; }
+.players-layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 360px); gap: 22px; min-height: 0; align-items: start; }
 .players-map { min-height: calc(100vh - 140px); display: flex; flex-direction: column; }
 .players-side { display: flex; flex-direction: column; gap: 14px; }
 .players-safe { padding: 6px 12px; border-radius: 4px; background: #2e5b2a; color: #eef6e8; font-weight: 600; font-size: 13px; border: 1px solid #173016; }
@@ -636,7 +636,7 @@ button.otf-card:hover:not(:disabled) { background-color: #fff6dc; border-color: 
 .prep-head, .prep-section, .prep-empty { height: auto; min-height: 0; }
 
 /* ---- encounter planner ---- */
-.enc-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.enc-layout { display: grid; grid-template-columns: var(--left-w, 240px) minmax(0, 1fr) var(--side-w, 300px); gap: 20px; align-items: start; }
 .enc-list { gap: 6px; position: sticky; top: 12px; }
 .enc-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .enc-item { width: 100%; min-height: 40px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px 8px; text-align: left;
@@ -695,7 +695,7 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .enc-fields .row.tight select { flex: 1; min-width: 0; }
 
 /* ---- notes import ---- */
-.import-start { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+.import-start { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 340px); gap: 22px; align-items: start; }
 .import-drop { height: auto; min-height: 320px; gap: 12px; border: 3px dashed transparent; }
 .import-drop.is-over { border-color: #8f2a21; }
 .import-drop p { margin: 0; max-width: 760px; }
@@ -831,3 +831,9 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .story-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #6b5636; }
 .act-tick { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; }
 .act-tick input { width: 16px; height: 16px; min-height: 0; }
+.side-grip { position: absolute; top: 0; height: 100%; min-height: 60vh; width: 12px; z-index: 5; }
+.side-grip.grip-right { left: -16px; }
+.side-grip.grip-left { right: -16px; }
+.map-side, .prep-side, .players-side, .enc-side, .enc-list, .import-drafts, .live-left, .live-party, .timeline-side, .review-side, .library-templates, .sheet-side { position: relative; }
+.prep-side, .review-side { position: sticky; }
+@media (max-width: 1100px) { .side-grip { display: none; } }

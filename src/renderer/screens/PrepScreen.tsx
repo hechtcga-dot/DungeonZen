@@ -8,6 +8,7 @@ import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import type { PrepKind, SceneType } from '../../shared/schemas'
 import type { EntityBrief, PrepItemView, PrepScreenView, PrepView } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 /** "1:15" for 75 minutes at the table. */
 export const hm = (min: number | null) => (min == null ? '' : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`)
@@ -67,6 +68,7 @@ export function PrepScreen() {
 }
 
 function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
+  const side = useSidePanel('prep-side', 'right', 300)
   const act = useBoard((st) => st.act)
   const items = (k: PrepKind) => p.items.filter((i) => i.kind === k)
   const scenes = items('scene')
@@ -78,7 +80,7 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
   const [pacing, setPacing] = useState(hm(p.pacingMinutes))
 
   return (
-    <div className="prep-layout">
+    <div className="prep-layout" style={side.style}>
       <div className="prep-main">
         <section className="parchment-sheet prep-head" aria-label="Session">
           <div className="prep-head-grid">
@@ -181,6 +183,7 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
       </div>
 
       <aside className="prep-side">
+        {side.grip}
         <section className="parchment-note">
           <h2 className="panel-title">Backup names</h2>
           <p className="ink-muted">For people the party meets unexpectedly. One per line.</p>

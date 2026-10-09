@@ -15,6 +15,7 @@ import { centroid, regionAt, type Point } from '../../shared/geometry'
 import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
 import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 type Mode = 'view' | 'draw' | 'edit'
 
@@ -84,6 +85,7 @@ export function MapScreen() {
 }
 
 function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode; setMode(m: Mode): void }) {
+  const side = useSidePanel('map-side', 'right', 300)
   const { act, query, info, say } = useBoard()
   const [selected, setSelected] = useState<string | null>(view.party?.locationId ? view.regions.find((r) => r.locationId === view.party?.locationId)?.id ?? null : null)
   const [detail, setDetail] = useState<RegionDetail | null>(null)
@@ -136,7 +138,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
   const tokenPos: Point | null = tokenAt ?? (pending ? pending.to : view.party ? [view.party.x, view.party.y] : null)
 
   return (
-    <div className="map-layout">
+    <div className="map-layout" style={side.style}>
       <div className="parchment-sheet map-sheet">
         {mode === 'draw' && (
           <div className="map-toolbar" role="status">
@@ -220,6 +222,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         )}
       </div>
       <aside className="parchment-note map-side">
+        {side.grip}
         {region && detail ? (
           <RegionPanel detail={detail} view={view}
             onMoveHere={() => void askTravel(centroid(region.polygon))}

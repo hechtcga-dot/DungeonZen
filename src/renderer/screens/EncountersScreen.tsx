@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useBoard } from '../store'
 import { call } from '../api'
@@ -11,12 +12,15 @@ import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { RATING_LABELS } from '../../shared/encounter'
 import type { AiSuggestion, EncountersView, EncounterView, SrdSearch } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 type Suggestion = NonNullable<Awaited<ReturnType<typeof call<'encounter:suggest'>>>>
 const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about right', hard: 'hard', nearly_deadly: 'nearly deadly' }
 
 /** DM Prep › Encounters: plan fights per place, rated with the 2024 rules and adapted to the party. */
 export function EncountersScreen() {
+  const left = useSidePanel('enc-list', 'left', 240)
+  const side = useSidePanel('enc-side', 'right', 300)
   const { encounters, encounterId, openEncounter, act, info } = useBoard()
   const [lighting] = useLightingPref()
   const v = encounters
@@ -39,8 +43,9 @@ export function EncountersScreen() {
           </div>
         </header>
         {!v ? <p className="desk-loading">Sharpening blades…</p> : (
-          <div className="enc-layout">
+          <div className="enc-layout" style={{ ...left.style, ...side.style }}>
             <nav className="parchment-note enc-list" aria-label="Planned encounters">
+              {left.grip}
               <h2 className="panel-title">Planned</h2>
               {v.encounters.length === 0 ? <p className="ink-muted">None yet. Plan one here, or from a region on the map.</p> : (
                 groupByPlace(v).map(([place, list]) => (
@@ -61,7 +66,7 @@ export function EncountersScreen() {
               )}
             </nav>
             {current ? <Editor key={current.id} e={current} v={v} /> : <div className="parchment-sheet enc-editor"><p className="ink-muted">Choose or plan an encounter.</p></div>}
-            <PartyPanel v={v} />
+            <PartyPanel v={v} grip={side.grip} />
           </div>
         )}
       </main>
@@ -286,10 +291,11 @@ function Suggest({ e }: { e: EncounterView }) {
   )
 }
 
-function PartyPanel({ v }: { v: EncountersView }) {
+function PartyPanel({ v, grip }: { v: EncountersView; grip: ReactNode }) {
   const act = useBoard((s) => s.act)
   return (
     <aside className="enc-side">
+      {grip}
       <section className="parchment-note">
         <h2 className="panel-title">The party</h2>
         <div className="row tight">

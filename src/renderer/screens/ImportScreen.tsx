@@ -10,6 +10,7 @@ import { providerById } from '../../shared/aiProviders'
 import { RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import { IMPORT_CARD_TYPES, type CardProposal, type ImportDraft, type ImportDraftSummary, type Source } from '../../shared/notesImport'
 import type { ImportProgress } from '../../shared/ipc'
+import { useSidePanel } from '../components/Splitter'
 
 type Preview = Awaited<ReturnType<typeof call<'import:preview'>>>
 
@@ -44,6 +45,7 @@ export function ImportScreen() {
 }
 
 function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
+  const side = useSidePanel('import-side', 'right', 340)
   const { say, setAiSettingsOpen, aiSettingsOpen } = useBoard()
   const [files, setFiles] = useState<Preview>([])
   const [title, setTitle] = useState('')
@@ -85,7 +87,7 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
   }
 
   return (
-    <div className="import-start">
+    <div className="import-start" style={side.style}>
       <section className={`parchment-sheet import-drop${over ? ' is-over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)} onDrop={drop}>
         <h2 className="panel-title">Drop your notes here</h2>
         <p>Word (.docx), PDF, text or Markdown, and photos or scans of handwritten notes or hand-drawn maps (PNG, JPEG, WebP).
@@ -128,6 +130,7 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
         )}
       </section>
       <aside className="parchment-note import-drafts">
+        {side.grip}
         <h2 className="panel-title">Earlier imports</h2>
         {drafts.length === 0 ? <p className="ink-muted">None yet. Each import is kept here until you create the cards or put it aside.</p> : (
           <ul className="here-list">

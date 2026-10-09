@@ -8,6 +8,7 @@ import { useLightingPref } from '../art/TableLighting'
 import { lightingAt } from '../../shared/sky'
 import { regionAt } from '../../shared/geometry'
 import type { PlayersView } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 /**
  * Player preview: only what the party knows. Safe to show the players (a second screen
@@ -39,11 +40,12 @@ export function PlayersScreen() {
 }
 
 function Players({ p }: { p: PlayersView }) {
+  const side = useSidePanel('players-side', 'right', 360)
   const [hover, setHover] = useState<{ id: string; x: number; y: number } | null>(null)
   const map = p.map
   const hovered = map && hover ? map.view.regions.find((r) => r.id === hover.id) : undefined
   return (
-    <div className="players-layout">
+    <div className="players-layout" style={side.style}>
       <div className="parchment-sheet players-map">
         {map ? (
           <>
@@ -70,6 +72,7 @@ function Players({ p }: { p: PlayersView }) {
         )}
       </div>
       <aside className="players-side">
+        {side.grip}
         <section className="parchment-note">
           <h2 className="panel-title">Where you are</h2>
           {p.place ? (

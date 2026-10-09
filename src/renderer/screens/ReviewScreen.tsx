@@ -7,6 +7,7 @@ import { Dialog } from '../components/Dialog'
 import { formatClock } from '../../shared/time'
 import type { EncounterFeedback, KnowledgeField } from '../../shared/schemas'
 import type { ReviewConflict, ReviewProposal, ReviewView, WhatIfView } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 const FEEDBACK: Array<[EncounterFeedback, string]> = [
   ['too_easy', 'Too easy'], ['about_right', 'About right'], ['hard', 'Hard'], ['nearly_deadly', 'Nearly deadly']
@@ -24,6 +25,7 @@ export function ReviewScreen() {
 }
 
 function Review({ r }: { r: ReviewView }) {
+  const side = useSidePanel('review-side', 'right', 380)
   const { act, say } = useBoard()
   const [confirmUndo, setConfirmUndo] = useState(false)
   const open = r.proposals.filter((p) => !p.decision && (p.kind !== 'act' || p.outcomeId)).length
@@ -41,7 +43,7 @@ function Review({ r }: { r: ReviewView }) {
           if (n) say(`Approved ${n} change${n === 1 ? '' : 's'}`)
         }}>Approve all unflagged{open ? ` (${open})` : ''}</button>
       </div>
-      <div className="review-layout">
+      <div className="review-layout" style={side.style}>
         <div className="review-main">
           {r.conflicts.map((c, i) => <ConflictCard key={c.key} c={c} n={i + 1} total={r.conflicts.length} sessionId={r.session.id} />)}
 
@@ -79,6 +81,7 @@ function Review({ r }: { r: ReviewView }) {
           </section>
         </div>
         <aside className="review-side">
+          {side.grip}
           <Recap r={r} />
         </aside>
       </div>

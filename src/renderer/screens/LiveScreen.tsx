@@ -15,6 +15,7 @@ import type { LogKind } from '../../shared/schemas'
 import type { AiSuggestion, GeneratedView, LiveView, LogView, PartyHealth } from '../../shared/types'
 import { providerById } from '../../shared/aiProviders'
 import { call } from '../api'
+import { useSidePanel } from '../components/Splitter'
 
 const KIND_LABELS: Record<LogKind, string> = {
   note: 'Note', fight: 'Fight', meeting: 'Met', quest: 'Quest delivered', rest: 'Rest', travel: 'Travel'
@@ -40,6 +41,8 @@ function healthWord(p: number | null): string {
 }
 
 function Live({ v }: { v: LiveView }) {
+  const left = useSidePanel('live-left', 'left', 340)
+  const side = useSidePanel('live-right', 'right', 300)
   const { act, mapScreen, goTo } = useBoard()
   const [lighting] = useLightingPref()
   const [ending, setEnding] = useState(false)
@@ -130,9 +133,10 @@ function Live({ v }: { v: LiveView }) {
 
       <WhereTheyAre v={v} />
 
-      <section className="mat live-mat" aria-label="Table">
+      <section className="mat live-mat" aria-label="Table" style={{ ...left.style, ...side.style }}>
         <D20 className="mat-d20" />
         <div className="live-left">
+          {left.grip}
           <QuickLog v={v} />
           <SessionLog v={v} />
         </div>
@@ -147,6 +151,7 @@ function Live({ v }: { v: LiveView }) {
           </div>
         </div>
         <div className="live-party">
+          {side.grip}
           <h2 className="mat-heading">The party</h2>
           {v.party.length === 0 && <p className="mat-hint">No player characters yet. Add them on the desk.</p>}
           {v.party.map((p, i) => <PartyCard key={p.id} p={p} i={i} />)}

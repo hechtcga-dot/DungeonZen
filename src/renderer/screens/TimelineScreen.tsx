@@ -9,6 +9,7 @@ import { moonOn } from '../../shared/sky'
 import { formatClock, fromClockParts, MINUTES_PER_DAY, toClockParts } from '../../shared/time'
 import { StorylineStatus } from '../../shared/schemas'
 import type { ActView, TimelineStoryline, TimelineView, TriggerEffectView, TriggerView, WhatIfView } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 const LANE_HEAD = 220
 const LANE_H = 120
@@ -46,6 +47,7 @@ function effectText(t: TimelineView, e: TriggerEffectView): string {
 }
 
 function Timeline({ t }: { t: TimelineView }) {
+  const side = useSidePanel('timeline-side', 'right', 380)
   const [zoom, setZoom] = useState(2)
   const [selected, setSelected] = useState<string | null>(null)
   const [adding, setAdding] = useState<{ storylineId: string; startMin: number } | null>(null)
@@ -80,7 +82,7 @@ function Timeline({ t }: { t: TimelineView }) {
           </button>
         </div>
       </div>
-      <div className="timeline-layout">
+      <div className="timeline-layout" style={side.style}>
         <section className="panel timeline-sheet" aria-label="Storyline lanes">
           {t.storylines.length === 0 ? (
             <div className="timeline-empty">
@@ -142,7 +144,7 @@ function Timeline({ t }: { t: TimelineView }) {
             <span><i className="sw sw-now" />Current time</span>
           </div>
         </section>
-        <aside className="panel timeline-side" aria-label="Selected act">
+        <div className="timeline-side-wrap">{side.grip}<aside className="panel timeline-side" aria-label="Selected act">
           {selectedAct ? <ActPanel key={selectedAct.id} t={t} a={selectedAct} onClose={() => setSelected(null)} />
             : (
               <>
@@ -152,7 +154,7 @@ function Timeline({ t }: { t: TimelineView }) {
                 <p className="hint">Double-click an empty spot in a lane, or use + Act, to add an act.</p>
               </>
             )}
-        </aside>
+        </aside></div>
       </div>
       {adding && <AddActDialog t={t} initial={adding} onClose={() => setAdding(null)} onAdded={(id) => setSelected(id)} />}
       {editStory && (

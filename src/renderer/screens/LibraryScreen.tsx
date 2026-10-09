@@ -7,6 +7,7 @@ import { ExportDialog } from '../components/ExportDialog'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { LibraryFilters, LibrarySearch, SrdSearch } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 // Templates in the order of the Library mockup.
 const TEMPLATES: Array<[EntityType, string]> = [
@@ -26,6 +27,7 @@ function num(text: string): number | undefined {
 }
 
 export function LibraryScreen() {
+  const left = useSidePanel('library-left', 'left', 240)
   const { act, openSheet, showOnBoard, say, view, info } = useBoard()
   const [query, setQuery] = useState('')
   const [printing, setPrinting] = useState(false)
@@ -71,7 +73,8 @@ export function LibraryScreen() {
     <DeskFrame>
       <TopBar />
       <div className="library">
-        <aside className="panel library-templates">
+        <aside className="panel library-templates" style={{ flexBasis: left.width }}>
+          {left.grip}
           <h2 className="panel-heading">New from template</h2>
           {TEMPLATES.map(([t, label]) => (
             <button key={t} className="template" onClick={() => void createFromTemplate(t, label)}>

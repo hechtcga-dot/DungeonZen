@@ -16,6 +16,7 @@ import {
 import { AbilityKind, ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType, type KnowledgeField } from '../../shared/schemas'
 import type { IpcInput } from '../../shared/ipc'
 import type { AbilityView, SheetView } from '../../shared/types'
+import { useSidePanel } from '../components/Splitter'
 
 type Tab = 'sheet' | 'bio' | 'connections'
 
@@ -39,6 +40,7 @@ export function SheetScreen() {
 }
 
 function Sheet({ sheet }: { sheet: SheetView }) {
+  const side = useSidePanel('sheet-side', 'right', 340)
   const { act, showOnBoard, openSheet } = useBoard()
   const [tab, setTab] = useState<Tab>('sheet')
   const [colourDraft, setColourDraft] = useState('')
@@ -109,7 +111,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                   </section>
                 )}
             </div>
-            <div className="sheet-side">
+            <div className="sheet-side" style={{ flex: `0 1 ${side.width}px` }}>
+              {side.grip}
               <section className="panel">
                 <h2 className="panel-heading">Campaign template</h2>
                 <CommitField id={`${p}-name`} label="Name" value={e.name} required onCommit={(name) => update({ name })} />
