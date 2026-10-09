@@ -149,8 +149,7 @@ export function LibraryScreen() {
                 <li key={e.id}>
                   <span className="badge" style={{ background: ENTITY_COLOURS[e.type] }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
                   <span className="result-name">{e.name}</span>
-                  <span className="muted result-line">{line}{e.status === 'resolved' ? ' · Resolved' : e.status === 'stashed' ? ' · Saved for later' : ''}</span>
-                  <span className="spacer" />
+                  {(() => { const full = line + (e.status === 'resolved' ? ' · Resolved' : e.status === 'stashed' ? ' · Saved for later' : ''); return <span className="muted result-line" title={full}>{full}</span> })()}
                   <button onClick={() => void openSheet(e.id)}>Open sheet</button>
                   {e.status === 'stashed'
                     ? <button onClick={() => void act('entity:setStatus', { id: e.id, status: 'active' })}>Put on board</button>

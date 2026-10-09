@@ -262,7 +262,7 @@ input.big { min-height: 48px; font-size: 16px; background: var(--panel); border-
 .results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .results li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--ground); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
 .result-name { font-weight: 600; }
-.result-line { font-size: 12px; }
+.result-line { font-size: 12px; flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .table-wrap { overflow-x: auto; }
 .srd-table { width: 100%; min-width: 520px; border-collapse: collapse; }
 .srd-table th, .srd-table td { padding: 4px 10px; border-bottom: 1px solid var(--border); text-align: left; }
