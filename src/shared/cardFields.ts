@@ -28,6 +28,8 @@ export const DETAIL_FIELDS: Record<EntityType, CardField[]> = {
     { key: 'tactics', label: 'Tactics', long: true, hint: 'How they fight or get their way' }, { key: 'background', label: 'Background', long: true }
   ],
   PC: [
+    { key: 'gender', label: 'Gender' }, { key: 'age', label: 'Age' }, { key: 'height', label: 'Height' }, { key: 'weight', label: 'Weight' },
+    { key: 'eyes', label: 'Eyes' }, { key: 'hair', label: 'Hair' }, { key: 'skin', label: 'Skin' }, { key: 'faith', label: 'Faith' },
     { key: 'appearance', label: 'Appearance', long: true }, { key: 'personality', label: 'Personality' },
     { key: 'ideals', label: 'Ideals' }, { key: 'bonds', label: 'Bonds' }, { key: 'flaws', label: 'Flaws' },
     { key: 'background', label: 'Background', long: true }
@@ -87,5 +89,6 @@ export const INTERNAL_KEYS = new Set([
   'statblock', 'source', 'custom', 'colour', 'color', 'generated', 'count', 'encounter', 'target', 'battle_map_id', 'provenance', 'imported',
   'ai_filled', 'picture', 'current_hp', 'notes', 'summary', 'bio', 'motivation', 'location', 'reward', 'text', 'from', 'secret',
   'temp_hp', 'conditions', 'picture_source', 'biome', 'place_kind', 'level', 'spell_slots', 'slots_used',
-  'prof_bonus', 'initiative', 'spell_ability', 'prepared', 'proficiencies', 'folder'
+  'prof_bonus', 'initiative', 'spell_ability', 'prepared', 'proficiencies', 'folder',
+  'classes', 'inspiration', 'uses', 'hit_dice_used', 'death_saves', 'exhaustion', 'save_notes', 'skill_adv', 'attacks_per_action'
 ])

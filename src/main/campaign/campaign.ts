@@ -3,6 +3,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync,
 import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
+import { usesOf } from '../../shared/charsheet'
 import { combat, noteDoc,
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
   actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
@@ -983,6 +984,8 @@ export class Campaign {
           size: sb?.size ?? '',
           resistances: [sb?.resistances && `resists ${sb.resistances}`, sb?.immunities && `immune ${sb.immunities}`].filter(Boolean).join('; '),
           conditions: typeof a.conditions === 'string' ? a.conditions : '',
+          inspiration: a.inspiration === true,
+          exhaustion: typeof a.exhaustion === 'number' ? a.exhaustion : 0,
           picture: typeof a.picture === 'string' ? a.picture : null
         }
       })
@@ -1403,11 +1406,18 @@ export class Campaign {
         })
       }
       w.update('campaign_settings', 'clock_min', { value: now + minutes })
+      // Limited uses come back (short-rest ones on any rest); a long rest also restores hit points,
+      // spell slots and hit dice, clears death saves and takes off one level of exhaustion (2024 rules).
+      for (const p of this.partyHealth()) {
+        const a = this.entityRow(p.id).attributes
+        const uses = usesOf(a).map((u) => (kind === 'long' || u.reset === 'short' ? { ...u, used: 0 } : u))
+        const exhaustion = typeof a.exhaustion === 'number' ? a.exhaustion : 0
+        w.update('entity', p.id, {
+          attributes: kind === 'short' ? { ...a, uses }
+            : { ...a, uses, current_hp: p.maxHp, slots_used: null, hit_dice_used: 0, death_saves: null, exhaustion: Math.max(0, exhaustion - 1) }
+        })
+      }
       if (kind === 'long') {
-        for (const p of this.partyHealth()) {
-          const e = this.entityRow(p.id)
-          w.update('entity', p.id, { attributes: { ...e.attributes, current_hp: p.maxHp, slots_used: null } })
-        }
         if (w.get('campaign_settings', 'last_long_rest_min')) w.update('campaign_settings', 'last_long_rest_min', { value: now + minutes })
         else w.insert('campaign_settings', { key: 'last_long_rest_min', value: now + minutes })
       }
@@ -2156,7 +2166,7 @@ export class Campaign {
   applyCharSheet(input: {
     entityId: string | null; name: string; source: string; statblock: StatBlock | null; actions: NewAbility[] | null
     level: string | null; currentHp: number | null; spellSlots: number[] | null; fields: Record<string, string>
-    spellAbility?: string | null; prepared?: string[]
+    spellAbility?: string | null; prepared?: string[]; classes?: Array<{ name: string; subclass: string; level: number }> | null; saveNotes?: string | null
   }): string {
     const e = input.entityId ? this.entityRow(input.entityId) : null
     let id = input.entityId ?? ''
@@ -2173,6 +2183,8 @@ export class Campaign {
       if (input.currentHp !== null) attrs.current_hp = input.currentHp
       if (input.spellSlots) attrs.spell_slots = input.spellSlots
       if (input.spellAbility) attrs.spell_ability = input.spellAbility
+      if (input.classes?.length) attrs.classes = input.classes
+      if (input.saveNotes) attrs.save_notes = input.saveNotes
       attrs.ai_filled = filled
       if (!e) {
         id = this.insertEntity(w, { boardId: this.globalBoard().id, type: 'PC', name: input.name, position: this.freeGlobalSpot(), attributes: attrs })

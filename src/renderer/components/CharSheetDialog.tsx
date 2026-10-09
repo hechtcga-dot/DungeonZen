@@ -4,10 +4,12 @@ import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import { ABILITY_KEYS, readStatBlock, type StatBlock } from '../../shared/statblock'
 import type { IpcOutputs } from '../../shared/ipc'
+import { classLine } from '../../shared/charsheet'
 import type { NoteDocView, SheetView } from '../../shared/types'
 
 type Answer = IpcOutputs['ai:charsheet']
 const FIELD_LABELS: Record<string, string> = {
+  gender: 'Gender', age: 'Age', height: 'Height', weight: 'Weight', eyes: 'Eyes', hair: 'Hair', skin: 'Skin', faith: 'Faith',
   summary: 'One-line summary', motivation: 'Motivation', appearance: 'Appearance', personality: 'Personality', ideals: 'Ideals',
   bonds: 'Bonds', flaws: 'Flaws', background: 'Background', bio: 'Bio', proficiencies: 'Armor, weapons, tools', notes: 'DM notes (added below the ones there)'
 }
@@ -60,7 +62,8 @@ export function CharSheetDialog({ doc, docs, onClose }: { doc: NoteDocView; docs
       statblock: on('statblock') ? answer.statblock : null, actions: on('actions') ? answer.actions : null,
       level: on('level') ? answer.level : null, currentHp: on('currentHp') ? answer.currentHp : null,
       spellSlots: on('spellSlots') ? answer.spellSlots : null, fields,
-      spellAbility: on('actions') ? answer.spellAbility as 'str' | null : null, prepared: on('actions') ? answer.prepared : []
+      spellAbility: on('actions') ? answer.spellAbility as 'str' | null : null, prepared: on('actions') ? answer.prepared : [],
+      classes: on('level') && answer.classes.length ? answer.classes : null, saveNotes: on('statblock') && answer.saveNotes ? answer.saveNotes : null
     })
     if (id) { say(`${answer.name} filled from the character sheet. Ctrl+Z undoes it.`); onClose(); await openSheet(id) }
   }
@@ -110,7 +113,7 @@ export function CharSheetDialog({ doc, docs, onClose }: { doc: NoteDocView; docs
           {answer.actions.length > 0 && row('actions', `Attacks, spells and actions (${answer.actions.length})`,
             <p className="selectable">{answer.actions.map((a) => a.name).join(', ')}</p>,
             now ? `${now.abilities.map((a) => a.name).join(', ')}${now.abilities.length ? ' (these go to History)' : ''}` : '')}
-          {answer.level && row('level', 'Level', <input aria-label="Level" value={answer.level} onChange={(ev) => setAnswer({ ...answer, level: ev.target.value })} />, nowAttr('level'))}
+          {answer.level && row('level', answer.classes.length ? `Level and classes (${classLine(answer.classes)})` : 'Level', <input aria-label="Level" value={answer.level} onChange={(ev) => setAnswer({ ...answer, level: ev.target.value })} />, nowAttr('level'))}
           {answer.currentHp !== null && row('currentHp', 'Hit points now', <span>{answer.currentHp}</span>, nowAttr('current_hp'))}
           {answer.spellSlots && row('spellSlots', 'Spell slots (levels 1–9)', <span>{answer.spellSlots.join(' · ')}</span>, nowAttr('spell_slots'))}
           {Object.entries(answer.fields).map(([k, v]) => row(k, FIELD_LABELS[k] ?? k,

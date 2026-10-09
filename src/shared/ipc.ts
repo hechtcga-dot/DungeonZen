@@ -104,7 +104,9 @@ export const ipcInputs = {
     actions: z.array(z.object({ name: Name, kind: AbilityKind, description: z.string().max(5000) })).max(80).nullable(),
     level: z.string().max(10).nullable(), currentHp: z.number().int().min(0).max(100000).nullable(),
     spellSlots: z.array(z.number().int().min(0).max(9)).length(9).nullable(), fields: z.record(z.string().max(40), z.string().max(20000)),
-    spellAbility: z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha']).nullable(), prepared: z.array(z.string().max(120)).max(80)
+    spellAbility: z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha']).nullable(), prepared: z.array(z.string().max(120)).max(80),
+    classes: z.array(z.object({ name: z.string().max(60), subclass: z.string().max(80), level: z.number().int().min(0).max(20) })).max(6).nullable(),
+    saveNotes: z.string().max(500).nullable()
   }),
   'entity:pictureDialog': z.object({ entityId: Id }),
   'entity:picturePrompt': z.object({ entityId: Id, ask: z.string().max(2000) }),
@@ -412,7 +414,7 @@ export interface IpcOutputs {
   'entity:applyStatBlock': void
   'ai:charsheet': {
     name: string; level: string; currentHp: number | null; spellSlots: number[] | null; fields: Record<string, string>
-    spellAbility: string | null; prepared: string[]
+    spellAbility: string | null; prepared: string[]; classes: Array<{ name: string; subclass: string; level: number }>; saveNotes: string
     statblock: StatBlock; actions: Array<{ name: string; kind: z.infer<typeof AbilityKind>; description: string }>; source: string
     /** PC and NPC cards it could go on; `match` is the one whose name fits best. */
     targets: Array<{ id: string; name: string; type: string }>; match: string | null

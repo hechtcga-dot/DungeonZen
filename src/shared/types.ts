@@ -316,6 +316,9 @@ export interface DeskPartyMember {
   size: string
   resistances: string
   conditions: string
+  /** Heroic Inspiration, and levels of exhaustion (0–6). */
+  inspiration: boolean
+  exhaustion: number
   /** Portrait in the campaign assets (dz-asset path), when the card has one. */
   picture: string | null
 }

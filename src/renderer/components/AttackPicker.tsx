@@ -39,9 +39,10 @@ export function AttackPicker({ sheet, tab: start, onClose }: { sheet: SheetView;
   const spells = useMemo(() => (data?.spells ?? []).filter((s) => (!words || s.name.toLowerCase().includes(words))
     && (level === 'all' || s.level === Number(level)) && (cls === 'all' || s.classes.includes(cls))), [data, words, level, cls])
   const castMod = abilityModifier(sb[caster])
+  // Every ticked one, also those the current search hides.
   const made = () => tab === 'weapons'
-    ? weapons.filter((w) => pick.has(w.key)).map((w) => buildAttack(weaponSpec(w, sb, prof, { proficient, magic })))
-    : spells.filter((s) => pick.has(s.key)).map((s) => buildAttack(spellSpec(s, castMod, prof, charLevel)))
+    ? (data?.weapons ?? []).filter((w) => pick.has(w.key)).map((w) => buildAttack(weaponSpec(w, sb, prof, { proficient, magic })))
+    : (data?.spells ?? []).filter((s) => pick.has(s.key)).map((s) => buildAttack(spellSpec(s, castMod, prof, charLevel)))
   const add = async (list: ReturnType<typeof buildAttack>[]) => {
     if (!list.length) return
     const ok = await act('ability:addMany', { entityId: e.id, abilities: list })

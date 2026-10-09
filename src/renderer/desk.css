@@ -998,13 +998,6 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .cs-inline label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .cs-inline input { min-height: 0; height: 26px; padding: 0 6px; font-size: 13px; }
 .cs-wide-input input { width: 76px; font-size: 16px; }
-.spell-level { margin: 6px 0; }
-.spell-list { list-style: none; margin: 0; padding: 0; }
-.spell-list li { padding: 3px 0; border-bottom: 1px solid rgba(107, 63, 34, 0.18); }
-.spell-list .muted { margin-left: auto; }
-.spell-list .row { flex-wrap: nowrap; align-items: center; }
-.spell-list input[type='checkbox'] { width: 16px; height: 16px; min-height: 0; flex: none; margin: 0; }
-.spell-list .link-button { text-align: left; white-space: nowrap; }
 .attack-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .attack-filters > input, .attack-filters select { width: auto; flex: 0 1 auto; }
 .attack-filters > input { flex: 1 1 200px; }
@@ -1018,7 +1011,8 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .cs-small { font-size: 12.5px; margin: 4px 0; }
 .cs-conditions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cs-conditions .cs-title { text-align: left; }
-.cs-tabs { margin: 0; }
+.cs-tabs { margin: 0; flex-wrap: wrap; }
+.cs-tabs button { flex: 1 1 auto; padding-left: 8px; padding-right: 8px; }
 @media (max-width: 1250px) { .cs-body { grid-template-columns: 1fr 1fr; } .cs-right { grid-column: span 2; } }
 
 /* Party cards on the mat: portrait and table stats (1.3.0) */
@@ -1191,3 +1185,52 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .enc-thumb img { width: 116px; height: 86px; object-fit: cover; border-radius: 3px; }
 .enc-pdf { width: 116px; height: 86px; display: grid; place-items: center; font-weight: 700; border: 1px dashed #6b5a3a; }
 .enc-thumb-name { font-size: 11px; max-width: 116px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Full sheet: D&D Beyond-style parts (SheetExtras.tsx) */
+.cs-classes { margin-bottom: 10px; }
+.cs-class-line { margin: 0 0 6px; font-size: 14px; }
+.cs-class-rows { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: end; }
+.cs-class-row { display: flex; gap: 6px; align-items: end; }
+.cs-narrow input { width: 48px; }
+.cs-inspiration { cursor: pointer; font: inherit; color: inherit; }
+.cs-inspiration .cs-big { color: #8a6a1c; }
+.cs-inspiration.is-on { background: #f5e2a8; border-color: #8a6a1c; }
+.cs-hp-adjust { display: flex; gap: 4px; align-items: center; justify-content: center; margin-top: 4px; }
+.cs-hp-adjust input { width: 54px; min-height: 0; height: 26px; text-align: center; padding: 0 4px; }
+.cs-hp-adjust button { min-height: 0; height: 26px; padding: 0 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.cs-heal { color: #24553a; }
+.cs-damage { color: #7a2230; }
+.cs-hd { display: flex; gap: 6px; align-items: center; font-size: 13px; margin-bottom: 4px; }
+.cs-hd button { min-height: 0; height: 24px; width: 24px; padding: 0; }
+.cs-ds-row { display: flex; gap: 6px; align-items: center; font-size: 12px; margin: 2px 0; }
+.cs-ds-row > span { width: 72px; }
+.cs-tick { width: 16px; height: 16px; min-height: 0; min-width: 0; padding: 0; border: 1.5px solid #4a2e16; border-radius: 3px; background: #fffaf0; cursor: pointer; }
+.cs-tick.is-on { background: #2a1a0c; }
+.cs-tick.is-fail.is-on { background: #7a2230; border-color: #7a2230; }
+.cs-use { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: end; padding: 6px 0; border-bottom: 1px solid rgba(107, 63, 34, 0.18); }
+.cs-use-ticks { display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.cs-filters { flex-wrap: wrap; margin: 4px 0; }
+.cs-filters button { min-height: 0; padding: 3px 8px; font-size: 12px; }
+.cs-per-action { display: inline-flex; gap: 6px; align-items: center; }
+.cs-per-action input { width: 40px; min-height: 0; height: 24px; text-align: center; }
+.cs-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cs-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b5a3a; padding: 3px 4px; }
+.cs-table td { padding: 3px 4px; border-top: 1px solid rgba(107, 63, 34, 0.18); vertical-align: middle; }
+.cs-table tr.is-open td { background: rgba(255, 250, 240, 0.6); }
+.cs-notes { color: #6b5a3a; font-size: 11.5px; }
+.cs-row-name { text-align: left; font-weight: 600; }
+.cs-spell-nums { display: flex; gap: 14px; }
+.cs-spell-nums span { display: flex; flex-direction: column; align-items: center; font-size: 10px; text-transform: uppercase; color: #6b5a3a; }
+.cs-spell-nums b { font-size: 18px; color: #2a1a0c; }
+.cs-search { flex: 1 1 160px; width: auto; min-height: 0; height: 30px; }
+.cs-spell-level { margin: 8px 0; }
+.cs-left { text-align: left; margin: 0; }
+.cs-cast { white-space: nowrap; }
+.cs-cast input[type='checkbox'] { width: 15px; height: 15px; min-height: 0; margin: 0 4px 0 0; vertical-align: middle; }
+.cs-cast-btn { min-height: 0; height: 22px; padding: 0 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #7a2230; color: #fffaf0; border-color: #7a2230; }
+.cs-cast-btn:disabled { background: #b9a88a; border-color: #b9a88a; }
+.cs-adv { width: 18px; height: 18px; min-height: 0; min-width: 0; padding: 0; font-size: 10px; font-weight: 700; border: 1px dashed rgba(74, 46, 22, 0.4); border-radius: 50%; background: transparent; margin-left: auto; }
+.cs-adv + .cs-bonus { margin-left: 4px; }
+.cs-adv.is-A { background: #24553a; color: #fff; border: none; }
+.cs-adv.is-D { background: #7a2230; color: #fff; border: none; }
+.cs-companion { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid rgba(107, 63, 34, 0.18); }

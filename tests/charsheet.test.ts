@@ -7,6 +7,7 @@ import { charSheetPrompt, parseCharSheet } from '../src/main/ai/charsheet'
 import { emptyStatBlock, profFor, rebase, setListed, skillBonus } from '../src/shared/statblock'
 import { buildAttack, cantripDice, macroFor, spellLevel, spellSpec, weaponSpec, type SrdSpell } from '../src/shared/attacks'
 import srd from '../resources/srd/srd-2024-attacks.json'
+import { abilityRow, applyHp, classLine, hitDice, usesOf } from '../src/shared/charsheet'
 
 let dir: string
 let c: Campaign
@@ -117,5 +118,42 @@ describe('attacks and spells', () => {
     expect(c.sheet(pc.id).abilities).toHaveLength(2)
     c.undo()
     expect(c.sheet(pc.id).abilities).toHaveLength(0)
+  })
+})
+
+describe('D&D Beyond parts', () => {
+  it('reads classes, hit dice and heal or damage', () => {
+    expect(classLine([{ name: 'Bard', subclass: 'College of Lore', level: 7 }, { name: 'Warlock', subclass: '', level: 8 }])).toBe('Bard 7 (College of Lore) / Warlock 8')
+    expect(hitDice('7d8 + 8d8 + 15')).toEqual({ total: 15, dice: '7d8 + 8d8' })
+    expect(hitDice('78', [{ name: 'Bard', subclass: '', level: 7 }, { name: 'Sorcerer', subclass: '', level: 2 }])).toEqual({ total: 9, dice: '7d8 + 2d6' })
+    expect(applyHp(20, 5, 30, 8, false)).toEqual({ current_hp: 17, temp_hp: 0 })
+    expect(applyHp(20, 5, 30, 50, true)).toEqual({ current_hp: 30, temp_hp: 5 })
+    expect(applyHp(3, 0, 30, 9, false).current_hp).toBe(0)
+  })
+
+  it('reads table columns from picker attacks and spells', () => {
+    const spells = srd.spells as SrdSpell[]
+    const fb = buildAttack(spellSpec(spells.find((x) => x.name === 'Fireball')!, 4, 3, 9))
+    expect(abilityRow(fb.description, 'SPELL')).toMatchObject({ time: 'action', range: '150 feet', hitDc: 'DEX 15', effect: '8d6 Fire', attack: false })
+    const ws = buildAttack(spellSpec(spells.find((x) => x.name === 'Web')!, 4, 3, 9))
+    expect(abilityRow(ws.description, 'SPELL').notes).toBe('Concentration')
+    const dagger = buildAttack(weaponSpec(srd.weapons.find((w) => w.name === 'Dagger')!, { ...emptyStatBlock(), dex: 16 }, 3, { proficient: true, magic: 0 }))
+    expect(abilityRow(dagger.description, 'ACTION')).toMatchObject({ time: 'action', range: '5 ft. or 20/60 ft.', hitDc: '+6', effect: '1d4+3 Piercing', attack: true })
+    expect(abilityRow('Fire Breath (Recharge 5–6). Dexterity Saving Throw: DC 13.', 'ACTION')).toMatchObject({ limited: true, hitDc: 'DEX 13' })
+  })
+
+  it('rests refill limited uses; a long rest also hit dice, death saves and one exhaustion level', () => {
+    const pc = c.createEntity({ boardId: g, type: 'PC', name: 'Raph', position: { x: 0, y: 0 }, attributes: {
+      uses: [{ name: 'Sorcery Points', max: 9, used: 4, reset: 'long' }, { name: 'Channel', max: 2, used: 2, reset: 'short' }],
+      hit_dice_used: 3, death_saves: { s: 1, f: 2 }, exhaustion: 2
+    } })
+    c.rest('short')
+    expect(usesOf(c.sheet(pc.id).entity.attributes).map((u) => u.used)).toEqual([4, 0])
+    c.rest('long')
+    const a = c.sheet(pc.id).entity.attributes
+    expect(usesOf(a).map((u) => u.used)).toEqual([0, 0])
+    expect(a).toMatchObject({ hit_dice_used: 0, death_saves: null, exhaustion: 1 })
+    c.undo()
+    expect(usesOf(c.sheet(pc.id).entity.attributes).map((u) => u.used)).toEqual([4, 0])
   })
 })

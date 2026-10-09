@@ -62,7 +62,7 @@ describe('desk', () => {
     expect(d.storylines).toMatchObject([{ title: 'The Bell Tower', cardCount: 1 }])
     expect(d.party).toEqual([{
       id: pc.id, name: 'Ilsa', summary: 'Human cleric 3', ac: '18', hp: '24', passivePerception: 13, colour: null,
-      currentHp: 24, maxHp: 24, tempHp: 0, size: '', resistances: '', conditions: '', picture: null
+      currentHp: 24, maxHp: 24, tempHp: 0, size: '', resistances: '', conditions: '', inspiration: false, exhaustion: 0, picture: null
     }])
     expect(d.dmNotes).toBe('Remember the bell.')
     expect(d.counts.cards).toBe(2)

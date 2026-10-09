@@ -13,26 +13,21 @@ import { CommitField, ScoreField } from '../components/fields'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import {
   ABILITY_KEYS, HAS_STATBLOCK, SKILLS, abilityModifier, emptyStatBlock, formatModifier, leadingNumber, passiveScore, profFor,
-  readStatBlock, rebase, saveBonus, setListed, skillBonus, castingAbility, type AbilityKey, type StatBlock
+  readStatBlock, rebase, saveBonus, setListed, skillBonus, type AbilityKey, type StatBlock
 } from '../../shared/statblock'
-import { AbilityKind, ENTITY_TYPES, type EntityType, type KnowledgeField } from '../../shared/schemas'
+import { ENTITY_TYPES, type EntityType, type KnowledgeField } from '../../shared/schemas'
 import type { IpcInput } from '../../shared/ipc'
-import type { AbilityView, SheetView } from '../../shared/types'
+import type { SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
 import { slotsFromText } from '../../shared/combat'
 import { PicturePanel } from '../components/Pictures'
-import { AttackPicker, type PickerTab } from '../components/AttackPicker'
-import { macroFor, spellLevel } from '../../shared/attacks'
+import { ActionsTable, ClassStrip, Extras, HpAdjust, InspirationBox, LimitedUses, SpellsTable, VitalsCard } from '../components/SheetExtras'
 
 type Tab = 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
 
 const ABILITY_NAMES = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const
 const ABILITY_FULL = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' } as const
-const KIND_LABELS: Record<AbilityKind, string> = {
-  ACTION: 'Action', BONUS_ACTION: 'Bonus action', REACTION: 'Reaction', LEGENDARY_ACTION: 'Legendary action',
-  SPELL: 'Spell', OTHER: 'Other'
-}
 const KNOWLEDGE_LABELS: Record<KnowledgeField, string> = {
   name: 'Name', location: 'Location', motivation: 'Motivation', statblock: 'Stat block', bio: 'Bio'
 }
@@ -465,7 +460,7 @@ function CustomFields({ sheet }: { sheet: SheetView }) {
 function StatBlockPanel({ sheet }: { sheet: SheetView }) {
   const act = useBoard((s) => s.act)
   const e = sheet.entity
-  const [right, setRight] = useState<'actions' | 'spells' | 'traits' | 'defenses' | 'details'>('actions')
+  const [right, setRight] = useState<'actions' | 'spells' | 'traits' | 'extras' | 'defenses' | 'details'>('actions')
   const sb: StatBlock = readStatBlock(e.attributes.statblock) ?? emptyStatBlock()
   const setAttr = (attributes: Record<string, unknown>) => void act('entity:update', { id: e.id, patch: { attributes } })
   const p = `sb-${e.id}`
@@ -486,6 +481,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
     const own = v.trim() && Number.isFinite(n) ? Math.max(0, Math.min(20, n)) : null
     setAttr({ prof_bonus: own, statblock: { ...sb, ...rebase(sb, prof, sb, own ?? autoProf) } })
   }
+  const skillAdv = (e.attributes.skill_adv && typeof e.attributes.skill_adv === 'object' ? e.attributes.skill_adv : {}) as Record<string, 'A' | 'D' | undefined>
   const ownInit = typeof e.attributes.initiative === 'string' ? e.attributes.initiative : ''
   /** Proficiency dot: none → proficient → expertise (skills) → none. */
   const cycle = (field: 'saves' | 'skills', name: string, ab: AbilityKey, listed: boolean, bonus: number) => {
@@ -506,6 +502,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
 
   return (
     <section className="panel char-sheet">
+      {e.type === 'PC' && <ClassStrip sheet={sheet} sb={sb} save={save} />}
       <div className="cs-top">
         {ABILITY_KEYS.map((k) => (
           <div key={k} className="cs-ability">
@@ -527,6 +524,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
           <CommitField id={`${p}-init`} label="Initiative" value={ownInit || formatModifier(abilityModifier(sb.dex))} className="cs-big-input"
             onCommit={(v) => setAttr({ initiative: v === formatModifier(abilityModifier(sb.dex)) ? null : v || null })} />
         </div>
+        {e.type === 'PC' && <InspirationBox sheet={sheet} />}
         <div className="cs-box cs-shield">
           <span className="cs-label">Armor</span>
           <CommitField id={`${p}-ac-big`} label="Armor class" value={sb.ac} className="cs-big-input" onCommit={(ac) => save({ ac })} />
@@ -543,6 +541,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
               onCommit={(v) => setAttr({ temp_hp: num(v) })} />
           </div>
           <span className="cs-label">Hit points</span>
+          <HpAdjust sheet={sheet} cur={curHp ?? 0} temp={tempHp} max={maxHp} />
         </div>
       </div>
 
@@ -558,6 +557,8 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
                   <BonusInput label={`${ABILITY_FULL[k]} saving throw`} value={s2.bonus} onCommit={(n) => save({ saves: setListed(sb.saves, name, n) })} /></li>
               })}
             </ul>
+            <CommitField id={`${p}-save-notes`} label="Notes" value={str('save_notes')} placeholder="Advantage on CON saves to keep concentration" className="cs-inline"
+              onCommit={(save_notes) => setAttr({ save_notes })} />
           </div>
           <div className="cs-card">
             <h3 className="cs-title">Senses</h3>
@@ -566,6 +567,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
             ))}
             <CommitField id={`${p}-senses-inline`} label="Senses" value={sb.senses} placeholder="darkvision 60 ft." className="cs-inline" onCommit={(senses) => save({ senses })} />
           </div>
+          {e.type === 'PC' && <VitalsCard sheet={sheet} sb={sb} />}
           <div className="cs-card">
             <h3 className="cs-title">Spell slots</h3>
             <div className="cs-slots">
@@ -601,11 +603,15 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
             {SKILLS.map(([name, ab]) => {
               const s2 = skillBonus(sb, name, ab)
               const level = !s2.proficient ? 0 : prof !== null && s2.bonus >= abilityModifier(sb[ab]) + 2 * prof ? 2 : 1
+              const mark = skillAdv[name]
               return <li key={name}><ProfDot on={level} label={name} onClick={() => cycle('skills', name, ab, s2.proficient, s2.bonus)} /><span className="cs-ab">{ABILITY_NAMES[ab]}</span>{name}
+                <button type="button" className={`cs-adv${mark ? ` is-${mark}` : ''}`} title={mark === 'A' ? 'Advantage (click: disadvantage)' : mark === 'D' ? 'Disadvantage (click: none)' : 'Mark advantage or disadvantage'}
+                  aria-label={`${name}: ${mark === 'A' ? 'advantage' : mark === 'D' ? 'disadvantage' : 'no advantage mark'}`}
+                  onClick={() => setAttr({ skill_adv: { ...skillAdv, [name]: mark === 'A' ? 'D' : mark === 'D' ? null : 'A' } })}>{mark ?? ''}</button>
                 <BonusInput label={name} value={s2.bonus} onCommit={(n) => save({ skills: setListed(sb.skills, name, n) })} /></li>
             })}
           </ul>
-          <p className="hint">Click a dot: proficient, expertise (skills), none. Type a bonus to set it. Scores and the proficiency bonus move them.</p>
+          <p className="hint">Click a dot: proficient, expertise (skills), none. The small box marks advantage (A) or disadvantage (D). Type a bonus to set it. Scores and the proficiency bonus move them.</p>
         </div>
         <div className="cs-col cs-right">
           <div className="cs-card cs-conditions">
@@ -615,13 +621,14 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
               placeholder="poisoned, prone…" onCommit={(conditions) => setAttr({ conditions })} />
           </div>
           <div className="segmented full cs-tabs" role="tablist" aria-label="Stat block sections">
-            {([['actions', 'Actions'], ['spells', 'Spells'], ['traits', 'Features & traits'], ['defenses', 'Defenses'], ['details', 'Details']] as const).map(([id, label]) => (
+            {([['actions', 'Actions'], ['spells', 'Spells'], ['traits', 'Features & traits'], ['extras', 'Extras'], ['defenses', 'Defenses'], ['details', 'Details']] as const).map(([id, label]) => (
               <button key={id} role="tab" aria-selected={right === id} aria-pressed={right === id} onClick={() => setRight(id)}>{label}</button>
             ))}
           </div>
-          {right === 'actions' && <Abilities sheet={sheet} />}
-          {right === 'spells' && <Spells sheet={sheet} sb={sb} prof={prof} />}
-          {right === 'traits' && <Traits sb={sb} save={save} entityId={e.id} />}
+          {right === 'actions' && <ActionsTable sheet={sheet} />}
+          {right === 'spells' && <SpellsTable sheet={sheet} sb={sb} prof={prof} slots={slots} />}
+          {right === 'traits' && <><LimitedUses sheet={sheet} /><Traits sb={sb} save={save} entityId={e.id} /></>}
+          {right === 'extras' && <Extras sheet={sheet} />}
           {right === 'defenses' && (
             <div className="grid-2">
               {text('resistances', 'Damage resistances', { span: true })}
@@ -687,118 +694,6 @@ function Traits({ sb, save, entityId }: { sb: StatBlock; save(patch: Partial<Sta
       ))}
       <button className="align-start" onClick={() => save({ traits: [...sb.traits, { name: 'New trait', desc: '' }] })}>Add trait</button>
     </>
-  )
-}
-
-function Abilities({ sheet }: { sheet: SheetView }) {
-  const act = useBoard((s) => s.act)
-  const e = sheet.entity
-  const [picker, setPicker] = useState<PickerTab | null>(null)
-  const list = sheet.abilities.filter((a) => a.kind !== 'SPELL')
-  return (
-    <>
-      <h2 className="panel-heading spaced">Attacks and actions (for Roll20 macros)</h2>
-      {list.length === 0 && <p className="hint">Add attacks here: from the SRD weapons, or your own. Each one keeps its Roll20 macro text. Spells are on the Spells tab.</p>}
-      {list.map((a) => <AbilityCard key={a.id} a={a} />)}
-      <div className="row tight wrap">
-        <button onClick={() => setPicker('weapons')}>Add from the SRD…</button>
-        <button onClick={() => setPicker('custom')}>Your own attack…</button>
-        <button onClick={() => void act('ability:add', { entityId: e.id, ability: { name: 'New ability' } })}>Add a blank one</button>
-      </div>
-      {picker && <AttackPicker sheet={sheet} tab={picker} onClose={() => setPicker(null)} />}
-    </>
-  )
-}
-
-/** Spells tab: the character's spell list by level, prepared ticks, and the numbers spells use. */
-function Spells({ sheet, sb, prof }: { sheet: SheetView; sb: StatBlock; prof: number | null }) {
-  const act = useBoard((s) => s.act)
-  const e = sheet.entity
-  const [picker, setPicker] = useState<PickerTab | null>(null)
-  const [open, setOpen] = useState<string | null>(null)
-  const caster = castingAbility(e.attributes, sb)
-  const mod = abilityModifier(sb[caster])
-  const prepared = new Set(Array.isArray(e.attributes.prepared) ? (e.attributes.prepared as string[]) : [])
-  const spells = sheet.abilities.filter((a) => a.kind === 'SPELL')
-  const levels = [...new Set(spells.map((a) => spellLevel(a.description)))].sort((a, b) => (a ?? 99) - (b ?? 99))
-  const setPrepared = (id: string, on: boolean) => {
-    const next = new Set(prepared); if (on) next.add(id); else next.delete(id)
-    void act('entity:update', { id: e.id, patch: { attributes: { prepared: [...next] } } })
-  }
-  return (
-    <>
-      <div className="row tight wrap">
-        <div className="field">
-          <label htmlFor={`spell-ab-${e.id}`}>Spellcasting ability</label>
-          <select id={`spell-ab-${e.id}`} value={caster} onChange={(ev) => void act('entity:update', { id: e.id, patch: { attributes: { spell_ability: ev.target.value } } })}>
-            {ABILITY_KEYS.map((k) => <option key={k} value={k}>{ABILITY_FULL[k]} ({formatModifier(abilityModifier(sb[k]))})</option>)}
-          </select>
-        </div>
-        {prof !== null && <p className="cs-small"><strong>Spell save DC {8 + mod + prof}</strong> · <strong>Spell attack {formatModifier(mod + prof)}</strong><br />8 + {ABILITY_NAMES[caster]} {formatModifier(mod)} + proficiency {formatModifier(prof)}</p>}
-      </div>
-      <p className="hint">{spells.length ? `${spells.length} spell${spells.length === 1 ? '' : 's'}, ${spells.filter((a) => prepared.has(a.id)).length} prepared. ` : ''}Tick the ones prepared today. Click a spell to edit it and its macro.</p>
-      {levels.map((lv) => (
-        <div key={String(lv)} className="cs-card spell-level">
-          <h3 className="cs-title">{lv === null ? 'Level not given' : lv === 0 ? 'Cantrips' : `Level ${lv}`}</h3>
-          <ul className="spell-list">
-            {spells.filter((a) => spellLevel(a.description) === lv).map((a) => (
-              <li key={a.id}>
-                <div className="row tight">
-                  {lv !== 0 && <input type="checkbox" aria-label={`${a.name} prepared`} title="Prepared" checked={prepared.has(a.id)} onChange={(ev) => setPrepared(a.id, ev.target.checked)} />}
-                  <button className="link-button" aria-expanded={open === a.id} onClick={() => setOpen(open === a.id ? null : a.id)}>{a.name}</button>
-                  <span className="muted cs-small">{a.description.split('.')[0].replace(/^(Cantrip|Level \d) /, '')}</span>
-                </div>
-                {open === a.id && <AbilityCard a={a} />}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-      <div className="row tight wrap">
-        <button onClick={() => setPicker('spells')}>Add spells from the SRD…</button>
-        <button onClick={() => void act('ability:add', { entityId: e.id, ability: { name: 'New spell', kind: 'SPELL', description: 'Level 1. ' } })}>Add your own spell</button>
-      </div>
-      <p className="hint">Your own spell: start its description with “Cantrip” or “Level 2” so it lands in the right group. Spell slots are on the left.</p>
-      {picker && <AttackPicker sheet={sheet} tab={picker} onClose={() => setPicker(null)} />}
-    </>
-  )
-}
-
-function AbilityCard({ a }: { a: AbilityView }) {
-  const act = useBoard((s) => s.act)
-  const update = (patch: IpcInput<'ability:update'>['patch']) => void act('ability:update', { id: a.id, patch })
-  const p = `ability-${a.id}`
-  return (
-    <div className="subcard">
-      <div className="grid-2">
-        <CommitField id={`${p}-name`} label="Name" value={a.name} required onCommit={(name) => update({ name })} />
-        <div className="field">
-          <label htmlFor={`${p}-kind`}>Kind</label>
-          <select id={`${p}-kind`} value={a.kind} onChange={(ev) => update({ kind: ev.target.value as AbilityKind })}>
-            {AbilityKind.options.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
-          </select>
-        </div>
-      </div>
-      <CommitField id={`${p}-desc`} label="Description" value={a.description} multiline rows={3}
-        onCommit={(description) => update({ description })} />
-      <CommitField id={`${p}-macro`} label="Macro script" value={a.macroText} multiline rows={3} mono
-        placeholder="Empty: Make macro builds one from the description (to-hit, damage, save)" onCommit={(macroText) => update({ macroText })} />
-      <div className="row wrap">
-        <div className="field checkbox">
-          <input id={`${p}-token`} type="checkbox" checked={a.showTokenAction}
-            onChange={(ev) => update({ showTokenAction: ev.target.checked })} />
-          <label htmlFor={`${p}-token`}>Show as token action</label>
-        </div>
-        <div className="field checkbox">
-          <input id={`${p}-bar`} type="checkbox" checked={a.showMacroBar}
-            onChange={(ev) => update({ showMacroBar: ev.target.checked })} />
-          <label htmlFor={`${p}-bar`}>Show in macro bar</label>
-        </div>
-        <span className="spacer" />
-        <button title="Builds the Roll20 macro from the description (to-hit, damage, save)" onClick={() => update({ macroText: macroFor({ ...a, macroText: '' }) })}>Make macro</button>
-        <button className="danger" onClick={() => void act('ability:setStatus', { id: a.id, status: 'defunct' })}>Remove</button>
-      </div>
-    </div>
   )
 }
 

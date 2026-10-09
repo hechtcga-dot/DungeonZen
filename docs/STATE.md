@@ -318,6 +318,21 @@ built.
   - Spells tab: spellcasting ability (`attributes.spell_ability`, default best of Int/Wis/Cha), save DC and spell
     attack, spells (kind SPELL) by level (`spellLevel`: description starts "Cantrip"/"Level N"), prepared ticks
     (`attributes.prepared`, ability ids), click to edit, add from the SRD or your own.
+  - D&D Beyond list (owner picked 1–4, 6–8, 10–12; `SheetExtras.tsx`, `src/shared/charsheet.ts`), on the full sheet:
+    classes strip for PCs (species = stat block type; class, subclass, level rows, multiclass; the total sets the
+    level; `attributes.classes`); Heroic Inspiration box (`attributes.inspiration`, shown on desk party cards); Heal
+    / Damage by an amount (temp HP first, `applyHp`); hit dice spent (−/+; dice from the stat block, else from the
+    classes), death saves (3 + 3 ticks), exhaustion 0–6 (`hit_dice_used`, `death_saves`, `exhaustion`; desk card
+    shows exhaustion); save notes (`save_notes`) and an A/D mark per skill (`skill_adv`). Actions tab: table (range,
+    hit/DC, damage, notes; read by `abilityRow` from the description) with filters (Attack, Action, Bonus action,
+    Reaction, Other, Limited use), attack cantrips too, attacks per Attack action, "Actions in combat"; click a name
+    to edit. Spells tab: modifier / spell attack / save DC, search, level filter, a table per level with slot ticks
+    (`slots_used`, same as Run encounter), Cast spends a slot, prepared ticks. Features & traits: Limited uses
+    (`attributes.uses`: name, ticks, uses, back on short or long rest, Refill). Extras tab: companions, familiars,
+    mounts = creature cards tied by a COMPANION string (pick a card or make a new one). Traits tab: gender, age,
+    height, weight, eyes, hair, skin, faith (PC; the notes import and Fill blanks fill them too).
+    Rests (Live): a short rest refills short-rest uses; a long rest refills all uses, hit dice, clears death saves,
+    one exhaustion level off. Not taken: rest buttons on the sheet (5), inventory (9). Sheet keeps the desk style.
   - Encounter pictures and maps (`EncounterPictures.tsx`): a folder per encounter, `assets/encounters/<name>` in the
     campaign (made on first use, `attributes.folder`) or one the DM chose (Use another folder…, undoable); files put
     there in Windows show up (refresh on focus); Add pictures… copies in; thumbnails open in Windows; Remove moves to

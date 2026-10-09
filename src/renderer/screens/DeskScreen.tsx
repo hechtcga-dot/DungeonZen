@@ -297,6 +297,7 @@ function PartyCard({ p, index }: { p: DeskPartyMember; index: number }) {
             <span title="Passive Perception"><b>PP</b> {p.passivePerception ?? '–'}</span>
             <span title="Size"><b>Size</b> {p.size || '–'}</span>
           </span>
+          {(p.inspiration || p.exhaustion > 0) && <span className="pc-line">{p.inspiration ? '★ Heroic Inspiration' : ''}{p.inspiration && p.exhaustion ? ' · ' : ''}{p.exhaustion ? `Exhaustion ${p.exhaustion}` : ''}</span>}
           {p.resistances && <span className="pc-line" title={p.resistances}>{p.resistances}</span>}
           <input className="pc-conditions" value={conditions} placeholder="No conditions" aria-label={`${p.name} conditions`}
             onChange={(e) => setConditions(e.target.value)} onBlur={saveConditions} onKeyDown={blurOnEnter} />
