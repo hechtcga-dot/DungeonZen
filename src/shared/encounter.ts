@@ -71,9 +71,13 @@ export interface Difficulty2024 {
 }
 
 /** Rates a group of creatures (CR and count) for a party of a size and level. */
-export function rateEncounter(creatures: Array<{ cr: string; count: number }>, partyLevel: number, partySize: number, factor = 1): Difficulty2024 {
+/** partyLevel: one level for the whole party, or each character's level (then partySize is ignored). */
+export function rateEncounter(creatures: Array<{ cr: string; count: number }>, partyLevel: number | number[], partySize: number, factor = 1): Difficulty2024 {
   const totalXp = creatures.reduce((n, c) => n + xpForCr(c.cr) * Math.max(0, c.count), 0)
-  const b = (d: Difficulty) => Math.round(encounterBudget(partyLevel, partySize, d) * factor)
+  const raw = (d: Difficulty) => Array.isArray(partyLevel)
+    ? partyLevel.reduce((n, l) => n + encounterBudget(l, 1, d), 0)
+    : encounterBudget(partyLevel, partySize, d)
+  const b = (d: Difficulty) => Math.round(raw(d) * factor)
   const budgets = { low: b('low'), moderate: b('moderate'), high: b('high') }
   const rating: Rating = totalXp === 0 ? 'trivial'
     : totalXp < budgets.low * 0.5 ? 'trivial'

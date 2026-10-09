@@ -36,6 +36,12 @@ describe('difficulty with the 2024 rules', () => {
     expect(rateEncounter([{ cr: '1', count: 4 }], 3, 4, 1.2).budgets.moderate).toBe(1080)
   })
 
+  it('sums budgets per character level when given each level', () => {
+    // Level 3 moderate 225 each; level 1 moderate 75.
+    expect(rateEncounter([], [3, 3, 3, 3], 99).budgets).toEqual(rateEncounter([], 3, 4).budgets)
+    expect(rateEncounter([], [3, 1], 0).budgets.moderate).toBe(225 + 75)
+  })
+
   it('adapts the budgets to how the party found its fights', () => {
     expect(adaptation([])).toMatchObject({ factor: 1, fights: 0 })
     expect(adaptation(['too_easy', 'too_easy', 'about_right', 'too_easy'])).toMatchObject({ factor: 1.15, fights: 4 })

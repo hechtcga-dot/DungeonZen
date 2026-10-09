@@ -1320,7 +1320,8 @@ export class Campaign {
           id: e.id, name: e.name, hp: cur, maxHp, ac: sb?.ac ? String(leadingNumber(sb.ac) ?? sb.ac) : '',
           colour: typeof e.attributes.colour === 'string' ? e.attributes.colour : null,
           tempHp: typeof e.attributes.temp_hp === 'number' ? e.attributes.temp_hp : 0,
-          conditions: typeof e.attributes.conditions === 'string' ? e.attributes.conditions : ''
+          conditions: typeof e.attributes.conditions === 'string' ? e.attributes.conditions : '',
+          level: classesOf(e.attributes).reduce((n, c) => n + c.level, 0)
         }
       })
   }
@@ -2469,12 +2470,15 @@ export class Campaign {
       .sort((a, b) => a.atMin - b.atMin).map((l) => ({ atMin: l.atMin, session: sessions.get(l.sessionId) ?? 0, feedback: l.feedback }))
     const a = e.attributes as Record<string, unknown>
     const target = a.target === 'low' || a.target === 'high' ? a.target : 'moderate'
+    const out = new Set(Array.isArray(a.pcs_out) ? a.pcs_out as string[] : [])
+    const pcs = this.partyHealth().map((x) => ({ id: x.id, name: x.name, level: x.level || p.level, hp: x.hp, maxHp: x.maxHp, in: !out.has(x.id) }))
+    const levels = pcs.filter((x) => x.in).map((x) => x.level)
     return {
       id, name: e.name, locationId: at?.targetId ?? null, locationName: at ? byId.get(at.targetId)?.name ?? null : null,
       target, tactics: typeof a.tactics === 'string' ? a.tactics : '', notes: typeof a.summary === 'string' ? a.summary : '',
       scene: typeof a.scene === 'string' ? a.scene : '',
       battleMapId: typeof a.battle_map_id === 'string' ? a.battle_map_id : null,
-      creatures, difficulty: rateEncounter(creatures, p.level, p.size, p.factor), runs
+      creatures, pcs, difficulty: rateEncounter(creatures, pcs.length ? (levels.length ? levels : [p.level]) : p.level, p.size, p.factor), runs
     }
   }
 
@@ -2490,7 +2494,7 @@ export class Campaign {
     return id
   }
 
-  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null }): void {
+  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[] }): void {
     const e = this.entityRow(id)
     this.log.run(`Edited encounter ${patch.name ?? e.name}`, (w) => {
       const attrs: Record<string, unknown> = { encounter: true }
@@ -2499,6 +2503,7 @@ export class Campaign {
       if (patch.notes !== undefined) attrs.summary = patch.notes
       if (patch.scene !== undefined) attrs.scene = patch.scene
       if (patch.battleMapId !== undefined) attrs.battle_map_id = patch.battleMapId
+      if (patch.pcsOut !== undefined) attrs.pcs_out = patch.pcsOut
       w.update('entity', id, { name: patch.name, attributes: { ...e.attributes, ...attrs } })
       if (patch.locationId !== undefined) {
         for (const r of this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).all()) {
@@ -2681,7 +2686,7 @@ export class Campaign {
     const running = this.db.select().from(combat).where(and(eq(combat.encounterId, encounterId), eq(combat.status, 'active'))).get()
     if (running) return running.id
     const enc = this.encounterView(encounterId)
-    const combatants: Combatant[] = this.partyHealth().map((p) => this.fightCombatant(p.id, 'party', p.name))
+    const combatants: Combatant[] = enc.pcs.filter((p) => p.in).map((p) => this.fightCombatant(p.id, 'party', p.name))
     for (const cr of enc.creatures) {
       for (let i = 1; i <= cr.count; i++) combatants.push({ ...this.fightCombatant(cr.entityId, 'foe', cr.count > 1 ? `${cr.name} ${i}` : cr.name), notes: cr.notes })
     }
@@ -2825,7 +2830,7 @@ export class Campaign {
     const pcs: PlanPc[] = state
       ? state.combatants.filter((c) => c.side === 'party' && c.entityId).map((c) => this.planPc(c.entityId!, c.hp, c.maxHp,
         c.out === 'down' || (c.maxHp > 0 && c.hp === 0), !!(c.rounds[String(state.round)]?.c || c.rounds[String(state.round - 1)]?.c)))
-      : this.partyHealth().map((p) => this.planPc(p.id, p.hp, p.maxHp, p.maxHp > 0 && p.hp === 0, false))
+      : this.encounterView(encounterId).pcs.filter((p) => p.in).map((p) => this.planPc(p.id, p.hp, p.maxHp, p.maxHp > 0 && p.hp === 0, false))
     const counts = new Map<string, number>()
     if (state) {
       for (const c of state.combatants) if (c.side === 'foe' && c.entityId && !c.out && !(c.maxHp > 0 && c.hp === 0)) counts.set(c.entityId, (counts.get(c.entityId) ?? 0) + 1)

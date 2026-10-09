@@ -651,6 +651,13 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .enc-editor { height: auto; min-height: 0; gap: 12px; }
 .enc-fields { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
 .enc-map-field { grid-column: 1 / -1; }
+.enc-pcs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 10px; font-size: 13px; }
+.enc-pcs-label { font-weight: 700; margin-right: 2px; }
+.enc-pc { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid #a8916a; border-radius: 4px; background: rgba(255, 250, 236, 0.55); cursor: pointer; }
+.enc-pc input { width: 14px; height: 14px; min-height: 14px; margin: 0; }
+.enc-pc-name { font-weight: 600; }
+.enc-pc.is-out { opacity: 0.55; }
+.enc-pc.is-out .enc-pc-name { text-decoration: line-through; }
 .enc-meter { display: flex; flex-direction: column; gap: 8px; padding: 26px 8px 8px; }
 .meter-bar { position: relative; height: 16px; border-radius: 8px; background: rgba(42, 31, 18, 0.15); border: 1px solid rgba(42, 31, 18, 0.35); }
 .meter-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; background: linear-gradient(90deg, #2e5b2a, #a07a14 55%, #8f2a21); }

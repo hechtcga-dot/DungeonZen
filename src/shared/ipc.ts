@@ -223,7 +223,7 @@ export const ipcInputs = {
     id: Id,
     patch: z.object({
       name: Name, locationId: Id.nullable(), target: z.enum(['low', 'moderate', 'high']), tactics: z.string().max(5000),
-      notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable()
+      notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable(), pcsOut: z.array(Id).max(100)
     }).partial()
   }),
   'encounter:pictures': z.object({ id: Id }),

@@ -149,6 +149,20 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
 
       <EncounterPictures id={e.id} />
 
+      {e.pcs.length > 0 && (
+        <div className="enc-pcs" role="group" aria-label="Player characters in this fight">
+          <span className="enc-pcs-label">Party</span>
+          {e.pcs.map((p) => (
+            <label key={p.id} className={`enc-pc${p.in ? '' : ' is-out'}`} title={p.in ? 'Takes part (untick to leave out)' : 'Left out of this fight'}>
+              <input type="checkbox" checked={p.in}
+                onChange={(ev) => up({ pcsOut: e.pcs.filter((x) => (x.id === p.id ? !ev.target.checked : !x.in)).map((x) => x.id) })} />
+              <span className="enc-pc-name">{p.name}</span>
+              <span className="ink-muted">Lv {p.level}{p.maxHp ? ` · ${p.hp}/${p.maxHp} HP` : ''}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
       <div className="enc-meter" role="img" aria-label={`${d.totalXp} XP: ${RATING_LABELS[d.rating]}`}>
         <div className="meter-bar">
           <span className="meter-fill" style={{ width: pct(d.totalXp) }} />

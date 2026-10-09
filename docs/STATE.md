@@ -184,6 +184,7 @@ built.
   (per-user folder, shortcuts, HKCU only); Wine needs a build with
   `customCheckAppRunning` emptied because it has no PowerShell (test only).
   Not code-signed yet: SmartScreen warns.
+- Encounter party (1.5.x): each encounter lists every active PC (name, level from the sheet's classes else the party level, HP), ticked by default; unticked ids in `attributes.pcs_out` (`encounter:update` pcsOut, undoable). Budgets sum per ticked character's level (`rateEncounter` takes a level list); Run encounter starts with the ticked PCs only, the Battle planner (before the fight) plans for them. Ticks apply when the fight starts.
 - Battle grid (1.5.x): `map.grid_shown` (off by default, also for maps from before): Draw a battle map has "Show the battle grid on the map" (preview, keep and import follow it); Map › Scale and grid ticks it on or off later (`map:setGridShown`, undoable). The size in squares counts either way.
 - AI regions (1.5.x): before adding, click a proposed region (map or row) to fix its border: drag corners, click a mid dot to add one, right-click to remove, Reset border. The same finder (`FindRegions`) opens on Map › Find regions with AI and right after Map › Import map.
 - Getting started guide (1.1.0; `GuideScreen.tsx`, screen 'guide'): a new campaign

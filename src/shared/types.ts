@@ -743,6 +743,8 @@ export interface EncounterView {
   scene: string
   battleMapId: string | null
   creatures: EncounterCreatureView[]
+  /** The player characters: all take part unless the DM unticks them (budget and fight follow). */
+  pcs: Array<{ id: string; name: string; level: number; hp: number; maxHp: number; in: boolean }>
   difficulty: Difficulty2024
   /** Times it was run in play, with how the party found it. */
   runs: Array<{ atMin: number; session: number; feedback: string | null }>
