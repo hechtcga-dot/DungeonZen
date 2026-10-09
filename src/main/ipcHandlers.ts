@@ -1,9 +1,9 @@
-import { copyFileSync, existsSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
-import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
+import { ASSETS_DIR, Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
@@ -126,6 +126,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     c.close(); campaign = null
     await shell.trashItem(folder)
     return folder
+  })
+  // Everything the DM saves lands in the campaign folder by default (one folder to back up).
+  const exportsDir = () => { const d = join(current().folder, 'exports'); mkdirSync(d, { recursive: true }); return d }
+  handle('campaign:openFolder', async ({ sub }) => {
+    const c = current()
+    const target = sub === '' ? c.folder : sub === 'assets' ? join(c.folder, ASSETS_DIR) : sub === 'exports' ? exportsDir() : join(c.folder, ASSETS_DIR, sub)
+    mkdirSync(target, { recursive: true })
+    const err = await shell.openPath(target)
+    if (err) throw new Error(`Windows could not open it: ${err}`)
   })
   handle('campaign:info', () => campaign?.info() ?? null)
   handle('campaign:save', () => { current().save(); return new Date().toISOString() })
@@ -314,10 +323,16 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const files = await Promise.all(docIds.map(async (id) => {
       const doc = docs.find((d) => d.id === id)
       if (!doc) throw new Error('One of those notes is gone')
-      if (doc.kind === 'picture') throw new Error(`${doc.title} is a picture; choose text, Word or PDF notes`)
-      return { title: doc.title, lines: blockLines(await noteBlocks(c.noteFile(id), doc.kind)) }
+      // A picture of a sheet goes to the AI as an image (a model that can see pictures).
+      if (doc.kind === 'picture') {
+        const file = c.noteFile(id)
+        const ext = extname(file).toLowerCase()
+        return { title: doc.title, lines: ['(A picture of this file is attached: read the character sheet from it.)'], image: { bytes: readFileSync(file), mime: ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg' } }
+      }
+      return { title: doc.title, lines: blockLines(await noteBlocks(c.noteFile(id), doc.kind)), image: null }
     }))
-    const reply = await generateText(r, { system: CHARSHEET_SYSTEM, prompt: charSheetPrompt(files), json: true, maxTokens: 12000 })
+    const images = files.flatMap((f) => (f.image ? [f.image] : []))
+    const reply = await generateText(r, { system: CHARSHEET_SYSTEM, prompt: charSheetPrompt(files), json: true, maxTokens: 12000, ...(images.length ? { images } : {}) })
     const answer = parseCharSheet(reply)
     const targets = c.importTargets().filter((t) => t.type === 'PC' || t.type === 'NPC')
     const words = (n: string) => n.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !['character', 'sheet', 'notes', 'background'].includes(w))
@@ -325,6 +340,18 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const scored = targets.map((t) => ({ id: t.id, n: words(t.name).filter((w) => want.has(w)).length + (t.type === 'PC' ? 0.5 : 0) }))
       .filter((t) => t.n >= 1).sort((a, b) => b.n - a.n)
     return { ...answer, source: `${r.info.name} · ${r.model || 'default model'}`, targets, match: scored[0]?.id ?? null }
+  })
+  // Character sheet files (PDF, pictures, Word, text): copied into the campaign's notes, then read by the AI.
+  handle('charsheet:importDialog', async () => {
+    const win = getWindow()
+    const options = {
+      title: 'Import character sheets', buttonLabel: 'Import', properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
+      filters: [{ name: 'Character sheets (PDF, pictures, Word, text)', extensions: NOTE_EXTENSIONS.map((e) => e.slice(1)) }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled) return []
+    for (const p of result.filePaths) await readNotesFile(p) // the same checks as notes (size, scanned PDF)
+    return result.filePaths.map((p) => current().addNoteDoc(p))
   })
   handle('entity:applyCharSheet', (input) => current().applyCharSheet(input))
   handle('entity:pictureDialog', async ({ entityId }) => {
@@ -476,15 +503,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const err = await shell.openPath(target)
     if (err) throw new Error(`Windows could not open it: ${err}`)
   })
+  // A folder elsewhere: its pictures, maps and PDFs are copied into the encounter's folder in the campaign.
   handle('encounter:chooseFolder', async ({ id }) => {
     const win = getWindow()
-    const options = { title: 'Choose the folder with this encounter\'s pictures and maps', buttonLabel: 'Use this folder', properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> }
+    const options = { title: 'Copy pictures and maps from a folder', buttonLabel: 'Copy from this folder', properties: ['openDirectory'] as Array<'openDirectory'> }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
-    if (result.canceled || !result.filePaths.length) return false
-    current().setEncounterFolder(id, result.filePaths[0])
-    return true
+    if (result.canceled || !result.filePaths.length) return null
+    return current().copyFolderIntoEncounter(id, result.filePaths[0])
   })
-  handle('encounter:resetFolder', ({ id }) => current().setEncounterFolder(id, null))
+  handle('encounter:resetFolder', ({ id }) => current().bringEncounterFolderIn(id))
   handle('encounter:removePicture', ({ id, name }) => current().removeEncounterPicture(id, name))
   handle('notes:screen', () => current().notesScreen())
   handle('notes:popout', () => openJournal())
@@ -520,7 +547,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const doc = c.notesScreen().docs.find((d) => d.id === id)
     if (!doc) throw new Error('That note is gone')
     const win = getWindow()
-    const options = { title: 'Save a copy as a Word file', defaultPath: `${doc.title}.docx`, filters: [{ name: 'Word document', extensions: ['docx'] }] }
+    const options = { title: 'Save a copy as a Word file', defaultPath: join(exportsDir(), `${safeFolderName(doc.title)}.docx`), filters: [{ name: 'Word document', extensions: ['docx'] }] }
     const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
     if (result.canceled || !result.filePath) return null
     if (doc.kind === 'word') copyFileSync(c.noteFile(id), result.filePath)
@@ -543,7 +570,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notedoc:named', ({ names }) => current().noteDocsNamed(names))
   handle('file:saveDocx', async ({ name, text }) => {
     const win = getWindow()
-    const options = { title: 'Save as a Word file', defaultPath: `${name}.docx`, filters: [{ name: 'Word document', extensions: ['docx'] }] }
+    const options = { title: 'Save as a Word file', defaultPath: join(exportsDir(), `${safeFolderName(name)}.docx`), filters: [{ name: 'Word document', extensions: ['docx'] }] }
     const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
     if (result.canceled || !result.filePath) return null
     writeFileSync(result.filePath, writeDocx(textToBlocks(text)))
@@ -558,7 +585,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   // ---- exports: Roll20, files
   const saveAs = async (title: string, defaultPath: string, filters: Array<{ name: string; extensions: string[] }>) => {
     const win = getWindow()
-    const options = { title, defaultPath, filters }
+    const options = { title, defaultPath: join(exportsDir(), defaultPath), filters }
     const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
     return r.canceled || !r.filePath ? null : r.filePath
   }
@@ -598,7 +625,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       return file
     }
     const win = getWindow()
-    const options = { title: 'Choose a folder for the images', buttonLabel: 'Save images here', properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> }
+    const options = { title: 'Choose a folder for the images', defaultPath: exportsDir(), buttonLabel: 'Save images here', properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> }
     const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (r.canceled || !r.filePaths[0]) return null
     const used = new Set<string>()

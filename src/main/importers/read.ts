@@ -110,6 +110,16 @@ export async function pdfPages(file: Buffer): Promise<string[]> {
       if (!('str' in item)) continue
       text += item.str + (item.hasEOL ? '\n' : '')
     }
+    // Fillable PDFs (character sheets): the typed-in values live in form fields, not the page text.
+    const fields: string[] = []
+    for (const a of await page.getAnnotations().catch(() => [])) {
+      const v = (a as { fieldValue?: unknown }).fieldValue
+      const val = Array.isArray(v) ? v.join(', ') : typeof v === 'string' ? v.trim() : ''
+      const box = (a as { checkBox?: boolean; exportValue?: string }).checkBox
+      if (box && v && v !== 'Off') fields.push(`${(a as { fieldName?: string }).fieldName ?? 'Box'}: ticked`)
+      else if (!box && val) fields.push(`${(a as { fieldName?: string }).fieldName ?? 'Field'}: ${val}`)
+    }
+    if (fields.length) text += `\n\nForm fields:\n${fields.join('\n')}`
     pages.push(text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim())
   }
   await doc.destroy()

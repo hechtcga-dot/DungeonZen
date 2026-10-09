@@ -3,6 +3,7 @@ import { Dialog } from './Dialog'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
+import { OpenFolder } from './OpenFolder'
 import type { EntityView } from '../../shared/types'
 
 export type ExportKind = 'sheets' | 'letters' | 'board'
@@ -99,6 +100,7 @@ export function ExportDialog({ kind: fixedKind, entityIds, title, onClose }: { k
             <select id="ex-size" value={size} onChange={(e) => setSize(e.target.value as 'A4' | 'Letter')}><option value="A4">A4</option><option value="Letter">US Letter</option></select></div>
         </div>
         <div className="dz-actions">
+          <OpenFolder sub="exports" label="Open saved files folder" />
           <button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={busy || ids.length === 0} onClick={() => void run()}>{busy ? 'Making it…' : format === 'pdf' ? 'Save PDF…' : 'Save JPG…'}</button>
         </div>

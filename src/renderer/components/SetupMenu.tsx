@@ -37,6 +37,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
             const at = await call('campaign:save', undefined)
             say(`All changes saved (${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`)
           }) },
+          { label: 'Open campaign folder', hint: 'Everything is in it: back up this one folder', onClick: () => void attempt(() => call('campaign:openFolder', { sub: '' })) },
           { label: 'Save a copy…', hint: 'Copies the whole campaign folder, pictures and notes included', onClick: () => void attempt(async () => {
             const where = await call('campaign:saveCopy', undefined)
             if (where) say(`Copy saved to ${where}`)

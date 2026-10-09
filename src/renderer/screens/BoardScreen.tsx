@@ -453,6 +453,7 @@ function BoardLayout() {
             ...maps.map((m) => ({ label: `${m.name}${m.kind === 'battle' ? ' (battle map)' : ''}`, onClick: () => void addPicture(m.id) })),
             ...(maps.length ? ['separator' as const] : []),
             { label: 'Choose a picture file…', onClick: () => void addPicture(null) },
+            { label: 'Open background pictures folder', onClick: () => void act('campaign:openFolder', { sub: 'board' }) },
             'separator',
             { label: 'Show background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) }
           ])}>Background</button>

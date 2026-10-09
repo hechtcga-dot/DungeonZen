@@ -9,6 +9,7 @@ import { Dialog } from '../components/Dialog'
 import { CommitField } from '../components/fields'
 import { MapDialog } from '../components/EditDialogs'
 import { FindRegions } from './GuideScreen'
+import { OpenFolder } from '../components/OpenFolder'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
@@ -232,12 +233,14 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             {view.map.prompt && (
               <details className="map-prompt"><summary>What the AI was asked</summary><p>{view.map.prompt}</p></details>
             )}
+            {' · '}<OpenFolder sub="maps" label="Open maps folder" />
           </div>
         ) : (
           <p className="ink-muted map-foot">
             {view.party ? <>Party location: <strong>{view.party.locationName ?? 'between places'}</strong> since {formatClock(view.party.atMin)}. Drag the banner to move them.</>
               : <>The party is not on this map yet. <button className="link-button" onClick={() => void askTravel(centre)}>Place party token</button></>}
             {!view.map.widthKm && ' Set the map scale to get travel time estimates.'}
+            {' · '}<OpenFolder sub="maps" label="Open maps folder" />
           </p>
         )}
       </div>

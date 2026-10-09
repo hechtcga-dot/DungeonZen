@@ -12,6 +12,7 @@ import { DeskFrame } from '../components/DeskFrame'
 import { lightingAt, moonOn, skyAt } from '../../shared/sky'
 import { useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
+import { ImportCharSheet } from '../components/ImportCharSheet'
 import type { DeskPartyMember, DeskView } from '../../shared/types'
 
 
@@ -110,7 +111,10 @@ function Desk({ desk }: { desk: DeskView }) {
                 ))}
               </ul>
             )}
-          <button className="ink-button" onClick={() => void newCard('PC')}>Add a player character</button>
+          <div className="row tight wrap">
+            <button className="ink-button" onClick={() => void newCard('PC')}>Add a player character</button>
+            <ImportCharSheet />
+          </div>
         </div>
 
         <div className="dm-panel ledger-panel">

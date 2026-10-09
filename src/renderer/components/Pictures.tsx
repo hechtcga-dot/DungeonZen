@@ -3,6 +3,7 @@ import { call } from '../api'
 import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import type { IpcOutputs } from '../../shared/ipc'
+import { OpenFolder } from './OpenFolder'
 import type { LibraryPictureView, SheetView, StyleExampleView, StyleUse } from '../../shared/types'
 
 const ASSET = 'dz-asset://campaign/'
@@ -190,6 +191,7 @@ export function PicturePanel({ sheet }: { sheet: SheetView }) {
         <button onClick={() => void act('entity:pictureDialog', { entityId: e.id })} title={`Saved in Library › Pictures › ${folder}`}>Upload…</button>
         <button onClick={() => setMode('draw')}>Draw with AI…</button>
         {picture && <button onClick={() => void act('entity:removePicture', { entityId: e.id })} title="Ctrl+Z puts it back">Remove picture</button>}
+        <OpenFolder sub="pictures" label="Open pictures folder" />
       </div>
       {mode === 'draw' && <DrawPictureDialog entity={e} onClose={() => setMode(null)} />}
       {mode === 'pick' && (
@@ -247,6 +249,7 @@ export function PicturesTab() {
         <div className="row tight wrap">
           <button className="primary" onClick={() => void upload()}>Upload pictures…</button>
           <span className="hint">Into {folder === 'All' ? 'Art' : folder}. Maps, card pictures and background pictures show up here by themselves.</span>
+          <OpenFolder sub="assets" label="Open pictures folder" />
         </div>
         <p className="hint">Style examples: ticked pictures go with AI drawings of that kind, to anchor the art style. Each Draw window lets you untick them for one drawing.</p>
         {shown.length === 0 && <p className="hint">No pictures in {folder} yet.</p>}

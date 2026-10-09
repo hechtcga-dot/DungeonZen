@@ -2543,6 +2543,24 @@ export class Campaign {
     })
   }
 
+  /** Copies the pictures, maps and PDFs in a folder elsewhere into the encounter's folder. */
+  copyFolderIntoEncounter(id: string, dir: string): number {
+    const files = readdirSync(dir, { withFileTypes: true })
+      .filter((f) => f.isFile() && [...MAP_EXTENSIONS, '.pdf'].includes(extname(f.name).toLowerCase()))
+      .map((f) => join(dir, f.name))
+    return files.length ? this.addEncounterPictures(id, files) : 0
+  }
+
+  /**
+   * An encounter that used a folder outside the campaign (before 1.5.x): back to a folder in the
+   * campaign, with copies of that folder's files (the originals stay where they are).
+   */
+  bringEncounterFolderIn(id: string): number {
+    const outside = this.encounterPictures(id)
+    this.setEncounterFolder(id, null)
+    return outside.own && existsSync(outside.folder) ? this.copyFolderIntoEncounter(id, outside.folder) : 0
+  }
+
   /** Pictures, maps and PDFs in an encounter's folder (files the DM put there in Windows count too). */
   encounterPictures(id: string): { folder: string; own: boolean; files: Array<{ name: string; url: string; picture: boolean }>; removed: number } {
     const e = this.entityRow(id)

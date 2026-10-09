@@ -70,6 +70,8 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:delete': z.void(),
+  'charsheet:importDialog': z.void(),
+  'campaign:openFolder': z.object({ sub: z.enum(['', 'assets', 'maps', 'styles', 'pictures', 'notes', 'board', 'encounters', 'exports']) }),
   'campaign:info': z.void(),
   'campaign:save': z.void(),
   'campaign:saveCopy': z.void(),
@@ -395,6 +397,8 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:delete': string
+  'charsheet:importDialog': string[]
+  'campaign:openFolder': void
   'campaign:info': CampaignInfo | null
   'campaign:save': string
   'campaign:saveCopy': string | null
@@ -514,8 +518,8 @@ export interface IpcOutputs {
   'encounter:pictures': { folder: string; own: boolean; files: Array<{ name: string; url: string; picture: boolean }>; removed: number }
   'encounter:addPictures': number
   'encounter:openFolder': void
-  'encounter:chooseFolder': boolean
-  'encounter:resetFolder': void
+  'encounter:chooseFolder': number | null
+  'encounter:resetFolder': number
   'encounter:removePicture': void
   'encounter:addCreature': void
   'encounter:addSrd': void

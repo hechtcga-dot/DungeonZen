@@ -52,6 +52,8 @@ Bump `package.json` + `package-lock.json` version. Push branch `claude/friendly-
 - Card colours: Item `#9c4f1f`, Handout `#6b5a3a` (`entityStyle.ts`).
 - Installer: per-user NSIS, no admin (`electron-builder.yml`, `build/installer.nsh`), `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU. Not code-signed yet.
 - New campaign: getting started guide, world map first (1.1.0).
+- All files live in the campaign folder (one folder to back up): imports are copied in, saves default to `exports/`, Open folder links wherever pictures, maps, sheets or notes show (2026-10-09). Replaces "or a folder the DM chooses" for encounter pictures.
+- Delete campaign = folder to the Recycle Bin after an are-you-sure. Battle grid off by default. Encounters: every PC in by default, tick per PC.
 
 ## 1.2.0 (built 2026-10-09)
 Owner's 16-item list (board menus/hide, Links and Story panels, linked boards, underlay pictures, resizable panels, metric/imperial, PC tokens, SRD browser, fight summary sheet, encounter scene and AI build, combat tracker, fixes). Details in `docs/STATE.md`.

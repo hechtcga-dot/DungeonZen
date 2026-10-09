@@ -7,6 +7,8 @@ import { useSidePanel } from './Splitter'
 import { CharSheetDialog } from './CharSheetDialog'
 import type { ImportDraft } from '../../shared/notesImport'
 import type { NoteDocView, NotesScreenView } from '../../shared/types'
+import { OpenFolder } from './OpenFolder'
+import { ImportCharSheet } from './ImportCharSheet'
 import type { Block } from '../../shared/noteDoc'
 
 type Open = { kind: 'dm' } | { kind: 'session'; id: string } | { kind: 'doc'; id: string }
@@ -75,6 +77,8 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
           <div className="row tight wrap">
             <button className="ink-button" onClick={() => setNewTitle('')}>New note</button>
             <button className="ink-button" onClick={onImport}>Import notes…</button>
+            <ImportCharSheet />
+            <OpenFolder sub="notes" label="Open notes folder" />
           </div>
         ) : (
           <form className="row tight" onSubmit={(e) => { e.preventDefault(); void create() }}>
@@ -194,7 +198,7 @@ function DocNote({ doc, docs, onOpenDraft, onChanged }: { doc: NoteDocView; docs
           <button className="ink-button" onClick={() => void act('notedoc:openInWord', { id: doc.id }).then(() => {
             if (doc.kind === 'word') say('Opened in Word. Save there; when you come back, Dungeon Zen offers to bring the changes in.')
           })}>{doc.kind === 'word' ? 'Open in Word' : doc.kind === 'pdf' ? 'Open the PDF' : doc.kind === 'picture' ? 'Open the picture' : 'Open the file'}</button>
-          {doc.kind !== 'picture' && <button className="ink-button" title="The AI copies a character sheet (and its other files) into a character card" onClick={() => setMaking(true)}>Make a character card…</button>}
+          {<button className="ink-button" title="The AI copies a character sheet (and its other files) into a character card" onClick={() => setMaking(true)}>Make a character card…</button>}
           {doc.kind !== 'picture' && <button className="ink-button" onClick={async () => { const p = await act('notedoc:saveCopy', { id: doc.id }); if (p) say(`Saved ${p}`) }}>Save a copy as Word…</button>}
           <button className="ink-button danger-ink" onClick={() => void act('notedoc:setStatus', { id: doc.id, status: 'defunct' }).then(onChanged)}>Move to History</button>
         </span>

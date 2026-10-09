@@ -25,11 +25,11 @@ const sbLine = (sb: StatBlock) => [
  * Notes › a character sheet file › Make a character card: the AI reads the ticked files and copies
  * them into a PC card (new or one you have); tick what to keep. Nothing changes until "Use selected".
  */
-export function CharSheetDialog({ doc, docs, onClose }: { doc: NoteDocView; docs: NoteDocView[]; onClose(): void }) {
+export function CharSheetDialog({ doc, docs, ids, onClose }: { doc: NoteDocView; docs: NoteDocView[]; ids?: string[]; onClose(): void }) {
   const { act, say, openSheet, setAiSettingsOpen } = useBoard()
-  const texts = docs.filter((d) => d.kind !== 'picture')
+  const texts = docs
   const first = doc.title.toLowerCase().split(/[^a-z0-9]+/)[0]
-  const [pick, setPick] = useState<Set<string>>(new Set(texts.filter((d) => d.id === doc.id || (first.length > 2 && d.title.toLowerCase().startsWith(first))).map((d) => d.id)))
+  const [pick, setPick] = useState<Set<string>>(new Set(ids ?? texts.filter((d) => d.id === doc.id || (first.length > 2 && d.title.toLowerCase().startsWith(first))).map((d) => d.id)))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [answer, setAnswer] = useState<Answer | null>(null)
@@ -80,12 +80,13 @@ export function CharSheetDialog({ doc, docs, onClose }: { doc: NoteDocView; docs
     <Dialog title="Make a character card" open onClose={onClose} wide>
       {!answer ? (
         <div className="dz-form">
-          <p className="hint">The writing AI reads the files you tick (the sheet, a background, notes) and copies them into a character card: stat block, attacks and spells, spell slots, level, hit points and the traits tab. You choose what to keep; nothing changes until then.</p>
+          <p className="hint">The writing AI reads the files you tick (the sheet, a background, notes) and copies them into a character card: stat block, attacks and spells, spell slots, level, hit points and the traits tab. You choose what to keep; nothing changes until then.
+            Pictures of a sheet need a model that can see images.</p>
           <fieldset className="field fill-pick">
             <legend>Files with this character</legend>
             {texts.map((d) => (
               <label key={d.id} className="field checkbox">
-                <input type="checkbox" checked={pick.has(d.id)} onChange={(ev) => setPick((p) => { const n = new Set(p); if (ev.target.checked) n.add(d.id); else n.delete(d.id); return n })} /> {d.title}
+                <input type="checkbox" checked={pick.has(d.id)} onChange={(ev) => setPick((p) => { const n = new Set(p); if (ev.target.checked) n.add(d.id); else n.delete(d.id); return n })} /> {d.title}{d.kind === 'picture' ? ' (picture)' : d.kind === 'pdf' ? ' (PDF)' : ''}
               </label>
             ))}
           </fieldset>
