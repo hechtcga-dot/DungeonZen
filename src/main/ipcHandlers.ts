@@ -155,6 +155,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return r.filePaths[0]
   })
   handle('backups:resetFolder', () => current().setSetting('backup_folder', '', 'Backups go to the campaign folder'))
+  handle('tables:view', () => current().ownTables())
+  handle('tables:save', (t) => current().saveOwnTable(t))
+  handle('tables:setStatus', ({ id, status }) => current().setOwnTableStatus(id, status))
+  // A generator result as a card on the global board (one undo step), its text as the summary.
+  handle('generator:toBoard', ({ type, name, text }) => {
+    const c = current()
+    return c.createEntity({ boardId: c.info().globalBoardId, type, name, position: c.freeGlobalSpot(), attributes: { summary: text }, label: `Put ${name} on the board` }).id
+  })
   handle('campaign:info', () => campaign?.info() ?? null)
   handle('campaign:save', () => { current().save(); return new Date().toISOString() })
   handle('campaign:saveCopy', async () => {

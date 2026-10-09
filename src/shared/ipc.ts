@@ -18,6 +18,7 @@ import type { BuiltCreature, CombatView, SrdMonsterRow,
 } from './types'
 import { STYLE_USES } from './types'
 import type { NotesScreenView } from './types'
+import type { RollTable } from './rolltables'
 import { Blocks, type Block } from './noteDoc'
 
 // The typed contract between the renderer (UI) and the main process.
@@ -70,6 +71,10 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:delete': z.void(),
+  'tables:view': z.void(),
+  'tables:save': z.object({ id: z.string().min(1).max(80), name: Name, group: z.string().trim().min(1).max(80), card: EntityType, entries: z.array(z.string().max(2000)).min(1).max(1000), hint: z.string().max(300).optional() }),
+  'tables:setStatus': z.object({ id: z.string().max(80), status: z.enum(['active', 'defunct']) }),
+  'generator:toBoard': z.object({ type: EntityType, name: Name, text: z.string().max(5000) }),
   'ai:recap': z.object({ sessionId: Id, playerSafe: z.boolean() }),
   'map:reimport': z.object({ mapId: Id }),
   'notedoc:reimport': z.object({ id: Id }),
@@ -407,6 +412,10 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:delete': string
+  'tables:view': Array<RollTable & { status: 'active' | 'defunct' }>
+  'tables:save': void
+  'tables:setStatus': void
+  'generator:toBoard': string
   'ai:recap': AiSuggestion
   'map:reimport': MapView | null
   'notedoc:reimport': { changed: string[] } | null

@@ -39,6 +39,7 @@ import { rowsFor } from '../../shared/battlemap'
 import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/places'
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
 import { adaptation, RATING_LABELS, rateEncounter, xpForCr, type FightFeedback } from '../../shared/encounter'
+import type { RollTable } from '../../shared/rolltables'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
 export const DB_FILE = 'campaign.db'
@@ -85,7 +86,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -156,6 +157,27 @@ export class Campaign {
       recursive: true,
       filter: (src) => !/campaign\.db-(wal|shm)$/.test(src) && !src.startsWith(join(this.folder, ASSETS_DIR, 'pending'))
     })
+  }
+
+  // ---- generators: the DM's own roll tables (setting roll_tables; History = status defunct) ----
+
+  ownTables(): Array<RollTable & { status: 'active' | 'defunct' }> {
+    const raw = this.setting('roll_tables')
+    return Array.isArray(raw) ? raw as Array<RollTable & { status: 'active' | 'defunct' }> : []
+  }
+
+  saveOwnTable(table: RollTable): void {
+    const list = this.ownTables()
+    const had = list.some((x) => x.id === table.id)
+    const next = had ? list.map((x) => (x.id === table.id ? { ...table, status: x.status } : x)) : [...list, { ...table, status: 'active' as const }]
+    this.setSetting('roll_tables', next, `${had ? 'Changed' : 'Added'} the roll table ${table.name}`)
+  }
+
+  setOwnTableStatus(id: string, status: 'active' | 'defunct'): void {
+    const list = this.ownTables()
+    const t = list.find((x) => x.id === id)
+    if (!t) throw new Error('That table is gone')
+    this.setSetting('roll_tables', list.map((x) => (x.id === id ? { ...x, status } : x)), `${status === 'defunct' ? 'Moved' : 'Brought back'} the roll table ${t.name}${status === 'defunct' ? ' to History' : ''}`)
   }
 
   // ---- backups: dated copies of the whole folder (owner, 1.6.0) ----------------

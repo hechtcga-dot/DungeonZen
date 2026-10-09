@@ -11,18 +11,18 @@ export type Selection =
   | null
 
 export type BoardPanel = 'inspector' | 'history' | 'connections' | 'storylines'
-export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'combat'
+export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'combat' | 'generators'
 /** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
 export type Mode = 'prep' | 'live' | 'players'
 export const SCREEN_NAMES: Record<Screen, string> = {
   desk: 'the desk', board: 'the board', map: 'the map', timeline: 'the timeline', live: 'the live desk', review: 'the review',
   sheet: 'the previous card', library: 'the library', prep: 'session prep', players: 'player preview', encounters: 'encounters',
-  import: 'notes', guide: 'getting started', combat: 'the fight'
+  import: 'notes', guide: 'getting started', combat: 'the fight', generators: 'generators'
 }
 export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
 /** The map belongs to every mode; other screens belong to one. */
 const modeFor = (screen: Screen, current: Mode): Mode =>
-  screen === 'map' ? current : screen === 'live' || screen === 'review' ? 'live' : screen === 'players' ? 'players' : 'prep'
+  screen === 'map' || screen === 'generators' ? current : screen === 'live' || screen === 'review' ? 'live' : screen === 'players' ? 'players' : 'prep'
 
 interface BoardState {
   info: CampaignInfo | null
@@ -80,7 +80,7 @@ interface BoardState {
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
   showBoard(boardId: string): Promise<void>
-  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide'): void
+  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'generators'): void
   openSheet(entityId: string): Promise<void>
   showOnBoard(entityId: string): Promise<void>
   refresh(): Promise<void>

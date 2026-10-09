@@ -159,7 +159,7 @@ function Live({ v }: { v: LiveView }) {
       </section>
 
       <SetTheScene v={v} />
-      <OnTheFly v={v} />
+      <OnTheFly partySize={v.party.length} partyLevel={v.partyLevel} />
       {v.sessions.length > 0 && (
         <section className="past-sessions" aria-labelledby="past-h">
           <h2 id="past-h" className="mat-heading on-wood">Sessions</h2>
@@ -398,7 +398,7 @@ function AiSceneHelper({ current, onUse }: { current: string; onUse(text: string
   )
 }
 
-function OnTheFly({ v }: { v: LiveView }) {
+export function OnTheFly({ partySize, partyLevel }: { partySize: number; partyLevel: number }) {
   const act = useBoard((s) => s.act)
   const [result, setResult] = useState<GeneratedView | null>(null)
   const [difficulty, setDifficulty] = useState<'low' | 'moderate' | 'high'>('moderate')
@@ -430,9 +430,9 @@ function OnTheFly({ v }: { v: LiveView }) {
           <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><polygon points="20,2 37,11 37,29 20,38 3,29 3,11" fill="#8f2a21" stroke="#3b0c08" /><text x="20" y="25" textAnchor="middle" fontSize="11" fill="#fbe7c6">20</text></svg>
           <span>
             <strong>Suggest an encounter</strong>
-            <span>For {v.party.length || 4} characters of level{' '}
+            <span>For {partySize || 4} characters of level{' '}
               <label htmlFor="otf-level" className="visually-hidden">Party level</label>
-              <input id="otf-level" className="tiny" type="number" min={1} max={20} value={v.partyLevel}
+              <input id="otf-level" className="tiny" type="number" min={1} max={20} value={partyLevel}
                 onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= 20) void act('party:setLevel', { level: n }) }} />
             </span>
             <span className="row tight wrap">

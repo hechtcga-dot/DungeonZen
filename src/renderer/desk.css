@@ -1280,3 +1280,15 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .lib-folder > summary { display: flex; align-items: center; gap: 8px; padding: 8px 4px; cursor: pointer; font-weight: 700; list-style: revert; }
 .lib-folder > summary .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
 .lib-folder > .results { margin: 0 0 10px 18px; }
+
+.gen-layout { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 12px; }
+.gen-list details { margin-bottom: 4px; }
+.gen-list summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.gen-list ul { list-style: none; margin: 0 0 6px 12px; padding: 0; }
+.gen-list li { padding: 2px 0; }
+.gen-list .link-button { color: var(--ink); text-decoration: none; }
+.gen-list .link-button.is-current { font-weight: 700; text-decoration: underline; color: var(--wax, #8f2a21); }
+.gen-result { margin: 10px 0; padding: 10px 12px; border: 1px dashed #8f6a2a; border-radius: 4px; background: rgba(255, 250, 236, 0.6); }
+.gen-result-text { font-size: 16px; margin: 6px 0 10px; }
+.gen-entries { columns: 2 280px; column-gap: 28px; margin: 0; padding-left: 28px; }
+.gen-entries li { break-inside: avoid; padding: 1px 0; }

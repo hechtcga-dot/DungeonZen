@@ -15,6 +15,7 @@ import { EncountersScreen } from './screens/EncountersScreen'
 import { ImportScreen } from './screens/ImportScreen'
 import { CombatScreen } from './screens/CombatScreen'
 import { GuideScreen } from './screens/GuideScreen'
+import { GeneratorsScreen } from './screens/GeneratorsScreen'
 import { JournalWindow } from './screens/JournalWindow'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
@@ -55,6 +56,7 @@ function MainApp() {
                 : screen === 'import' ? <ImportScreen />
                 : screen === 'guide' ? <GuideScreen />
                 : screen === 'combat' ? <CombatScreen />
+                : screen === 'generators' ? <GeneratorsScreen />
                 : <BoardScreen />}
       {info && view && <BattleMapDialog />}
       <AiSettingsDialog />
