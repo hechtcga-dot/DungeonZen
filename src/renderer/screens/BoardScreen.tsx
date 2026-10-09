@@ -28,6 +28,7 @@ import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/
 import type { BoardView, EntityView } from '../../shared/types'
 import { useCtrlPan } from '../useCtrlPan'
 import { Dialog } from '../components/Dialog'
+import { MapViewPanel } from './MapScreen'
 import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 
 type BoardNode = CardNodeType | NoteNodeType | ImageNodeType
@@ -226,7 +227,8 @@ function BoardLayout() {
     }
   }, [act, view.board.id, centre, prefs, say])
 
-  const [maps, setMaps] = useState<Array<{ id: string; name: string; kind: string }>>([])
+  const [maps, setMaps] = useState<Array<{ id: string; name: string; kind: string; url: string }>>([])
+  const [mapView, setMapView] = useState<string | null>(null)
   useEffect(() => { void useBoard.getState().query('desk:view', undefined).then((d) => setMaps(d?.maps ?? [])) }, [view])
 
   const removeSelected = useCallback(async () => {
@@ -457,6 +459,17 @@ function BoardLayout() {
             'separator',
             { label: 'Show background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) }
           ])}>Background</button>
+          <button className="tool" aria-pressed={!!mapView} title="Regions, the party token and travel on a map (the board's background map first)" onClick={(e) => {
+            if (mapView) return setMapView(null)
+            const used = view.items.filter((i) => i.kind === 'image' && i.content && 'image' in i.content).map((i) => String((i.content as { image: string }).image))
+            const world = maps.filter((m) => m.kind !== 'battle')
+            const onBoard = world.filter((m) => used.some((u) => m.url.endsWith(u)))
+            if (onBoard.length === 1) return setMapView(onBoard[0].id)
+            const list = onBoard.length ? onBoard : world
+            if (!list.length) return say('No map yet: import one on the Map screen or add one as a background picture.', true)
+            if (list.length === 1) return setMapView(list[0].id)
+            openMenu(e, list.map((m) => ({ label: m.name, onClick: () => setMapView(m.id) })))
+          }}>Map view</button>
           <div className="tool-layer" role="group" aria-label="What a drag moves">
             <span className="eyebrow">MOVE</span>
             <button className="tool" aria-pressed={!background} title="Drag cards, notes and strings; the background stays put"
@@ -471,7 +484,8 @@ function BoardLayout() {
           <Candle className="tools-candle" lit={!lighting || lightingAt(useBoard.getState().info?.clockMin ?? 0).candlesLit} />
         </nav>
 
-        <main className="canvas" ref={paneRef} aria-label={`${view.board.name} board`}>
+        {mapView && <main className="canvas"><MapViewPanel mapId={mapView} onClose={() => setMapView(null)} /></main>}
+        <main className="canvas" ref={paneRef} aria-label={`${view.board.name} board`} style={mapView ? { display: 'none' } : undefined}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -537,7 +551,7 @@ function BoardLayout() {
 
         <Splitter value={sideWidth} onChange={setSideWidth} side="right" min={260} max={720} initial={360} label="Resize the side panel" />
 
-        <aside className="side" style={{ flexBasis: sideWidth }}>
+        <aside className="side" style={mapView ? { display: 'none' } : { flexBasis: sideWidth }}>
           <div className="segmented full" role="tablist" aria-label="Side panel">
             <button role="tab" aria-selected={panel === 'inspector'} aria-pressed={panel === 'inspector'} onClick={() => setPanel('inspector')}>Inspector</button>
             <button role="tab" aria-selected={panel === 'connections'} aria-pressed={panel === 'connections'} onClick={() => setPanel('connections')}>Links</button>

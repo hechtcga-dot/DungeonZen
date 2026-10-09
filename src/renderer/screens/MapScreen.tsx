@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useBoard, useUnits } from '../store'
+import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
 import { MapView, type MapLayerContext } from '../components/MapView'
 import { MapOverlay, PartyToken, PcTokenMark } from '../components/MapOverlay'
@@ -94,6 +95,39 @@ export function MapScreen() {
         )}
       </main>
     </DeskFrame>
+  )
+}
+
+/**
+ * Board › Map view (owner, 1.6.0): the same map tools as the Map screen (regions, AI region finder,
+ * party token and travel with its checks, scale) for a map, inside the board.
+ */
+export function MapViewPanel({ mapId, onClose }: { mapId: string; onClose(): void }) {
+  const stamp = useBoard((s) => s.view?.undo)
+  const [v, setV] = useState<MapScreenView | null>(null)
+  const [mode, setMode] = useState<Mode>('view')
+  const [findOpen, setFindOpen] = useState(false)
+  const [scaleOpen, setScaleOpen] = useState(false)
+  useEffect(() => { void call('mapscreen:view', { mapId }).then(setV).catch(() => setV(null)) }, [mapId, stamp])
+  if (!v) return <p className="hint">Loading the map…</p>
+  return (
+    <div className="board-mapview desk-theme">
+      <div className="row tight wrap board-mapview-bar">
+        <strong>Map view: {v.map.name}</strong>
+        <span className="spacer" />
+        <button className="ink-button" aria-pressed={mode === 'draw'} onClick={() => setMode(mode === 'draw' ? 'view' : 'draw')}>{mode === 'draw' ? 'Stop drawing' : 'Draw region'}</button>
+        {v.map.kind !== 'battle' && <button className="ink-button" onClick={() => { setMode('view'); setFindOpen(true) }}>Find regions with AI</button>}
+        <button className="ink-button" onClick={() => setScaleOpen(true)}>Scale and grid</button>
+        <button className="ink-button primary-ink" onClick={onClose}>Back to the cards</button>
+      </div>
+      <MapWorkspace key={v.map.id} view={v} mode={mode} setMode={setMode} />
+      {findOpen && (
+        <Dialog title={`Regions of ${v.map.name}`} open wide onClose={() => setFindOpen(false)}>
+          <FindRegions inMap map={v.map} onNext={() => setFindOpen(false)} onDraw={() => { setFindOpen(false); setMode('draw') }} />
+        </Dialog>
+      )}
+      {scaleOpen && <ScaleDialog view={v} onClose={() => setScaleOpen(false)} />}
+    </div>
   )
 }
 
