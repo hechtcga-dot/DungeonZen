@@ -84,3 +84,47 @@ export function statLine(sb: StatBlock): string {
 }
 
 export const HAS_STATBLOCK = new Set(['NPC', 'PC', 'MONSTER'])
+
+/** The 18 skills and the ability each one uses. */
+export const SKILLS: Array<[string, AbilityKey]> = [
+  ['Acrobatics', 'dex'], ['Animal Handling', 'wis'], ['Arcana', 'int'], ['Athletics', 'str'], ['Deception', 'cha'], ['History', 'int'],
+  ['Insight', 'wis'], ['Intimidation', 'cha'], ['Investigation', 'int'], ['Medicine', 'wis'], ['Nature', 'int'], ['Perception', 'wis'],
+  ['Performance', 'cha'], ['Persuasion', 'cha'], ['Religion', 'int'], ['Sleight of Hand', 'dex'], ['Stealth', 'dex'], ['Survival', 'wis']
+]
+
+/** "Str +7, Con +9" or "Perception +4, Sleight of Hand +6" → lower-case name → bonus. */
+export function parseBonuses(text: string): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const m of text.matchAll(/([A-Za-z][A-Za-z' ]*?)\s*([+\-−])\s*(\d+)/g)) {
+    out.set(m[1].trim().toLowerCase(), (m[2] === '+' ? 1 : -1) * Number(m[3]))
+  }
+  return out
+}
+
+/** A saving throw: the listed bonus ("Str +7" or "Strength +7"), else the ability modifier. */
+export function saveBonus(sb: StatBlock, key: AbilityKey): { bonus: number; proficient: boolean } {
+  const listed = parseBonuses(sb.saves)
+  const hit = [...listed].find(([name]) => name.slice(0, 3) === key)
+  return hit ? { bonus: hit[1], proficient: true } : { bonus: abilityModifier(sb[key]), proficient: false }
+}
+
+/** A skill: the listed bonus, else the ability modifier. */
+export function skillBonus(sb: StatBlock, skill: string, ability: AbilityKey): { bonus: number; proficient: boolean } {
+  const listed = parseBonuses(sb.skills).get(skill.toLowerCase())
+  return listed !== undefined ? { bonus: listed, proficient: true } : { bonus: abilityModifier(sb[ability]), proficient: false }
+}
+
+/** Passive score: 10 + the skill bonus; for Perception, the senses line wins when it says. */
+export function passiveScore(sb: StatBlock, skill: 'Perception' | 'Investigation' | 'Insight'): number {
+  if (skill === 'Perception') {
+    const said = /passive perception\s*(\d+)/i.exec(sb.senses)
+    if (said) return Number(said[1])
+  }
+  const ability = SKILLS.find(([s]) => s === skill)![1]
+  return 10 + skillBonus(sb, skill, ability).bonus
+}
+
+/** Proficiency bonus from a challenge rating or a character level: +2 up to 4, +3 from 5, … +9 at 29 and 30. */
+export function proficiencyBonus(crOrLevel: number): number {
+  return 2 + Math.floor((Math.max(1, crOrLevel) - 1) / 4)
+}

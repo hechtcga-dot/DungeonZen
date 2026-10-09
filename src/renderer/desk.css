@@ -944,3 +944,59 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .link-confirm { font-size: 16px; margin: 0 0 10px; }
 .is-ctrl-panning, .is-ctrl-panning * { cursor: grabbing !important; }
 .tool-layer .tool { min-height: 40px; font-size: 11px; letter-spacing: -0.01em; }
+
+/* Sheet › Features, traits, background / Descriptions & history / Secrets */
+.panel-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.panel-head-row .panel-heading { margin: 0; }
+.traits-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 14px; }
+.traits-grid .span-2 { grid-column: span 2; }
+.factions-field .chips { align-items: center; }
+.factions-field .chip { padding-right: 2px; }
+.factions-field .chip .link-button { min-height: 0; min-width: 0; padding: 0; }
+.factions-field select { width: auto; min-width: 180px; }
+@media (max-width: 1100px) { .traits-grid { grid-template-columns: 1fr; } .traits-grid .span-2 { grid-column: auto; } }
+
+/* Full sheet: character-sheet layout (owner, 1.3.0) */
+.char-sheet { --cs-line: #6b3f22; --cs-fill: rgba(255, 250, 235, 0.72); }
+.cs-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; margin-bottom: 12px; }
+.cs-ability, .cs-box {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 86px; padding: 8px 8px 18px; background: var(--cs-fill); border: 2px solid var(--cs-line); border-radius: 10px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+.cs-ability { min-height: 94px; padding-bottom: 24px; justify-content: flex-start; }
+.cs-box { padding-bottom: 8px; }
+.cs-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #4a2e16; }
+.cs-big { font-size: 26px; font-weight: 600; line-height: 1.1; color: #1c120a; }
+.cs-big.cs-mid { font-size: 18px; }
+.cs-ability .score { position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); margin: 0; }
+.cs-ability .score label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.cs-ability .score input {
+  width: 44px; height: 26px; min-height: 0; padding: 0; text-align: center; font-weight: 700; border: 2px solid var(--cs-line);
+  border-radius: 13px; background: #fffaf0;
+}
+.cs-big-input { margin: 0; }
+.cs-big-input label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
+.cs-big-input input { width: 56px; min-height: 0; height: 34px; padding: 0 4px; text-align: center; font-size: 20px; font-weight: 600; }
+.cs-shield { border-radius: 10px 10px 40px 40px; }
+.cs-shield .cs-big-input label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.cs-hp { flex: 1 1 220px; }
+.cs-hp-row { display: flex; align-items: flex-end; gap: 6px; }
+.cs-slash { font-size: 24px; padding-bottom: 2px; }
+.cs-body { display: grid; grid-template-columns: minmax(200px, 0.9fr) minmax(220px, 1fr) minmax(300px, 1.6fr); gap: 12px; align-items: start; }
+.cs-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cs-card, .cs-skills { background: var(--cs-fill); border: 2px solid var(--cs-line); border-radius: 10px; padding: 8px 10px; }
+.cs-title { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: #4a2e16; }
+.cs-saves, .cs-skills ul { list-style: none; margin: 0; padding: 0; }
+.cs-saves li, .cs-skills li { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid rgba(107, 63, 34, 0.18); font-size: 13px; }
+.cs-dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #4a2e16; flex: none; }
+.cs-dot.is-on { background: #2a1a0c; }
+.cs-ab { width: 30px; font-size: 10px; font-weight: 700; color: #6b5a3a; }
+.cs-bonus { margin-left: auto; min-width: 34px; text-align: center; border: 1px solid var(--cs-line); border-radius: 4px; background: #fffaf0; font-weight: 600; }
+.cs-passive { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+.cs-passive-n { min-width: 30px; height: 26px; display: inline-grid; place-items: center; border: 2px solid var(--cs-line); border-radius: 6px; background: #fffaf0; font-size: 14px; }
+.cs-small { font-size: 12.5px; margin: 4px 0; }
+.cs-conditions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cs-conditions .cs-title { text-align: left; }
+.cs-tabs { margin: 0; }
+@media (max-width: 1250px) { .cs-body { grid-template-columns: 1fr 1fr; } .cs-right { grid-column: span 2; } }

@@ -7,12 +7,13 @@ import { DeskFrame } from '../components/DeskFrame'
 import { Roll20Dialog } from '../components/Roll20Dialog'
 import { Dialog } from '../components/Dialog'
 import { call } from '../api'
-import { DETAIL_FIELDS, fillableFields, INTERNAL_KEYS, type CardField } from '../../shared/cardFields'
+import { FACTION_LINK, fillableFields, INTERNAL_KEYS, SECRET, tabFields, tabTitle, type CardField } from '../../shared/cardFields'
 import { ExportDialog } from '../components/ExportDialog'
 import { CommitField, ScoreField } from '../components/fields'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import {
-  ABILITY_KEYS, HAS_STATBLOCK, abilityModifier, emptyStatBlock, formatModifier, readStatBlock, type StatBlock
+  ABILITY_KEYS, HAS_STATBLOCK, SKILLS, abilityModifier, crToNumber, emptyStatBlock, formatModifier, leadingNumber, passiveScore, proficiencyBonus,
+  readStatBlock, saveBonus, skillBonus, type StatBlock
 } from '../../shared/statblock'
 import { AbilityKind, ENTITY_TYPES, type EntityType, type KnowledgeField } from '../../shared/schemas'
 import type { IpcInput } from '../../shared/ipc'
@@ -20,9 +21,10 @@ import type { AbilityView, SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
 
-type Tab = 'fight' | 'sheet' | 'bio' | 'connections'
+type Tab = 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
 
 const ABILITY_NAMES = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const
+const ABILITY_FULL = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' } as const
 const KIND_LABELS: Record<AbilityKind, string> = {
   ACTION: 'Action', BONUS_ACTION: 'Bonus action', REACTION: 'Reaction', LEGENDARY_ACTION: 'Legendary action',
   SPELL: 'Spell', OTHER: 'Other'
@@ -44,10 +46,12 @@ export function SheetScreen() {
 function Sheet({ sheet }: { sheet: SheetView }) {
   const side = useSidePanel('sheet-side', 'right', 340)
   const { act, showOnBoard, openSheet } = useBoard()
-  const [tab, setTab] = useState<Tab>(['NPC', 'MONSTER'].includes(sheet.entity.type) ? 'fight' : 'sheet')
+  const creature = HAS_STATBLOCK.has(sheet.entity.type)
+  const [tab, setTab] = useState<Tab>(['NPC', 'MONSTER'].includes(sheet.entity.type) ? 'fight' : creature ? 'sheet' : 'traits')
   const [colourDraft, setColourDraft] = useState('')
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
-  const [filling, setFilling] = useState(false)
+  /** Fill blanks with AI: null = closed; otherwise the fields to offer (empty list = every empty field). */
+  const [filling, setFilling] = useState<string[] | null>(null)
   const e = sheet.entity
   const update = (patch: IpcInput<'entity:update'>['patch']) => void act('entity:update', { id: e.id, patch })
   const str = (key: string) => (typeof e.attributes[key] === 'string' ? (e.attributes[key] as string) : '')
@@ -57,63 +61,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const source = e.attributes.source as { name?: string } | undefined
   const p = `sheet-${e.id}`
 
-  return (
-    <>
-      <div className="page-head">
-        <BackButton />
-        <div className="page-title">
-          <span className="badge" style={{ background: colourOf(e) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
-          <h1>{e.name}</h1>
-          {e.status === 'defunct' && <span className="source-tag">In History</span>}
-          {e.status === 'resolved' && <span className="muted">Resolved</span>}
-          {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
-        </div>
-        <button onClick={() => void showOnBoard(e.id)}>Show on board</button>
-        {e.type !== 'PC' && <button onClick={() => setFilling(true)}>Fill blanks with AI…</button>}
-        <button onClick={() => setExporting('print')}>{e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…'}</button>
-        {['NPC', 'PC', 'MONSTER'].includes(e.type) && <button onClick={() => setExporting('roll20')}>Export to Roll20…</button>}
-        <button onClick={async () => {
-          const copy = await act('entity:duplicate', { id: e.id })
-          if (copy) await openSheet(copy.id)
-        }}>Duplicate</button>
-        <button className="danger" onClick={async () => {
-          await act('entity:setStatus', { id: e.id, status: e.status === 'defunct' ? 'active' : 'defunct' })
-        }}>{e.status === 'defunct' ? 'Revive' : 'Move to History'}</button>
-      </div>
-
-      {filling && <FillDialog sheet={sheet} onClose={() => setFilling(false)} />}
-      {exporting === 'roll20' && <Roll20Dialog entityIds={[e.id]} title={`Roll20: ${e.name}`} onClose={() => setExporting(null)} />}
-      {exporting === 'print' && <ExportDialog kind={e.type === 'HANDOUT' ? 'letters' : 'sheets'} entityIds={[e.id]} title={e.name} onClose={() => setExporting(null)} />}
-      <nav className="tabs" role="tablist" aria-label="Sheet sections">
-        {([...(HAS_STATBLOCK.has(e.type) ? [['fight', 'Fight summary']] as const : []), ['sheet', HAS_STATBLOCK.has(e.type) ? 'Full sheet' : 'Sheet'], ['bio', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Bio and notes'], ['connections', `Connections (${sheet.connections.length})`]] as const).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
-        ))}
-      </nav>
-
-      <div className="sheet-body">
-        {tab === 'fight' && <FightSummary sheet={sheet} onFullSheet={() => setTab('sheet')} />}
-        {tab === 'sheet' && (
-          <>
-            <div className="sheet-main">
-              {HAS_STATBLOCK.has(e.type)
-                ? <StatBlockPanel sheet={sheet} />
-                : (
-                  <section className="panel">
-                    <h2 className="panel-heading">Details</h2>
-                    <CommitField id={`${p}-description`} label="Description" value={str('description')} multiline rows={8}
-                      onCommit={(description) => update({ attributes: { description } })} />
-                    {e.type === 'LOCATION' && (
-                      <>
-                        <CommitField id={`${p}-biome`} label="Biome" value={str('biome')} placeholder="Forest, city, swamp…"
-                          onCommit={(biome) => update({ attributes: { biome } })} />
-                        <CommitField id={`${p}-atmosphere`} label="Atmosphere" value={str('atmosphere')} multiline rows={3}
-                          hint="How the townsfolk behave. Scene descriptions will draw on this."
-                          onCommit={(atmosphere) => update({ attributes: { atmosphere } })} />
-                      </>
-                    )}
-                  </section>
-                )}
-            </div>
+  const templateSide = (
             <div className="sheet-side" style={{ flex: `0 1 ${side.width}px` }}>
               {side.grip}
               <section className="panel">
@@ -130,8 +78,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                   onCommit={(summary) => update({ attributes: { summary } })} />
                 <CommitField id={`${p}-location`} label={lab('location', 'Default location')} value={str('location')}
                   onCommit={(location) => update({ attributes: { location } })} />
-                <CommitField id={`${p}-motivation`} label={lab('motivation', 'Motivation')} value={str('motivation')} placeholder="What this character wants"
-                  onCommit={(motivation) => update({ attributes: { motivation } })} />
+                {e.type === 'LOCATION' && <CommitField id={`${p}-biome`} label="Biome" value={str('biome')} placeholder="Forest, city, swamp…"
+                  onCommit={(biome) => update({ attributes: { biome } })} />}
                 <CommitField id={`${p}-tags`} label="Tags" value={e.tags.join(', ')} hint="Separate tags with commas."
                   onCommit={(t) => update({ tags: [...new Set(t.split(',').map((x) => x.trim()).filter(Boolean))] })} />
                 <div className="field">
@@ -153,10 +101,64 @@ function Sheet({ sheet }: { sheet: SheetView }) {
               <CustomFields sheet={sheet} />
               <PartyKnows sheet={sheet} />
             </div>
+  )
+
+  return (
+    <>
+      <div className="page-head">
+        <BackButton />
+        <div className="page-title">
+          <span className="badge" style={{ background: colourOf(e) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
+          <h1>{e.name}</h1>
+          {e.status === 'defunct' && <span className="source-tag">In History</span>}
+          {e.status === 'resolved' && <span className="muted">Resolved</span>}
+          {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
+        </div>
+        <button onClick={() => void showOnBoard(e.id)}>Show on board</button>
+        <button onClick={() => setFilling([])}>Fill blanks with AI…</button>
+        <button onClick={() => setExporting('print')}>{e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…'}</button>
+        {['NPC', 'PC', 'MONSTER'].includes(e.type) && <button onClick={() => setExporting('roll20')}>Export to Roll20…</button>}
+        <button onClick={async () => {
+          const copy = await act('entity:duplicate', { id: e.id })
+          if (copy) await openSheet(copy.id)
+        }}>Duplicate</button>
+        <button className="danger" onClick={async () => {
+          await act('entity:setStatus', { id: e.id, status: e.status === 'defunct' ? 'active' : 'defunct' })
+        }}>{e.status === 'defunct' ? 'Revive' : 'Move to History'}</button>
+      </div>
+
+      {filling && <FillDialog sheet={sheet} only={filling} onClose={() => setFilling(null)} />}
+      {exporting === 'roll20' && <Roll20Dialog entityIds={[e.id]} title={`Roll20: ${e.name}`} onClose={() => setExporting(null)} />}
+      {exporting === 'print' && <ExportDialog kind={e.type === 'HANDOUT' ? 'letters' : 'sheets'} entityIds={[e.id]} title={e.name} onClose={() => setExporting(null)} />}
+      <nav className="tabs" role="tablist" aria-label="Sheet sections">
+        {([
+          ...(creature ? [['fight', 'Fight summary'], ['sheet', 'Full sheet']] as const : []),
+          ['traits', tabTitle(e.type)], ['secrets', 'Secrets'],
+          ['notes', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Notes'],
+          ['connections', `Connections (${sheet.connections.length})`]
+        ] as const).map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
+        ))}
+      </nav>
+
+      <div className="sheet-body">
+        {tab === 'fight' && <FightSummary sheet={sheet} onFullSheet={() => setTab('sheet')} />}
+        {tab === 'sheet' && (
+          <>
+            <div className="sheet-main"><StatBlockPanel sheet={sheet} /></div>
+            {templateSide}
           </>
         )}
-
-        {tab === 'bio' && (
+        {tab === 'traits' && (
+          <>
+            <div className={creature ? 'sheet-main wide' : 'sheet-main'}>
+              <TraitsPanel sheet={sheet} lab={lab} onFill={(keys) => setFilling(keys)} />
+            </div>
+            {!creature && templateSide}
+          </>
+        )}
+        {tab === 'secrets' && <SecretsPanel sheet={sheet} lab={lab} onFill={() => setFilling(['secret'])} />}
+        {tab === 'notes' && (
           <div className="sheet-main wide">
             {e.type === 'HANDOUT' && (
               <section className="panel">
@@ -173,10 +175,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
               </section>
             )}
             <section className="panel">
-              <CommitField id={`${p}-bio`} label={lab('bio', 'Bio')} value={str('bio')} multiline rows={10}
-                hint="Background, appearance, how they talk. Saved when you click away; Ctrl+Enter also saves."
-                onCommit={(bio) => update({ attributes: { bio } })} />
-              <CommitField id={`${p}-notes`} label="DM notes" value={str('notes')} multiline rows={8}
+              <CommitField id={`${p}-notes`} label="DM notes" value={str('notes')} multiline rows={10}
                 hint="Private to you. Never shown to players."
                 onCommit={(notes) => update({ attributes: { notes } })} />
             </section>
@@ -210,35 +209,150 @@ function colourOf(e: SheetView['entity']): string {
 type CustomField = { label: string; value: string }
 
 /** Any extra fields the DM wants on this card, label and value. */
-/** The per-type text fields (and any other text the card carries, e.g. from a notes import). */
+/** Any other text the card carries (e.g. from a notes import) that has no place of its own. */
 function DetailsPanel({ sheet, lab }: { sheet: SheetView; lab(key: string, label: string): string }) {
   const act = useBoard((s) => s.act)
   const e = sheet.entity
-  const fields = DETAIL_FIELDS[e.type]
-  const shown = new Set([...fields.map((f) => f.key), ...fillableFields(e.type).map((f) => f.key)])
+  const shown = new Set(fillableFields(e.type).map((f) => f.key))
   const others = Object.entries(e.attributes)
     .filter(([k, v]) => typeof v === 'string' && v.trim() && !shown.has(k) && !INTERNAL_KEYS.has(k))
     .map(([k]): CardField => ({ key: k, label: k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), long: true }))
-  if (!fields.length && !others.length) return null
+  if (!others.length) return null
   const val = (k: string) => (typeof e.attributes[k] === 'string' ? (e.attributes[k] as string) : '')
   return (
     <section className="panel">
-      <h2 className="panel-heading">Details</h2>
-      {[...fields, ...others].map((f) => (
+      <h2 className="panel-heading">Other details</h2>
+      {others.map((f) => (
         <CommitField key={f.key} id={`detail-${e.id}-${f.key}`} label={lab(f.key, f.label)} value={val(f.key)}
-          multiline={!!f.long} rows={3} hint={f.hint}
-          onCommit={(v) => void act('entity:update', { id: e.id, patch: { attributes: { [f.key]: v } } })} />
+          multiline rows={3} onCommit={(v) => void act('entity:update', { id: e.id, patch: { attributes: { [f.key]: v } } })} />
       ))}
     </section>
   )
 }
 
+const filled = (e: SheetView['entity'], key: string) => typeof e.attributes[key] === 'string' && (e.attributes[key] as string).trim() !== ''
+
+/** Sheet › "Features, traits, background" or "Descriptions & history": every per-type field, with AI fill. */
+function TraitsPanel({ sheet, lab, onFill }: { sheet: SheetView; lab(key: string, label: string): string; onFill(keys: string[]): void }) {
+  const act = useBoard((s) => s.act)
+  const e = sheet.entity
+  const fields = tabFields(e.type)
+  const empty = fields.filter((f) => !filled(e, f.key))
+  const val = (k: string) => (typeof e.attributes[k] === 'string' ? (e.attributes[k] as string) : '')
+  return (
+    <section className="panel traits-panel">
+      <div className="panel-head-row">
+        <h2 className="panel-heading">{tabTitle(e.type)}</h2>
+        <button disabled={empty.length === 0} title={empty.length ? `Suggest the ${empty.length} empty field${empty.length === 1 ? '' : 's'}` : 'Every field is filled'}
+          onClick={() => onFill(empty.map((f) => f.key))}>Fill blanks with AI…</button>
+      </div>
+      <p className="hint">Empty spaces are yours to fill, or let the AI suggest them. Saved when you click away.</p>
+      {FACTION_LINK[e.type] && <FactionsField sheet={sheet} />}
+      <div className="traits-grid">
+        {fields.map((f) => (
+          <CommitField key={f.key} id={`trait-${e.id}-${f.key}`} label={lab(f.key, f.label)} value={val(f.key)}
+            multiline={!!f.long} rows={f.long ? 4 : 1} hint={f.hint} className={f.long ? 'span-2' : undefined}
+            onCommit={(v) => void act('entity:update', { id: e.id, patch: { attributes: { [f.key]: v } } })} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** Factions this card belongs to (people) or that hold it (places): strings to faction cards. */
+function FactionsField({ sheet }: { sheet: SheetView }) {
+  const { act, openSheet, info } = useBoard()
+  const e = sheet.entity
+  const kind = FACTION_LINK[e.type]!
+  const [newName, setNewName] = useState<string | null>(null)
+  const linked = sheet.connections.filter((c) => c.other.type === 'FACTION')
+  const choices = sheet.others.filter((o) => o.type === 'FACTION' && !linked.some((c) => c.other.id === o.id))
+  const link = (factionId: string) => act('relationship:create', { sourceId: e.id, targetId: factionId, type: kind, isSecret: false })
+  const createAndLink = async () => {
+    const name = newName?.trim()
+    if (!name || !info) return
+    const f = await act('entity:create', { boardId: info.globalBoardId, type: 'FACTION', name })
+    if (f) await link(f.id)
+    setNewName(null)
+  }
+  return (
+    <div className="field factions-field">
+      <span className="field-label">Factions</span>
+      <div className="chips">
+        {linked.length === 0 && <span className="hint">None yet.</span>}
+        {linked.map((c) => (
+          <span key={c.relationship.id} className="chip">
+            <button className="link-button" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button>
+            <span className="muted"> · {c.relationship.type.replace(/_/g, ' ').toLowerCase()}{c.relationship.isSecret ? ', secret' : ''}</span>
+            <button className="chip-x" aria-label={`Remove ${c.other.name} (the string goes to History)`}
+              onClick={() => void act('relationship:setStatus', { id: c.relationship.id, status: 'defunct' })}>×</button>
+          </span>
+        ))}
+        {newName === null ? (
+          <select aria-label="Add a faction" value="" onChange={(ev) => {
+            if (ev.target.value === '__new__') setNewName('')
+            else if (ev.target.value) void link(ev.target.value)
+          }}>
+            <option value="">+ Add a faction…</option>
+            {choices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            <option value="__new__">New faction…</option>
+          </select>
+        ) : (
+          <form className="row tight" onSubmit={(ev) => { ev.preventDefault(); void createAndLink() }}>
+            <input autoFocus value={newName} maxLength={200} placeholder="Faction name" aria-label="New faction name" onChange={(ev) => setNewName(ev.target.value)} />
+            <button type="submit" className="primary" disabled={!newName.trim()}>Add</button>
+            <button type="button" onClick={() => setNewName(null)}>Cancel</button>
+          </form>
+        )}
+      </div>
+      <div className="hint">Each faction is a string on the board ({kind.replace(/_/g, ' ').toLowerCase()}).</div>
+    </div>
+  )
+}
+
+/** Sheet › Secrets: the card's secrets and every secret string that touches it. */
+function SecretsPanel({ sheet, lab, onFill }: { sheet: SheetView; lab(key: string, label: string): string; onFill(): void }) {
+  const { act, openSheet } = useBoard()
+  const e = sheet.entity
+  const secrets = sheet.connections.filter((c) => c.relationship.isSecret)
+  return (
+    <div className="sheet-main wide">
+      <section className="panel">
+        <div className="panel-head-row">
+          <h2 className="panel-heading">Secrets</h2>
+          <button disabled={filled(e, 'secret')} onClick={onFill}>Fill blank with AI…</button>
+        </div>
+        <CommitField id={`secret-${e.id}`} label={lab('secret', 'What only you know')} value={typeof e.attributes.secret === 'string' ? e.attributes.secret : ''}
+          multiline rows={8} hint={SECRET.hint} onCommit={(secret) => void act('entity:update', { id: e.id, patch: { attributes: { secret } } })} />
+      </section>
+      <section className="panel">
+        <h2 className="panel-heading">Secret strings</h2>
+        {secrets.length === 0 ? <p className="hint">No secret strings touch this card. Tick Secret link when you tie one.</p> : (
+          <ul className="connections">
+            {secrets.map((c) => (
+              <li key={c.relationship.id}>
+                <span className="conn-text">
+                  {c.outgoing ? e.name : <button className="link" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button>}
+                  <span className="mono conn-type">{c.relationship.type.replace(/_/g, ' ')} →</span>
+                  {c.outgoing ? <button className="link" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button> : e.name}
+                </span>
+                {c.partyKnows && <span className="tag-known">Party knows</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  )
+}
+
 /** Card sheet › Fill blanks with AI: pick empty fields, get suggestions, keep the ones you like. */
-function FillDialog({ sheet, onClose }: { sheet: SheetView; onClose(): void }) {
+function FillDialog({ sheet, only, onClose }: { sheet: SheetView; only: string[]; onClose(): void }) {
   const { act, say, setAiSettingsOpen } = useBoard()
   const e = sheet.entity
-  const empty = fillableFields(e.type).filter((f) => !(typeof e.attributes[f.key] === 'string' && (e.attributes[f.key] as string).trim()))
-  const canBase = (e.type === 'NPC' || e.type === 'MONSTER') && !readStatBlock(e.attributes.statblock)
+  // Opened from a tab: that tab's empty fields; from the header: every empty field.
+  const empty = fillableFields(e.type).filter((f) => !filled(e, f.key) && (only.length === 0 || only.includes(f.key)))
+  const canBase = only.length === 0 && (e.type === 'NPC' || e.type === 'MONSTER') && !readStatBlock(e.attributes.statblock)
   const [pick, setPick] = useState<Set<string>>(new Set(empty.map((f) => f.key)))
   const [base, setBase] = useState(canBase)
   const [ask, setAsk] = useState('')
@@ -342,50 +456,150 @@ function CustomFields({ sheet }: { sheet: SheetView }) {
   )
 }
 
+/** Full sheet: a character-sheet layout (ability boxes, the numbers a DM checks, saves, senses, skills, tabs). */
 function StatBlockPanel({ sheet }: { sheet: SheetView }) {
   const act = useBoard((s) => s.act)
   const e = sheet.entity
+  const [right, setRight] = useState<'actions' | 'traits' | 'defenses' | 'details'>('actions')
   const sb: StatBlock = readStatBlock(e.attributes.statblock) ?? emptyStatBlock()
   const save = (patch: Partial<StatBlock>) =>
     void act('entity:update', { id: e.id, patch: { attributes: { statblock: { ...sb, ...patch } } } })
+  const setAttr = (attributes: Record<string, unknown>) => void act('entity:update', { id: e.id, patch: { attributes } })
   const p = `sb-${e.id}`
-  const text = (key: keyof StatBlock, label: string, opts: { span?: boolean; placeholder?: string } = {}) => (
-    <CommitField id={`${p}-${key}`} label={label} value={String(sb[key] ?? '')} placeholder={opts.placeholder}
+  const text = (key: keyof StatBlock, label: string, opts: { span?: boolean; placeholder?: string; hint?: string } = {}) => (
+    <CommitField id={`${p}-${key}`} label={label} value={String(sb[key] ?? '')} placeholder={opts.placeholder} hint={opts.hint}
       className={opts.span ? 'span-2' : undefined} onCommit={(v) => save({ [key]: v } as Partial<StatBlock>)} />
   )
+  const level = typeof e.attributes.level === 'string' ? e.attributes.level : ''
+  const rank = e.type === 'PC' ? Number.parseInt(level, 10) : crToNumber(sb.cr)
+  const prof = rank && Number.isFinite(rank) ? proficiencyBonus(rank) : null
+  const maxHp = leadingNumber(sb.hp)
+  const curHp = typeof e.attributes.current_hp === 'number' ? e.attributes.current_hp : maxHp
+  const tempHp = typeof e.attributes.temp_hp === 'number' ? e.attributes.temp_hp : 0
+  const walk = /\d+\s*(ft|m)\.?/i.exec(sb.speed)?.[0] ?? sb.speed
+  const num = (v: string) => { const n = Number.parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : 0 }
+  const defenses = [['Resistances', sb.resistances], ['Immunities', sb.immunities], ['Vulnerabilities', sb.vulnerabilities], ['Condition immunities', sb.conditionImmunities]].filter(([, v]) => v)
 
   return (
-    <section className="panel">
-      <h2 className="panel-heading">Stat block (5e, editable)</h2>
-      <div className="grid-2">
-        {text('size', 'Size', { placeholder: 'Medium' })}
-        {text('creatureType', 'Creature type', { placeholder: 'fiend' })}
-        {text('alignment', 'Alignment', { span: true })}
-        {text('ac', 'Armor class', { placeholder: '15' })}
-        {text('acDetail', 'Armor', { placeholder: 'natural armor' })}
-        {text('hp', 'Hit points', { placeholder: '82' })}
-        {text('hitDice', 'Hit dice', { placeholder: '11d8 + 33' })}
-        {text('speed', 'Speed', { placeholder: '30 ft., fly 60 ft.' })}
-        {text('cr', 'Challenge', { placeholder: '1' })}
-      </div>
-      <div className="scores">
+    <section className="panel char-sheet">
+      <div className="cs-top">
         {ABILITY_KEYS.map((k) => (
-          <ScoreField key={k} id={`${p}-${k}`} label={ABILITY_NAMES[k]} value={sb[k]} min={1} max={30}
-            note={formatModifier(abilityModifier(sb[k]))} onCommit={(v) => save({ [k]: v } as Partial<StatBlock>)} />
+          <div key={k} className="cs-ability">
+            <span className="cs-label">{ABILITY_FULL[k]}</span>
+            <span className="cs-big">{formatModifier(abilityModifier(sb[k]))}</span>
+            <ScoreField id={`${p}-${k}`} label={`${ABILITY_FULL[k]} score`} value={sb[k]} min={1} max={30} onCommit={(v) => save({ [k]: v } as Partial<StatBlock>)} />
+          </div>
         ))}
+        <div className="cs-box" title={e.type === 'PC' ? 'From the level' : 'From the challenge rating'}>
+          <span className="cs-label">Proficiency</span>
+          <span className="cs-big">{prof === null ? '—' : formatModifier(prof)}</span>
+          <span className="cs-label">bonus</span>
+        </div>
+        <div className="cs-box">
+          <span className="cs-label">Walking</span>
+          <span className="cs-big cs-mid">{walk || '—'}</span>
+          <span className="cs-label">speed</span>
+        </div>
+        <div className="cs-box">
+          <span className="cs-label">Initiative</span>
+          <span className="cs-big">{formatModifier(abilityModifier(sb.dex))}</span>
+        </div>
+        <div className="cs-box cs-shield">
+          <span className="cs-label">Armor</span>
+          <CommitField id={`${p}-ac-big`} label="Armor class" value={sb.ac} className="cs-big-input" onCommit={(ac) => save({ ac })} />
+          <span className="cs-label">class</span>
+        </div>
+        <div className="cs-box cs-hp">
+          <div className="cs-hp-row">
+            <CommitField id={`${p}-hp-cur`} label="Current" value={curHp === null ? '' : String(curHp)} className="cs-big-input"
+              onCommit={(v) => setAttr({ current_hp: num(v) })} />
+            <span className="cs-slash" aria-hidden="true">/</span>
+            <CommitField id={`${p}-hp-max`} label="Max" value={maxHp === null ? sb.hp : String(maxHp)} className="cs-big-input"
+              onCommit={(v) => save({ hp: sb.hitDice || !/\(/.test(sb.hp) ? v : sb.hp.replace(/^\s*\d+/, v) })} />
+            <CommitField id={`${p}-hp-temp`} label="Temp" value={String(tempHp)} className="cs-big-input"
+              onCommit={(v) => setAttr({ temp_hp: num(v) })} />
+          </div>
+          <span className="cs-label">Hit points</span>
+        </div>
       </div>
-      <div className="grid-2">
-        {text('saves', 'Saving throws', { span: true })}
-        {text('skills', 'Skills', { span: true })}
-        {text('vulnerabilities', 'Damage vulnerabilities')}
-        {text('resistances', 'Damage resistances')}
-        {text('immunities', 'Damage immunities')}
-        {text('conditionImmunities', 'Condition immunities')}
-        {text('senses', 'Senses', { span: true })}
-        {text('languages', 'Languages', { span: true })}
+
+      <div className="cs-body">
+        <div className="cs-col">
+          <div className="cs-card">
+            <h3 className="cs-title">Saving throws</h3>
+            <ul className="cs-saves">
+              {ABILITY_KEYS.map((k) => {
+                const s2 = saveBonus(sb, k)
+                return <li key={k}><span className={`cs-dot${s2.proficient ? ' is-on' : ''}`} aria-label={s2.proficient ? 'proficient' : undefined} />{ABILITY_NAMES[k]}<span className="cs-bonus">{formatModifier(s2.bonus)}</span></li>
+              })}
+            </ul>
+          </div>
+          <div className="cs-card">
+            <h3 className="cs-title">Senses</h3>
+            {(['Perception', 'Investigation', 'Insight'] as const).map((s2) => (
+              <div key={s2} className="cs-passive"><span className="cs-passive-n">{passiveScore(sb, s2)}</span>Passive {s2}</div>
+            ))}
+            {sb.senses && <p className="cs-small">{sb.senses}</p>}
+          </div>
+          <div className="cs-card">
+            <h3 className="cs-title">Proficiencies and languages</h3>
+            {e.type === 'PC' && <CommitField id={`${p}-level`} label="Level" value={level} placeholder="9" onCommit={(v) => setAttr({ level: v })} />}
+            <p className="cs-small"><strong>Languages:</strong> {sb.languages || '—'}</p>
+            <p className="cs-small"><strong>{e.type === 'PC' ? 'Challenge (not used for PCs)' : 'Challenge'}:</strong> {sb.cr || '—'}</p>
+            <p className="cs-small">{[sb.size, sb.creatureType].filter(Boolean).join(' ')}{sb.alignment ? `, ${sb.alignment}` : ''}</p>
+          </div>
+        </div>
+        <div className="cs-col cs-skills">
+          <h3 className="cs-title">Skills</h3>
+          <ul>
+            {SKILLS.map(([name, ab]) => {
+              const s2 = skillBonus(sb, name, ab)
+              return <li key={name}><span className={`cs-dot${s2.proficient ? ' is-on' : ''}`} aria-label={s2.proficient ? 'proficient' : undefined} /><span className="cs-ab">{ABILITY_NAMES[ab]}</span>{name}<span className="cs-bonus">{formatModifier(s2.bonus)}</span></li>
+            })}
+          </ul>
+          <p className="hint">Change saves and skills under Details: list the ones it is proficient in, e.g. “Stealth +6”.</p>
+        </div>
+        <div className="cs-col cs-right">
+          <div className="cs-card cs-conditions">
+            <div><h3 className="cs-title">Defenses</h3>
+              {defenses.length ? defenses.map(([l, v]) => <p key={l} className="cs-small"><strong>{l}:</strong> {v}</p>) : <p className="cs-small muted">None</p>}</div>
+            <CommitField id={`${p}-conditions`} label="Conditions" value={typeof e.attributes.conditions === 'string' ? e.attributes.conditions : ''}
+              placeholder="poisoned, prone…" onCommit={(conditions) => setAttr({ conditions })} />
+          </div>
+          <div className="segmented full cs-tabs" role="tablist" aria-label="Stat block sections">
+            {([['actions', 'Actions'], ['traits', 'Features & traits'], ['defenses', 'Defenses'], ['details', 'Details']] as const).map(([id, label]) => (
+              <button key={id} role="tab" aria-selected={right === id} aria-pressed={right === id} onClick={() => setRight(id)}>{label}</button>
+            ))}
+          </div>
+          {right === 'actions' && <Abilities sheet={sheet} />}
+          {right === 'traits' && <Traits sb={sb} save={save} entityId={e.id} />}
+          {right === 'defenses' && (
+            <div className="grid-2">
+              {text('resistances', 'Damage resistances', { span: true })}
+              {text('immunities', 'Damage immunities', { span: true })}
+              {text('vulnerabilities', 'Damage vulnerabilities', { span: true })}
+              {text('conditionImmunities', 'Condition immunities', { span: true })}
+            </div>
+          )}
+          {right === 'details' && (
+            <div className="grid-2">
+              {text('size', 'Size', { placeholder: 'Medium' })}
+              {text('creatureType', 'Creature type', { placeholder: 'fiend' })}
+              {text('alignment', 'Alignment', { span: true })}
+              {text('ac', 'Armor class', { placeholder: '15' })}
+              {text('acDetail', 'Armor', { placeholder: 'natural armor' })}
+              {text('hp', 'Hit points', { placeholder: '82' })}
+              {text('hitDice', 'Hit dice', { placeholder: '11d8 + 33' })}
+              {text('speed', 'Speed', { placeholder: '30 ft., fly 60 ft.' })}
+              {text('cr', 'Challenge', { placeholder: '1' })}
+              {text('saves', 'Saving throws', { span: true, placeholder: 'Str +7, Con +9' })}
+              {text('skills', 'Skills', { span: true, placeholder: 'Athletics +6, Stealth +6' })}
+              {text('senses', 'Senses', { span: true, placeholder: 'darkvision 60 ft., passive Perception 12' })}
+              {text('languages', 'Languages', { span: true })}
+            </div>
+          )}
+        </div>
       </div>
-      <Traits sb={sb} save={save} entityId={e.id} />
-      <Abilities sheet={sheet} />
     </section>
   )
 }

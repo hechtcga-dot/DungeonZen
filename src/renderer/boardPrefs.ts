@@ -15,7 +15,8 @@ const KEY = 'dz-board-prefs'
 const DEFAULTS: BoardPrefs = { showHidden: false, pictures: true, tint: true, actMarks: true, greyCards: true, greyNotes: true, layer: 'cards' }
 
 function load(): BoardPrefs {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } } catch { return DEFAULTS }
+  // The board always opens moving cards; moving the background is a short job.
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}'), layer: 'cards' } } catch { return DEFAULTS }
 }
 
 export const useBoardPrefs = create<BoardPrefs & { set(patch: Partial<BoardPrefs>): void }>((set, get) => ({
