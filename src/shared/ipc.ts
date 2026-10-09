@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { StatBlock } from './statblock'
 import { GRID_MAX, GRID_MIN } from './battlemap'
 import { ImportDraft, type ImportDraftSummary } from './notesImport'
 import { BIOMES, PLACE_KINDS, WORLD_CLIMATES, WORLD_SIZES, type PlaceShape } from './places'
@@ -80,6 +81,16 @@ export const ipcInputs = {
     query: z.string().max(200), kind: z.enum(['monsters', 'items', 'both']), crMin: OptionalNumber, crMax: OptionalNumber
   }),
   'srd:monsters': z.void(),
+  'entity:scaleCr': z.object({ entityId: Id, cr: z.string().min(1).max(10) }),
+  'ai:statblock': z.object({ entityId: Id, description: z.string().max(4000), cr: z.string().max(10), size: z.string().max(40), creatureType: z.string().max(80), role: z.string().max(80) }),
+  'entity:applyStatBlock': z.object({
+    entityId: Id, statblock: StatBlock, source: z.string().max(200),
+    actions: z.array(z.object({ name: Name, kind: AbilityKind, description: z.string().max(5000) })).max(30)
+  }),
+  'entity:pictureDialog': z.object({ entityId: Id }),
+  'entity:drawPicture': z.object({ entityId: Id, ask: z.string().max(2000) }),
+  'entity:keepPicture': z.object({ entityId: Id, pendingId: z.string().max(80), source: z.string().max(200) }),
+  'entity:removePicture': z.object({ entityId: Id }),
   'srd:addCopy': z.object({ key: z.string().min(1).max(200), boardId: Id }),
   'desk:view': z.void(),
   'map:importDialog': z.void(),
@@ -316,6 +327,13 @@ export interface IpcOutputs {
   'library:search': LibrarySearch
   'srd:search': SrdSearch
   'srd:monsters': SrdMonsterRow[]
+  'entity:scaleCr': void
+  'ai:statblock': { statblock: StatBlock; actions: Array<{ name: string; kind: z.infer<typeof AbilityKind>; description: string }>; source: string }
+  'entity:applyStatBlock': void
+  'entity:pictureDialog': boolean
+  'entity:drawPicture': PendingImageView & { source: string; prompt: string }
+  'entity:keepPicture': void
+  'entity:removePicture': void
   'srd:addCopy': EntityView
   'desk:view': DeskView
   'map:importDialog': MapView | null

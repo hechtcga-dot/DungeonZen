@@ -31,7 +31,9 @@ export const speedUnit = (units: Units) => (units === 'imperial' ? 'mph' : 'km/h
  */
 export function convertText(text: string, units: Units): string {
   if (units === 'imperial' || !text) return text
+  const m = (n: string) => round1((Number(n) / 5) * SQUARE_M)
   return text
+    .replace(/(\d+)\/(\d+)\s?(?:ft\.?|feet)(?![a-z])/gi, (_, a: string, b: string) => `${m(a)}/${m(b)} m`)
     .replace(/(\d+(?:\.\d+)?)(?:-|\s)?(?:ft\.?|feet|foot)(?![a-z])/gi, (_, n: string) => `${round1((Number(n) / 5) * SQUARE_M)} m`)
     .replace(/(\d+(?:\.\d+)?)(?:-|\s)?(?:miles?|mi\.)(?![a-z])/gi, (_, n: string) => `${round1(Number(n) * KM_PER_MILE)} km`)
 }

@@ -17,8 +17,9 @@ import { AbilityKind, ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType, type Kn
 import type { IpcInput } from '../../shared/ipc'
 import type { AbilityView, SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
+import { FightSummary } from '../components/FightSummary'
 
-type Tab = 'sheet' | 'bio' | 'connections'
+type Tab = 'fight' | 'sheet' | 'bio' | 'connections'
 
 const ABILITY_NAMES = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const
 const KIND_LABELS: Record<AbilityKind, string> = {
@@ -42,7 +43,7 @@ export function SheetScreen() {
 function Sheet({ sheet }: { sheet: SheetView }) {
   const side = useSidePanel('sheet-side', 'right', 340)
   const { act, showOnBoard, openSheet } = useBoard()
-  const [tab, setTab] = useState<Tab>('sheet')
+  const [tab, setTab] = useState<Tab>(['NPC', 'MONSTER'].includes(sheet.entity.type) ? 'fight' : 'sheet')
   const [colourDraft, setColourDraft] = useState('')
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
   const [filling, setFilling] = useState(false)
@@ -83,12 +84,13 @@ function Sheet({ sheet }: { sheet: SheetView }) {
       {exporting === 'roll20' && <Roll20Dialog entityIds={[e.id]} title={`Roll20: ${e.name}`} onClose={() => setExporting(null)} />}
       {exporting === 'print' && <ExportDialog kind={e.type === 'HANDOUT' ? 'letters' : 'sheets'} entityIds={[e.id]} title={e.name} onClose={() => setExporting(null)} />}
       <nav className="tabs" role="tablist" aria-label="Sheet sections">
-        {([['sheet', 'Sheet'], ['bio', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Bio and notes'], ['connections', `Connections (${sheet.connections.length})`]] as const).map(([id, label]) => (
+        {([...(HAS_STATBLOCK.has(e.type) ? [['fight', 'Fight summary']] as const : []), ['sheet', HAS_STATBLOCK.has(e.type) ? 'Full sheet' : 'Sheet'], ['bio', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Bio and notes'], ['connections', `Connections (${sheet.connections.length})`]] as const).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
         ))}
       </nav>
 
       <div className="sheet-body">
+        {tab === 'fight' && <FightSummary sheet={sheet} onFullSheet={() => setTab('sheet')} />}
         {tab === 'sheet' && (
           <>
             <div className="sheet-main">

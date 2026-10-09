@@ -29,6 +29,7 @@ import { advise } from '../advisor'
 import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
+import { scaleToCr } from '../../shared/crscale'
 import { rowsFor } from '../../shared/battlemap'
 import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/places'
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
@@ -1996,6 +1997,56 @@ export class Campaign {
    * empty are written (the DM may have typed one meanwhile); each is marked in
    * attributes.ai_filled. An SRD base gives a creature without one a stat block and abilities.
    */
+  /** Raise or lower the challenge rating by the local rules (shared/crscale.ts). One undo step. */
+  scaleCr(entityId: string, cr: string): void {
+    const e = this.entityRow(entityId)
+    const sb = readStatBlock(e.attributes.statblock)
+    if (!sb) throw new Error(`${e.name} has no stat block yet`)
+    const abilities = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
+    const r = scaleToCr(sb, abilities, cr)
+    this.log.run(`${e.name}: challenge rating ${sb.cr} → ${cr}`, (w) => {
+      w.update('entity', entityId, { attributes: { ...e.attributes, statblock: r.statblock } })
+      for (const a of r.abilities) {
+        const old = abilities.find((x) => x.id === a.id)!
+        if (old.description !== a.description || old.macroText !== a.macroText) w.update('ability', a.id, { description: a.description, macroText: a.macroText })
+      }
+    })
+  }
+
+  /**
+   * Puts a whole stat block on a card (an approved AI proposal): the old actions go to History,
+   * the new ones are added; the stat block is marked as written by AI (rule 10). One undo step.
+   */
+  applyStatBlock(entityId: string, statblock: StatBlock, actions: NewAbility[], source: string): void {
+    const e = this.entityRow(entityId)
+    const old = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
+    this.log.run(`New stat block for ${e.name} (AI)`, (w) => {
+      const filled = { ...(e.attributes.ai_filled && typeof e.attributes.ai_filled === 'object' ? e.attributes.ai_filled as Record<string, string> : {}), statblock: source }
+      w.update('entity', entityId, { attributes: { ...e.attributes, statblock, ai_filled: filled } })
+      for (const a of old) w.update('ability', a.id, { status: 'defunct' })
+      actions.forEach((a, i) => this.insertAbility(w, entityId, a, i))
+    })
+  }
+
+  /** A picture for a card's sheet: a file the DM chose, or a kept AI drawing (pending). One undo step. */
+  setPicture(entityId: string, from: { file: string } | { pendingId: string; source: string } | null): void {
+    const e = this.entityRow(entityId)
+    if (!from) {
+      this.log.run(`Removed the picture of ${e.name}`, (w) => { w.update('entity', entityId, { attributes: { ...e.attributes, picture: null, picture_source: null } }) })
+      return
+    }
+    const src = 'file' in from ? from.file : this.pendingFile(from.pendingId)
+    const ext = extname(src).toLowerCase()
+    if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Pictures must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
+    const rel = `pictures/${randomUUID()}${ext}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'pictures'), { recursive: true })
+    if ('file' in from) copyFileSync(src, join(this.folder, ASSETS_DIR, rel))
+    else renameSync(src, join(this.folder, ASSETS_DIR, rel))
+    this.log.run(`New picture for ${e.name}`, (w) => {
+      w.update('entity', entityId, { attributes: { ...e.attributes, picture: rel, picture_source: 'source' in from ? from.source : null } })
+    })
+  }
+
   applyFill(entityId: string, fields: Record<string, string>, source: string, srd?: SrdCopy | null): string[] {
     const e = this.entityRow(entityId)
     const used: string[] = []

@@ -851,3 +851,27 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .srd-detail td { font-size: 13px; color: #4a3b24; background: rgba(255, 252, 240, 0.6); }
 .srd-browser .cell-action .short { width: 56px; }
 @media (max-width: 1000px) { .srd-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.fight-summary { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 20px; align-items: start; width: 100%; }
+.fight-picture { position: sticky; top: 0; }
+.fight-picture img { width: 100%; border-radius: 4px; border: 1px solid rgba(42, 31, 18, 0.35); }
+.fight-nopic { display: grid; place-items: center; aspect-ratio: 1; border: 1px dashed rgba(42, 31, 18, 0.4); border-radius: 4px; color: #7a6a4c; font-style: italic; }
+.fight-tools { align-items: center; }
+.statblock { display: flex; flex-direction: column; gap: 4px; max-width: 760px; }
+.sb-name { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 400; color: #7a1e16; }
+.sb-kind { margin: 0 0 6px; font-style: italic; }
+.sb-core { display: flex; gap: 10px; margin: 4px 0; flex-wrap: wrap; }
+.sb-core > div { display: flex; flex-direction: column; min-width: 110px; padding: 6px 12px; border: 1px solid rgba(122, 30, 22, 0.35); border-radius: 4px; background: rgba(255, 252, 240, 0.55); }
+.sb-core span, .sb-abilities span { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #7a1e16; }
+.sb-core strong { font-size: 26px; line-height: 1.1; }
+.sb-core em, .sb-abilities em { font-style: normal; font-size: 12px; color: #5a4a32; }
+.sb-abilities { border-collapse: collapse; margin: 6px 0; }
+.sb-abilities td { text-align: center; padding: 4px 12px; border: 1px solid rgba(122, 30, 22, 0.25); }
+.sb-abilities td > * { display: block; }
+.sb-abilities strong { font-size: 18px; }
+.sb-line { margin: 0; }
+.sb-head { margin: 10px 0 2px; padding-bottom: 2px; border-bottom: 1px solid #7a1e16; color: #7a1e16; font-family: var(--display); font-weight: 400; font-size: 20px; }
+.sb-entry { margin: 2px 0 6px; line-height: 1.45; }
+.cr-changes { margin: 0; padding-left: 20px; }
+.ai-sb-opts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pic-preview { max-width: 100%; max-height: 50vh; border-radius: 4px; }
+@media (max-width: 1000px) { .fight-summary { grid-template-columns: minmax(0, 1fr); } .ai-sb-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

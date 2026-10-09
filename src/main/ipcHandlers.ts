@@ -10,6 +10,7 @@ import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
 import { RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
+import { STATBLOCK_SYSTEM, parseStatBlock, statBlockPrompt } from './ai/statblock'
 import { parseRegions, REGIONS_SYSTEM, regionsPrompt } from './ai/regions'
 import { generateWorld } from './worldgen'
 import type { PlaceShape } from '../shared/places'
@@ -246,6 +247,44 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const base = wantBase && answer.srdBase ? index.find((m) => m.name.toLowerCase() === answer.srdBase!.replace(/\s*\(CR[^)]*\)\s*$/i, '').trim().toLowerCase()) : undefined
     return { fields: answer.fields, srd: base ? { key: base.key, name: base.name, cr: base.cr } : null, source: `${r.info.name} · ${r.model || 'default model'}` }
   })
+  // ---- monster/NPC sheet: CR up or down, AI stat block, picture
+  handle('entity:scaleCr', ({ entityId, cr }) => current().scaleCr(entityId, cr))
+  handle('ai:statblock', async ({ entityId, ...ask }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const reply = await generateText(r, { system: STATBLOCK_SYSTEM, prompt: statBlockPrompt(current().sheet(entityId), ask), json: true, maxTokens: 4000 })
+    return { ...parseStatBlock(reply), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+  handle('entity:applyStatBlock', ({ entityId, statblock, actions, source }) => current().applyStatBlock(entityId, statblock, actions, source))
+  handle('entity:pictureDialog', async ({ entityId }) => {
+    const win = getWindow()
+    const options = {
+      title: 'Choose a picture', buttonLabel: 'Use this picture', properties: ['openFile'] as Array<'openFile'>,
+      filters: [{ name: 'Images', extensions: MAP_EXTENSIONS.map((e) => e.slice(1)) }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return false
+    current().setPicture(entityId, { file: result.filePaths[0] })
+    return true
+  })
+  handle('entity:drawPicture', async ({ entityId, ask }) => {
+    const choice = profile.aiChoice('image')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const e = c.sheet(entityId).entity
+    const sb = readStatBlock(e.attributes.statblock)
+    const looks = ['summary', 'bio', 'description'].map((k) => e.attributes[k]).find((v) => typeof v === 'string' && v.trim()) as string | undefined
+    const prompt = [
+      `A fantasy illustration of ${e.name}${sb ? `, a ${[sb.size, sb.creatureType].filter(Boolean).join(' ')}` : ''}, for a tabletop role-playing game.`,
+      looks ? `What it is like: ${looks.trim().slice(0, 600)}` : '',
+      ask.trim() ? `The DM asks: ${ask.trim()}` : '',
+      'Full figure on a plain, softly lit background, painted in a classic fantasy book style. No text, no frame.'
+    ].filter(Boolean).join('\n')
+    const image = await generateImage(r, { prompt, references: [], aspect: '1:1' })
+    return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
+  })
+  handle('entity:keepPicture', ({ entityId, pendingId, source }) => current().setPicture(entityId, { pendingId, source }))
+  handle('entity:removePicture', ({ entityId }) => current().setPicture(entityId, null))
   handle('card:applyFill', ({ entityId, fields, source, srdKey }) => current().applyFill(entityId, fields, source, srdKey ? srdCopy(srdKey) : null))
 
   // ---- notes import (Phase 5)
