@@ -921,7 +921,7 @@ export class Campaign {
    * Copies an image into assets/maps. A world map becomes the desk map; a battle map
    * gets a square grid (`gridCols` squares across). One undo step.
    */
-  importMap(sourceFile: string, name?: string, battle?: { gridCols: number }): MapView {
+  importMap(sourceFile: string, name?: string, battle?: { gridCols: number; gridShown?: boolean }): MapView {
     const ext = extname(sourceFile).toLowerCase()
     if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Maps must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
     const id = randomUUID()
@@ -933,7 +933,7 @@ export class Campaign {
     this.log.run(`Imported ${battle ? 'battle ' : ''}map ${mapName}`, (w) => {
       w.insert('map', {
         id, name: mapName, imagePath: rel, width: size?.width ?? null, height: size?.height ?? null,
-        gridSize: null, status: 'active', ...(battle ? { kind: 'battle', gridCols: battle.gridCols } : {})
+        gridSize: null, status: 'active', ...(battle ? { kind: 'battle', gridCols: battle.gridCols, gridShown: !!battle.gridShown } : {})
       })
       if (battle) return
       if (w.get('campaign_settings', 'active_map_id')) w.update('campaign_settings', 'active_map_id', { value: id })
@@ -1928,6 +1928,12 @@ export class Campaign {
     this.log.run(`Set the scale of ${m.name}`, (w) => { w.update('map', mapId, { widthKm, travelKmh }) })
   }
 
+  /** Grid lines drawn over the map, or not. */
+  setMapGridShown(mapId: string, shown: boolean): void {
+    const m = this.mapRow(mapId)
+    this.log.run(`${shown ? 'Showed' : 'Hid'} the grid on ${m.name}`, (w) => { w.update('map', mapId, { gridShown: shown }) })
+  }
+
   /** A square grid over the map (squares across), or none. */
   setMapGrid(mapId: string, cols: number | null): void {
     const m = this.mapRow(mapId)
@@ -2062,7 +2068,7 @@ export class Campaign {
   }
 
   /** Keeps a drawn battle map: it becomes a map with a grid (one undo step). */
-  keepBattleMap(input: { pendingId: string; name: string; cols: number; source: string; prompt: string }): MapView {
+  keepBattleMap(input: { pendingId: string; name: string; cols: number; source: string; prompt: string; gridShown?: boolean }): MapView {
     const from = this.pendingFile(input.pendingId)
     const id = randomUUID()
     const rel = `maps/${id}${extname(input.pendingId)}`
@@ -2072,7 +2078,7 @@ export class Campaign {
     this.log.run(`Kept battle map ${input.name}`, (w) => {
       w.insert('map', {
         id, name: input.name, imagePath: rel, width: size?.width ?? null, height: size?.height ?? null, gridSize: null,
-        status: 'active', kind: 'battle', gridCols: input.cols, source: input.source, prompt: input.prompt
+        status: 'active', kind: 'battle', gridCols: input.cols, gridShown: !!input.gridShown, source: input.source, prompt: input.prompt
       })
     })
     return toMapView(this.mapRow(id))
@@ -3706,6 +3712,7 @@ function toMapView(r: MapRow): MapView {
     kind: r.kind === 'battle' ? 'battle' : 'world',
     gridCols: r.gridCols,
     gridRows: r.gridCols && r.width && r.height ? rowsFor(r.gridCols, r.width, r.height) : null,
+    gridShown: !!r.gridShown,
     source: r.source, prompt: r.prompt
   }
 }

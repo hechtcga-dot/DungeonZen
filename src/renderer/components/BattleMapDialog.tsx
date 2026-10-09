@@ -107,6 +107,7 @@ export function BattleMapDialog() {
   const withExamples = maxRefs > 0 && picked.size > 0
   const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples }), artStyle)
   const prompt = ownPrompt ?? generated
+  const [gridShown, setGridShown] = useState(false)
   const sizeOk = [cols, rows].every((n) => Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX)
 
   const close = () => {
@@ -126,7 +127,7 @@ export function BattleMapDialog() {
   }
   const keep = async () => {
     if (!drawn) return
-    const m = await act('battlemap:keep', { pendingId: drawn.pendingId, name: name.trim() || 'Battle map', cols: drawn.cols, prompt: drawn.prompt, source: drawn.source })
+    const m = await act('battlemap:keep', { pendingId: drawn.pendingId, name: name.trim() || 'Battle map', cols: drawn.cols, prompt: drawn.prompt, source: drawn.source, gridShown })
     if (!m) return
     setDrawn(null)
     setOpen(false)
@@ -135,7 +136,7 @@ export function BattleMapDialog() {
     goTo('map')
   }
   const importOwn = async () => {
-    const m = await act('battlemap:importDialog', { cols: sizeOk ? cols : 20 })
+    const m = await act('battlemap:importDialog', { cols: sizeOk ? cols : 20, gridShown })
     if (!m) return
     close()
     await act('map:setActive', { mapId: m.id })
@@ -172,7 +173,7 @@ export function BattleMapDialog() {
           <span className="ai-badge">AI drawing · {drawn.source}</span>
           <div className="battle-preview-frame">
             <img src={drawn.url} alt="The battle map the AI drew" />
-            {drawn.width && drawn.height && (
+            {gridShown && drawn.width && drawn.height && (
               <svg viewBox={`0 0 ${drawn.width} ${drawn.height}`} preserveAspectRatio="none" aria-hidden="true">
                 <GridLines cols={drawn.cols} width={drawn.width} height={drawn.height} scale={0.4} />
               </svg>
@@ -231,6 +232,7 @@ export function BattleMapDialog() {
                       onChange={(e) => set({ rows: Number(e.target.value) })} />
                   </div>
                   <span className="hint">{fmtSquares(cols, units)} × {fmtSquares(rows, units)}</span>
+                  <label className="field checkbox"><input type="checkbox" checked={gridShown} onChange={(e) => setGridShown(e.target.checked)} /> Show the battle grid on the map</label>
                 </div>
               </div>
               <fieldset className="field battle-features">

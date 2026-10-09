@@ -493,6 +493,7 @@ function ScaleDialog({ view, onClose }: { view: MapScreenView; onClose(): void }
   const [miles, setMiles] = useState(view.map.widthKm != null ? String(kmToShown(view.map.widthKm, units)) : '')
   const [mph, setMph] = useState(String(kmToShown(view.map.travelKmh, units)))
   const [cols, setCols] = useState(view.map.gridCols != null ? String(view.map.gridCols) : '')
+  const [shown, setShown] = useState(view.map.gridShown)
   const m = miles.trim() === '' ? null : Number(miles)
   const g = cols.trim() === '' ? null : Number(cols)
   const gridOk = g === null || (Number.isInteger(g) && g >= GRID_MIN && g <= GRID_MAX)
@@ -506,12 +507,14 @@ function ScaleDialog({ view, onClose }: { view: MapScreenView; onClose(): void }
           await act('map:setScale', { mapId: view.map.id, widthKm: m === null ? null : shownToKm(m, units), travelKmh: shownToKm(Number(mph), units) })
         }
         if (g !== view.map.gridCols) await act('map:setGrid', { mapId: view.map.id, cols: g })
+        if (shown !== view.map.gridShown) await act('map:setGridShown', { mapId: view.map.id, shown })
         onClose()
       }}>
         <div className="field">
           <label htmlFor="sc-grid">Grid: how many squares across ({fmtSquares(1, units)} each)?</label>
           <input id="sc-grid" className="short" inputMode="numeric" value={cols} onChange={(e) => setCols(e.target.value)} />
           <div className="hint">For battle maps. {GRID_MIN} to {GRID_MAX}; leave empty for no grid. The app draws the lines, so they always line up.</div>
+          <label className="field checkbox"><input type="checkbox" checked={shown} disabled={g === null} onChange={(e) => setShown(e.target.checked)} /> Show the grid lines on the map</label>
         </div>
         <div className="field">
           <label htmlFor="sc-miles">How many {longUnit(units)} is the map across (left to right)?</label>

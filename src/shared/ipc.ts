@@ -289,11 +289,12 @@ export const ipcInputs = {
   }),
   'battlemap:keep': z.object({
     pendingId: z.string().max(80), name: Name, cols: z.number().int().min(GRID_MIN).max(GRID_MAX),
-    prompt: z.string().max(4000), source: z.string().max(300)
+    prompt: z.string().max(4000), source: z.string().max(300), gridShown: z.boolean().default(false)
   }),
   'battlemap:discard': z.object({ pendingId: z.string().max(80) }),
-  'battlemap:importDialog': z.object({ cols: z.number().int().min(GRID_MIN).max(GRID_MAX) }),
+  'battlemap:importDialog': z.object({ cols: z.number().int().min(GRID_MIN).max(GRID_MAX), gridShown: z.boolean().default(false) }),
   'map:setGrid': z.object({ mapId: Id, cols: z.number().int().min(GRID_MIN).max(GRID_MAX).nullable() }),
+  'map:setGridShown': z.object({ mapId: Id, shown: z.boolean() }),
   'world:generate': z.object({
     seed: z.number().int().min(0).max(2147483647), size: z.enum(WORLD_SIZES), land: z.number().min(0.3).max(0.75),
     climate: z.enum(WORLD_CLIMATES), settlements: z.number().int().min(0).max(30)
@@ -551,6 +552,7 @@ export interface IpcOutputs {
   'battlemap:discard': void
   'battlemap:importDialog': MapView | null
   'map:setGrid': void
+  'map:setGridShown': void
   'world:generate': PendingImageView & { regions: PlaceShape[]; source: string }
   'world:draw': PendingImageView & { source: string }
   'world:keep': MapView

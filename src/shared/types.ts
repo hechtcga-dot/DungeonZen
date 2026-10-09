@@ -251,6 +251,8 @@ export interface MapView {
   kind: 'world' | 'battle'
   gridCols: number | null
   gridRows: number | null
+  /** The grid lines are drawn over the map (the size in squares counts either way). */
+  gridShown: boolean
   /** Null for the DM's own image; otherwise which AI drew it (rule 10). */
   source: string | null
   prompt: string | null

@@ -745,7 +745,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('battlemap:keep', (input) => current().keepBattleMap(input))
-  handle('battlemap:importDialog', async ({ cols }) => {
+  handle('battlemap:importDialog', async ({ cols, gridShown }) => {
     const win = getWindow()
     const options = {
       title: 'Import a battle map', buttonLabel: 'Import battle map', properties: ['openFile'] as Array<'openFile'>,
@@ -753,10 +753,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
-    return current().importMap(result.filePaths[0], undefined, { gridCols: cols })
+    return current().importMap(result.filePaths[0], undefined, { gridCols: cols, gridShown })
   })
   handle('battlemap:discard', ({ pendingId }) => { pendingWorlds.delete(pendingId); current().discardPending(pendingId) })
   handle('map:setGrid', ({ mapId, cols }) => current().setMapGrid(mapId, cols))
+  handle('map:setGridShown', ({ mapId, shown }) => current().setMapGridShown(mapId, shown))
 
   // ---- world map (getting started guide): made here or drawn by an AI, waiting until kept
   const pendingWorlds = new Map<string, { source: string; prompt: string | null; regions: PlaceShape[] }>()

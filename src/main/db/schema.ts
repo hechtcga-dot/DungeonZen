@@ -125,6 +125,7 @@ export const map = sqliteTable('map', {
   travelKmh: real('travel_kmh').notNull().default(4.8),
   kind: text('kind').notNull().default('world'), // world | battle
   gridCols: integer('grid_cols'), // squares across, when the map has a grid (5 ft each)
+  gridShown: integer('grid_shown', { mode: 'boolean' }).notNull().default(false), // draw the grid lines over it
   source: text('source'), // null = the DM's own image; otherwise which AI drew it
   prompt: text('prompt') // what the AI was asked, for battle maps it drew
 })

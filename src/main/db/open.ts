@@ -203,6 +203,10 @@ const MIGRATIONS: string[] = [
     versions TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
   );
   ALTER TABLE session ADD COLUMN dm_notes TEXT NOT NULL DEFAULT '';
+  `,
+  // 1.5.x: the square grid over a battle map is shown only when the DM ticks it (off by default).
+  `
+  ALTER TABLE map ADD COLUMN grid_shown INTEGER NOT NULL DEFAULT 0;
   `
 ]
 

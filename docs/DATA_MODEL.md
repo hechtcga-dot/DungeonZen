@@ -166,7 +166,8 @@ commands. `group_id` lets a session or an import undo as one step.
   `entity.parent_id` of their location card. The doc's `route` table is not
   built: the route shown is the party's moves in the current or last session.
 - Battle maps (migration 9): `map.kind` (world | battle), `map.grid_cols`
-  (squares across; rows follow from the image shape), `map.source` (null for
+  (squares across; rows follow from the image shape), `map.grid_shown`
+  (draw the grid lines; 0 by default, added 1.5.x), `map.source` (null for
   the DM's own image, else which AI drew it) and `map.prompt` (what it was
   asked). `style_example` (name, image_path under `assets/styles`, status): the
   DM's example maps for the battle map style. Drawn images wait in

@@ -57,7 +57,7 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
   const at = labels ? placeLabels(sorted.map((r) => ({ polygon: r.polygon, name: r.name, spot: isSpot(r) })), s) : []
   return (
     <>
-      {view.map.gridCols && view.map.width && view.map.height && (
+      {view.map.gridShown && view.map.gridCols && view.map.width && view.map.height && (
         <GridLines cols={view.map.gridCols} width={view.map.width} height={view.map.height} scale={ctx.scale} />
       )}
       {sorted.map((r) => {
