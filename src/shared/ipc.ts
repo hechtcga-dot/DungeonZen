@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { StatBlock } from './statblock'
 import type { SrdAttacks } from './attacks'
+import type { BattlePlan } from './battleplan'
 import { CombatState } from './combat'
 import { GRID_MAX, GRID_MIN } from './battlemap'
 import { ImportDraft, type ImportDraftSummary } from './notesImport'
@@ -225,6 +226,7 @@ export const ipcInputs = {
     }).partial()
   }),
   'encounter:pictures': z.object({ id: Id }),
+  'encounter:plan': z.object({ id: Id }),
   'encounter:addPictures': z.object({ id: Id }),
   'encounter:openFolder': z.object({ id: Id, file: z.string().max(260).optional() }),
   'encounter:chooseFolder': z.object({ id: Id }),
@@ -505,6 +507,7 @@ export interface IpcOutputs {
   'combat:update': void
   'combat:end': void
   'ai:combatAdvice': AiSuggestion
+  'encounter:plan': BattlePlan
   'encounter:pictures': { folder: string; own: boolean; files: Array<{ name: string; url: string; picture: boolean }>; removed: number }
   'encounter:addPictures': number
   'encounter:openFolder': void

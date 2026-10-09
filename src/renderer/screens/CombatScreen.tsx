@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoard } from '../store'
+import { BattlePlanner } from '../components/BattlePlanner'
+import { SpellName, SpellText } from '../components/SpellLink'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
 import { BackButton } from '../components/BackButton'
@@ -171,7 +173,7 @@ function Effects({ v, ended, save }: { v: CombatView; ended: boolean; save(st: C
         <h2 className="panel-title">Terrain and spell effects</h2>
         {!ended && !adding && <button className="ink-button" onClick={() => setAdding(blank)}>Add effect…</button>}
       </div>
-      {s.effects.length === 0 && !adding && <p className="ink-muted">None. Add strong wind, Spike Growth, a Web…</p>}
+      {s.effects.length === 0 && !adding && <p className="ink-muted"><SpellText text="None. Add strong wind, Spike Growth, a Web…" glossary={{ Web: '' }} /></p>}
       <ul className="cb-effect-list">
         {s.effects.map((e) => (
           <li key={e.id}>
@@ -550,6 +552,7 @@ function Pips({ label, max, used, disabled, hint, onSet }: { label: string; max:
 function TurnPanel({ v, c }: { v: CombatView; c: Combatant }) {
   const i = c.entityId ? v.info[c.entityId] : undefined
   const tips = useMemo(() => turnTips(v.state, c, i), [v.state, c, i])
+  const glossary = useMemo(() => Object.fromEntries((i?.actions ?? []).map((a) => [a.name, a.full ?? a.text])), [i])
   const [advice, setAdvice] = useState<AiSuggestion | null>(null)
   const [ask, setAsk] = useState('')
   const [asking, setAsking] = useState(false)
@@ -562,11 +565,11 @@ function TurnPanel({ v, c }: { v: CombatView; c: Combatant }) {
   return (
     <div className="cb-turn">
       <h2 className="panel-title">{c.side === 'party' ? `${c.name}'s options` : `${c.name}: tactics`}</h2>
-      {tips.length > 0 && <ul className="combat-hints">{tips.map((t, k) => <li key={k}>{t}</li>)}</ul>}
+      {tips.length > 0 && <ul className="combat-hints">{tips.map((t, k) => <li key={k}><SpellText text={t} glossary={glossary} /></li>)}</ul>}
       {i && i.actions.length > 0 && (
         <details className="cb-actions" open>
           <summary>{c.side === 'party' ? 'Attacks, spells and features' : 'Attacks, spells and abilities'} ({i.actions.length})</summary>
-          <ul>{i.actions.map((a, k) => <li key={k}><strong>{a.name}</strong> <span className="ink-muted">{a.kind.replace(/_/g, ' ').toLowerCase()}</span>{a.text ? `: ${a.text}` : ''}</li>)}</ul>
+          <ul>{i.actions.map((a, k) => <li key={k}><strong><SpellName name={a.name} text={a.full ?? a.text} /></strong> <span className="ink-muted">{a.kind.replace(/_/g, ' ').toLowerCase()}</span>{a.text ? `: ${a.text}` : ''}</li>)}</ul>
         </details>
       )}
       {i && !i.actions.length && <p className="ink-muted">No attacks or spells on {c.name}'s sheet yet.</p>}
@@ -592,8 +595,9 @@ function Morale({ v }: { v: CombatView }) {
     <>
       <h2 className="panel-title">Morale (everyone)</h2>
       {hints.length === 0 ? <p className="ink-muted">Nothing to watch for yet.</p> : (
-        <ul className="combat-hints">{hints.map((h, i) => <li key={i} className={`hint-${h.level}`}>{h.text}</li>)}</ul>
+        <ul className="combat-hints">{hints.map((h, i) => <li key={i} className={`hint-${h.level}`}><SpellText text={h.text} /></li>)}</ul>
       )}
+      <BattlePlanner encounterId={v.encounterId} stamp={v} />
     </>
   )
 }

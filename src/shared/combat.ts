@@ -107,7 +107,7 @@ export interface CombatantInfo {
   splitOnBloodied: boolean
   mirrorImage: boolean
   displacement: boolean
-  actions: Array<{ name: string; kind: string; text: string }>
+  actions: Array<{ name: string; kind: string; text: string; /** The whole description (text is cut to fit the panel). */ full?: string }>
   /** Spell slots per level 1–9: the most, and how many are used (kept on the card). */
   slots: number[]
   slotsUsed: number[]

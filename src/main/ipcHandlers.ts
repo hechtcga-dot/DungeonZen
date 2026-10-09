@@ -451,6 +451,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   })
   // ---- an encounter's pictures and maps folder
   handle('encounter:pictures', ({ id }) => current().encounterPictures(id))
+  handle('encounter:plan', ({ id }) => current().battlePlan(id))
   handle('encounter:addPictures', async ({ id }) => {
     const win = getWindow()
     const options = {

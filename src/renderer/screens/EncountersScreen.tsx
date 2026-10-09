@@ -17,6 +17,7 @@ import { SrdBrowser } from '../components/SrdBrowser'
 import { StatBlockView } from '../components/FightSummary'
 import type { IpcOutputs } from '../../shared/ipc'
 import { EncounterPictures } from '../components/EncounterPictures'
+import { BattlePlanner } from '../components/BattlePlanner'
 
 type Suggestion = NonNullable<Awaited<ReturnType<typeof call<'encounter:suggest'>>>>
 const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about right', hard: 'hard', nearly_deadly: 'nearly deadly' }
@@ -163,6 +164,8 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
           {d.factor !== 1 && <span className="ink-muted"> Budgets adapted ×{d.factor} to your party.</span>}
         </p>
       </div>
+
+      <BattlePlanner encounterId={e.id} stamp={e} />
 
       <h3 className="side-h">Who fights</h3>
       {e.creatures.length === 0 ? <p className="ink-muted">Nobody yet. Add cards, SRD monsters or a suggestion below.</p> : (

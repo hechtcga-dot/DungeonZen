@@ -19,7 +19,9 @@ import { formatClock } from '../../shared/time'
 import { KNOWLEDGE_FIELDS, type PrepKind, type SceneType } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
-import { crToNumber, HAS_STATBLOCK, leadingNumber, passiveScore, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
+import { ABILITY_KEYS, crToNumber, HAS_STATBLOCK, leadingNumber, passiveScore, readStatBlock, saveBonus, StatBlock, statLine } from '../../shared/statblock'
+import { battlePlan, spellRoles, type BattlePlan, type PlanFoe, type PlanPc } from '../../shared/battleplan'
+import { spellLevel } from '../../shared/attacks'
 import type { CombatView, PcToken,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
@@ -2769,7 +2771,7 @@ export class Campaign {
       splitOnBloodied: !!split && /becomes bloodied/i.test(split.text),
       mirrorImage: /mirror image/i.test(all),
       displacement: texts.some((t) => /^displacement\b/i.test(t.name)),
-      actions: acts.map((a) => ({ name: a.name, kind: a.kind, text: a.description.length > 300 ? `${a.description.slice(0, 300)}…` : a.description })),
+      actions: acts.map((a) => ({ name: a.name, kind: a.kind, text: a.description.length > 300 ? `${a.description.slice(0, 300)}…` : a.description, full: a.description })),
       slots: nums(e.attributes.spell_slots) ?? slotsFromText(all),
       slotsUsed: nums(e.attributes.slots_used) ?? Array<number>(9).fill(0),
       cardType: e.type,
@@ -2804,6 +2806,62 @@ export class Campaign {
     return {
       id, encounterId: row.encounterId, encounterName: this.nameOf(row.encounterId), status: row.status === 'ended' ? 'ended' : 'active',
       state: { ...state, combatants }, info, sessionRunning: !!this.openSession()
+    }
+  }
+
+  /**
+   * Battle planner for an encounter: from the running fight (HP, who is down or concentrating, foes still
+   * standing) or, before it, from the party and the encounter's creatures. Spell slots left count.
+   */
+  battlePlan(encounterId: string): BattlePlan {
+    const fight = this.db.select().from(combat).where(and(eq(combat.encounterId, encounterId), eq(combat.status, 'active'))).get()
+    const state = fight ? CombatState.parse(fight.state) : null
+    const pcs: PlanPc[] = state
+      ? state.combatants.filter((c) => c.side === 'party' && c.entityId).map((c) => this.planPc(c.entityId!, c.hp, c.maxHp,
+        c.out === 'down' || (c.maxHp > 0 && c.hp === 0), !!(c.rounds[String(state.round)]?.c || c.rounds[String(state.round - 1)]?.c)))
+      : this.partyHealth().map((p) => this.planPc(p.id, p.hp, p.maxHp, p.maxHp > 0 && p.hp === 0, false))
+    const counts = new Map<string, number>()
+    if (state) {
+      for (const c of state.combatants) if (c.side === 'foe' && c.entityId && !c.out && !(c.maxHp > 0 && c.hp === 0)) counts.set(c.entityId, (counts.get(c.entityId) ?? 0) + 1)
+    } else {
+      for (const cr of this.encounterView(encounterId).creatures) counts.set(cr.entityId, (counts.get(cr.entityId) ?? 0) + cr.count)
+    }
+    const foes = [...counts].map(([id, count]) => this.planFoe(id, count)).filter((f): f is PlanFoe => !!f)
+    return battlePlan(pcs, foes)
+  }
+
+  private planPc(entityId: string, hp: number, maxHp: number, down: boolean, concentrating: boolean): PlanPc {
+    const e = this.entityRow(entityId)
+    const sb = readStatBlock(e.attributes.statblock)
+    const acts = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
+    const nums = (v: unknown) => (Array.isArray(v) ? Array.from({ length: 9 }, (_, i) => Math.max(0, Number(v[i]) || 0)) : null)
+    const slots = nums(e.attributes.spell_slots) ?? slotsFromText((sb?.traits ?? []).map((t) => `${t.name} ${t.desc}`).join('\n'))
+    const used = nums(e.attributes.slots_used) ?? Array<number>(9).fill(0)
+    return {
+      name: e.name, ac: sb ? leadingNumber(sb.ac) : null, hp, maxHp, down, concentrating,
+      slotsLeft: slots.map((n, i) => Math.max(0, n - used[i])),
+      powers: acts.map((a) => ({
+        name: a.name, level: a.kind === 'SPELL' ? spellLevel(a.description) : null, roles: spellRoles(a.name, a.description),
+        save: /(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+Saving Throw/i.exec(a.description)?.[1] ?? '',
+        text: a.description.slice(0, 3000)
+      }))
+    }
+  }
+
+  private planFoe(entityId: string, count: number): PlanFoe | null {
+    const e = this.db.select().from(entity).where(eq(entity.id, entityId)).get()
+    if (!e) return null
+    const sb = readStatBlock(e.attributes.statblock)
+    const acts = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
+    const texts = [...(sb?.traits ?? []).map((t) => `${t.name}. ${t.desc}`), ...acts.map((a) => `${a.name}. ${a.description}`)]
+    return {
+      name: e.name, count, int: sb?.int ?? 10, cr: sb?.cr ?? '',
+      ranged: texts.some((t) => /Ranged Attack Roll|ranged weapon attack|\brange \d+/i.test(t)),
+      flies: /\bfly \d+/i.test(sb?.speed ?? ''),
+      legendaryResist: texts.some((t) => /legendary resistance/i.test(t)),
+      leader: isLeaderName(e.name) || texts.some((t) => /^leadership\b/i.test(t)),
+      caster: acts.some((a) => a.kind === 'SPELL') || texts.some((t) => /^spellcasting\b|\bcasts? one of the following spells\b/i.test(t)),
+      saves: Object.fromEntries(ABILITY_KEYS.map((k) => [k, sb ? saveBonus(sb, k).bonus : 0]))
     }
   }
 

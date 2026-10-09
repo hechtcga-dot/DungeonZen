@@ -337,6 +337,17 @@ built.
     hit dice left (− spends one) and limited uses (ticks), written to the card (`CombatantInfo.pc`). Death saves
     live on the card (`attributes.death_saves`): the fight reads them (`combatView`) and writes changes back in the
     same undo step (`updateCombat`); the full sheet shows the same ticks.
+  - Battle planner (`BattlePlanner.tsx`, `src/shared/battleplan.ts`, `Campaign.battlePlan`, `encounter:plan`) on the encounter
+    (before the fight: the party and the encounter's creatures) and on Run encounter (the fight: HP, down, concentrating
+    this or last round, foes still standing). Party spells by role (`spellRoles`: name lists, else the text): hits
+    groups, takes one foe out, controls the ground, heals, stops spells; only those with a slot left (`canCast`).
+    Who smart foes go for first (concentrating, healer, area spells, save-or-lose, low AC, hurt). Do / Avoid / Watch
+    tips: spread out vs area spells (smart foes by Int ≥ 8; simple ones charge), protect the boss from save-or-lose
+    spells (its weakest of those saves, Legendary Resistance), avoid choke points vs zones (ranged/flying foes shoot
+    from outside), go for the healer, bait counterspells (caster foes only), downed characters, last foe standing.
+  - Spell links (`SpellLink.tsx`): spell names in the planner, turn tips, morale hints and the effects line, and every
+    attack/spell name in the turn panel, open the description: the character's version (with its numbers) and the
+    SRD 5.2 entry. Everyday-word spell names (Light, Shield, Web…) link only when a character has them.
   - Encounter pictures and maps (`EncounterPictures.tsx`): a folder per encounter, `assets/encounters/<name>` in the
     campaign (made on first use, `attributes.folder`) or one the DM chose (Use another folder…, undoable); files put
     there in Windows show up (refresh on focus); Add pictures… copies in; thumbnails open in Windows; Remove moves to
