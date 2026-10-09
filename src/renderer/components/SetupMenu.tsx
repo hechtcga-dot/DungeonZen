@@ -9,9 +9,10 @@ type About = { version: string; campaignFolder: string | null; dataFolder: strin
 
 /** Rail › Setup: campaign files, printing, AI services, About and Uninstall. */
 export function SetupMenu({ icon }: { icon: React.ReactNode }) {
-  const { openCampaign, say, setAiSettingsOpen } = useBoard()
+  const { openCampaign, closeCampaign, say, setAiSettingsOpen } = useBoard()
+  const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | null>(null)
+  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | null>(null)
   const [name, setName] = useState('')
   const [about, setAbout] = useState<About | null>(null)
 
@@ -43,6 +44,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           'separator',
           { label: 'Print or save cards…', onClick: () => setDialog('export') },
           { label: 'AI services…', onClick: () => setAiSettingsOpen(true) },
+          { label: 'Delete this campaign…', danger: true, hint: 'Moves its folder to the Recycle Bin', onClick: () => setDialog('delete') },
           'separator',
           { label: 'About Dungeon Zen', onClick: () => void showAbout('about') },
           { label: 'Uninstall Dungeon Zen…', danger: true, onClick: () => void showAbout('uninstall') }
@@ -72,6 +74,20 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
         </dl>
         <p className="hint">Rules content: System Reference Document 5.2 by Wizards of the Coast, CC-BY-4.0, via the Open5e project.</p>
         <div className="dz-actions"><button className="primary" onClick={() => setDialog(null)}>Close</button></div>
+      </Dialog>
+
+      <Dialog title="Delete this campaign?" open={dialog === 'delete'} onClose={() => setDialog(null)}>
+        <p>Are you sure you want to delete <strong>{campaignName}</strong>?</p>
+        <p className="hint">The campaign closes and its whole folder (cards, maps, pictures, notes) goes to the Windows Recycle Bin.
+          Restore it from there to get it back; Undo cannot.</p>
+        <div className="dz-actions">
+          <button autoFocus onClick={() => setDialog(null)}>Cancel</button>
+          <button className="danger" onClick={() => void attempt(async () => {
+            setDialog(null)
+            const folder = await call('campaign:delete', undefined).finally(() => void closeCampaign())
+            say(`Deleted: ${folder} is in the Recycle Bin`)
+          })}>Yes, delete it</button>
+        </div>
       </Dialog>
 
       <Dialog title="Uninstall Dungeon Zen" open={dialog === 'uninstall'} onClose={() => setDialog(null)}>

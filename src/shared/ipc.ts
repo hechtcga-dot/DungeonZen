@@ -69,6 +69,7 @@ export const ipcInputs = {
   'campaign:openDialog': z.void(),
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
+  'campaign:delete': z.void(),
   'campaign:info': z.void(),
   'campaign:save': z.void(),
   'campaign:saveCopy': z.void(),
@@ -392,6 +393,7 @@ export interface IpcOutputs {
   'campaign:openDialog': CampaignInfo | null
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
+  'campaign:delete': string
   'campaign:info': CampaignInfo | null
   'campaign:save': string
   'campaign:saveCopy': string | null

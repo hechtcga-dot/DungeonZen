@@ -65,7 +65,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
   background: rgba(255, 255, 255, 0.7); border-color: var(--ink);
 }
 .desk-theme .side button:disabled, .desk-theme .panel button:disabled { color: #9a8a6c; }
-.desk-theme .side button.danger, .desk-theme .panel button.danger { color: var(--wax); border-color: var(--wax); background: transparent; }
+.desk-theme .side button.danger, .desk-theme .panel button.danger, .desk-theme .dz-dialog button.danger { color: var(--wax); border-color: var(--wax); background: transparent; }
 .desk-theme .side { border-width: 0 0 0 3px; border-color: #150c06; }
 .desk-theme .side .segmented { border-color: var(--border-strong); }
 .desk-theme .side .segmented button + button { border-left-color: var(--border-strong); }

@@ -1,5 +1,5 @@
 import { DrawExtras, withArtStyle } from '../components/Pictures'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoard, useUnits } from '../store'
 import { kmToShown, shownToKm } from '../../shared/units'
 import { call } from '../api'
@@ -299,13 +299,15 @@ function RegionsStep({ map, made, onNext, onDraw, onBack }: { map: MapView | nul
   return <FindRegions map={map} onNext={onNext} onDraw={onDraw} />
 }
 
-function FindRegions({ map, onNext, onDraw }: { map: MapView; onNext(): void; onDraw(): void }) {
+export function FindRegions({ map, onNext, onDraw, inMap }: { map: MapView; onNext(): void; onDraw(): void; inMap?: boolean }) {
   const { act, say, setAiSettingsOpen, aiSettingsOpen } = useBoard()
   const [ask, setAsk] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [found, setFound] = useState<{ regions: PlaceShape[]; dropped: number; source: string } | null>(null)
   const [picked, setPicked] = useState<boolean[]>([])
+  const [selected, setSelected] = useState<number | null>(null)
+  const [original, setOriginal] = useState<PlaceShape[]>([])
   const [added, setAdded] = useState(0)
   const [service, setService] = useState<string | null | undefined>(undefined)
   useEffect(() => {
@@ -319,7 +321,7 @@ function FindRegions({ map, onNext, onDraw }: { map: MapView; onNext(): void; on
     setBusy(true); setError(null)
     try {
       const f = await call('world:findRegions', { mapId: map.id, ask })
-      setFound(f); setPicked(f.regions.map(() => true))
+      setFound(f); setPicked(f.regions.map(() => true)); setOriginal(f.regions); setSelected(null)
       if (!f.regions.length) setError('The AI found no regions it could outline. Try again, add a hint, or draw them yourself.')
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
@@ -338,14 +340,14 @@ function FindRegions({ map, onNext, onDraw }: { map: MapView; onNext(): void; on
     if (!chosen.length) return
     try {
       await act('world:addRegions', { mapId: map.id, regions: chosen, source: found.source })
-      setAdded(chosen.length); setFound(null)
+      setAdded(chosen.length); setFound(null); setSelected(null)
     } catch (e) { say((e as Error).message, true) }
   }
-  const shown = found ? found.regions.filter((_, i) => picked[i]) : []
   return (
     <div className="guide-make">
       <section className="parchment-sheet guide-preview">
-        <PlacePreview url={map.url} width={map.width ?? 1000} height={map.height ?? 700} regions={shown} ai />
+        <PlacePreview url={map.url} width={map.width ?? 1000} height={map.height ?? 700} regions={found?.regions ?? []} ai
+          edit={found ? { hidden: picked.map((x) => !x), selected, onSelect: setSelected, onShape: (i, polygon) => edit(i, { polygon }) } : undefined} />
         {found && <p className="ai-tag">Found by {found.source}{found.dropped ? ` · ${found.dropped} outline${found.dropped === 1 ? '' : 's'} could not be read` : ''}</p>}
       </section>
       <aside className="parchment-note guide-options">
@@ -367,10 +369,18 @@ function FindRegions({ map, onNext, onDraw }: { map: MapView; onNext(): void; on
         {error && <p className="field-error" role="alert">{error}</p>}
         {found && found.regions.length > 0 && (
           <>
-            <p className="ink-muted">AI suggestions: tick the ones to keep. You can rename them now or later.</p>
+            <p className="ink-muted">AI suggestions: tick the ones to keep. You can rename them now or later.
+              Click a region (on the map or its row) to fix its border: drag the corners, click a small dot to add a corner, right-click a corner to remove it.</p>
+            {selected != null && found.regions[selected] && (
+              <div className="row tight wrap" role="status">
+                <strong>Border of {found.regions[selected].name || 'this region'}</strong>
+                <button onClick={() => original[selected] && edit(selected, { polygon: original[selected].polygon })}>Reset border</button>
+                <button onClick={() => setSelected(null)}>Done</button>
+              </div>
+            )}
             <ul className="guide-proposals">
               {found.regions.map((r, i) => (
-                <li key={i} className={picked[i] ? undefined : 'is-off'}>
+                <li key={i} className={`${picked[i] ? '' : 'is-off'}${selected === i ? ' is-selected' : ''}`} onClick={() => picked[i] && setSelected(i)}>
                   <input type="checkbox" checked={!!picked[i]} aria-label={`Keep ${r.name}`} onChange={(e) => setPicked((p) => p.map((x, j) => (j === i ? e.target.checked : x)))} />
                   <span className="swatch" style={{ background: placeColour({ colour: null, kind: r.kind, biome: r.biome }) ?? 'transparent' }} />
                   <input value={r.name} maxLength={200} aria-label="Name" onChange={(e) => edit(i, { name: e.target.value })} />
@@ -387,14 +397,14 @@ function FindRegions({ map, onNext, onDraw }: { map: MapView; onNext(): void; on
             <div className="row tight wrap">
               <button className="primary" disabled={!picked.some(Boolean)} onClick={() => void addSelected()}>Add {picked.filter(Boolean).length} selected</button>
               <button onClick={() => setPicked(found.regions.map(() => true))}>Tick all</button>
-              <button onClick={() => { setFound(null); setError(null) }}>Discard</button>
+              <button onClick={() => { setFound(null); setError(null); setSelected(null) }}>Discard</button>
             </div>
           </>
         )}
         <hr className="ink-rule" />
         <div className="row tight wrap">
-          <button onClick={onDraw}>Draw them myself on the Map</button>
-          <button className={added ? 'primary' : undefined} onClick={onNext}>Next: your notes</button>
+          <button onClick={onDraw}>{inMap ? 'Draw them myself' : 'Draw them myself on the Map'}</button>
+          <button className={added ? 'primary' : undefined} onClick={onNext}>{inMap ? 'Done' : 'Next: your notes'}</button>
         </div>
       </aside>
     </div>
@@ -438,28 +448,69 @@ function countKinds(regions: PlaceShape[]): string {
 }
 
 /** A map picture with proposed places drawn over it (not saved yet). */
-function PlacePreview({ url, width, height, regions, ai }: { url: string; width: number; height: number; regions: PlaceShape[]; ai?: boolean }) {
+type PreviewEdit = { hidden: boolean[]; selected: number | null; onSelect(i: number | null): void; onShape(i: number, polygon: Array<[number, number]>): void }
+
+function PlacePreview({ url, width, height, regions, ai, edit }: { url: string; width: number; height: number; regions: PlaceShape[]; ai?: boolean; edit?: PreviewEdit }) {
+  const svgRef = useRef<SVGSVGElement>(null)
   const scale = width / 1000
+  const toMap = (e: { clientX: number; clientY: number }): [number, number] => {
+    const m = svgRef.current?.getScreenCTM()?.inverse()
+    if (!m) return [0, 0]
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m)
+    return [Math.round(Math.min(width, Math.max(0, p.x))), Math.round(Math.min(height, Math.max(0, p.y)))]
+  }
+  // Drag a corner: the shape follows the pointer until it is let go.
+  const drag = (e: React.PointerEvent, i: number, poly: Array<[number, number]>, k: number) => {
+    e.stopPropagation(); e.preventDefault()
+    const move = (ev: PointerEvent) => { const q = toMap(ev); edit!.onShape(i, poly.map((x, j) => (j === k ? q : x))) }
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+  }
+  const sel = edit && edit.selected != null && !edit.hidden[edit.selected] ? edit.selected : null
   const isSpot = (r: PlaceShape) => ['city', 'town', 'village', 'landmark', 'dungeon'].includes(r.kind)
   const at = placeLabels(regions.map((r) => ({ polygon: r.polygon, name: r.name, spot: isSpot(r) })), scale, 17, 15)
   return (
     <div className="place-preview">
       <img src={url} alt="World map" />
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+      <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true"
+        className={edit ? 'is-editable' : undefined} onPointerDown={edit ? () => edit.onSelect(null) : undefined}>
         {regions.map((r, i) => {
+          if (edit?.hidden[i]) return null
           const spot = isSpot(r)
           const colour = placeColour({ colour: null, kind: r.kind, biome: r.biome }) ?? '#6b5a3a'
           const [cx, cy] = at[i]
           return (
             <g key={i}>
               <polygon points={r.polygon.map((p) => p.join(',')).join(' ')} fill={colour} fillOpacity={spot ? 0.5 : 0.12}
-                stroke={ai ? '#2f5f9a' : '#3a2a18'} strokeOpacity={0.7} strokeWidth={1.6 * scale} strokeDasharray={ai ? `${6 * scale} ${4 * scale}` : undefined} />
+                stroke={sel === i ? '#8f2a21' : ai ? '#2f5f9a' : '#3a2a18'} strokeOpacity={sel === i ? 1 : 0.7} strokeWidth={(sel === i ? 3 : 1.6) * scale}
+                strokeDasharray={ai && sel !== i ? `${6 * scale} ${4 * scale}` : undefined}
+                onPointerDown={edit ? (e) => { e.stopPropagation(); edit.onSelect(i) } : undefined} />
               {spot && <circle cx={cx} cy={cy} r={(r.kind === 'city' ? 9 : r.kind === 'town' ? 7 : 5) * scale} fill={colour} stroke="#f4ead2" strokeWidth={2 * scale} />}
               <text x={cx} y={spot ? cy + 26 * scale : cy + 6 * scale} textAnchor="middle" fontSize={(spot ? 15 : r.kind === 'sea' ? 20 : 17) * scale}
-                fontStyle={spot ? 'normal' : 'italic'} fill="#2a1f12" stroke="#f4ead2" strokeWidth={4 * scale} paintOrder="stroke">{r.name}</text>
+                fontStyle={spot ? 'normal' : 'italic'} fill="#2a1f12" stroke="#f4ead2" strokeWidth={4 * scale} paintOrder="stroke" pointerEvents="none">{r.name}</text>
             </g>
           )
         })}
+        {sel != null && (() => {
+          const poly = regions[sel].polygon
+          return (
+            <g>
+              {poly.map((p, k) => {
+                const q = poly[(k + 1) % poly.length]
+                const mid: [number, number] = [Math.round((p[0] + q[0]) / 2), Math.round((p[1] + q[1]) / 2)]
+                const added = [...poly.slice(0, k + 1), mid, ...poly.slice(k + 1)]
+                return <circle key={`m${k}`} cx={mid[0]} cy={mid[1]} r={4 * scale} className="vertex-add"
+                  onPointerDown={(e) => { edit!.onShape(sel, added); drag(e, sel, added, k + 1) }}><title>Drag or click to add a corner</title></circle>
+              })}
+              {poly.map((p, k) => (
+                <circle key={k} cx={p[0]} cy={p[1]} r={7 * scale} className="vertex"
+                  onPointerDown={(e) => { if (e.button === 0) drag(e, sel, poly, k); else e.stopPropagation() }}
+                  onContextMenu={(e) => { e.preventDefault(); if (poly.length > 3) edit!.onShape(sel, poly.filter((_, j) => j !== k)) }}>
+                  <title>Drag to move; right-click to remove</title></circle>
+              ))}
+            </g>
+          )
+        })()}
       </svg>
     </div>
   )

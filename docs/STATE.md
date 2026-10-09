@@ -184,6 +184,7 @@ built.
   (per-user folder, shortcuts, HKCU only); Wine needs a build with
   `customCheckAppRunning` emptied because it has no PowerShell (test only).
   Not code-signed yet: SmartScreen warns.
+- AI regions (1.5.x): before adding, click a proposed region (map or row) to fix its border: drag corners, click a mid dot to add one, right-click to remove, Reset border. The same finder (`FindRegions`) opens on Map › Find regions with AI and right after Map › Import map.
 - Getting started guide (1.1.0; `GuideScreen.tsx`, screen 'guide'): a new campaign
   (setting `getting_started` = pending, `CampaignInfo.gettingStarted`) opens on it;
   Desk › Getting started opens it again. Step 1 world map: Import a map picture,
@@ -236,13 +237,14 @@ built.
     combatants; morale and tactics hints from local rules (half a group down, guards hold while a
     leader stands, fallen leader, badly hurt, last one standing, allies' boosts from trait text,
     legendary, recharge) plus Ask AI; double-click a name opens its sheet, Back returns.
-  - Back to the previous screen on sheets and the review (`BackButton`, Alt+Left). Battle maps: import
+  - Back to the previous screen on sheets and the review (`BackButton`, Alt+Left); since 1.5.x every screen change is on the back stack (`pushed` in `store.ts`), rail Back button, Backspace (not while typing, a pop-up open, or a board selection to remove) and Alt+Left go back (`DeskRail.tsx`); the guide keeps its step (`guideStep`). Battle maps: import
     a picture, try again after an error, plain Gemini no-image messages. Timeline lane titles, XP meter
     labels, battle map field, SRD humanoid sizes "Medium or Small", Octopus scores fixed.
 - 1.3.0 (owner's list, 2026-10-09):
   - Setup (rail, `SetupMenu.tsx`): New campaign, Open, Save (WAL checkpoint; every change is already saved),
     Save a copy (`Campaign.saveCopy`: whole folder), Print or save cards, AI services, About (version, folders,
     SRD credit), Uninstall (runs `Uninstall Dungeon Zen.exe` next to the exe; campaigns kept).
+    Delete this campaign (1.5.x): are-you-sure dialog, closes it and moves the folder to the Recycle Bin (`shell.trashItem`; restorable there, not by Undo).
   - Board: Background pictures (was Pictures under the cards) with a Move: Cards / Background switch
     (`boardPrefs.layer`, not remembered between runs; the other layer is `is-passive`, faded cards); the frame
     is drawn over the board (`.canvas::after`) so pictures never spill over it. Ctrl+drag pans the board, Map and

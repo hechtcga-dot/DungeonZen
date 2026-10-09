@@ -119,6 +119,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
 
   handle('campaign:openRecent', ({ folder }) => openFolder(folder))
   handle('campaign:close', () => { campaign?.close(); campaign = null })
+  // Delete = the whole campaign folder to the Recycle Bin (restorable there), never erased.
+  handle('campaign:delete', async () => {
+    const c = current()
+    const folder = c.folder
+    c.close(); campaign = null
+    await shell.trashItem(folder)
+    return folder
+  })
   handle('campaign:info', () => campaign?.info() ?? null)
   handle('campaign:save', () => { current().save(); return new Date().toISOString() })
   handle('campaign:saveCopy', async () => {

@@ -8,6 +8,7 @@ import { useLightingPref } from '../art/TableLighting'
 import { Dialog } from '../components/Dialog'
 import { CommitField } from '../components/fields'
 import { MapDialog } from '../components/EditDialogs'
+import { FindRegions } from './GuideScreen'
 import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
@@ -27,7 +28,10 @@ export function MapScreen() {
   const [lighting] = useLightingPref()
   const [editOpen, setEditOpen] = useState(false)
   const [scaleOpen, setScaleOpen] = useState(false)
+  const [findOpen, setFindOpen] = useState(false)
   const [mode, setMode] = useState<Mode>('view')
+  // A new map: offer the AI region finder straight away.
+  const importMap = async () => { if (await act('map:importDialog', undefined)) { setMode('view'); setFindOpen(true) } }
   const view = mapScreen && current && mapScreen.map.id === current.id ? mapScreen : null
   return (
     <DeskFrame>
@@ -58,12 +62,18 @@ export function MapScreen() {
                 <button className="brass" aria-pressed={mode === 'draw'} onClick={() => setMode(mode === 'draw' ? 'view' : 'draw')}>
                   {mode === 'draw' ? 'Stop drawing' : 'Draw region'}
                 </button>
+                {current.kind !== 'battle' && <button className="brass" onClick={() => { setMode('view'); setFindOpen(true) }}>Find regions with AI</button>}
                 <button className="brass" onClick={() => setScaleOpen(true)}>Scale and grid</button>
                 <button className="brass" onClick={() => setEditOpen(true)}>Rename or remove</button>
               </>
             )}
             <button className="brass" onClick={() => setBattleMapOpen(true)}>Draw a battle map</button>
-            <button className="brass" onClick={() => void act('map:importDialog', undefined)}>Import map</button>
+            <button className="brass" onClick={importMap}>Import map</button>
+            {current && findOpen && (
+              <Dialog title={`Regions of ${current.name}`} open wide onClose={() => setFindOpen(false)}>
+                <FindRegions inMap map={current} onNext={() => setFindOpen(false)} onDraw={() => { setFindOpen(false); setMode('draw') }} />
+              </Dialog>
+            )}
             {current && <MapDialog open={editOpen} onClose={() => setEditOpen(false)} map={current} />}
             {view && scaleOpen && <ScaleDialog view={view} onClose={() => setScaleOpen(false)} />}
           </div>
@@ -75,7 +85,7 @@ export function MapScreen() {
                 <CompassRose className="map-empty-rose" />
                 <h2>{current ? 'Unrolling the map…' : 'No map yet'}</h2>
                 {!current && <p>Import a map image (PNG, JPEG or WebP). Large maps are fine: zoom in with the mouse wheel.</p>}
-                {!current && <button className="wax" onClick={() => void act('map:importDialog', undefined)}>Import a map</button>}
+                {!current && <button className="wax" onClick={importMap}>Import a map</button>}
               </div>
             </div>
           </div>
