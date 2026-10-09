@@ -144,8 +144,15 @@ export function LibraryScreen() {
             {campaign && campaign.results.length === 0 && (
               <p className="hint">{query || filtersActive ? 'Nothing in this campaign matches.' : 'No cards yet. Make one from a template or add a copy from the SRD below.'}</p>
             )}
+            {/* Folders by card type (owner, 1.6.0): closed unless searching, so the page starts short. */}
+            {ENTITY_TYPES.map((t) => {
+              const rows = (campaign?.results ?? []).filter((r) => r.entity.type === t)
+              if (!rows.length) return null
+              return (
+                <details key={`${t}-${query || filtersActive ? 'open' : 'shut'}`} className="lib-folder" open={!!(query || filtersActive)}>
+                  <summary><span className="swatch" style={{ background: ENTITY_COLOURS[t] }} aria-hidden="true" />{ENTITY_LABELS[t]} <span className="muted">({rows.length})</span></summary>
             <ul className="results">
-              {campaign?.results.map(({ entity: e, line }) => (
+              {rows.map(({ entity: e, line }) => (
                 <li key={e.id}>
                   <span className="badge" style={{ background: ENTITY_COLOURS[e.type] }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
                   <span className="result-name">{e.name}</span>
@@ -157,6 +164,9 @@ export function LibraryScreen() {
                 </li>
               ))}
             </ul>
+                </details>
+              )
+            })}
           </section>
 
           <section className="panel">
@@ -171,6 +181,8 @@ export function LibraryScreen() {
               {' '}<button className="link-button" onClick={() => setBrowse(true)}>Browse all monsters (filter and sort)…</button></p>
             {browse && <SrdBrowser title="SRD monsters" actionLabel="Add copy" onClose={() => setBrowse(false)}
               onPick={async (key, n, name) => { for (let i = 0; i < n; i++) await addCopy(key, name) }} />}
+            <details key={query || filtersActive ? 'srd-open' : 'srd-shut'} className="lib-folder" open={!!(query || filtersActive)}>
+            <summary>{srdKind === 'monsters' ? 'SRD monsters' : 'SRD items'} <span className="muted">({srdKind === 'monsters' ? srd?.totalMonsters ?? 0 : srd?.totalItems ?? 0})</span></summary>
             {srd && srdKind === 'monsters' && (
               <SrdTable
                 shown={srd.monsters.length} total={srd.totalMonsters}
@@ -189,6 +201,7 @@ export function LibraryScreen() {
                   onAdd={addCopy}
                 />
             )}
+            </details>
             {srd && <p className="attribution">{srd.attribution}</p>}
           </section>
           </>}
