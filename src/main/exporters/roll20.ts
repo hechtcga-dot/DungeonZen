@@ -11,37 +11,13 @@
 import { ABILITY_KEYS, abilityModifier, readStatBlock, type StatBlock } from '../../shared/statblock'
 import type { AbilityView, EntityView } from '../../shared/types'
 import { xpForCr } from '../../shared/encounter'
+import { macroFor } from '../../shared/attacks'
 
 export const IMPORT_HANDOUT = 'Dungeon Zen import'
 
 const clean = (s: string) => s.replace(/[{}]/g, '').replace(/\s+/g, ' ').trim()
-const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`)
 
-/**
- * Macro text for an ability: the DM's own macro if written, otherwise one built from
- * the description ("Attack Roll: +5", "+5 to hit", "6 (1d6 + 3) Slashing damage",
- * "DC 13 Dexterity saving throw").
- */
-export function macroFor(a: Pick<AbilityView, 'name' | 'description' | 'macroText'>): string {
-  if (a.macroText.trim()) return a.macroText.trim()
-  const d = a.description
-  const parts = [`&{template:default} {{name=${clean(a.name)}}}`]
-  const hit = /Attack Roll:\s*([+-]\d+)/i.exec(d) ?? /([+-]\d+)\s+to hit/i.exec(d)
-  if (hit) parts.push(`{{attack=[[1d20${signed(Number(hit[1]))}]]}}`)
-  const dmg = [...d.matchAll(/\d+\s*\((\d+d\d+)(?:\s*([+-])\s*(\d+))?\)\s*([A-Za-z]+)\s+damage/gi)]
-  dmg.forEach((m, i) => {
-    const bonus = m[2] && m[3] ? `${m[2]}${m[3]}` : ''
-    parts.push(`{{${i === 0 ? 'damage' : `damage ${i + 1}`}=[[${m[1].toLowerCase()}${bonus}]] ${m[4].toLowerCase()}}}`)
-  })
-  const save = /DC\s*(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving throw/i.exec(d)
-    ?? /(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+Saving Throw:\s*DC\s*(\d+)/i.exec(d)
-  if (save) {
-    const [dc, ab] = /^\d+$/.test(save[1]) ? [save[1], save[2]] : [save[2], save[1]]
-    parts.push(`{{save=DC ${dc} ${ab.slice(0, 3)}}}`)
-  }
-  if (d.trim()) parts.push(`{{description=${clean(d).slice(0, 900)}}}`)
-  return parts.join(' ')
-}
+export { macroFor } from '../../shared/attacks'
 
 export interface Roll20Character {
   name: string

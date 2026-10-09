@@ -86,5 +86,6 @@ export const FACTION_LINK: Partial<Record<EntityType, string>> = { NPC: 'MEMBER_
 export const INTERNAL_KEYS = new Set([
   'statblock', 'source', 'custom', 'colour', 'color', 'generated', 'count', 'encounter', 'target', 'battle_map_id', 'provenance', 'imported',
   'ai_filled', 'picture', 'current_hp', 'notes', 'summary', 'bio', 'motivation', 'location', 'reward', 'text', 'from', 'secret',
-  'temp_hp', 'conditions', 'picture_source', 'biome', 'place_kind', 'level', 'spell_slots', 'slots_used'
+  'temp_hp', 'conditions', 'picture_source', 'biome', 'place_kind', 'level', 'spell_slots', 'slots_used',
+  'prof_bonus', 'initiative', 'spell_ability', 'prepared', 'proficiencies'
 ])

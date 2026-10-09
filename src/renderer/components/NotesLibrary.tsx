@@ -4,6 +4,7 @@ import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import { NoteEditor, type NoteEditorHandle } from './NoteEditor'
 import { useSidePanel } from './Splitter'
+import { CharSheetDialog } from './CharSheetDialog'
 import type { ImportDraft } from '../../shared/notesImport'
 import type { NoteDocView, NotesScreenView } from '../../shared/types'
 import type { Block } from '../../shared/noteDoc'
@@ -96,7 +97,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
             hint={sess.running ? 'This session is running: the desk journal is these notes.' : 'DM notes from this session.'}
             recap={sess.recap} onSave={(text) => act('session:notes', { id: sess.id, text })} />
         )}
-        {doc && <DocNote key={doc.id} doc={doc} onOpenDraft={onOpen} onChanged={load} />}
+        {doc && <DocNote key={doc.id} doc={doc} docs={data.docs} onOpenDraft={onOpen} onChanged={load} />}
         {open.kind === 'doc' && !doc && <p className="ink-muted">That note is gone (moved to History or undone).</p>}
       </section>
     </div>
@@ -165,13 +166,14 @@ function TextNote({ title, text, hint, recap, popout, onSave }: {
   )
 }
 
-function DocNote({ doc, onOpenDraft, onChanged }: { doc: NoteDocView; onOpenDraft(d: ImportDraft): void; onChanged(): void }) {
+function DocNote({ doc, docs, onOpenDraft, onChanged }: { doc: NoteDocView; docs: NoteDocView[]; onOpenDraft(d: ImportDraft): void; onChanged(): void }) {
   const { act, say } = useBoard()
   const [content, setContent] = useState<{ blocks: Block[]; url: string | null } | null>(null)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
   const [changed, setChanged] = useState<string[] | null>(null)
   const [title, setTitle] = useState(doc.title)
+  const [making, setMaking] = useState(false)
   const editor = useRef<NoteEditorHandle>(null)
   useEffect(() => { void call('notedoc:content', { id: doc.id }).then(setContent).catch((e) => setError((e as Error).message)) }, [doc.id, doc.updatedAt])
   const save = async () => {
@@ -192,6 +194,7 @@ function DocNote({ doc, onOpenDraft, onChanged }: { doc: NoteDocView; onOpenDraf
           <button className="ink-button" onClick={() => void act('notedoc:openInWord', { id: doc.id }).then(() => {
             if (doc.kind === 'word') say('Opened in Word. Save there; when you come back, Dungeon Zen offers to bring the changes in.')
           })}>{doc.kind === 'word' ? 'Open in Word' : doc.kind === 'pdf' ? 'Open the PDF' : doc.kind === 'picture' ? 'Open the picture' : 'Open the file'}</button>
+          {doc.kind !== 'picture' && <button className="ink-button" title="The AI copies a character sheet (and its other files) into a character card" onClick={() => setMaking(true)}>Make a character card…</button>}
           {doc.kind !== 'picture' && <button className="ink-button" onClick={async () => { const p = await act('notedoc:saveCopy', { id: doc.id }); if (p) say(`Saved ${p}`) }}>Save a copy as Word…</button>}
           <button className="ink-button danger-ink" onClick={() => void act('notedoc:setStatus', { id: doc.id, status: 'defunct' }).then(onChanged)}>Move to History</button>
         </span>
@@ -212,6 +215,7 @@ function DocNote({ doc, onOpenDraft, onChanged }: { doc: NoteDocView; onOpenDraf
           </ul>
         </details>
       )}
+      {making && <CharSheetDialog doc={doc} docs={docs} onClose={() => setMaking(false)} />}
       {changed && <UpdateCards id={doc.id} lines={changed} onClose={() => setChanged(null)} onOpen={onOpenDraft} />}
     </div>
   )

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { StatBlock } from './statblock'
+import type { SrdAttacks } from './attacks'
 import { CombatState } from './combat'
 import { GRID_MAX, GRID_MIN } from './battlemap'
 import { ImportDraft, type ImportDraftSummary } from './notesImport'
@@ -79,6 +80,8 @@ export const ipcInputs = {
   'ability:add': z.object({ entityId: Id, ability: AbilityFields.partial().extend({ name: Name }) }),
   'ability:update': z.object({ id: Id, patch: AbilityFields.partial() }),
   'ability:setStatus': z.object({ id: Id, status: RowStatus }),
+  'ability:addMany': z.object({ entityId: Id, abilities: z.array(AbilityFields.partial().extend({ name: Name })).min(1).max(100) }),
+  'srd:attacks': z.void(),
   'knowledge:set': z.object({ entityId: Id, field: KnowledgeField, known: z.boolean() }),
   'knowledge:setString': z.object({ relationshipId: Id, known: z.boolean() }),
   'library:search': z.object({
@@ -94,6 +97,14 @@ export const ipcInputs = {
   'entity:applyStatBlock': z.object({
     entityId: Id, statblock: StatBlock, source: z.string().max(200),
     actions: z.array(z.object({ name: Name, kind: AbilityKind, description: z.string().max(5000) })).max(30)
+  }),
+  'ai:charsheet': z.object({ docIds: z.array(Id).min(1).max(10) }),
+  'entity:applyCharSheet': z.object({
+    entityId: Id.nullable(), name: Name, source: z.string().max(200), statblock: StatBlock.nullable(),
+    actions: z.array(z.object({ name: Name, kind: AbilityKind, description: z.string().max(5000) })).max(80).nullable(),
+    level: z.string().max(10).nullable(), currentHp: z.number().int().min(0).max(100000).nullable(),
+    spellSlots: z.array(z.number().int().min(0).max(9)).length(9).nullable(), fields: z.record(z.string().max(40), z.string().max(20000)),
+    spellAbility: z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha']).nullable(), prepared: z.array(z.string().max(120)).max(80)
   }),
   'entity:pictureDialog': z.object({ entityId: Id }),
   'entity:picturePrompt': z.object({ entityId: Id, ask: z.string().max(2000) }),
@@ -383,6 +394,8 @@ export interface IpcOutputs {
   'ability:add': AbilityView
   'ability:update': void
   'ability:setStatus': void
+  'ability:addMany': number
+  'srd:attacks': SrdAttacks
   'knowledge:set': void
   'knowledge:setString': void
   'library:search': LibrarySearch
@@ -391,6 +404,14 @@ export interface IpcOutputs {
   'entity:scaleCr': void
   'ai:statblock': { statblock: StatBlock; actions: Array<{ name: string; kind: z.infer<typeof AbilityKind>; description: string }>; source: string }
   'entity:applyStatBlock': void
+  'ai:charsheet': {
+    name: string; level: string; currentHp: number | null; spellSlots: number[] | null; fields: Record<string, string>
+    spellAbility: string | null; prepared: string[]
+    statblock: StatBlock; actions: Array<{ name: string; kind: z.infer<typeof AbilityKind>; description: string }>; source: string
+    /** PC and NPC cards it could go on; `match` is the one whose name fits best. */
+    targets: Array<{ id: string; name: string; type: string }>; match: string | null
+  }
+  'entity:applyCharSheet': string
   'entity:pictureDialog': boolean
   'entity:picturePrompt': string
   'entity:drawPicture': PendingImageView & { source: string; prompt: string }

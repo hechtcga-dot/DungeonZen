@@ -128,3 +128,60 @@ export function passiveScore(sb: StatBlock, skill: 'Perception' | 'Investigation
 export function proficiencyBonus(crOrLevel: number): number {
   return 2 + Math.floor((Math.max(1, crOrLevel) - 1) / 4)
 }
+
+/** The ability a save ("Str", "Strength") or skill ("Stealth") uses, or null. */
+function abilityOf(name: string): AbilityKey | null {
+  const n = name.trim().toLowerCase()
+  const skill = SKILLS.find(([s]) => s.toLowerCase() === n)
+  if (skill) return skill[1]
+  return ABILITY_KEYS.find((k) => k === n.slice(0, 3)) ?? null
+}
+
+/** Saves or skills text with one entry set to a bonus, or taken out (null). Other entries keep their words. */
+export function setListed(text: string, name: string, bonus: number | null): string {
+  const key = name.toLowerCase()
+  const same = (entry: string) => {
+    const m = /^\s*([A-Za-z][A-Za-z' ]*?)\s*[+\-−]\s*\d+/.exec(entry)
+    if (!m) return false
+    const n = m[1].trim().toLowerCase()
+    return n === key || (key.length === 3 && n.slice(0, 3) === key)
+  }
+  const entries = text.split(',').map((x) => x.trim()).filter(Boolean)
+  const at = entries.findIndex(same)
+  const next = bonus === null ? null : `${name} ${formatModifier(bonus)}`
+  if (at >= 0) { if (next) entries[at] = next; else entries.splice(at, 1) } else if (next) entries.push(next)
+  return entries.join(', ')
+}
+
+/**
+ * After ability scores or the proficiency bonus change, the listed saves and skills follow:
+ * plain proficiency and expertise move with both; any other bonus moves with the score.
+ */
+export function rebase(before: StatBlock, beforeProf: number | null, after: StatBlock, afterProf: number | null): { saves: string; skills: string } {
+  const move = (text: string) => text.split(',').map((entry) => entry.replace(/^(\s*)([A-Za-z][A-Za-z' ]*?)(\s*)([+\-−])\s*(\d+)/, (all, sp, name, gap, sign, num) => {
+    const ab = abilityOf(name)
+    if (!ab) return all
+    const bonus = (sign === '+' ? 1 : -1) * Number(num)
+    const was = abilityModifier(before[ab])
+    const now = abilityModifier(after[ab])
+    const times = beforeProf !== null && afterProf !== null ? [1, 2].find((t) => bonus === was + t * beforeProf) : undefined
+    const value = times ? now + times * afterProf! : bonus + now - was
+    return `${sp}${name}${gap}${formatModifier(value)}`
+  })).join(',')
+  return { saves: move(after.saves), skills: move(after.skills) }
+}
+
+/** The proficiency bonus a sheet uses: the DM's own number, else from the level (PCs) or challenge rating. */
+export function profFor(type: string, attributes: Record<string, unknown>, sb: StatBlock): { prof: number | null; auto: number | null; own: number | null } {
+  const rank = type === 'PC' ? Number.parseInt(String(attributes.level ?? ''), 10) : crToNumber(sb.cr)
+  const auto = rank && Number.isFinite(rank) ? proficiencyBonus(rank) : null
+  const own = typeof attributes.prof_bonus === 'number' ? attributes.prof_bonus : null
+  return { prof: own ?? auto, auto, own }
+}
+
+/** The spellcasting ability: the DM's choice, else the best of Int, Wis and Cha. */
+export function castingAbility(attributes: Record<string, unknown>, sb: StatBlock): AbilityKey {
+  const set = attributes.spell_ability
+  if (typeof set === 'string' && (ABILITY_KEYS as readonly string[]).includes(set)) return set as AbilityKey
+  return (['cha', 'wis', 'int'] as const).reduce((best, k) => (sb[k] > sb[best] ? k : best), 'int' as AbilityKey)
+}

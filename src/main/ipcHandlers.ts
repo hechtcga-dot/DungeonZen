@@ -12,6 +12,9 @@ import { ASK_SYSTEM, askPrompt } from './ai/ask'
 import { BUILD_SYSTEM, buildPrompt, COMBAT_SYSTEM, combatPrompt, parseBuild, RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
 import { STATBLOCK_SYSTEM, parseStatBlock, statBlockPrompt } from './ai/statblock'
+import srdAttacksData from '../../resources/srd/srd-2024-attacks.json'
+import type { SrdAttacks } from '../shared/attacks'
+import { CHARSHEET_SYSTEM, charSheetPrompt, parseCharSheet } from './ai/charsheet'
 import { parseRegions, REGIONS_SYSTEM, regionsPrompt } from './ai/regions'
 import { generateWorld } from './worldgen'
 import type { PlaceShape } from '../shared/places'
@@ -23,7 +26,7 @@ import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './expo
 import { renderJpg, renderPdf } from './exporters/render'
 import { chunkBlocks, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
 import { writeDocx } from './importers/docx'
-import { changedLines, textToBlocks } from '../shared/noteDoc'
+import { blockLines, changedLines, textToBlocks } from '../shared/noteDoc'
 import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
 import type { ImportDraft } from '../shared/notesImport'
 import { AI_PROVIDERS, maxReferences, providerById, type AiChoice } from '../shared/aiProviders'
@@ -33,6 +36,8 @@ import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } fro
 import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
 import type { z } from 'zod'
+
+const srdAttacks = srdAttacksData as SrdAttacks
 
 type Handler<C extends IpcChannel> = (input: z.output<(typeof ipcInputs)[C]>) => IpcOutputs[C] | Promise<IpcOutputs[C]>
 
@@ -139,6 +144,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('sheet:view', ({ entityId }) => current().sheet(entityId))
   handle('ability:add', ({ entityId, ability }) => current().addAbility(entityId, ability))
   handle('ability:update', ({ id, patch }) => current().updateAbility(id, patch))
+  handle('ability:addMany', ({ entityId, abilities }) => current().addAbilities(entityId, abilities))
+  handle('srd:attacks', () => srdAttacks)
   handle('ability:setStatus', ({ id, status }) => current().setAbilityStatus(id, status))
   handle('knowledge:set', ({ entityId, field, known }) => current().setPartyKnows(entityId, field, known))
   handle('knowledge:setString', ({ relationshipId, known }) => current().setStringKnown(relationshipId, known))
@@ -287,6 +294,27 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { ...parseStatBlock(reply), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('entity:applyStatBlock', ({ entityId, statblock, actions, source }) => current().applyStatBlock(entityId, statblock, actions, source))
+  handle('ai:charsheet', async ({ docIds }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const docs = c.notesScreen().docs
+    const files = await Promise.all(docIds.map(async (id) => {
+      const doc = docs.find((d) => d.id === id)
+      if (!doc) throw new Error('One of those notes is gone')
+      if (doc.kind === 'picture') throw new Error(`${doc.title} is a picture; choose text, Word or PDF notes`)
+      return { title: doc.title, lines: blockLines(await noteBlocks(c.noteFile(id), doc.kind)) }
+    }))
+    const reply = await generateText(r, { system: CHARSHEET_SYSTEM, prompt: charSheetPrompt(files), json: true, maxTokens: 12000 })
+    const answer = parseCharSheet(reply)
+    const targets = c.importTargets().filter((t) => t.type === 'PC' || t.type === 'NPC')
+    const words = (n: string) => n.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !['character', 'sheet', 'notes', 'background'].includes(w))
+    const want = new Set(words(answer.name || files[0].title))
+    const scored = targets.map((t) => ({ id: t.id, n: words(t.name).filter((w) => want.has(w)).length + (t.type === 'PC' ? 0.5 : 0) }))
+      .filter((t) => t.n >= 1).sort((a, b) => b.n - a.n)
+    return { ...answer, source: `${r.info.name} · ${r.model || 'default model'}`, targets, match: scored[0]?.id ?? null }
+  })
+  handle('entity:applyCharSheet', (input) => current().applyCharSheet(input))
   handle('entity:pictureDialog', async ({ entityId }) => {
     const win = getWindow()
     const options = {

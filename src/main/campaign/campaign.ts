@@ -753,6 +753,17 @@ export class Campaign {
     return toAbilityView(this.abilityRow(id))
   }
 
+  /** Several attacks or spells at once (from the SRD picker): one undo step. */
+  addAbilities(entityId: string, list: NewAbility[]): number {
+    const e = this.entityRow(entityId)
+    const next = this.db.select().from(ability).where(eq(ability.entityId, entityId)).all()
+      .reduce((m, r) => Math.max(m, r.sort + 1), 0)
+    this.log.run(list.length === 1 ? `Added ${list[0].name} to ${e.name}` : `Added ${list.length} attacks and spells to ${e.name}`, (w) => {
+      list.forEach((a, i) => this.insertAbility(w, entityId, a, next + i))
+    })
+    return list.length
+  }
+
   updateAbility(id: string, patch: Partial<Omit<AbilityView, 'id'>>): void {
     const a = this.abilityRow(id)
     this.log.run(`Edited ${patch.name ?? a.name} on ${this.nameOf(a.entityId)}`, (w) => {
@@ -2135,6 +2146,52 @@ export class Campaign {
       for (const a of old) w.update('ability', a.id, { status: 'defunct' })
       actions.forEach((a, i) => this.insertAbility(w, entityId, a, i))
     })
+  }
+
+  /**
+   * A character sheet read from the DM's notes files (an approved AI proposal): onto a card, or a new
+   * PC card when `entityId` is null. Only the parts the DM kept are given (null = leave as is); new
+   * attacks and spells send the card's old ones to History. One undo step; returns the card's id.
+   */
+  applyCharSheet(input: {
+    entityId: string | null; name: string; source: string; statblock: StatBlock | null; actions: NewAbility[] | null
+    level: string | null; currentHp: number | null; spellSlots: number[] | null; fields: Record<string, string>
+    spellAbility?: string | null; prepared?: string[]
+  }): string {
+    const e = input.entityId ? this.entityRow(input.entityId) : null
+    let id = input.entityId ?? ''
+    this.log.run(`${e ? 'Filled' : 'Made'} ${e?.name ?? input.name} from a character sheet (AI)`, (w) => {
+      const attrs: Record<string, unknown> = { ...(e?.attributes ?? {}) }
+      const filled = { ...(attrs.ai_filled && typeof attrs.ai_filled === 'object' ? attrs.ai_filled as Record<string, string> : {}) }
+      for (const [k, v] of Object.entries(input.fields)) {
+        if (['statblock', 'custom', 'provenance', 'imported', 'ai_filled', 'source'].includes(k)) continue
+        attrs[k] = v.trim()
+        filled[k] = input.source
+      }
+      if (input.statblock) { attrs.statblock = input.statblock; filled.statblock = input.source }
+      if (input.level !== null) attrs.level = input.level
+      if (input.currentHp !== null) attrs.current_hp = input.currentHp
+      if (input.spellSlots) attrs.spell_slots = input.spellSlots
+      if (input.spellAbility) attrs.spell_ability = input.spellAbility
+      attrs.ai_filled = filled
+      if (!e) {
+        id = this.insertEntity(w, { boardId: this.globalBoard().id, type: 'PC', name: input.name, position: this.freeGlobalSpot(), attributes: attrs })
+        this.joinFights(w, id)
+      } else {
+        w.update('entity', id, { attributes: attrs })
+        if (input.actions) {
+          const old = this.db.select().from(ability).where(and(eq(ability.entityId, id), eq(ability.status, 'active'))).all()
+          for (const a of old) w.update('ability', a.id, { status: 'defunct' })
+        }
+      }
+      if (!input.actions) return
+      // Prepared spells (by name) become ticks on the new spell rows.
+      const want = new Set((input.prepared ?? []).map((n) => n.toLowerCase()))
+      const ids = input.actions.map((a, i) => ({ id: this.insertAbility(w, id, a, i), a }))
+      const prepared = ids.filter(({ a }) => a.kind === 'SPELL' && want.has(a.name.toLowerCase())).map((x) => x.id)
+      if (prepared.length) w.update('entity', id, { attributes: { ...attrs, prepared } })
+    })
+    return id
   }
 
   /** A picture for a card's sheet: a file the DM chose, or a kept AI drawing (pending). One undo step. */
