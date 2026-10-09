@@ -200,10 +200,49 @@ built.
   Place kinds and biomes (`src/shared/places.ts`) are on Location cards
   (`place_kind`, `biome`), editable in the Map region panel; the map colours regions
   by them and marks settlements; names are placed off each other (`src/shared/labels.ts`).
+- 1.2.0 (owner's list, 2026-10-06):
+  - Board: right-click menus on cards, notes, pictures, strings and the board (`ContextMenu.tsx`;
+    submenus flip to stay on screen); Hide/Unhide (`hidden` columns; a card hides on every board),
+    Display › Show hidden things (greyed). Links panel (`ConnectionsPanel.tsx`): every string, kind
+    filter, grey out cards/notes while open, the DM's own string kinds with colours (setting
+    `string_types`), rename (one undo step), delete. Story panel (`StorylinesPanel.tsx`): storyline
+    colours tint cards (`tintBackground`, diagonal split for several), act marks = Timeline acts
+    (`act_entity`; numbered by start time; roman circles in the storyline colour), new storylines and
+    acts. Linked boards: setting `link_positions` (moving or resizing a card moves its twins),
+    `shared_strings` (off: per-board copies with `relationship.board_id`); turning either on asks which
+    boards win (`WinnerDialog`). Pictures under the cards (board_item kind image; campaign maps first or
+    any file into `assets/board/`; move, resize, opacity, lock, hide). Cards and notes resize
+    (`NodeResizer`; small cards show less, down to the name). Prefs per computer in `boardPrefs.ts`.
+  - Side panels resize by dragging the grip and are remembered (`Splitter.tsx`: `useSidePanel`,
+    localStorage), on Board, Map, Timeline, Encounters, Prep, Players, Import, Review, Live, Library,
+    sheets. The desk mat keeps its fixed layout.
+  - Measurements: stored metric (`map.width_km`, `travel_kmh`; battle squares 1.5 m); Campaign
+    settings › Measurements shows metric (default) or imperial (`src/shared/units.ts`; free text
+    keeps its words, feet/miles shown converted by `convertText`).
+  - Map tokens: Place party token; PC tokens split from the party (`party_position.entity_id`,
+    `joined`); a split PC moves without the clock and counts as here in its region; Merge with party.
+  - SRD monster browser (`SrdBrowser.tsx`, `srd:monsters`): filter by type, size, CR, alignment,
+    movement, legendary; sort any column; add any number (Encounters, Library).
+  - Monster/NPC sheet opens on Fight summary (`FightSummary.tsx`): stat block to run the fight;
+    Raise/Lower CR by the DMG table (`src/shared/crscale.ts`, previewed, one undo step); AI stat block
+    from a description and options (`src/main/ai/statblock.ts`, proposal); picture upload or AI drawing
+    (`attributes.picture` in `assets/pictures/`, `picture_source`).
+  - Encounters: Save encounter, Scene box (`attributes.scene`), Build with AI (`BUILD_SYSTEM`; SRD or new
+    monsters ticked and added; added cards are stashed, i.e. only in the encounter, until Put on board).
+  - Run encounter (`CombatScreen.tsx`, `combat` table with one JSON state, `src/shared/combat.ts`): no
+    dice, no initiative, the DM orders the list; rounds and turns (out-of-fight skipped), damage (temp
+    first, concentration DC logged), heal, set HP (PC HP typed by hand, not linked to Live), temp HP,
+    conditions with rounds (count down at round end), down/fled/surrendered, notes, add or remove
+    combatants; morale and tactics hints from local rules (half a group down, guards hold while a
+    leader stands, fallen leader, badly hurt, last one standing, allies' boosts from trait text,
+    legendary, recharge) plus Ask AI; double-click a name opens its sheet, Back returns.
+  - Back to the previous screen on sheets and the review (`BackButton`, Alt+Left). Battle maps: import
+    a picture, try again after an error, plain Gemini no-image messages. Timeline lane titles, XP meter
+    labels, battle map field, SRD humanoid sizes "Medium or Small", Octopus scores fixed.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
-Not yet: rivers and roads on made maps; re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
+Not yet: the Guard Captain's SRD 2024 stat block has no ally boost (add a Leadership trait and the tracker shows it); rivers and roads on made maps; re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, code signing, auto-update; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
-with tokens. Phases 1 to 5, the Windows installer (1.0.0) and the getting started guide (1.1.0) are built.
+with tokens. Phases 1 to 5, the Windows installer (1.0.0) and the getting started guide (1.1.0) and the 1.2.0 list are built.

@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.1.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.2.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -53,25 +53,9 @@ Bump `package.json` + `package-lock.json` version. Push branch `claude/friendly-
 - Installer: per-user NSIS, no admin (`electron-builder.yml`, `build/installer.nsh`), `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU. Not code-signed yet.
 - New campaign: getting started guide, world map first (1.1.0).
 
-## Queued for 1.2.0 (owner's list, 2026-10-06; wait for "go")
-1. Board right-click menus on cards, notes, strings (Delete to History, Hide; "Show hidden" toggle shows greyed, right-click Unhide).
-2. Board "Connections" button under Note: all strings, custom string types, delete; highlight strings, grey other cards/notes (tick boxes).
-3. Storylines button opens a screen with more options: storyline colours tint cards very subtly on global view (beige when none, diagonal split for several); act marks = Timeline acts (linked both ways), roman-numeral circles in storyline colour; toggle; tabs stay.
-4. Linked boards: switch "moving a card moves it on all boards"; strings shared by default, advanced: per-board strings; re-enabling asks global or storyline wins (both).
-5. Timeline lane titles wrap over "Minor": fix.
-6. Board underlay pictures per board (campaign maps first, any picture), move/resize/opacity/lock, toggle; resize cards and notes (smaller shows less, down to name).
-7. Resizable side panels on every screen (board, Map, Timeline …), remembered.
-8. Advanced setting imperial/metric.
-9. Map: Place party token button; PC tokens, Split from party / Merge with party.
-10. Encounters: Save encounter button; scene box; AI chooses and creates monsters (proposals).
-11. Monster/NPC sheet opens on fight summary; AI stat block from description/options; CR up/down; picture upload or AI-drawn.
-12. SRD monster search pop-up: all SRD monsters, filter/sort by type, CR, size etc.
-13. Sheets and similar screens: Back to the previous screen.
-14. Battle maps: Import a saved map; can draw again after an error; Gemini returns no image (fix, or error says how to fix).
-15. Run encounter (combat tracker): initiative, rounds/turns, HP, conditions with durations, everything trackable; morale/tactics messages (flee at half numbers, guards stay while commander present, Guard Captain boosts guards); double-click a combatant opens its stat block.
-16. Encounter bugs from screenshot: XP meter labels pile up when XP far above budget; Battle map drop-down squashed; SRD captains show size "Small" (2024: Medium or Small).
-Owner's answers: hide applies to every board. Measurements stored metric (km, km/h, m; grid square 1.5 m), display setting metric (default) or imperial converts; free-text stat blocks keep their words, display converts ft/miles patterns. Split PC travel never moves the clock (clock = party only); split PC counts as "here" in its own region (default, not asked). AI encounter monsters stay in the encounter until "Put on board".
-Combat tracker: no dice, no initiative (DM orders the list); morale/tactics from local rules + optional Ask AI; PC HP in the tracker is manual, not linked to Live. 1.1.0 folds into 1.2.0. Owner said build (2026-10-06).
+## 1.2.0 (built 2026-10-09)
+Owner's 16-item list (board menus/hide, Links and Story panels, linked boards, underlay pictures, resizable panels, metric/imperial, PC tokens, SRD browser, fight summary sheet, encounter scene and AI build, combat tracker, fixes). Details in `docs/STATE.md`.
+Owner's decisions: hide applies to every board; measurements stored metric, display metric (default) or imperial, free text keeps its words; split PC travel never moves the clock (clock = party only); AI encounter monsters stay in the encounter until "Put on board"; combat tracker: no dice, no initiative (DM orders the list), PC HP typed by hand, not linked to Live.
 
 ## Remind the owner (until answered)
 - Player preview in a second window (TV): put off by owner; ask again later.

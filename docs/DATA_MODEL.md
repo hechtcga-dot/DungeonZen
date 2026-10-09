@@ -201,5 +201,12 @@ commands. `group_id` lets a session or an import undo as one step.
   `imports/<id>.json` (`src/shared/notesImport.ts`), not database rows, until
   committed. Imported cards carry `attributes.provenance` (file, locator, quote,
   basis stated | inferred, import, ai) and `attributes.imported` (ai, basis, import).
+- 1.2.0 migrations: `entity.hidden`, `relationship.hidden`, `relationship.board_id` (per-board strings),
+  `board_item.hidden`, `board_item.content` JSON (text, image, name, opacity, locked), `storyline.colour`,
+  `act_entity` (act_id, entity_id, status: act marks); `map.width_km` and `map.travel_kmh` replace
+  miles/mph (converted); `party_position.entity_id` and `joined` (PC tokens); `combat` (encounter_id,
+  state JSON `CombatState` from `src/shared/combat.ts`, status active | ended). Settings `link_positions`,
+  `shared_strings`, `string_types`, `units`. Card attributes `picture`, `picture_source`, encounter `scene`;
+  `ai_filled.statblock` marks an AI stat block.
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).
