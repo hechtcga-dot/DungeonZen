@@ -18,6 +18,7 @@ import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
 import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
+import { encounterTableFor, findTable, rollOn, travelChecks } from '../../shared/rolltables'
 import { fmtSquares, kmToShown, longUnit, shownToKm, speedUnit } from '../../shared/units'
 
 type Mode = 'view' | 'draw' | 'edit'
@@ -347,8 +348,49 @@ function ConfirmTravel({ view, pending, onDone }: { view: MapScreenView; pending
         <button type="submit" className="ink-button primary-ink" disabled={!valid}>{first ? 'Place the party' : 'Confirm travel'}</button>
         <button type="button" className="ink-button" onClick={onDone}>Cancel</button>
       </div>
+      {!first && total >= 60 && <TravelChecks view={view} minutes={total} toLocationId={est.toLocationId} />}
       {!first && <p className="ink-muted">The clock moves on by the travel time{view.sessionRunning ? ' and the trip goes in the session log' : ''}. Undo puts it all back.</p>}
     </form>
+  )
+}
+
+/**
+ * Travel checks (owner, 1.6.0): one roll per 4 hours on the road, on the "Every 4 hours" table; an
+ * encounter result points at the region's table. The DM rolls here or in Roll20 and decides what
+ * happens: nothing is logged until they press Log it.
+ */
+function TravelChecks({ view, minutes, toLocationId }: { view: MapScreenView; minutes: number; toLocationId: string | null }) {
+  const { act, say, goTo } = useBoard()
+  const n = travelChecks(minutes)
+  const region = view.regions.find((r) => r.locationId === toLocationId)
+  const encTable = findTable(encounterTableFor(region?.kind ?? null, region?.biome ?? null))!
+  const check = findTable('travel-check')!
+  const [rolls, setRolls] = useState<Array<string | null>>(() => Array.from({ length: n }, () => null))
+  useEffect(() => setRolls(Array.from({ length: n }, () => null)), [n])
+  const rollOne = (i: number) => {
+    const r = rollOn(check)
+    const text = /random encounter/i.test(r) ? `${r.replace(/ \(roll.*\)/, '')}: ${rollOn(encTable)}` : r
+    setRolls((p) => p.map((x, j) => (j === i ? text : x)))
+  }
+  return (
+    <div className="travel-checks">
+      <h4>On the road: {n} check{n === 1 ? '' : 's'} (one per 4 hours)</h4>
+      <p className="ink-muted">Roll a d20 for each (here or in Roll20): 1–14 nothing, 15 weather, 16–17 an event, 18 signs of danger, 19–20 an encounter from <strong>{encTable.name}</strong>{region ? ` (${region.name})` : ''}.</p>
+      <ol>
+        {rolls.map((r, i) => (
+          <li key={i}>
+            {r === null ? <button type="button" className="ink-button" onClick={() => rollOne(i)}>Roll check {i + 1}</button> : (
+              <span className="row tight wrap">
+                <span className="suggestion-inline">{r}</span>
+                {!/^Nothing happens/.test(r) && view.sessionRunning && <button type="button" className="link-button" onClick={async () => { if (await act('log:add', { kind: 'note', text: `On the road: ${r}` })) say('Logged in the session') }}>Log it</button>}
+                <button type="button" className="link-button" onClick={() => rollOne(i)}>Roll again</button>
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+      <p className="hint"><button type="button" className="link-button" onClick={() => goTo('generators')}>Open the tables in Generators</button></p>
+    </div>
   )
 }
 

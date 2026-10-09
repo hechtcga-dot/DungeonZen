@@ -1292,3 +1292,9 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .gen-result-text { font-size: 16px; margin: 6px 0 10px; }
 .gen-entries { columns: 2 280px; column-gap: 28px; margin: 0; padding-left: 28px; }
 .gen-entries li { break-inside: avoid; padding: 1px 0; }
+
+.travel-checks { margin: 8px 0; padding: 8px 10px; border: 1px dashed #8f6a2a; border-radius: 4px; background: rgba(255, 250, 236, 0.5); }
+.travel-checks h4 { margin: 0 0 4px; }
+.travel-checks ol { margin: 6px 0; padding-left: 22px; }
+.travel-checks li { margin: 3px 0; }
+.suggestion-inline { font-style: italic; }

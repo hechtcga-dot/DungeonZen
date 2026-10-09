@@ -133,3 +133,20 @@ export function dieFor(n: number): string {
 export function parseEntries(text: string): string[] {
   return text.split(/\r?\n/).map((l) => l.replace(/^\s*(?:[-*•]|\d+(?:\s*[-–]\s*\d+)?[.):]?)\s+/, '').trim()).filter(Boolean)
 }
+
+/** The random encounter table for a region (by its kind and land). */
+export function encounterTableFor(kind: string | null, biome: string | null): string {
+  if (kind === 'city' || kind === 'town' || kind === 'village') return 'enc-city'
+  if (kind === 'dungeon') return 'enc-dungeon'
+  if (kind === 'sea') return 'enc-coast'
+  const by: Record<string, string> = {
+    forest: 'enc-forest', jungle: 'enc-forest', hills: 'enc-hills', mountains: 'enc-hills', swamp: 'enc-swamp',
+    coast: 'enc-coast', water: 'enc-coast', snow: 'enc-hills', tundra: 'enc-hills'
+  }
+  return (biome && by[biome]) || 'enc-road'
+}
+
+/** One check per started 4 hours on the road (none for under an hour). */
+export function travelChecks(minutes: number): number {
+  return minutes < 60 ? 0 : Math.ceil(minutes / 240)
+}
