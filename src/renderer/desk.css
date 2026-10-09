@@ -1234,3 +1234,12 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .cs-adv.is-A { background: #24553a; color: #fff; border: none; }
 .cs-adv.is-D { background: #7a2230; color: #fff; border: none; }
 .cs-companion { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid rgba(107, 63, 34, 0.18); }
+
+/* Run encounter: a character's sheet tracking on its row */
+.cb-pc { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0; font-size: 12.5px; }
+.cb-insp { min-height: 0; height: 24px; padding: 0 8px; font-size: 12px; border: 1px dashed #8a6a1c; background: transparent; color: #6b5a3a; }
+.cb-insp.is-on { background: #f5e2a8; border-style: solid; color: #4a2e16; font-weight: 700; }
+.cb-exh { display: inline-flex; align-items: center; gap: 4px; }
+.cb-exh select { width: auto; min-height: 0; height: 24px; padding: 0 4px; }
+.cb-hd { display: inline-flex; align-items: center; gap: 4px; }
+.cb-hd button, .cb-pips .mono button { min-height: 0; height: 22px; padding: 0 6px; }

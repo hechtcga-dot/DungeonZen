@@ -3,7 +3,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync,
 import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
-import { usesOf } from '../../shared/charsheet'
+import { classesOf, hitDice, usesOf } from '../../shared/charsheet'
 import { combat, noteDoc,
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
   actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
@@ -2773,7 +2773,16 @@ export class Campaign {
       slots: nums(e.attributes.spell_slots) ?? slotsFromText(all),
       slotsUsed: nums(e.attributes.slots_used) ?? Array<number>(9).fill(0),
       cardType: e.type,
-      size: sb?.size ?? ''
+      size: sb?.size ?? '',
+      pc: e.type !== 'PC' ? null : (() => {
+        const hd = hitDice(sb?.hitDice || sb?.hp || '', classesOf(e.attributes))
+        return {
+          inspiration: e.attributes.inspiration === true,
+          exhaustion: typeof e.attributes.exhaustion === 'number' ? e.attributes.exhaustion : 0,
+          uses: usesOf(e.attributes),
+          hitDice: { ...hd, used: Math.min(hd.total, typeof e.attributes.hit_dice_used === 'number' ? e.attributes.hit_dice_used : 0) }
+        }
+      })()
     }
   }
 
@@ -2787,15 +2796,36 @@ export class Campaign {
       const i = this.combatantInfo(entityId, partyLevel)
       if (i) info[entityId] = i
     }
+    // A character's death saves live on its card (the full sheet shows the same ticks).
+    const combatants = state.combatants.map((c) => {
+      const saved = c.side === 'party' && c.entityId ? this.deathSavesOf(c.entityId) : null
+      return saved ? { ...c, death: saved } : c
+    })
     return {
       id, encounterId: row.encounterId, encounterName: this.nameOf(row.encounterId), status: row.status === 'ended' ? 'ended' : 'active',
-      state, info, sessionRunning: !!this.openSession()
+      state: { ...state, combatants }, info, sessionRunning: !!this.openSession()
     }
   }
 
-  /** The DM's change to the fight (damage, a condition, the next turn…): one undo step each. */
+  private deathSavesOf(entityId: string): { s: number; f: number } | null {
+    const e = this.db.select().from(entity).where(eq(entity.id, entityId)).get()
+    if (!e || e.type !== 'PC') return null
+    const d = (e.attributes.death_saves && typeof e.attributes.death_saves === 'object' ? e.attributes.death_saves : {}) as { s?: unknown; f?: unknown }
+    const n = (v: unknown) => Math.max(0, Math.min(3, Math.round(Number(v)) || 0))
+    return { s: n(d.s), f: n(d.f) }
+  }
+
+  /** The DM's change to the fight (damage, a condition, the next turn…): one undo step each; changed death saves go to the card. */
   updateCombat(id: string, state: CombatState, label: string): void {
-    this.log.run(label, (w) => { w.update('combat', id, { state }) })
+    this.log.run(label, (w) => {
+      w.update('combat', id, { state })
+      for (const c of state.combatants) {
+        const saved = c.side === 'party' && c.entityId ? this.deathSavesOf(c.entityId) : null
+        if (!saved || (saved.s === c.death.s && saved.f === c.death.f)) continue
+        const e = this.entityRow(c.entityId!)
+        w.update('entity', e.id, { attributes: { ...e.attributes, death_saves: c.death.s || c.death.f ? c.death : null } })
+      }
+    })
   }
 
   /** Ends the fight (one undo step): optionally marks defeated cards resolved and logs a summary in the running session. */

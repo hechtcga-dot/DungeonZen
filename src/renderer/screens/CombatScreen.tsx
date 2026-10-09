@@ -333,6 +333,7 @@ function CombatantRow({ c, info, s, i, last, current, ended, selected, inGroup, 
           )}
         </div>
         {startFx.length > 0 && <ul className="cb-fx-now">{startFx.map((e) => <li key={e.id}>{effectLine(e)}</li>)}</ul>}
+        {c.entityId && info?.pc && <PcLine entityId={c.entityId} pc={info.pc} name={c.name} />}
         {c.side === 'party' && c.hp === 0 && c.maxHp > 0 && !ended && <DeathSaves c={c} s={s} onState={onState} />}
         <div className="cb-cond-row">
           {c.conditions.map((k, j) => (
@@ -381,6 +382,44 @@ function NotesDialog({ c, ended, onSave, onClose }: { c: Combatant; ended: boole
         placeholder="Position, targets, plans, spells used, what it knows…" onChange={(e) => setText(e.target.value)} />
       <div className="dz-actions"><button className="primary" onClick={close}>{ended ? 'Close' : 'Save and close'}</button></div>
     </Dialog>
+  )
+}
+
+/** A character's sheet tracking on its row: Heroic Inspiration, exhaustion, hit dice, limited uses (same as the full sheet). */
+function PcLine({ entityId, pc, name }: { entityId: string; pc: NonNullable<CombatantInfo['pc']>; name: string }) {
+  const act = useBoard((st) => st.act)
+  const set = (attributes: Record<string, unknown>) => void act('entity:update', { id: entityId, patch: { attributes } })
+  const hdLeft = pc.hitDice.total - pc.hitDice.used
+  return (
+    <div className="cb-pc">
+      <button type="button" className={`cb-insp${pc.inspiration ? ' is-on' : ''}`} aria-pressed={pc.inspiration}
+        title={pc.inspiration ? 'Heroic Inspiration: click when spent' : 'Click to give Heroic Inspiration'} onClick={() => set({ inspiration: !pc.inspiration })}>
+        {pc.inspiration ? '★' : '☆'} Inspiration
+      </button>
+      <label className="cb-exh">Exhaustion
+        <select aria-label={`${name} exhaustion`} value={pc.exhaustion} onChange={(ev) => set({ exhaustion: Number(ev.target.value) })}>
+          {[0, 1, 2, 3, 4, 5, 6].map((k) => <option key={k} value={k}>{k || '–'}</option>)}
+        </select>
+        {pc.exhaustion > 0 && <span className="cb-tag" title="2024 rules">−{2 * pc.exhaustion} d20, −{5 * pc.exhaustion} ft.</span>}
+      </label>
+      {pc.hitDice.total > 0 && (
+        <span className="cb-hd" title={pc.hitDice.dice}>Hit dice <strong>{hdLeft}/{pc.hitDice.total}</strong>
+          <button type="button" className="ink-button" aria-label={`${name}: spend a hit die`} disabled={hdLeft <= 0} onClick={() => set({ hit_dice_used: pc.hitDice.used + 1 })}>−</button>
+        </span>
+      )}
+      {pc.uses.map((u, i) => (
+        <span key={i} className="cb-pips" role="group" aria-label={`${u.name} uses`} title={`Back on a ${u.reset} rest`}>
+          {u.name}
+          {u.max > 10 ? <span className="mono">{u.max - u.used}/{u.max}
+            <button type="button" className="ink-button" aria-label={`${name}: use ${u.name}`} disabled={u.used >= u.max}
+              onClick={() => set({ uses: pc.uses.map((x, j) => (j === i ? { ...x, used: x.used + 1 } : x)) })}>−</button></span>
+            : Array.from({ length: u.max }, (_, k) => (
+              <button key={k} type="button" className={`cb-pip${k < u.used ? ' is-used' : ''}`} aria-label={`${u.name} ${k + 1}${k < u.used ? ' used' : ''}`}
+                onClick={() => set({ uses: pc.uses.map((x, j) => (j === i ? { ...x, used: k < x.used ? k : k + 1 } : x)) })} />
+            ))}
+        </span>
+      ))}
+    </div>
   )
 }
 

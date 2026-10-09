@@ -6,7 +6,7 @@ const c = (id: string, name: string, side: Combatant['side'], hp = 10, extra: Pa
 const state = (list: Combatant[]): CombatState => ({ round: 1, turn: 0, combatants: list, log: [], effects: [] })
 const plain: CombatantInfo = {
   creatureType: 'humanoid', leader: false, boosts: [], legendary: false, recharge: [], cr: '1', level: null, xp: 200, pp: 10, saveDc: null, dexMod: 0,
-  resist: '', immune: '', vuln: '', limited: [], legendaryActions: 0, lair: false, split: null, mirrorImage: false, displacement: false, actions: [], slots: [], slotsUsed: [], cardType: 'MONSTER', size: 'Large', splitOnBloodied: false
+  resist: '', immune: '', vuln: '', limited: [], legendaryActions: 0, lair: false, split: null, mirrorImage: false, displacement: false, actions: [], slots: [], slotsUsed: [], cardType: 'MONSTER', size: 'Large', splitOnBloodied: false, pc: null
 }
 
 describe('turns', () => {

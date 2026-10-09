@@ -114,6 +114,8 @@ export interface CombatantInfo {
   /** The card's type (NPC, MONSTER, PC…). */
   cardType: string
   size: string
+  /** Player characters: what the full sheet tracks between fights (Heroic Inspiration, exhaustion, limited uses, hit dice). */
+  pc: { inspiration: boolean; exhaustion: number; uses: Array<{ name: string; max: number; used: number; reset: 'short' | 'long' }>; hitDice: { total: number; dice: string; used: number } } | null
 }
 
 export interface CombatHint { level: 'warn' | 'info'; text: string }

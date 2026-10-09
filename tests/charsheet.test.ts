@@ -160,3 +160,23 @@ describe('D&D Beyond parts', () => {
     expect(usesOf(c.sheet(pc.id).entity.attributes).map((u) => u.used)).toEqual([4, 0])
   })
 })
+
+describe('the fight and the sheet', () => {
+  it('shares death saves and shows the sheet tracking on PC rows', () => {
+    const sb = { ...emptyStatBlock(), hp: '30', hitDice: '5d8' }
+    const pc = c.createEntity({ boardId: g, type: 'PC', name: 'Raph', position: { x: 0, y: 0 }, attributes: {
+      statblock: sb, current_hp: 0, inspiration: true, exhaustion: 1, hit_dice_used: 2, uses: [{ name: 'Second Wind', max: 2, used: 1, reset: 'short' }]
+    } })
+    const enc = c.createEncounter({ name: 'Mill' })
+    const id = c.startCombat(enc)
+    const v = c.combatView(id)
+    expect(v.info[pc.id].pc).toMatchObject({ inspiration: true, exhaustion: 1, hitDice: { total: 5, used: 2 }, uses: [{ name: 'Second Wind', used: 1 }] })
+    const row = v.state.combatants.find((x) => x.entityId === pc.id)!
+    c.updateCombat(id, { ...v.state, combatants: v.state.combatants.map((x) => (x === row ? { ...x, death: { s: 1, f: 2 } } : x)) }, 'Raph: death save')
+    expect(c.sheet(pc.id).entity.attributes.death_saves).toEqual({ s: 1, f: 2 })
+    c.updateEntity(pc.id, { attributes: { death_saves: { s: 2, f: 2 } } })
+    expect(c.combatView(id).state.combatants.find((x) => x.entityId === pc.id)!.death).toEqual({ s: 2, f: 2 })
+    c.undo(); c.undo()
+    expect(c.sheet(pc.id).entity.attributes.death_saves).toBeUndefined()
+  })
+})

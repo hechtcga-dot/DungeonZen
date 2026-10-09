@@ -333,6 +333,10 @@ built.
     height, weight, eyes, hair, skin, faith (PC; the notes import and Fill blanks fill them too).
     Rests (Live): a short rest refills short-rest uses; a long rest refills all uses, hit dice, clears death saves,
     one exhaustion level off. Not taken: rest buttons on the sheet (5), inventory (9). Sheet keeps the desk style.
+  - Run encounter PC rows show the sheet's Heroic Inspiration (toggle), exhaustion (with its −d20 / −speed),
+    hit dice left (− spends one) and limited uses (ticks), written to the card (`CombatantInfo.pc`). Death saves
+    live on the card (`attributes.death_saves`): the fight reads them (`combatView`) and writes changes back in the
+    same undo step (`updateCombat`); the full sheet shows the same ticks.
   - Encounter pictures and maps (`EncounterPictures.tsx`): a folder per encounter, `assets/encounters/<name>` in the
     campaign (made on first use, `attributes.folder`) or one the DM chose (Use another folder…, undoable); files put
     there in Windows show up (refresh on focus); Add pictures… copies in; thumbnails open in Windows; Remove moves to
