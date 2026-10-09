@@ -71,5 +71,8 @@ Owner's decisions: creatures join a fight only through the encounter (and new PC
 Character sheets and fight planning: Make a character card from notes files (AI, review), full sheet editable and linked (proficiency, saves/skills with expertise), SRD weapons and spells picker and your own attack with Roll20 macros, Spells and Actions tables, D&D Beyond list (classes, Heroic Inspiration, heal/damage, hit dice, death saves, exhaustion, limited uses, companions, description fields), encounter pictures folder, sheet tracking on Run encounter rows, Battle planner, spell links. Details in `docs/STATE.md`.
 Owner's decisions: from the D&D Beyond list not taken: rest buttons on the sheet, inventory; sheet keeps the desk style; death saves live on the card (shared by sheet and fight); encounter pictures in `assets/encounters/<name>` or a folder the DM chooses.
 
-## Remind the owner (until answered)
-- Player preview in a second window (TV): put off by owner; ask again later.
+## Owner's answers (2026-10-09)
+- Dice, music, initiative, battle maps at the table stay in Roll20: do not build them in.
+- Not wanted (dropped from the plan): player view on a second window/TV; party loot/treasure list.
+- One computer only (no sync work). XP levelling, not milestones.
+- Wanted next (plan, waiting on "go"): travel suggestions (random encounter/weather, approve first), AI session recap, XP totals per PC, Generators screen in the rail (many tables, own tables, random encounter and non-encounter events), Foundry VTT / Owlbear Rodeo exports, automatic dated backups, Library declutter, Map merged into the board, re-import everywhere, notes as one big document with tabs, headings and a table of contents.
