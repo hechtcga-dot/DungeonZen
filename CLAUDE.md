@@ -75,4 +75,14 @@ Owner's decisions: from the D&D Beyond list not taken: rest buttons on the sheet
 - Dice, music, initiative, battle maps at the table stay in Roll20: do not build them in.
 - Not wanted (dropped from the plan): player view on a second window/TV; party loot/treasure list.
 - One computer only (no sync work). XP levelling, not milestones.
-- Wanted next (plan, waiting on "go"): travel suggestions (random encounter/weather, approve first), AI session recap, XP totals per PC, Generators screen in the rail (many tables, own tables, random encounter and non-encounter events), Foundry VTT / Owlbear Rodeo exports, automatic dated backups, Library declutter, Map merged into the board, re-import everywhere, notes as one big document with tabs, headings and a table of contents.
+- Next build (waiting on "go"), owner's answers 2026-10-09:
+  - Map: option B, board gets a "map view" switch (same picture) with region tools, AI find regions, party token and travel time. Map screen stays.
+  - Library: entries grouped in expandable folders (PCs, NPCs, monsters, places…), not one long list.
+  - Generators: own rail item, many tables (names, taverns, shops, NPC quirks/voices, rumours/hooks, loot by CR, trinkets, weather, travel events, encounter and non-encounter random events, dungeon rooms, traps, riddles); results copy or go on the board; own tables typed or pasted.
+  - Travel: suggest checks per travel time as a roll table (DM rolls in Roll20), DM confirms; nothing happens on its own.
+  - XP: equal share per fight, running total per PC, close-to-level shown.
+  - AI session recap (edit before sending).
+  - Backups: dated, end of session + once a day, keep 20, in `backups/` in the campaign by default, DM can choose another folder.
+  - Re-import everywhere (map picture, character sheet, notes files, encounter pictures) plus "read again with AI".
+  - Notes: one master notes document with bookmarks/headings/table of contents, individual notes kept with their original copy; tickbox to sync an edit between master and the note.
+  - Foundry VTT and Owlbear Rodeo exports: battle maps with grid, character and monster sheets, handouts.
