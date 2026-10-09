@@ -169,9 +169,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notes:set', ({ text }) => current().setSetting('dm_notes', text, 'Edited DM notes'))
   handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
   handle('clock:set', ({ minutes }) => current().setClock(minutes))
-  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays }) => {
+  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units }) => {
     const c = current()
-    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays }, 'Changed campaign settings')
+    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units }, 'Changed campaign settings')
     if (name) profile.remember(c.folder, name)
   })
   handle('storyline:update', ({ storylineId, patch }) => current().updateStoryline(storylineId, patch))
@@ -509,10 +509,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     pendingWorlds.set(pending.pendingId, { source, prompt, regions: [] })
     return { ...pending, source }
   })
-  handle('world:keep', ({ pendingId, name, widthMiles }) => {
+  handle('world:keep', ({ pendingId, name, widthKm }) => {
     const p = pendingWorlds.get(pendingId)
     if (!p) throw new Error('That map is gone; make it again')
-    const map = current().keepWorldMap({ pendingId, name, widthMiles, source: p.source, prompt: p.prompt, regions: p.regions })
+    const map = current().keepWorldMap({ pendingId, name, widthKm, source: p.source, prompt: p.prompt, regions: p.regions })
     pendingWorlds.delete(pendingId)
     return map
   })
@@ -543,7 +543,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('region:create', (i) => current().createRegion(i))
   handle('region:update', ({ id, patch }) => current().updateRegion(id, patch))
   handle('region:setStatus', ({ id, status }) => current().setRegionStatus(id, status))
-  handle('map:setScale', ({ mapId, widthMiles, travelMph }) => current().setMapScale(mapId, widthMiles, travelMph))
+  handle('map:setScale', ({ mapId, widthKm, travelKmh }) => current().setMapScale(mapId, widthKm, travelKmh))
   handle('party:estimate', ({ mapId, x, y }) => current().travelEstimate(mapId, [x, y]))
   handle('party:move', (i) => current().moveParty(i))
   handle('review:decide', ({ sessionId, ...input }) => current().decide(sessionId, input))

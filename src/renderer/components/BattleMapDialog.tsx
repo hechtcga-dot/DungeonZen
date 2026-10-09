@@ -3,13 +3,14 @@ import { Dialog } from './Dialog'
 import { CommitField } from './fields'
 import { GridLines } from './MapOverlay'
 import { call } from '../api'
-import { useBoard } from '../store'
+import { useBoard, useUnits } from '../store'
 import { providerById, type AiProviderInfo } from '../../shared/aiProviders'
 import {
   ART_STYLES, aspectFor, BATTLE_FEATURES, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
   rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
 } from '../../shared/battlemap'
 import type { PendingImageView, StyleExampleView } from '../../shared/types'
+import { fmtSquares } from '../../shared/units'
 
 type Drawn = PendingImageView & { source: string; prompt: string; cols: number }
 type Spec = Omit<BattleMapSpec, 'withExamples'>
@@ -43,6 +44,7 @@ function Choice<K extends keyof Spec>({ id, label, k, options, spec, set, auto }
  * The picture stays a preview until the DM keeps it (rule 2).
  */
 export function BattleMapDialog() {
+  const units = useUnits()
   const open = useBoard((s) => s.battleMapOpen)
   const setOpen = useBoard((s) => s.setBattleMapOpen)
   const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
@@ -225,7 +227,7 @@ export function BattleMapDialog() {
                     <input id="bm-rows" className="short" type="number" min={GRID_MIN} max={GRID_MAX} value={rows} aria-label="Squares deep"
                       onChange={(e) => set({ rows: Number(e.target.value) })} />
                   </div>
-                  <span className="hint">{cols * 5} × {rows * 5} ft</span>
+                  <span className="hint">{fmtSquares(cols, units)} × {fmtSquares(rows, units)}</span>
                 </div>
               </div>
               <fieldset className="field battle-features">

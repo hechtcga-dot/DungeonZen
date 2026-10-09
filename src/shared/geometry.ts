@@ -1,3 +1,4 @@
+import { DEFAULT_UNITS, fmtDistance, fmtSpeed, longUnit, type Units } from './units'
 // Plane geometry for map regions (image pixel coordinates). Pure, unit tested.
 
 export type Point = [number, number]
@@ -47,7 +48,7 @@ export function distance(a: Point, b: Point): number {
 
 export interface TravelEstimate {
   minutes: number | null
-  miles: number | null
+  km: number | null
   /** How it was worked out, in plain words. */
   basis: string
 }
@@ -55,17 +56,18 @@ export interface TravelEstimate {
 /**
  * Travel time between two points on a map. A time the DM saved for this route
  * wins; otherwise straight-line distance from the map's scale (its width in
- * miles) at the given pace, rounded to 10 minutes. Without a scale there is no
+ * km) at the given pace, rounded to 10 minutes. Without a scale there is no
  * estimate and the DM sets the time.
  */
 export function estimateTravel(input: {
-  from: Point; to: Point; imageWidth: number | null; widthMiles: number | null; mph: number; savedMinutes?: number | null
+  from: Point; to: Point; imageWidth: number | null; widthKm: number | null; kmh: number; savedMinutes?: number | null; units?: Units
 }): TravelEstimate {
-  if (input.savedMinutes != null) return { minutes: input.savedMinutes, miles: null, basis: 'the time you set for this route' }
-  if (!input.imageWidth || !input.widthMiles || input.mph <= 0) {
-    return { minutes: null, miles: null, basis: 'no map scale yet: set how many miles the map is across' }
+  const units = input.units ?? DEFAULT_UNITS
+  if (input.savedMinutes != null) return { minutes: input.savedMinutes, km: null, basis: 'the time you set for this route' }
+  if (!input.imageWidth || !input.widthKm || input.kmh <= 0) {
+    return { minutes: null, km: null, basis: `no map scale yet: set how many ${longUnit(units)} the map is across` }
   }
-  const miles = (distance(input.from, input.to) / input.imageWidth) * input.widthMiles
-  const minutes = Math.max(10, Math.round(((miles / input.mph) * 60) / 10) * 10)
-  return { minutes, miles: Math.round(miles * 10) / 10, basis: `about ${Math.round(miles * 10) / 10} miles in a straight line at ${input.mph} mph` }
+  const km = (distance(input.from, input.to) / input.imageWidth) * input.widthKm
+  const minutes = Math.max(10, Math.round(((km / input.kmh) * 60) / 10) * 10)
+  return { minutes, km: Math.round(km * 10) / 10, basis: `about ${fmtDistance(km, units)} in a straight line at ${fmtSpeed(input.kmh, units)}` }
 }

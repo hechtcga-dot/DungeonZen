@@ -69,7 +69,7 @@ const DEFAULT_CLOCK_MIN = 9 * 60 // Day 1, 09:00
 export interface Position { x: number; y: number }
 
 export type SettingKey =
-  'name' | 'rules_edition' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
+  'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
   | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types'
 
 interface GeneratedPerson {
@@ -138,6 +138,7 @@ export class Campaign {
       rulesEdition: (settings.get('rules_edition') as RulesEdition) ?? DEFAULT_RULES_EDITION,
       clockMin: Number(settings.get('clock_min') ?? 0),
       globalBoardId: this.globalBoard().id,
+      units: settings.get('units') === 'imperial' ? 'imperial' : 'metric',
       gettingStarted: settings.get('getting_started') === 'pending'
     }
   }
@@ -1846,9 +1847,9 @@ export class Campaign {
       (w) => { w.update('region_shape', id, { status }) })
   }
 
-  setMapScale(mapId: string, widthMiles: number | null, travelMph: number): void {
+  setMapScale(mapId: string, widthKm: number | null, travelKmh: number): void {
     const m = this.mapRow(mapId)
-    this.log.run(`Set the scale of ${m.name}`, (w) => { w.update('map', mapId, { widthMiles, travelMph }) })
+    this.log.run(`Set the scale of ${m.name}`, (w) => { w.update('map', mapId, { widthKm, travelKmh }) })
   }
 
   /** A square grid over the map (squares across), or none. */
@@ -1944,7 +1945,7 @@ export class Campaign {
    * Keeps a world map that was made for the getting started guide (the map maker, or an AI
    * drawing): it becomes the desk map, with its regions and their Location cards. One undo step.
    */
-  keepWorldMap(input: { pendingId: string; name: string; widthMiles: number | null; source: string; prompt: string | null; regions: NewRegion[] }): MapView {
+  keepWorldMap(input: { pendingId: string; name: string; widthKm: number | null; source: string; prompt: string | null; regions: NewRegion[] }): MapView {
     const from = this.pendingFile(input.pendingId)
     const id = randomUUID()
     const rel = `maps/${id}${extname(input.pendingId)}`
@@ -1954,7 +1955,7 @@ export class Campaign {
     this.log.run(`Kept world map ${input.name}`, (w) => {
       w.insert('map', {
         id, name: input.name, imagePath: rel, width: size?.width ?? null, height: size?.height ?? null, gridSize: null,
-        status: 'active', kind: 'world', widthMiles: input.widthMiles, source: input.source, prompt: input.prompt
+        status: 'active', kind: 'world', widthKm: input.widthKm, source: input.source, prompt: input.prompt
       })
       if (w.get('campaign_settings', 'active_map_id')) w.update('campaign_settings', 'active_map_id', { value: id })
       else w.insert('campaign_settings', { key: 'active_map_id', value: id })
@@ -2693,7 +2694,7 @@ export class Campaign {
     const party = this.partyAt(mapId, this.info().clockMin)
     const from: Point | null = party ? [party.x, party.y] : null
     if (!from) {
-      return { minutes: 0, miles: null, basis: 'the party is placed here for the first time', fromName: null, toName: dest?.name ?? null, toLocationId: dest?.locationId ?? null }
+      return { minutes: 0, km: null, basis: 'the party is placed here for the first time', fromName: null, toName: dest?.name ?? null, toLocationId: dest?.locationId ?? null }
     }
     // A remembered time for this trip, or else for the way back (the same road both ways unless the DM says otherwise).
     const link = (fromId: string, toId: string) =>
@@ -2703,7 +2704,7 @@ export class Campaign {
     const fromRegion = party?.locationId ? regions.find((r) => r.locationId === party.locationId) : undefined
     const a = fromRegion ? centroid(fromRegion.polygon) : from
     const b = dest ? centroid(dest.polygon) : to
-    const est = estimateTravel({ from: a, to: b, imageWidth: m.width, widthMiles: m.widthMiles, mph: m.travelMph, savedMinutes: saved?.minutes ?? null })
+    const est = estimateTravel({ from: a, to: b, imageWidth: m.width, widthKm: m.widthKm, kmh: m.travelKmh, savedMinutes: saved?.minutes ?? null, units: this.info().units })
     return { ...est, fromName: party?.locationName ?? null, toName: dest?.name ?? null, toLocationId: dest?.locationId ?? null }
   }
 
@@ -2885,7 +2886,7 @@ function isEncounter(e: EntityRow): boolean {
 function toMapView(r: MapRow): MapView {
   return {
     id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath, width: r.width, height: r.height,
-    widthMiles: r.widthMiles, travelMph: r.travelMph,
+    widthKm: r.widthKm, travelKmh: r.travelKmh,
     kind: r.kind === 'battle' ? 'battle' : 'world',
     gridCols: r.gridCols,
     gridRows: r.gridCols && r.width && r.height ? rowsFor(r.gridCols, r.width, r.height) : null,

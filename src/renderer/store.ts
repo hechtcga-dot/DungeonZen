@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
 import type { BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView } from '../shared/types'
+import type { Units } from '../shared/units'
 
 export type Selection =
   | { kind: 'entity'; id: string }
@@ -258,6 +259,9 @@ export const useBoard = create<BoardState>((set, get) => ({
 }))
 
 /** Current board view; components below the board screen can rely on it being loaded. */
+/** What the screens show: metric (default) or imperial (Campaign settings). */
+export const useUnits = (): Units => useBoard((s) => s.info?.units ?? 'metric')
+
 export function useView(): BoardView {
   const view = useBoard((s) => s.view)
   if (!view) throw new Error('Board view not loaded')

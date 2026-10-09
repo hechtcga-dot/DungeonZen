@@ -135,10 +135,10 @@ describe('keeping a world map', () => {
   it('keeps the map, its regions and their Location cards as one undo step', () => {
     const w = generateWorld({ seed: 5, ...small })
     const pending = c.savePendingImage(w.png, 'image/png')
-    const map = c.keepWorldMap({ pendingId: pending.pendingId, name: 'The Known World', widthMiles: 1500, source: 'Dungeon Zen map maker (seed 5)', prompt: null, regions: w.regions })
+    const map = c.keepWorldMap({ pendingId: pending.pendingId, name: 'The Known World', widthKm: 1500, source: 'Dungeon Zen map maker (seed 5)', prompt: null, regions: w.regions })
     expect(map.kind).toBe('world')
     expect(map.width).toBe(600)
-    expect(map.widthMiles).toBe(1500)
+    expect(map.widthKm).toBe(1500)
     expect(c.desk().map?.id).toBe(map.id)
     const v = c.mapScreen(map.id)
     expect(v.regions).toHaveLength(w.regions.length)
@@ -150,7 +150,7 @@ describe('keeping a world map', () => {
     // Cards on the board do not pile on top of each other.
     const spots = new Set(c.boardView(c.info().globalBoardId).items.map((i) => `${i.x},${i.y}`))
     expect(spots.size).toBe(w.regions.length)
-    expect(() => c.keepWorldMap({ pendingId: pending.pendingId, name: 'Again', widthMiles: null, source: 'x', prompt: null, regions: [] })).toThrow()
+    expect(() => c.keepWorldMap({ pendingId: pending.pendingId, name: 'Again', widthKm: null, source: 'x', prompt: null, regions: [] })).toThrow()
     c.undo()
     expect(c.maps()).toEqual([])
     expect(c.boardView(c.info().globalBoardId).items).toEqual([])

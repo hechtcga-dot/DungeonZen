@@ -95,7 +95,7 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
   )
 }
 
-/** A square grid (5 ft squares) drawn by the app over a battle map, so it always lines up. */
+/** A square grid (1.5 m / 5 ft squares) drawn by the app over a battle map, so it always lines up. */
 export function GridLines({ cols, width, height, scale }: { cols: number; width: number; height: number; scale: number }) {
   const cell = width / cols
   const rows = Math.ceil(height / cell - 0.01)

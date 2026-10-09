@@ -1,3 +1,4 @@
+import type { Units } from './units'
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, BoardItemContent, RowStatus,
@@ -13,6 +14,8 @@ export interface CampaignInfo {
   rulesEdition: RulesEdition
   clockMin: number
   globalBoardId: string
+  /** What the screens show: metric (default) or imperial. Stored values are metric. */
+  units: Units
   /** A new campaign: show the getting started guide until the DM finishes or skips it. */
   gettingStarted: boolean
 }
@@ -218,8 +221,9 @@ export interface MapView {
   url: string
   width: number | null
   height: number | null
-  widthMiles: number | null
-  travelMph: number
+  /** How many km the image is across (map scale); stored metric. */
+  widthKm: number | null
+  travelKmh: number
   /** A world map, or a battle map with a square grid (5 ft squares). */
   kind: 'world' | 'battle'
   gridCols: number | null
@@ -506,7 +510,7 @@ export interface RegionDetail {
 
 export interface TravelEstimateView {
   minutes: number | null
-  miles: number | null
+  km: number | null
   basis: string
   fromName: string | null
   toName: string | null

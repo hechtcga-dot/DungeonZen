@@ -141,7 +141,7 @@ export function battleMapPrompt(spec: BattleMapSpec): string {
   const lines = [
     `A top-down battle map for a tabletop role-playing game: ${where}.`,
     'Seen from directly above (orthographic, 90 degrees, no perspective or horizon).',
-    `The area is ${spec.cols} squares wide and ${spec.rows} squares deep, each square 5 feet; walls, doors, furniture and terrain line up with that square grid.`,
+    `The area is ${spec.cols} squares wide and ${spec.rows} squares deep, each square 5 feet (1.5 metres); walls, doors, furniture and terrain line up with that square grid.`,
     `Lighting: ${LIGHT_WORDS[spec.timeOfDay]}.${sky}`,
     spec.description.trim() ? `What is there: ${spec.description.trim().replace(/\s+/g, ' ')}` : 'An area with a few obstacles to fight around.'
   ]

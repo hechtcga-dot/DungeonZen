@@ -120,8 +120,8 @@ export const map = sqliteTable('map', {
   height: integer('height'),
   gridSize: integer('grid_size'),
   status: text('status').notNull(),
-  widthMiles: real('width_miles'), // how many miles the image is across (map scale)
-  travelMph: real('travel_mph').notNull().default(3),
+  widthKm: real('width_km'), // how many km the image is across (map scale)
+  travelKmh: real('travel_kmh').notNull().default(4.8),
   kind: text('kind').notNull().default('world'), // world | battle
   gridCols: integer('grid_cols'), // squares across, when the map has a grid (5 ft each)
   source: text('source'), // null = the DM's own image; otherwise which AI drew it

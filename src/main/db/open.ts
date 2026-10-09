@@ -170,6 +170,14 @@ const MIGRATIONS: string[] = [
     id TEXT PRIMARY KEY, act_id TEXT NOT NULL REFERENCES act(id), entity_id TEXT NOT NULL REFERENCES entity(id), status TEXT NOT NULL
   );
   CREATE INDEX act_entity_entity ON act_entity(entity_id);
+  `,
+  // 1.2.0: distances stored metric (owner, 2026-10-06).
+  `
+  ALTER TABLE map ADD COLUMN width_km REAL;
+  ALTER TABLE map ADD COLUMN travel_kmh REAL NOT NULL DEFAULT 4.8;
+  UPDATE map SET width_km = width_miles * 1.609344, travel_kmh = travel_mph * 1.609344;
+  ALTER TABLE map DROP COLUMN width_miles;
+  ALTER TABLE map DROP COLUMN travel_mph;
   `
 ]
 

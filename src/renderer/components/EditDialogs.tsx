@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useBoard } from '../store'
+import type { Units } from '../../shared/units'
 import { Dialog } from './Dialog'
 import { STORY_EMBLEMS, StoryEmblemArt, storyEmblemFor, type StoryEmblem } from '../art/emblems'
 import { RulesEdition, StorylineStatus } from '../../shared/schemas'
@@ -26,6 +27,7 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
   const offset = desk?.moonOffsetDays ?? 0
   const [name, setName] = useState(info?.name ?? '')
   const [edition, setEdition] = useState<RulesEdition>(info?.rulesEdition ?? '2024')
+  const [units, setUnits] = useState<Units>(info?.units ?? 'metric')
   const [day, setDay] = useState(String(clock.day))
   const [hour, setHour] = useState(String(clock.hour))
   const [minute, setMinute] = useState(String(clock.minute).padStart(2, '0'))
@@ -39,7 +41,7 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
 
   const save = async () => {
     if (!valid || !info) return
-    await act('campaign:update', { name: name.trim(), rulesEdition: edition, moonOffsetDays: -(f - 1) })
+    await act('campaign:update', { name: name.trim(), rulesEdition: edition, moonOffsetDays: -(f - 1), units })
     const minutes = fromClockParts({ day: d, hour: h, minute: m })
     if (minutes !== info.clockMin) await act('clock:set', { minutes })
     onClose()
@@ -57,6 +59,14 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
           <option value="2024">2024 rules (SRD 5.2)</option>
           <option value="2014">2014 rules (SRD 5.1)</option>
         </select>
+      </div>
+      <div className="field">
+        <label htmlFor="cs-units">Measurements</label>
+        <select id="cs-units" value={units} onChange={(e) => setUnits(e.target.value as Units)}>
+          <option value="metric">Metric: metres, km, km/h</option>
+          <option value="imperial">Imperial: feet, miles, mph</option>
+        </select>
+        <div className="hint">Only changes what the screens show; stat block text keeps its words, and feet or miles in it show converted.</div>
       </div>
       <fieldset className="field">
         <legend>Campaign time</legend>

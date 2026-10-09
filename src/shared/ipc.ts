@@ -88,7 +88,8 @@ export const ipcInputs = {
   'clock:set': z.object({ minutes: z.number().int().min(0).max(1_000_000_000) }),
   'campaign:update': z.object({
     name: Name.optional(), rulesEdition: RulesEdition.optional(),
-    moonOffsetDays: z.number().finite().min(-10000).max(10000).optional()
+    moonOffsetDays: z.number().finite().min(-10000).max(10000).optional(),
+    units: z.enum(['metric', 'imperial']).optional()
   }),
   'storyline:update': z.object({
     storylineId: Id,
@@ -211,7 +212,7 @@ export const ipcInputs = {
     climate: z.enum(WORLD_CLIMATES), settlements: z.number().int().min(0).max(30)
   }),
   'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000) }),
-  'world:keep': z.object({ pendingId: z.string().max(80), name: Name, widthMiles: z.number().positive().max(100000).nullable() }),
+  'world:keep': z.object({ pendingId: z.string().max(80), name: Name, widthKm: z.number().positive().max(200000).nullable() }),
   'world:findRegions': z.object({ mapId: Id, ask: z.string().max(2000) }),
   'world:addRegions': z.object({ mapId: Id, regions: z.array(PlaceShapeInput).min(1).max(200), source: z.string().max(300) }),
   'guide:finish': z.void(),
@@ -221,7 +222,7 @@ export const ipcInputs = {
   }),
   'region:update': z.object({ id: Id, patch: z.object({ polygon: Polygon.optional(), locationId: Id.optional(), parentLocationId: Id.nullable().optional() }) }),
   'region:setStatus': z.object({ id: Id, status: RowStatus }),
-  'map:setScale': z.object({ mapId: Id, widthMiles: z.number().positive().max(100000).nullable(), travelMph: z.number().positive().max(500) }),
+  'map:setScale': z.object({ mapId: Id, widthKm: z.number().positive().max(200000).nullable(), travelKmh: z.number().positive().max(1000) }),
   'party:estimate': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite() }),
   'party:move': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite(), minutes: z.number().int().min(0).max(525600), rememberTime: z.boolean().optional() }),
   'review:decide': z.object({

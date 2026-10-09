@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useBoard } from '../store'
+import { useBoard, useUnits } from '../store'
+import { kmToShown, shownToKm } from '../../shared/units'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
 import { Candle } from '../art/props'
@@ -119,7 +120,7 @@ function MapStep({ existing, onKept, onUseExisting, onSkip }: {
   )
 }
 
-const SIZE_MILES: Record<WorldSettings['size'], number> = { small: 600, medium: 1500, large: 3000 }
+const SIZE_KM: Record<WorldSettings['size'], number> = { small: 1000, medium: 2400, large: 4800 }
 const newSeed = () => Math.floor(Math.random() * 2147483647)
 
 function MakeMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void; onBack(): void }) {
@@ -128,7 +129,8 @@ function MakeMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   const [made, setMade] = useState<(PendingImageView & { regions: PlaceShape[] }) | null>(null)
   const [busy, setBusy] = useState(false)
   const [name, setName] = useState('The Known World')
-  const [miles, setMiles] = useState(SIZE_MILES.medium)
+  const units = useUnits()
+  const [across, setAcross] = useState(kmToShown(SIZE_KM.medium, units))
   const make = async (settings: WorldSettings) => {
     setO(settings); setBusy(true)
     try {
@@ -141,7 +143,7 @@ function MakeMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   const keep = async () => {
     if (!made) return
     setBusy(true)
-    const m = await act('world:keep', { pendingId: made.pendingId, name: name.trim() || 'The Known World', widthMiles: miles || null })
+    const m = await act('world:keep', { pendingId: made.pendingId, name: name.trim() || 'The Known World', widthKm: across ? shownToKm(across, units) : null })
     setBusy(false)
     if (m) onKept(m, made.regions.length)
   }
@@ -156,7 +158,7 @@ function MakeMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
       <aside className="parchment-note guide-options">
         <h2 className="panel-title">Your world</h2>
         <div className="field"><label htmlFor="w-size">Size</label>
-          <select id="w-size" value={o.size} onChange={(e) => { const size = e.target.value as WorldSettings['size']; setMiles(SIZE_MILES[size]); void make({ ...o, size }) }}>
+          <select id="w-size" value={o.size} onChange={(e) => { const size = e.target.value as WorldSettings['size']; setAcross(kmToShown(SIZE_KM[size], units)); void make({ ...o, size }) }}>
             <option value="small">Small: one land, fewer places</option><option value="medium">Medium</option><option value="large">Large: many lands</option>
           </select></div>
         <div className="field"><label htmlFor="w-land">Land and sea ({Math.round(o.land * 100)}% land)</label>
@@ -174,8 +176,8 @@ function MakeMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
         </div>
         <hr className="ink-rule" />
         <div className="field"><label htmlFor="w-name">Map name</label><input id="w-name" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="field"><label htmlFor="w-miles">Miles across (for travel times)</label>
-          <input id="w-miles" type="number" min={1} max={100000} value={miles} onChange={(e) => setMiles(Math.max(0, Number(e.target.value) || 0))} /></div>
+        <div className="field"><label htmlFor="w-miles">{units === 'imperial' ? 'Miles' : 'Kilometres'} across (for travel times)</label>
+          <input id="w-miles" type="number" min={1} max={100000} value={across} onChange={(e) => setAcross(Math.max(0, Number(e.target.value) || 0))} /></div>
         <div className="row tight wrap">
           <button className="primary" disabled={!made || busy} onClick={() => void keep()}>Keep this map</button>
           <button onClick={() => void back()}>Back</button>
@@ -216,7 +218,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   const keep = async () => {
     if (!drawn) return
     try {
-      const m = await act('world:keep', { pendingId: drawn.pendingId, name: name.trim() || 'The Known World', widthMiles: null })
+      const m = await act('world:keep', { pendingId: drawn.pendingId, name: name.trim() || 'The Known World', widthKm: null })
       if (m) onKept(m, 0)
     } catch (e) { say((e as Error).message, true) }
   }

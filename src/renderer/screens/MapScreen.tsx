@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useBoard } from '../store'
+import { useBoard, useUnits } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { MapView, type MapLayerContext } from '../components/MapView'
 import { MapOverlay, PartyToken } from '../components/MapOverlay'
@@ -16,6 +16,7 @@ import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
 import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
+import { fmtSquares, kmToShown, longUnit, shownToKm, speedUnit } from '../../shared/units'
 
 type Mode = 'view' | 'draw' | 'edit'
 
@@ -85,6 +86,7 @@ export function MapScreen() {
 }
 
 function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode; setMode(m: Mode): void }) {
+  const units = useUnits()
   const side = useSidePanel('map-side', 'right', 300)
   const { act, query, info, say } = useBoard()
   const [selected, setSelected] = useState<string | null>(view.party?.locationId ? view.regions.find((r) => r.locationId === view.party?.locationId)?.id ?? null : null)
@@ -206,7 +208,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         )}
         {view.map.kind === 'battle' ? (
           <div className="ink-muted map-foot">
-            Battle map{view.map.gridCols && view.map.gridRows ? `: ${view.map.gridCols} × ${view.map.gridRows} squares (${view.map.gridCols * 5} × ${view.map.gridRows * 5} ft)` : ''}.
+            Battle map{view.map.gridCols && view.map.gridRows ? `: ${view.map.gridCols} × ${view.map.gridRows} squares (${fmtSquares(view.map.gridCols, units)} × ${fmtSquares(view.map.gridRows, units)})` : ''}.
             {view.map.source && <> <span className="ai-badge">Drawn by AI · {view.map.source}</span></>}
             {' '}<button className="link-button" onClick={async () => { const f = await act('map:saveImage', { mapId: view.map.id }); if (f) say(`Saved ${f}. In Roll20, make a page ${view.map.gridCols ?? '?'} × ${view.map.gridRows ?? '?'} units and stretch the image to it.`) }}>Save image for Roll20…</button>
             {view.map.prompt && (
@@ -217,7 +219,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
           <p className="ink-muted map-foot">
             {view.party ? <>Party location: <strong>{view.party.locationName ?? 'between places'}</strong> since {formatClock(view.party.atMin)}. Drag the banner to move them.</>
               : 'The party is not on this map yet.'}
-            {!view.map.widthMiles && ' Set the map scale to get travel time estimates.'}
+            {!view.map.widthKm && ' Set the map scale to get travel time estimates.'}
           </p>
         )}
       </div>
@@ -438,8 +440,9 @@ function NewRegionDialog({ view, polygon, onClose, onCreated }: { view: MapScree
 
 function ScaleDialog({ view, onClose }: { view: MapScreenView; onClose(): void }) {
   const act = useBoard((s) => s.act)
-  const [miles, setMiles] = useState(view.map.widthMiles != null ? String(view.map.widthMiles) : '')
-  const [mph, setMph] = useState(String(view.map.travelMph))
+  const units = useUnits()
+  const [miles, setMiles] = useState(view.map.widthKm != null ? String(kmToShown(view.map.widthKm, units)) : '')
+  const [mph, setMph] = useState(String(kmToShown(view.map.travelKmh, units)))
   const [cols, setCols] = useState(view.map.gridCols != null ? String(view.map.gridCols) : '')
   const m = miles.trim() === '' ? null : Number(miles)
   const g = cols.trim() === '' ? null : Number(cols)
@@ -450,24 +453,26 @@ function ScaleDialog({ view, onClose }: { view: MapScreenView; onClose(): void }
       <form className="dz-form" onSubmit={async (e) => {
         e.preventDefault()
         if (!valid) return
-        if (m !== view.map.widthMiles || Number(mph) !== view.map.travelMph) await act('map:setScale', { mapId: view.map.id, widthMiles: m, travelMph: Number(mph) })
+        if (m !== (view.map.widthKm == null ? null : kmToShown(view.map.widthKm, units)) || Number(mph) !== kmToShown(view.map.travelKmh, units)) {
+          await act('map:setScale', { mapId: view.map.id, widthKm: m === null ? null : shownToKm(m, units), travelKmh: shownToKm(Number(mph), units) })
+        }
         if (g !== view.map.gridCols) await act('map:setGrid', { mapId: view.map.id, cols: g })
         onClose()
       }}>
         <div className="field">
-          <label htmlFor="sc-grid">Grid: how many squares across (5 feet each)?</label>
+          <label htmlFor="sc-grid">Grid: how many squares across ({fmtSquares(1, units)} each)?</label>
           <input id="sc-grid" className="short" inputMode="numeric" value={cols} onChange={(e) => setCols(e.target.value)} />
           <div className="hint">For battle maps. {GRID_MIN} to {GRID_MAX}; leave empty for no grid. The app draws the lines, so they always line up.</div>
         </div>
         <div className="field">
-          <label htmlFor="sc-miles">How many miles is the map across (left to right)?</label>
+          <label htmlFor="sc-miles">How many {longUnit(units)} is the map across (left to right)?</label>
           <input id="sc-miles" className="short" inputMode="decimal" value={miles} onChange={(e) => setMiles(e.target.value)} />
-          <div className="hint">A city map might be 2 miles across, a kingdom 300. Leave empty for no estimates.</div>
+          <div className="hint">A city map might be {units === 'imperial' ? '2 miles' : '3 km'} across, a kingdom {units === 'imperial' ? '300' : '500'}. Leave empty for no estimates.</div>
         </div>
         <div className="field">
-          <label htmlFor="sc-mph">Travel pace (miles per hour)</label>
+          <label htmlFor="sc-mph">Travel pace ({speedUnit(units)})</label>
           <input id="sc-mph" className="short" inputMode="decimal" value={mph} onChange={(e) => setMph(e.target.value)} />
-          <div className="hint">On foot: 3 at a normal pace, 4 fast, 2 slow. Mounted or by cart is usually faster over a day.</div>
+          <div className="hint">On foot: {units === 'imperial' ? '3 at a normal pace, 4 fast, 2 slow' : '4.8 at a normal pace, 6.4 fast, 3.2 slow'}. Mounted or by cart is usually faster over a day.</div>
         </div>
         <div className="dz-actions">
           <button type="button" onClick={onClose}>Cancel</button>
