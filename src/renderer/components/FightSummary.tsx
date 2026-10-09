@@ -1,3 +1,4 @@
+import { PicturePanel } from './Pictures'
 import { useState } from 'react'
 import { useBoard, useUnits } from '../store'
 import { call } from '../api'
@@ -56,28 +57,16 @@ export function StatBlockView({ name, sb, actions }: { name: string; sb: StatBlo
 
 /** Sheet › Fight summary: picture, the stat block to run, CR up or down, AI stat block. */
 export function FightSummary({ sheet, onFullSheet }: { sheet: SheetView; onFullSheet(): void }) {
-  const act = useBoard((s) => s.act)
   const e = sheet.entity
   const sb = readStatBlock(e.attributes.statblock)
   const [crTarget, setCrTarget] = useState<string | null>(null)
   const [aiOpen, setAiOpen] = useState(false)
-  const [drawOpen, setDrawOpen] = useState(false)
-  const picture = typeof e.attributes.picture === 'string' ? e.attributes.picture : null
-  const pictureSource = typeof e.attributes.picture_source === 'string' ? e.attributes.picture_source : null
   const aiStat = (e.attributes.ai_filled as Record<string, string> | undefined)?.statblock
   const step = sb ? crStep(sb.cr) : null
 
   return (
     <div className="fight-summary">
-      <aside className="fight-picture panel">
-        {picture ? <img src={`dz-asset://campaign/${picture}`} alt={`Picture of ${e.name}`} /> : <div className="fight-nopic">No picture yet</div>}
-        {pictureSource && <span className="ai-badge">Drawn by AI · {pictureSource}</span>}
-        <div className="row tight wrap">
-          <button onClick={() => void act('entity:pictureDialog', { entityId: e.id })}>Upload…</button>
-          <button onClick={() => setDrawOpen(true)}>Draw with AI…</button>
-          {picture && <button onClick={() => void act('entity:removePicture', { entityId: e.id })}>Remove</button>}
-        </div>
-      </aside>
+      <PicturePanel sheet={sheet} />
       <section className="panel fight-main">
         <div className="row tight wrap fight-tools">
           <button disabled={step == null || step === 0} title={step == null ? 'Set the challenge rating first' : undefined}
@@ -94,7 +83,6 @@ export function FightSummary({ sheet, onFullSheet }: { sheet: SheetView; onFullS
       </section>
       {crTarget && sb && <CrDialog sheet={sheet} sb={sb} target={crTarget} onClose={() => setCrTarget(null)} />}
       {aiOpen && <AiStatBlockDialog sheet={sheet} onClose={() => setAiOpen(false)} />}
-      {drawOpen && <DrawPictureDialog sheet={sheet} onClose={() => setDrawOpen(false)} />}
     </div>
   )
 }
@@ -184,42 +172,3 @@ function AiStatBlockDialog({ sheet, onClose }: { sheet: SheetView; onClose(): vo
   )
 }
 
-function DrawPictureDialog({ sheet, onClose }: { sheet: SheetView; onClose(): void }) {
-  const { act, setAiSettingsOpen } = useBoard()
-  const [ask, setAsk] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [drawn, setDrawn] = useState<IpcOutputs['entity:drawPicture'] | null>(null)
-  const draw = async () => {
-    setBusy(true); setError('')
-    try {
-      if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('entity:drawPicture', { entityId: sheet.entity.id, ask }))
-    } catch (err) { setError((err as Error).message) } finally { setBusy(false) }
-  }
-  const close = () => { if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }); onClose() }
-  return (
-    <Dialog title={`Draw ${sheet.entity.name}`} open onClose={close}>
-      <div className="dz-form">
-        <div className="field">
-          <label htmlFor="pic-ask">Anything to add? (optional)</label>
-          <input id="pic-ask" value={ask} maxLength={2000} placeholder="scarred face, red cloak, holding a lantern" onChange={(ev) => setAsk(ev.target.value)} />
-          <div className="hint">The card's summary and bio go with it. Uses the image service chosen in AI services.</div>
-        </div>
-        {error && (
-          <div className="field-error battle-error" role="alert"><span>{error}</span>
-            <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
-        )}
-        {drawn && <div className="ai-suggestion"><span className="ai-badge">AI suggestion · {drawn.source}</span><img className="pic-preview" src={drawn.url} alt="The AI's drawing" /></div>}
-        <div className="dz-actions">
-          <button type="button" onClick={close}>Cancel</button>
-          <button disabled={busy} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Draw again' : 'Draw'}</button>
-          {drawn && <button className="primary" onClick={async () => {
-            await act('entity:keepPicture', { entityId: sheet.entity.id, pendingId: drawn.pendingId, source: drawn.source })
-            onClose()
-          }}>Keep this picture</button>}
-        </div>
-      </div>
-    </Dialog>
-  )
-}

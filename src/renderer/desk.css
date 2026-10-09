@@ -1013,3 +1013,40 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .pc-line { font-family: var(--sans); font-size: 11px; color: #5c2a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mat .tarot-pc input.pc-conditions { color: var(--ink); min-height: 0; height: 24px; padding: 0 6px; font-family: var(--sans); font-size: 11.5px; border: 1px dashed #a8916a; background: rgba(255, 252, 240, 0.6); text-align: center; }
 .pc-open { min-height: 26px; padding: 0 8px; font-family: var(--sans); font-size: 12px; }
+
+/* Pictures: on cards, sheets, Draw windows, the Library (1.3.0) */
+.card-pic { float: right; width: 46px; height: 46px; object-fit: cover; margin: 0 0 4px 6px; border: 1px solid rgba(42, 31, 18, 0.4); border-radius: 3px; }
+.card-picture img { width: 100%; border-radius: 4px; border: 1px solid rgba(42, 31, 18, 0.35); display: block; }
+.card-picture { display: flex; flex-direction: column; gap: 8px; }
+.fight-summary > .card-picture { position: sticky; top: 0; }
+.draw-prompt { border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; padding: 6px 10px; background: rgba(255, 252, 240, 0.5); }
+.draw-prompt summary { cursor: pointer; font-weight: 600; }
+.draw-prompt textarea { width: 100%; margin: 8px 0; font-family: var(--mono); font-size: 12.5px; }
+.draw-styles { border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; padding: 6px 10px; margin: 0; }
+.draw-styles legend { font-weight: 600; padding: 0 4px; }
+.draw-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.draw-thumb { position: relative; width: 72px; height: 72px; border: 2px solid transparent; border-radius: 6px; overflow: hidden; cursor: pointer; opacity: 0.45; }
+.draw-thumb.is-on { border-color: var(--wax, #8f2a21); opacity: 1; }
+.draw-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.draw-thumb input { position: absolute; top: 4px; left: 4px; margin: 0; }
+.pic-picker { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; min-height: 360px; }
+.pic-folders { display: flex; flex-direction: column; gap: 4px; }
+.pic-folders button { justify-content: space-between; display: flex; text-align: left; }
+.pic-folders button[aria-pressed='true'] { background: #2a1f12; color: var(--parchment-light); }
+.pic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; align-content: start; }
+.pic-tile { display: flex; flex-direction: column; gap: 4px; padding: 6px; min-height: 0; text-align: center; font-size: 12px; }
+.pic-tile img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
+.pictures-tab { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pic-folders button.is-drop { outline: 2px dashed var(--wax, #8f2a21); }
+.pic-main { display: flex; flex-direction: column; gap: 10px; }
+.pic-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.pic-card { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; background: rgba(255, 252, 240, 0.65); cursor: grab; }
+.pic-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }
+.pic-card .field.checkbox { margin: 0; font-size: 12.5px; }
+.pic-name { font-weight: 600; }
+.pic-uses { display: flex; flex-direction: column; gap: 0; }
+.library-tabs { margin-bottom: 10px; }
+.pic-card { background: #f6ecd4; color: var(--ink); }
+.pic-card .field.checkbox label, .pic-card .field-label { color: var(--ink); }
+.draw-thumb input { width: 16px; height: 16px; min-height: 0; }
+.pictures-tab .pic-folders button { min-height: 36px; padding: 4px 10px; }

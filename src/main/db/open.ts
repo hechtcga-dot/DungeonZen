@@ -189,6 +189,11 @@ const MIGRATIONS: string[] = [
   CREATE TABLE combat (
     id TEXT PRIMARY KEY, encounter_id TEXT NOT NULL REFERENCES entity(id), state TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL
   );
+  `,
+  // 1.3.0: the example maps become the Library's pictures: a folder, and which drawings use each one as a style example.
+  `
+  ALTER TABLE style_example ADD COLUMN folder TEXT NOT NULL DEFAULT 'Art';
+  ALTER TABLE style_example ADD COLUMN style_for TEXT NOT NULL DEFAULT '["battle"]';
   `
 ]
 

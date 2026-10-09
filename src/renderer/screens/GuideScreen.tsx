@@ -1,3 +1,4 @@
+import { DrawExtras, withArtStyle } from '../components/Pictures'
 import { useEffect, useMemo, useState } from 'react'
 import { useBoard, useUnits } from '../store'
 import { kmToShown, shownToKm } from '../../shared/units'
@@ -206,12 +207,14 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
       setService(p ? `${p.name}${st.image.model ? ` (${st.image.model})` : ''}` : null)
     }).catch(() => setService(null))
   }, [aiSettingsOpen])
-  const told = prompt ?? worldMapPrompt({ description, climate, style })
+  const artStyle = useBoard((st) => st.info?.artStyle ?? '')
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const told = prompt ?? withArtStyle(worldMapPrompt({ description, climate, style }), artStyle)
   const draw = async () => {
     setBusy(true); setError(null)
     try {
       if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('world:draw', { prompt: told }))
+      setDrawn(await call('world:draw', { prompt: told, styleIds: [...picked] }))
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
   }
@@ -248,11 +251,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
               <option value="painted">Painted</option><option value="parchment">Inked parchment</option>
             </select></div>
         </div>
-        <details>
-          <summary>What the AI is told</summary>
-          <textarea rows={7} value={told} maxLength={4000} aria-label="What the AI is told" onChange={(e) => setPrompt(e.target.value)} />
-          {prompt !== null && <button className="link-button" onClick={() => setPrompt(null)}>Back to the words from the description</button>}
-        </details>
+        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} />
         {service === null ? (
           <p>Drawing needs an image service. <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>
         ) : (

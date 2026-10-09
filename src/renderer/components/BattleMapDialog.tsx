@@ -4,7 +4,8 @@ import { CommitField } from './fields'
 import { GridLines } from './MapOverlay'
 import { call } from '../api'
 import { useBoard, useUnits } from '../store'
-import { providerById, type AiProviderInfo } from '../../shared/aiProviders'
+import { maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
+import { withArtStyle } from './Pictures'
 import {
   ART_STYLES, aspectFor, BATTLE_FEATURES, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
   rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
@@ -50,6 +51,7 @@ export function BattleMapDialog() {
   const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
   const aiOpen = useBoard((s) => s.aiSettingsOpen)
   const { act, say, goTo } = useBoard()
+  const artStyle = useBoard((s) => s.info?.artStyle ?? '')
 
   const [service, setService] = useState<{ info: AiProviderInfo; model: string } | null | undefined>(undefined)
   const [styles, setStyles] = useState<StyleExampleView[]>([])
@@ -66,7 +68,7 @@ export function BattleMapDialog() {
   const set = (patch: Partial<Spec>) => { setSpec((cur) => ({ ...cur, ...patch })); setOwnPrompt(null) }
   const { cols, rows } = spec
   const loadStyles = async () => {
-    const list = await call('style:list', undefined)
+    const list = await call('style:list', { use: 'battle' })
     setStyles(list)
     return list
   }
@@ -87,7 +89,7 @@ export function BattleMapDialog() {
           weather: setting === 'indoors' || setting === 'underground' ? 'indoors (none)' : cur.weather === 'indoors (none)' ? 'clear' : cur.weather
         }))
         setName(ctx.placeName ? `${ctx.placeName} battle map` : 'Battle map')
-        setPicked(new Set(list.slice(0, 4).map((x) => x.id)))
+        setPicked(new Set(list.map((x) => x.id)))
       } catch (e) { setError((e as Error).message) }
     })()
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -101,8 +103,9 @@ export function BattleMapDialog() {
     }).catch(() => setService(null))
   }, [open, aiOpen])
 
-  const withExamples = !!service?.info.references && picked.size > 0
-  const generated = battleMapPrompt({ ...spec, withExamples })
+  const maxRefs = maxReferences(service?.info)
+  const withExamples = maxRefs > 0 && picked.size > 0
+  const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples }), artStyle)
   const prompt = ownPrompt ?? generated
   const sizeOk = [cols, rows].every((n) => Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX)
 
@@ -115,7 +118,7 @@ export function BattleMapDialog() {
     setBusy(true); setError(null)
     try {
       if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }).catch(() => undefined)
-      const ids = withExamples ? [...picked].slice(0, 4) : []
+      const ids = withExamples ? [...picked].slice(0, maxRefs) : []
       const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows) })
       setDrawn({ ...r, prompt, cols })
     } catch (e) { setError((e as Error).message) }
@@ -253,9 +256,9 @@ export function BattleMapDialog() {
             </div>
             <div className="dz-form">
               <div className="field">
-                <span className="field-label">Style: your example maps {service.info.references ? `(up to 4, ${picked.size} chosen)` : ''}</span>
+                <span className="field-label">Style examples for battle maps (Library pictures) {maxRefs ? `(${service.info.name} takes up to ${maxRefs}; ${picked.size} ticked)` : `(${service.info.name} can't see examples: the style goes in words only)`}</span>
                 {!service.info.references && <span className="hint">{service.info.name} cannot take example maps; it goes by the words only. OpenAI images, Gemini images and Stability can.</span>}
-                {styles.length === 0 ? <span className="hint">No example maps yet. Add battle maps whose look you like.</span> : (
+                {styles.length === 0 ? <span className="hint">No Library pictures are ticked for battle maps. Add battle maps whose look you like.</span> : (
                   <ul className="style-list">
                     {styles.map((st) => (
                       <li key={st.id} className={service.info.references && picked.has(st.id) ? 'is-picked' : undefined}>
@@ -271,13 +274,13 @@ export function BattleMapDialog() {
                     ))}
                   </ul>
                 )}
-                <button onClick={() => void addExamples()}>Add example maps…</button>
+                <button onClick={() => void addExamples()}>Add pictures to the Library…</button>
               </div>
             </div>
           </div>
           <details className="battle-prompt" open={ownPrompt !== null}>
-            <summary>What the AI is told{ownPrompt !== null ? ' (edited)' : ''}</summary>
-            <textarea rows={8} value={prompt} maxLength={4000} aria-label="What the AI is told" onChange={(e) => setOwnPrompt(e.target.value)} />
+            <summary>Prompt being sent to the AI{ownPrompt !== null ? ' (edited)' : ' (open to read and change it)'}</summary>
+            <textarea rows={8} value={prompt} maxLength={4000} aria-label="Prompt being sent to the AI" onChange={(e) => setOwnPrompt(e.target.value)} />
             {ownPrompt !== null && <button className="link-button" onClick={() => setOwnPrompt(null)}>Go back to the generated text</button>}
           </details>
           {error && (

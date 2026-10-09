@@ -20,6 +20,7 @@ import type { IpcInput } from '../../shared/ipc'
 import type { AbilityView, SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
+import { PicturePanel } from '../components/Pictures'
 
 type Tab = 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
 
@@ -64,6 +65,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const templateSide = (
             <div className="sheet-side" style={{ flex: `0 1 ${side.width}px` }}>
               {side.grip}
+              <PicturePanel sheet={sheet} />
               <section className="panel">
                 <h2 className="panel-heading">Campaign template</h2>
                 <CommitField id={`${p}-name`} label="Name" value={e.name} required onCommit={(name) => update({ name })} />

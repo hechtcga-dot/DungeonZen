@@ -23,8 +23,9 @@ import type { CombatView, PcToken,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
-  SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView
+  SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView, LibraryPictureView, PicturesView, StyleUse
 } from '../../shared/types'
+import { STYLE_USES } from '../../shared/types'
 import { advise } from '../advisor'
 import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
@@ -64,6 +65,10 @@ function mimeOf(path: string): string {
 export const MAP_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
 /** Address the app's asset protocol serves files from the open campaign's assets folder under. */
 export const ASSET_URL_PREFIX = 'dz-asset://campaign/'
+/** Library › Pictures folders that always exist. */
+const DEFAULT_PICTURE_FOLDERS = ['Art', 'Portraits', 'Places', 'Items', 'Maps', 'Battle maps', 'Background pictures']
+/** The folder a card's picture shows in. */
+const PICTURE_FOLDER: Partial<Record<EntityType, string>> = { NPC: 'Portraits', PC: 'Portraits', MONSTER: 'Portraits', LOCATION: 'Places', ITEM: 'Items' }
 
 const DEFAULT_RULES_EDITION: RulesEdition = '2024'
 const DEFAULT_CLOCK_MIN = 9 * 60 // Day 1, 09:00
@@ -72,7 +77,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -156,7 +161,8 @@ export class Campaign {
       clockMin: Number(settings.get('clock_min') ?? 0),
       globalBoardId: this.globalBoard().id,
       units: settings.get('units') === 'imperial' ? 'imperial' : 'metric',
-      gettingStarted: settings.get('getting_started') === 'pending'
+      gettingStarted: settings.get('getting_started') === 'pending',
+      artStyle: String(settings.get('art_style') ?? '')
     }
   }
 
@@ -1896,24 +1902,85 @@ export class Campaign {
 
   // ---- battle maps and the DM's style examples
 
-  styleExamples(): StyleExampleView[] {
+  /** Library pictures ticked as style examples for this kind of drawing (all of them without a kind). */
+  styleExamples(use?: StyleUse): StyleExampleView[] {
     return this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all()
+      .filter((r) => !use || r.styleFor.includes(use))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .map((r) => ({ id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath }))
   }
 
-  addStyleExample(sourceFile: string, name?: string): StyleExampleView {
+  /** Uploads a picture into the Library; new art is a style example for every kind of drawing until the DM unticks it. */
+  addStyleExample(sourceFile: string, name?: string, folder = 'Art'): StyleExampleView {
     const ext = extname(sourceFile).toLowerCase()
-    if (!STYLE_EXTENSIONS.includes(ext)) throw new Error(`Example maps must be PNG, JPEG or WebP images (got ${ext || 'no extension'})`)
+    if (!STYLE_EXTENSIONS.includes(ext)) throw new Error(`Pictures for the Library must be PNG, JPEG or WebP images (got ${ext || 'no extension'})`)
     const id = randomUUID()
     const rel = `styles/${id}${ext}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'styles'), { recursive: true })
     copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
     const label = name?.trim() || basename(sourceFile, extname(sourceFile))
-    this.log.run(`Added example map ${label}`, (w) => {
-      w.insert('style_example', { id, name: label, imagePath: rel, createdAt: new Date().toISOString(), status: 'active' })
+    this.log.run(`Added picture ${label} to the Library`, (w) => {
+      w.insert('style_example', { id, name: label, imagePath: rel, createdAt: new Date().toISOString(), status: 'active', folder, styleFor: [...STYLE_USES] })
     })
     return this.styleExamples().find((x) => x.id === id)!
+  }
+
+  /**
+   * Library › Pictures: the Library's own pictures plus every map, card picture and board picture not
+   * filed yet (filing or ticking one makes it a Library picture that points at the same file).
+   */
+  pictures(): PicturesView {
+    const own = this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all()
+    const filed = new Set(own.map((r) => r.imagePath))
+    const out: LibraryPictureView[] = own.map((r) => ({
+      key: `lib:${r.id}`, name: r.name, folder: r.folder, path: r.imagePath, url: ASSET_URL_PREFIX + r.imagePath,
+      styleFor: r.styleFor.filter((u): u is StyleUse => (STYLE_USES as readonly string[]).includes(u)), from: null
+    }))
+    const add = (key: string, name: string, folder: string, path: string, from: LibraryPictureView['from']) => {
+      if (filed.has(path)) return
+      filed.add(path)
+      out.push({ key, name, folder, path, url: ASSET_URL_PREFIX + path, styleFor: [], from })
+    }
+    for (const m of this.maps()) {
+      const row = this.mapRow(m.id)
+      add(`map:${m.id}`, m.name, m.kind === 'battle' ? 'Battle maps' : 'Maps', row.imagePath, { kind: 'map', id: m.id, name: m.name })
+    }
+    for (const e of this.db.select().from(entity).all()) {
+      if (e.status === 'defunct' || typeof e.attributes.picture !== 'string') continue
+      add(`card:${e.id}`, e.name, PICTURE_FOLDER[e.type as EntityType] ?? 'Card pictures', e.attributes.picture, { kind: 'card', id: e.id, name: e.name })
+    }
+    for (const item of this.db.select().from(boardItem).where(and(eq(boardItem.kind, 'image'), eq(boardItem.status, 'active'))).all()) {
+      const c = item.content as { image?: string; name?: string } | null
+      if (c?.image) add(`board:${item.id}`, c.name ?? 'Picture', 'Background pictures', c.image, { kind: 'board', id: item.id, name: c.name ?? 'Picture' })
+    }
+    const extra = this.setting('picture_folders')
+    const folders = [...new Set([...DEFAULT_PICTURE_FOLDERS, ...(Array.isArray(extra) ? extra.map(String) : []), ...out.map((p) => p.folder)])]
+    return { pictures: out, folders }
+  }
+
+  /** Renames, files or ticks a picture (one undo step). A map or card picture becomes a Library picture first. */
+  updatePicture(key: string, patch: { name?: string; folder?: string; styleFor?: StyleUse[] }): void {
+    const [kind, id] = key.split(':') as [string, string]
+    if (kind === 'lib') {
+      const r = this.styleRow(id)
+      this.log.run(`Changed picture ${r.name}`, (w) => { w.update('style_example', id, patch) })
+      return
+    }
+    const p = this.pictures().pictures.find((x) => x.key === key)
+    if (!p) throw new Error('That picture is gone')
+    this.log.run(`Filed picture ${p.name} in the Library`, (w) => {
+      w.insert('style_example', {
+        id: randomUUID(), name: patch.name ?? p.name, imagePath: p.path, createdAt: new Date().toISOString(), status: 'active',
+        folder: patch.folder ?? p.folder, styleFor: patch.styleFor ?? []
+      })
+    })
+  }
+
+  addPictureFolder(name: string): void {
+    const extra = this.setting('picture_folders')
+    const list = Array.isArray(extra) ? extra.map(String) : []
+    if (list.includes(name) || DEFAULT_PICTURE_FOLDERS.includes(name)) return
+    this.setSetting('picture_folders', [...list, name], `Added picture folder ${name}`)
   }
 
   renameStyleExample(id: string, name: string): void {
@@ -1928,9 +1995,9 @@ export class Campaign {
     })
   }
 
-  /** The example images to send with a battle map request (active ones only, at most 4). */
-  styleImages(ids: string[]): Array<{ bytes: Buffer; mime: string }> {
-    const rows = this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all().filter((r) => ids.includes(r.id)).slice(0, 4)
+  /** The example images to send with a drawing (active ones only, at most `max`). */
+  styleImages(ids: string[], max = 4): Array<{ bytes: Buffer; mime: string }> {
+    const rows = this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all().filter((r) => ids.includes(r.id)).slice(0, max)
     return rows.map((r) => ({ bytes: readFileSync(join(this.folder, ASSETS_DIR, r.imagePath)), mime: mimeOf(r.imagePath) }))
   }
 
@@ -2060,10 +2127,16 @@ export class Campaign {
   }
 
   /** A picture for a card's sheet: a file the DM chose, or a kept AI drawing (pending). One undo step. */
-  setPicture(entityId: string, from: { file: string } | { pendingId: string; source: string } | null): void {
+  setPicture(entityId: string, from: { file: string } | { pendingId: string; source: string } | { path: string } | null): void {
     const e = this.entityRow(entityId)
     if (!from) {
       this.log.run(`Removed the picture of ${e.name}`, (w) => { w.update('entity', entityId, { attributes: { ...e.attributes, picture: null, picture_source: null } }) })
+      return
+    }
+    if ('path' in from) {
+      // Chosen from the Library: the card shows the same file.
+      if (!this.assetFile(from.path) || !MAP_EXTENSIONS.includes(extname(from.path).toLowerCase())) throw new Error('That picture is not in this campaign')
+      this.log.run(`New picture for ${e.name}`, (w) => { w.update('entity', entityId, { attributes: { ...e.attributes, picture: from.path, picture_source: null } }) })
       return
     }
     const src = 'file' in from ? from.file : this.pendingFile(from.pendingId)

@@ -20,6 +20,8 @@ export interface CampaignInfo {
   units: Units
   /** A new campaign: show the getting started guide until the DM finishes or skips it. */
   gettingStarted: boolean
+  /** The art style in words, added to every AI drawing (works with services that cannot see examples). */
+  artStyle: string
 }
 
 export interface RecentCampaign {
@@ -259,6 +261,25 @@ export interface StyleExampleView {
   name: string
   url: string
 }
+
+/** What a Library picture is a style example for. */
+export const STYLE_USES = ['portraits', 'maps', 'battle'] as const
+export type StyleUse = (typeof STYLE_USES)[number]
+
+/** Library › Pictures: one picture. Maps and card pictures show up here too, in their own folders. */
+export interface LibraryPictureView {
+  /** lib:<id> for a Library picture; map:<id>, card:<entity id> or board:<item id> for one not filed yet. */
+  key: string
+  name: string
+  folder: string
+  /** Relative to the campaign's assets folder. */
+  path: string
+  url: string
+  styleFor: StyleUse[]
+  /** Where it is used, when it came from a map, a card or a board. */
+  from: { kind: 'map' | 'card' | 'board'; id: string; name: string } | null
+}
+export interface PicturesView { pictures: LibraryPictureView[]; folders: string[] }
 
 /** An image an AI drew, waiting for the DM to keep or discard it. */
 export interface PendingImageView {

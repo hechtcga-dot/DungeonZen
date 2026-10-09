@@ -12,8 +12,9 @@ import type { BuiltCreature, CombatView, SrdMonsterRow,
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
-  StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export
+  StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export, PicturesView
 } from './types'
+import { STYLE_USES } from './types'
 
 // The typed contract between the renderer (UI) and the main process.
 // Every input is checked with Zod in the main process before it is used.
@@ -93,7 +94,17 @@ export const ipcInputs = {
     actions: z.array(z.object({ name: Name, kind: AbilityKind, description: z.string().max(5000) })).max(30)
   }),
   'entity:pictureDialog': z.object({ entityId: Id }),
-  'entity:drawPicture': z.object({ entityId: Id, ask: z.string().max(2000) }),
+  'entity:picturePrompt': z.object({ entityId: Id, ask: z.string().max(2000) }),
+  'entity:drawPicture': z.object({ entityId: Id, prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16) }),
+  'entity:usePicture': z.object({ entityId: Id, path: z.string().min(1).max(500) }),
+  'pictures:view': z.void(),
+  'pictures:upload': z.object({ folder: z.string().trim().min(1).max(80) }),
+  'pictures:update': z.object({
+    key: z.string().min(3).max(120),
+    patch: z.object({ name: Name.optional(), folder: z.string().trim().min(1).max(80).optional(), styleFor: z.array(z.enum(STYLE_USES)).max(3).optional() })
+  }),
+  'pictures:addFolder': z.object({ name: z.string().trim().min(1).max(80) }),
+  'ai:imageInfo': z.void(),
   'entity:keepPicture': z.object({ entityId: Id, pendingId: z.string().max(80), source: z.string().max(200) }),
   'entity:removePicture': z.object({ entityId: Id }),
   'srd:addCopy': z.object({ key: z.string().min(1).max(200), boardId: Id }),
@@ -106,7 +117,8 @@ export const ipcInputs = {
   'campaign:update': z.object({
     name: Name.optional(), rulesEdition: RulesEdition.optional(),
     moonOffsetDays: z.number().finite().min(-10000).max(10000).optional(),
-    units: z.enum(['metric', 'imperial']).optional()
+    units: z.enum(['metric', 'imperial']).optional(),
+    artStyle: z.string().trim().max(500).optional()
   }),
   'storyline:update': z.object({
     storylineId: Id,
@@ -222,13 +234,13 @@ export const ipcInputs = {
   'prepItem:done': z.object({ id: Id, done: z.boolean() }),
   'prepItem:setStatus': z.object({ id: Id, status: RowStatus }),
   'prepItem:move': z.object({ id: Id, direction: z.union([z.literal(-1), z.literal(1)]) }),
-  'style:list': z.void(),
+  'style:list': z.object({ use: z.enum(STYLE_USES).optional() }),
   'style:addDialog': z.void(),
   'style:rename': z.object({ id: Id, name: Name }),
   'style:setStatus': z.object({ id: Id, status: RowStatus }),
   'battlemap:context': z.void(),
   'battlemap:draw': z.object({
-    prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(4),
+    prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16),
     aspect: z.enum(['1:1', '3:2', '2:3', '16:9', '9:16'])
   }),
   'battlemap:keep': z.object({
@@ -242,7 +254,7 @@ export const ipcInputs = {
     seed: z.number().int().min(0).max(2147483647), size: z.enum(WORLD_SIZES), land: z.number().min(0.3).max(0.75),
     climate: z.enum(WORLD_CLIMATES), settlements: z.number().int().min(0).max(30)
   }),
-  'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000) }),
+  'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16).optional() }),
   'world:keep': z.object({ pendingId: z.string().max(80), name: Name, widthKm: z.number().positive().max(200000).nullable() }),
   'world:findRegions': z.object({ mapId: Id, ask: z.string().max(2000) }),
   'world:addRegions': z.object({ mapId: Id, regions: z.array(PlaceShapeInput).min(1).max(200), source: z.string().max(300) }),
@@ -358,7 +370,14 @@ export interface IpcOutputs {
   'ai:statblock': { statblock: StatBlock; actions: Array<{ name: string; kind: z.infer<typeof AbilityKind>; description: string }>; source: string }
   'entity:applyStatBlock': void
   'entity:pictureDialog': boolean
+  'entity:picturePrompt': string
   'entity:drawPicture': PendingImageView & { source: string; prompt: string }
+  'entity:usePicture': void
+  'pictures:view': PicturesView
+  'pictures:upload': number | null
+  'pictures:update': void
+  'pictures:addFolder': void
+  'ai:imageInfo': { name: string | null; maxReferences: number }
   'entity:keepPicture': void
   'entity:removePicture': void
   'srd:addCopy': EntityView

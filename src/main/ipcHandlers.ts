@@ -24,7 +24,7 @@ import { renderJpg, renderPdf } from './exporters/render'
 import { NOTE_EXTENSIONS, readNotesFile, type NotesFile } from './importers/read'
 import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
 import type { ImportDraft } from '../shared/notesImport'
-import { AI_PROVIDERS, providerById, type AiChoice } from '../shared/aiProviders'
+import { AI_PROVIDERS, maxReferences, providerById, type AiChoice } from '../shared/aiProviders'
 import { timeOfDayFor } from '../shared/battlemap'
 import { allSrdMonsters, searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
 import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } from './generators'
@@ -193,9 +193,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notes:set', ({ text }) => current().setSetting('dm_notes', text, 'Edited DM notes'))
   handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
   handle('clock:set', ({ minutes }) => current().setClock(minutes))
-  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units }) => {
+  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle }) => {
     const c = current()
-    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units }, 'Changed campaign settings')
+    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units, art_style: artStyle }, artStyle !== undefined ? 'Changed the art style' : 'Changed campaign settings')
     if (name) profile.remember(c.folder, name)
   })
   handle('storyline:update', ({ storylineId, patch }) => current().updateStoryline(storylineId, patch))
@@ -289,22 +289,52 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     current().setPicture(entityId, { file: result.filePaths[0] })
     return true
   })
-  handle('entity:drawPicture', async ({ entityId, ask }) => {
+  const imageService = () => {
     const choice = profile.aiChoice('image')
-    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
-    const c = current()
-    const e = c.sheet(entityId).entity
+    return resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+  }
+  handle('ai:imageInfo', () => {
+    const choice = profile.aiChoice('image')
+    const info = choice.provider ? providerById(choice.provider) : null
+    return { name: info?.name ?? null, maxReferences: maxReferences(info) }
+  })
+  handle('entity:picturePrompt', ({ entityId, ask }) => {
+    const e = current().sheet(entityId).entity
     const sb = readStatBlock(e.attributes.statblock)
-    const looks = ['summary', 'bio', 'description'].map((k) => e.attributes[k]).find((v) => typeof v === 'string' && v.trim()) as string | undefined
-    const prompt = [
-      `A fantasy illustration of ${e.name}${sb ? `, a ${[sb.size, sb.creatureType].filter(Boolean).join(' ')}` : ''}, for a tabletop role-playing game.`,
+    const looks = ['appearance', 'summary', 'description', 'bio'].map((k) => e.attributes[k]).find((v) => typeof v === 'string' && v.trim()) as string | undefined
+    const creature = ['NPC', 'PC', 'MONSTER'].includes(e.type)
+    return [
+      `A fantasy illustration of ${e.name}${sb ? `, a ${[sb.size, sb.creatureType].filter(Boolean).join(' ')}` : creature ? '' : ` (${e.type.toLowerCase()})`}, for a tabletop role-playing game.`,
       looks ? `What it is like: ${looks.trim().slice(0, 600)}` : '',
       ask.trim() ? `The DM asks: ${ask.trim()}` : '',
-      'Full figure on a plain, softly lit background, painted in a classic fantasy book style. No text, no frame.'
+      creature
+        ? 'Full figure on a plain, softly lit background, painted in a classic fantasy book style. No text, no frame.'
+        : 'Painted in a classic fantasy book style. No text, no frame.'
     ].filter(Boolean).join('\n')
-    const image = await generateImage(r, { prompt, references: [], aspect: '1:1' })
+  })
+  handle('entity:drawPicture', async ({ entityId, prompt, styleIds }) => {
+    const r = imageService()
+    const c = current()
+    c.sheet(entityId)
+    const image = await generateImage(r, { prompt, references: c.styleImages(styleIds, maxReferences(r.info)), aspect: '1:1' })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
   })
+  handle('entity:usePicture', ({ entityId, path }) => current().setPicture(entityId, { path }))
+  handle('pictures:view', () => current().pictures())
+  handle('pictures:upload', async ({ folder }) => {
+    const win = getWindow()
+    const options = {
+      title: 'Add pictures to the Library', buttonLabel: 'Add pictures',
+      properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    for (const f of result.filePaths) current().addStyleExample(f, undefined, folder)
+    return result.filePaths.length
+  })
+  handle('pictures:update', ({ key, patch }) => current().updatePicture(key, patch))
+  handle('pictures:addFolder', ({ name }) => current().addPictureFolder(name))
   handle('entity:keepPicture', ({ entityId, pendingId, source }) => current().setPicture(entityId, { pendingId, source }))
   handle('entity:removePicture', ({ entityId }) => current().setPicture(entityId, null))
   handle('card:applyFill', ({ entityId, fields, source, srdKey }) => current().applyFill(entityId, fields, source, srdKey ? srdCopy(srdKey) : null))
@@ -536,7 +566,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('prepItem:move', ({ id, direction }) => current().movePrepItem(id, direction))
 
   // ---- battle maps
-  handle('style:list', () => current().styleExamples())
+  handle('style:list', ({ use }) => current().styleExamples(use))
   handle('style:addDialog', async () => {
     const win = getWindow()
     const options = {
@@ -561,7 +591,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const choice = profile.aiChoice('image')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
     const c = current()
-    const references = r.info.references ? c.styleImages(styleIds) : []
+    const references = c.styleImages(styleIds, maxReferences(r.info))
     const image = await generateImage(r, { prompt, references, aspect })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
@@ -588,10 +618,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     pendingWorlds.set(pending.pendingId, { source, prompt: null, regions: world.regions })
     return { ...pending, regions: world.regions, source }
   })
-  handle('world:draw', async ({ prompt }) => {
-    const choice = profile.aiChoice('image')
-    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
-    const image = await generateImage(r, { prompt, aspect: '3:2' })
+  handle('world:draw', async ({ prompt, styleIds }) => {
+    const r = imageService()
+    const image = await generateImage(r, { prompt, references: current().styleImages(styleIds ?? [], maxReferences(r.info)), aspect: '3:2' })
     const pending = current().savePendingImage(image.bytes, image.mime)
     const source = `${r.info.name} · ${r.model || 'default model'}`
     pendingWorlds.set(pending.pendingId, { source, prompt, regions: [] })

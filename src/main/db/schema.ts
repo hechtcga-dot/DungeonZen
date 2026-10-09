@@ -129,13 +129,16 @@ export const map = sqliteTable('map', {
   prompt: text('prompt') // what the AI was asked, for battle maps it drew
 })
 
-// The DM's own example maps: the style an AI copies when it draws battle maps.
+// The Library's pictures (1.2.0: the example maps): art the DM uploaded, or a map or card picture
+// the DM filed or ticked. style_for: the drawings that send it as a style example (portraits, maps, battle).
 export const styleExample = sqliteTable('style_example', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   imagePath: text('image_path').notNull(), // relative to assets/
   createdAt: text('created_at').notNull(),
-  status: text('status').notNull()
+  status: text('status').notNull(),
+  folder: text('folder').notNull().default('Art'),
+  styleFor: text('style_for', { mode: 'json' }).$type<string[]>().notNull().default(['battle'])
 })
 
 // A region drawn on a map, tied to a Location card (sub-regions: the card's parent_id).

@@ -88,7 +88,7 @@ export function HistoryPanel() {
           ))}
           {history.removedStyles.map((r) => (
             <li key={r.id}>
-              <div className="removed-text"><strong>{r.name}</strong><span className="muted">Example map (battle map style)</span></div>
+              <div className="removed-text"><strong>{r.name}</strong><span className="muted">Library picture</span></div>
               <button onClick={() => void act('style:setStatus', { id: r.id, status: 'active' })}>Restore</button>
             </li>
           ))}

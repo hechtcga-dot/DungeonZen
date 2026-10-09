@@ -9,6 +9,7 @@ import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { LibraryFilters, LibrarySearch, SrdSearch } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { SrdBrowser } from '../components/SrdBrowser'
+import { PicturesTab } from '../components/Pictures'
 
 // Templates in the order of the Library mockup.
 const TEMPLATES: Array<[EntityType, string]> = [
@@ -39,6 +40,7 @@ export function LibraryScreen() {
   const [hpMin, setHpMin] = useState('')
   const [hpMax, setHpMax] = useState('')
   const [srdKind, setSrdKind] = useState<SrdKind>('monsters')
+  const [tab, setTab] = useState<'cards' | 'pictures'>('cards')
   const [campaign, setCampaign] = useState<LibrarySearch | null>(null)
   const [srd, setSrd] = useState<SrdSearch | null>(null)
 
@@ -91,6 +93,11 @@ export function LibraryScreen() {
         </aside>
 
         <main className="library-main">
+          <div className="segmented library-tabs" role="tablist" aria-label="Library">
+            <button role="tab" aria-selected={tab === 'cards'} aria-pressed={tab === 'cards'} onClick={() => setTab('cards')}>Cards and rules</button>
+            <button role="tab" aria-selected={tab === 'pictures'} aria-pressed={tab === 'pictures'} onClick={() => setTab('pictures')}>Pictures</button>
+          </div>
+          {tab === 'pictures' ? <PicturesTab /> : <>
           <section className="library-search">
             <label htmlFor="lib-search" className="panel-heading">Search everything</label>
             <input id="lib-search" type="search" className="big" value={query} autoFocus
@@ -185,6 +192,7 @@ export function LibraryScreen() {
             )}
             {srd && <p className="attribution">{srd.attribution}</p>}
           </section>
+          </>}
         </main>
       </div>
     </DeskFrame>

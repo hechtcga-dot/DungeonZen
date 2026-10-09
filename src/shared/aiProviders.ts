@@ -154,3 +154,9 @@ export interface AiChoice {
   model: string
   baseUrl: string
 }
+
+/** How many example pictures (style references) a service takes with one drawing. */
+export function maxReferences(info: AiProviderInfo | null | undefined): number {
+  if (!info?.references) return 0
+  return info.protocol === 'stability' ? 1 : 4
+}
