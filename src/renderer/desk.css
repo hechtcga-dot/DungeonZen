@@ -841,3 +841,13 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .pc-token-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .pc-token-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .pc-tokens > .ink-button { align-self: flex-start; }
+.srd-browser { display: flex; flex-direction: column; gap: 10px; }
+.dz-dialog.wide:has(.srd-browser) { width: min(1100px, calc(100vw - 32px)); }
+.srd-filters { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(5, minmax(100px, 1fr)); gap: 8px 10px; align-items: end; }
+.srd-moves { align-items: center; gap: 6px 14px; }
+.srd-browser-table { max-height: 56vh; overflow: auto; }
+.srd-browser-table thead th { position: sticky; top: 0; z-index: 1; background: #efe3c4; }
+.sort-head { font-weight: 700; text-decoration: none; color: inherit; }
+.srd-detail td { font-size: 13px; color: #4a3b24; background: rgba(255, 252, 240, 0.6); }
+.srd-browser .cell-action .short { width: 56px; }
+@media (max-width: 1000px) { .srd-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

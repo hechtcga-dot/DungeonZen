@@ -8,6 +8,7 @@ import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { LibraryFilters, LibrarySearch, SrdSearch } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
+import { SrdBrowser } from '../components/SrdBrowser'
 
 // Templates in the order of the Library mockup.
 const TEMPLATES: Array<[EntityType, string]> = [
@@ -61,6 +62,7 @@ export function LibraryScreen() {
     if (e) await openSheet(e.id)
   }
 
+  const [browse, setBrowse] = useState(false)
   const addCopy = async (key: string, name: string) => {
     if (!info) return
     const e = await act('srd:addCopy', { key, boardId: info.globalBoardId })
@@ -159,7 +161,10 @@ export function LibraryScreen() {
                 <button role="tab" aria-selected={srdKind === 'items'} aria-pressed={srdKind === 'items'} onClick={() => setSrdKind('items')}>Items</button>
               </div>
             </div>
-            <p className="hint">Built into Dungeon Zen, so it works offline. Add copy puts an editable copy in this campaign.</p>
+            <p className="hint">Built into Dungeon Zen, so it works offline. Add copy puts an editable copy in this campaign.
+              {' '}<button className="link-button" onClick={() => setBrowse(true)}>Browse all monsters (filter and sort)…</button></p>
+            {browse && <SrdBrowser title="SRD monsters" actionLabel="Add copy" onClose={() => setBrowse(false)}
+              onPick={async (key, n, name) => { for (let i = 0; i < n; i++) await addCopy(key, name) }} />}
             {srd && srdKind === 'monsters' && (
               <SrdTable
                 shown={srd.monsters.length} total={srd.totalMonsters}

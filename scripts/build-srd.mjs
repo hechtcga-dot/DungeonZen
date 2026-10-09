@@ -95,6 +95,8 @@ const monsters = creatures.map(({ pk, fields: f }) => ({
     speed: speedText(f),
     str: f.ability_score_strength, dex: f.ability_score_dexterity, con: f.ability_score_constitution,
     int: f.ability_score_intelligence, wis: f.ability_score_wisdom, cha: f.ability_score_charisma,
+    // Open5e has the Octopus's Con and Cha wrong (0 and -3); the SRD 5.2 gives 11 and 4.
+    ...(f.name === 'Octopus' ? { con: 11, cha: 4 } : {}),
     saves: ABILITIES.filter((a) => f[`saving_throw_${a}`] != null)
       .map((a) => `${SHORT[a]} ${signed(f[`saving_throw_${a}`])}`).join(', '),
     skills: Object.keys(f).filter((k) => k.startsWith('skill_bonus_') && f[k] != null)

@@ -6,7 +6,7 @@ import {
   AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
 } from './schemas'
-import type {
+import type { SrdMonsterRow,
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
@@ -79,6 +79,7 @@ export const ipcInputs = {
   'srd:search': z.object({
     query: z.string().max(200), kind: z.enum(['monsters', 'items', 'both']), crMin: OptionalNumber, crMax: OptionalNumber
   }),
+  'srd:monsters': z.void(),
   'srd:addCopy': z.object({ key: z.string().min(1).max(200), boardId: Id }),
   'desk:view': z.void(),
   'map:importDialog': z.void(),
@@ -314,6 +315,7 @@ export interface IpcOutputs {
   'knowledge:setString': void
   'library:search': LibrarySearch
   'srd:search': SrdSearch
+  'srd:monsters': SrdMonsterRow[]
   'srd:addCopy': EntityView
   'desk:view': DeskView
   'map:importDialog': MapView | null

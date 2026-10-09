@@ -198,6 +198,25 @@ export interface SrdMonsterSummary {
   hp: string
 }
 
+/** One row of the SRD monster browser. */
+export interface SrdMonsterRow {
+  key: string
+  name: string
+  size: string
+  type: string
+  alignment: string
+  cr: string
+  crNum: number
+  ac: number
+  hp: number
+  /** Ways of moving besides walking. */
+  moves: Array<'fly' | 'swim' | 'climb' | 'burrow'>
+  legendary: boolean
+  speed: string
+  senses: string
+  actions: string[]
+}
+
 export interface SrdItemSummary {
   key: string
   name: string

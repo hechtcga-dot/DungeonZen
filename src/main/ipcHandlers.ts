@@ -23,7 +23,7 @@ import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswe
 import type { ImportDraft } from '../shared/notesImport'
 import { AI_PROVIDERS, providerById, type AiChoice } from '../shared/aiProviders'
 import { timeOfDayFor } from '../shared/battlemap'
-import { searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
+import { allSrdMonsters, searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
 import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } from './generators'
 import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
@@ -112,6 +112,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('knowledge:setString', ({ relationshipId, known }) => current().setStringKnown(relationshipId, known))
   handle('library:search', (filters) => current().search(filters))
   handle('srd:search', (filters) => searchSrd(filters))
+  handle('srd:monsters', () => allSrdMonsters())
   handle('srd:addCopy', ({ key, boardId }) => {
     const copy = srdCopy(key)
     const c = current()

@@ -1,7 +1,7 @@
 import srdData from '../../resources/srd/srd-2024.json'
-import { StatBlock, crToNumber } from '../shared/statblock'
+import { StatBlock, crToNumber, leadingNumber } from '../shared/statblock'
 import type { AbilityKind } from '../shared/schemas'
-import type { SrdItemSummary, SrdMonsterSummary, SrdSearch } from '../shared/types'
+import type { SrdItemSummary, SrdMonsterRow, SrdMonsterSummary, SrdSearch } from '../shared/types'
 import type { NewAbility } from './campaign/campaign'
 
 // SRD 5.2 monsters and items, shipped with the app (built by scripts/build-srd.mjs
@@ -52,6 +52,22 @@ function monsterSummary(m: SrdMonster): SrdMonsterSummary {
     key: m.key, name: m.name, kind: [sb.size, sb.creatureType].filter(Boolean).join(' '),
     cr: sb.cr, ac: sb.ac, hp: sb.hp
   }
+}
+
+/** Every SRD monster with what the browser filters and sorts on (a few hundred rows). */
+export function allSrdMonsters(): SrdMonsterRow[] {
+  return data.monsters.map((m) => {
+    const sb = StatBlock.parse(m.statblock)
+    const speed = sb.speed.toLowerCase()
+    return {
+      key: m.key, name: m.name, size: sb.size, type: sb.creatureType, alignment: sb.alignment,
+      cr: sb.cr, crNum: crToNumber(sb.cr) ?? 0, ac: leadingNumber(sb.ac) ?? 0, hp: leadingNumber(sb.hp) ?? 0,
+      moves: (['fly', 'swim', 'climb', 'burrow'] as const).filter((w) => speed.includes(w)),
+      legendary: m.actions.some((a) => a.kind === 'LEGENDARY_ACTION'),
+      speed: sb.speed, senses: sb.senses,
+      actions: m.actions.filter((a) => a.kind === 'ACTION').map((a) => a.name)
+    }
+  })
 }
 
 export function searchSrd(f: SrdFilters): SrdSearch {

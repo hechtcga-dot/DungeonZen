@@ -13,6 +13,7 @@ import { formatClock } from '../../shared/time'
 import { RATING_LABELS } from '../../shared/encounter'
 import type { AiSuggestion, EncountersView, EncounterView, SrdSearch } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
+import { SrdBrowser } from '../components/SrdBrowser'
 
 type Suggestion = NonNullable<Awaited<ReturnType<typeof call<'encounter:suggest'>>>>
 const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about right', hard: 'hard', nearly_deadly: 'nearly deadly' }
@@ -250,9 +251,12 @@ function SrdAdd({ encounterId }: { encounterId: string }) {
     }, 200)
     return () => clearTimeout(t)
   }, [q])
+  const [browse, setBrowse] = useState(false)
   return (
     <div className="field">
-      <label htmlFor="enc-srd">Add from the SRD (copied into the campaign)</label>
+      {browse && <SrdBrowser title="Add SRD monsters to this encounter" actionLabel="Add" onClose={() => setBrowse(false)}
+        onPick={(key, count) => act('encounter:addSrd', { encounterId, groups: [{ key, count }] })} />}
+      <label htmlFor="enc-srd">Add from the SRD (copied into the campaign) <button type="button" className="link-button" onClick={() => setBrowse(true)}>Browse all…</button></label>
       <input id="enc-srd" value={q} placeholder="ghoul, bandit, young dragon…" onChange={(e) => setQ(e.target.value)} />
       {res.length > 0 && (
         <ul className="srd-hits">
