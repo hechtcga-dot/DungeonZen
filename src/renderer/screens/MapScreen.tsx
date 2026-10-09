@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useBoard, useUnits } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { MapView, type MapLayerContext } from '../components/MapView'
-import { MapOverlay, PartyToken } from '../components/MapOverlay'
+import { MapOverlay, PartyToken, PcTokenMark } from '../components/MapOverlay'
 import { Candle, CompassRose } from '../art/props'
 import { useLightingPref } from '../art/TableLighting'
 import { Dialog } from '../components/Dialog'
@@ -95,6 +95,8 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
   const [finishing, setFinishing] = useState<Point[] | null>(null)
   const [editPts, setEditPts] = useState<Point[] | null>(null)
   const [tokenAt, setTokenAt] = useState<Point | null>(null)
+  const [pcDrag, setPcDrag] = useState<{ id: string; at: Point } | null>(null)
+  const centre: Point = [(view.map.width ?? 1000) / 2, (view.map.height ?? 1000) / 2]
   const [pending, setPending] = useState<{ to: Point; estimate: TravelEstimateView } | null>(null)
   const ctxRef = useRef<MapLayerContext | null>(null)
   const region = view.regions.find((r) => r.id === selected) ?? null
@@ -197,8 +199,14 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
                   <PartyToken x={tokenPos[0]} y={tokenPos[1]} scale={ctx.scale} dragging={!!tokenAt}
                     onPointerDown={(e) => startDrag(e, (p) => setTokenAt(p), (p) => { setTokenAt(null); void askTravel(p) })} />
                 )}
+                {mode === 'view' && view.pcs.filter((p) => p.split?.mapId === view.map.id).map((p) => {
+                  const at = pcDrag?.id === p.entityId ? pcDrag.at : [p.split!.x, p.split!.y]
+                  return <PcTokenMark key={p.entityId} x={at[0]} y={at[1]} name={p.name} scale={ctx.scale} dragging={pcDrag?.id === p.entityId}
+                    onPointerDown={(e) => startDrag(e, (q) => setPcDrag({ id: p.entityId, at: q }),
+                      (q) => { setPcDrag(null); void act('pc:move', { entityId: p.entityId, mapId: view.map.id, x: q[0], y: q[1] }) })} />
+                })}
                 {!view.party && mode === 'view' && !pending && <text x={20 * s} y={34 * s} fontSize={18 * s} fill="#2a1f12" className="map-hint-text">
-                  Select a region and press “Move party here” to place the party.</text>}
+                  Press “Place party token”, or select a region and press “Move party here”.</text>}
               </>
             )
           }}
@@ -218,7 +226,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         ) : (
           <p className="ink-muted map-foot">
             {view.party ? <>Party location: <strong>{view.party.locationName ?? 'between places'}</strong> since {formatClock(view.party.atMin)}. Drag the banner to move them.</>
-              : 'The party is not on this map yet.'}
+              : <>The party is not on this map yet. <button className="link-button" onClick={() => void askTravel(centre)}>Place party token</button></>}
             {!view.map.widthKm && ' Set the map scale to get travel time estimates.'}
           </p>
         )}
@@ -232,6 +240,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             onSelect={(locationId) => setSelected(view.regions.find((r) => r.locationId === locationId)?.id ?? null)} />
         ) : (
           <>
+          <>
             <h2 className="panel-title">Using the map</h2>
             <ul className="ink-list">
               <li>Click a region to see who and what is there at {info ? formatClock(info.clockMin) : 'the current time'}.</li>
@@ -244,11 +253,41 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
               <p className="ink-muted">Locations not drawn yet: {view.unplacedLocations.map((l) => l.name).join(', ')}.</p>
             )}
           </>
+          </>
         )}
+        <PartyTokens view={view} onPlace={() => void askTravel(centre)} />
       </aside>
       {finishing && <NewRegionDialog view={view} polygon={finishing} onClose={() => { setFinishing(null); setMode('view') }}
         onCreated={(id) => setSelected(id)} />}
     </div>
+  )
+}
+
+/** Party and player character tokens: place the party, split a character off or merge them back. */
+function PartyTokens({ view, onPlace }: { view: MapScreenView; onPlace(): void }) {
+  const act = useBoard((s) => s.act)
+  const mapName = useBoard((s) => s.desk?.maps)
+  return (
+    <section className="pc-tokens" aria-label="Party tokens">
+      <h3 className="panel-subheading">Tokens</h3>
+      {!view.party && <button className="ink-button" onClick={onPlace}>Place party token</button>}
+      {view.pcs.length === 0 ? <p className="ink-muted">No player characters yet: add them on the desk to give each a token.</p> : (
+        <ul className="pc-token-list">
+          {view.pcs.map((p) => (
+            <li key={p.entityId}>
+              <span><strong>{p.name}</strong> <span className="ink-muted">{p.split
+                ? p.split.mapId === view.map.id ? `on their own${p.split.locationName ? ` in ${p.split.locationName}` : ''}` : `on their own on ${mapName?.find((m) => m.id === p.split!.mapId)?.name ?? 'another map'}`
+                : 'with the party'}</span></span>
+              {p.split
+                ? <button className="link-button" onClick={() => void act('pc:move', { entityId: p.entityId, mapId: p.split!.mapId, joined: true })}>Merge with party</button>
+                : <button className="link-button" disabled={!view.party} title={view.party ? 'Gives them their own token next to the party' : 'Place the party first'}
+                    onClick={() => void act('pc:move', { entityId: p.entityId, mapId: view.map.id })}>Split from party</button>}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="hint">A split character moves on their own: drag their token. Only the party's travel moves the clock.</p>
+    </section>
   )
 }
 

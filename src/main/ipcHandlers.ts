@@ -546,6 +546,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('map:setScale', ({ mapId, widthKm, travelKmh }) => current().setMapScale(mapId, widthKm, travelKmh))
   handle('party:estimate', ({ mapId, x, y }) => current().travelEstimate(mapId, [x, y]))
   handle('party:move', (i) => current().moveParty(i))
+  handle('pc:move', (i) => current().movePc(i))
   handle('review:decide', ({ sessionId, ...input }) => current().decide(sessionId, input))
   handle('review:approveAll', ({ sessionId }) => current().approveAllUnflagged(sessionId))
   handle('review:feedback', ({ logId, feedback }) => current().setFeedback(logId, feedback))

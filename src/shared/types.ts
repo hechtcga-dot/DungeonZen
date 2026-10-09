@@ -485,10 +485,20 @@ export interface PartyMarker {
   atMin: number
 }
 
+/** A player character: with the party, or split off with a token of its own. */
+export interface PcToken {
+  entityId: string
+  name: string
+  /** Where they are on their own; null while with the party. */
+  split: (PartyMarker & { mapId: string }) | null
+}
+
 export interface MapScreenView {
   map: MapView
   regions: RegionView[]
   party: PartyMarker | null
+  /** Every player character; split ones have their own token (on this or another map). */
+  pcs: PcToken[]
   /** Where the party went during the current (or last) session, oldest first. */
   route: Array<[number, number]>
   /** True while a session is running (travel is then logged in it). */

@@ -178,6 +178,11 @@ const MIGRATIONS: string[] = [
   UPDATE map SET width_km = width_miles * 1.609344, travel_kmh = travel_mph * 1.609344;
   ALTER TABLE map DROP COLUMN width_miles;
   ALTER TABLE map DROP COLUMN travel_mph;
+  `,
+  // 1.2.0: player character tokens that split from the party (entity_id set; joined = back with the party).
+  `
+  ALTER TABLE party_position ADD COLUMN entity_id TEXT;
+  ALTER TABLE party_position ADD COLUMN joined INTEGER NOT NULL DEFAULT 0;
   `
 ]
 

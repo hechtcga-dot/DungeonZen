@@ -19,7 +19,7 @@ import { KNOWLEDGE_FIELDS, type PrepKind, type SceneType } from '../../shared/sc
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
-import type {
+import type { PcToken,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
@@ -1679,7 +1679,7 @@ export class Campaign {
   /** The party's position on a map at minute `atMin` (the latest move at or before it). */
   partyAt(mapId: string, atMin: number): PartyMarker | null {
     const row = this.db.select().from(partyPosition).where(and(eq(partyPosition.mapId, mapId), eq(partyPosition.status, 'active'))).all()
-      .filter((p) => p.atMin <= atMin)
+      .filter((p) => p.atMin <= atMin && !p.entityId)
       .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt)).at(-1)
     if (!row) return null
     const name = row.locationId ? this.db.select({ name: entity.name }).from(entity).where(eq(entity.id, row.locationId)).get()?.name ?? null : null
@@ -1695,7 +1695,7 @@ export class Campaign {
     const sessions = this.db.select().from(session).where(eq(session.status, 'active')).orderBy(asc(session.number)).all()
     const current = sessions.find((x) => x.endedAt === null) ?? sessions.at(-1) ?? null
     const moves = this.db.select().from(partyPosition).where(and(eq(partyPosition.mapId, mapId), eq(partyPosition.status, 'active'))).all()
-      .filter((p) => p.atMin <= nowMin).sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+      .filter((p) => p.atMin <= nowMin && !p.entityId).sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
     let route: Array<[number, number]> = []
     if (current) {
       const inSession = moves.filter((p) => p.sessionId === current.id)
@@ -1708,6 +1708,7 @@ export class Campaign {
       map: toMapView(m),
       regions,
       party: this.partyAt(mapId, nowMin),
+      pcs: this.pcTokens(nowMin),
       route,
       sessionRunning: current !== null && current.endedAt === null,
       unplacedLocations: this.db.select().from(entity).all()
@@ -1731,10 +1732,13 @@ export class Campaign {
     const here = all.filter((e) => e.id !== r.locationId && (linked.has(e.id) || byName(e)))
     const brief = (e: typeof all[number]) => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus })
     const party = this.partyAt(r.mapId, this.info().clockMin)
+    // A player character split from the party counts as here in its own region.
+    const splitHere = this.pcTokens(this.info().clockMin).filter((p) => p.split?.locationId === r.locationId)
+      .map((p) => ({ id: p.entityId, type: 'PC' as EntityType, name: p.name, status: 'active' as EntityStatus }))
     return {
       region, location: loc,
       partyHere: !!party && party.locationId === r.locationId,
-      hereNow: here.filter((e) => ['NPC', 'MONSTER', 'PC', 'FACTION'].includes(e.type)).map(brief),
+      hereNow: [...here.filter((e) => ['NPC', 'MONSTER', 'PC', 'FACTION'].includes(e.type) && !splitHere.some((p) => p.id === e.id)).map(brief), ...splitHere],
       encounters: here.filter((e) => e.type === 'SCENE' && isEncounter(e)).map(brief),
       plotPoints: here.filter((e) => ['QUEST', 'CLUE', 'ITEM', 'HANDOUT'].includes(e.type) || (e.type === 'SCENE' && !isEncounter(e))).map(brief),
       notes: [loc.attributes.description, loc.attributes.notes].filter((x) => typeof x === 'string' && x.trim()).join('\n\n'),
@@ -2397,7 +2401,7 @@ export class Campaign {
     let cameFrom: WhereView['cameFrom'] = null
     if (party) {
       const before = this.db.select().from(partyPosition).where(and(eq(partyPosition.mapId, party.mapId), eq(partyPosition.status, 'active'))).all()
-        .filter((p) => p.atMin <= nowMin && p.locationId !== party.locationId)
+        .filter((p) => p.atMin <= nowMin && !p.entityId && p.locationId !== party.locationId)
         .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt)).at(-1)
       if (before) cameFrom = { name: before.locationId ? names.get(before.locationId) ?? 'somewhere' : 'between places', atMin: before.atMin }
     }
@@ -2738,6 +2742,54 @@ export class Campaign {
         const existing = this.db.select().from(travelLink).where(and(eq(travelLink.fromLocationId, from.locationId), eq(travelLink.toLocationId, dest.locationId))).get()
         if (existing) w.update('travel_link', existing.id, { minutes, status: 'active' })
         else w.insert('travel_link', { id: randomUUID(), fromLocationId: from.locationId, toLocationId: dest.locationId, minutes, status: 'active' })
+      }
+    })
+  }
+
+  /** Player characters at `atMin`: with the party, or split off (their latest own position, unless they joined back). */
+  pcTokens(atMin: number): PcToken[] {
+    const rows = this.db.select().from(partyPosition).where(eq(partyPosition.status, 'active')).all()
+      .filter((p) => p.entityId && p.atMin <= atMin)
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+    const names = new Map(this.db.select().from(entity).all().filter((e) => e.type === 'LOCATION').map((e) => [e.id, e.name]))
+    return this.db.select().from(entity).where(and(eq(entity.type, 'PC'), eq(entity.status, 'active'))).all()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((e) => {
+        const last = rows.filter((p) => p.entityId === e.id).at(-1)
+        const split = last && !last.joined
+          ? { mapId: last.mapId, x: last.x, y: last.y, locationId: last.locationId, locationName: last.locationId ? names.get(last.locationId) ?? null : null, atMin: last.atMin }
+          : null
+        return { entityId: e.id, name: e.name, split }
+      })
+  }
+
+  /**
+   * A player character's own token: split from the party, moved on its own (the clock stays:
+   * it follows the party only), or merged back. One undo step each.
+   */
+  movePc(input: { entityId: string; mapId: string; x?: number; y?: number; joined?: boolean }): void {
+    const m = this.mapRow(input.mapId)
+    const pc = this.entityView(input.entityId)
+    const now = this.info().clockMin
+    const party = this.partyAt(input.mapId, now)
+    const was = this.pcTokens(now).find((p) => p.entityId === pc.id)?.split
+    // Split without a spot: next to the party (or the middle of the map).
+    const x = input.x ?? (party ? party.x + 40 : (m.width ?? 1000) / 2)
+    const y = input.y ?? (party ? party.y + 40 : (m.height ?? 1000) / 2)
+    const at: Point = input.joined && party ? [party.x, party.y] : [x, y]
+    const dest = regionAt(at, this.regionViews(input.mapId))
+    const label = input.joined ? `${pc.name} rejoined the party` : was ? `${pc.name} went to ${dest?.name ?? 'a new spot'}` : `${pc.name} split from the party`
+    const open = this.openSession()
+    this.log.run(label, (w) => {
+      w.insert('party_position', {
+        id: randomUUID(), mapId: input.mapId, x: at[0], y: at[1], locationId: dest?.locationId ?? null, atMin: now,
+        sessionId: open?.id ?? null, createdAt: new Date().toISOString(), status: 'active', entityId: pc.id, joined: !!input.joined
+      })
+      if (open) {
+        w.insert('log_entry', {
+          id: randomUUID(), sessionId: open.id, atMin: now, kind: 'travel', text: label, entityId: pc.id,
+          minutesTaken: 0, createdAt: new Date().toISOString(), status: 'active'
+        })
       }
     })
   }

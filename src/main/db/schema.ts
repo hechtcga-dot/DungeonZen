@@ -156,7 +156,10 @@ export const partyPosition = sqliteTable('party_position', {
   atMin: integer('at_min').notNull(),
   sessionId: text('session_id'),
   createdAt: text('created_at').notNull(),
-  status: text('status').notNull()
+  status: text('status').notNull(),
+  // Set for a player character's own token (split from the party); joined = back with the party.
+  entityId: text('entity_id'),
+  joined: integer('joined', { mode: 'boolean' }).notNull().default(false)
 })
 
 // A travel time the DM set between two locations; it beats the distance estimate.

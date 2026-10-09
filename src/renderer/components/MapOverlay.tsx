@@ -20,6 +20,24 @@ export function PartyToken({ x, y, scale, onPointerDown, dragging }: {
   )
 }
 
+/** A player character split from the party: a smaller token with initials and the name under it. */
+export function PcTokenMark({ x, y, name, scale, onPointerDown, dragging }: {
+  x: number; y: number; name: string; scale: number; dragging?: boolean
+  onPointerDown?(e: React.PointerEvent<SVGGElement>): void
+}) {
+  const s = 1 / scale
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('')
+  return (
+    <g className={`party-token pc-token${onPointerDown ? ' is-draggable' : ''}${dragging ? ' is-dragging' : ''}`}
+      transform={`translate(${x} ${y}) scale(${s})`} onPointerDown={onPointerDown}>
+      <title>{name} (split from the party){onPointerDown ? ': drag to move them; the clock stays' : ''}</title>
+      <circle r="16" fill="#e8dcc0" stroke="#1f4f7a" strokeWidth="3.5" />
+      <text y="5" textAnchor="middle" fontSize="14" fontWeight="700" fill="#1f2a3a">{initials}</text>
+      <text y="33" textAnchor="middle" fontSize="13" className="map-hint-text" fill="#1f2a3a">{name}</text>
+    </g>
+  )
+}
+
 const FILL = '#c9b07a'
 /** Settlements and landmarks are drawn as a marker, land regions as a tinted area. */
 const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' || r.kind === 'village' || r.kind === 'landmark' || r.kind === 'dungeon'
@@ -91,6 +109,7 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
           strokeDasharray={`${2 * s} ${10 * s}`} strokeLinecap="round" pointerEvents="none" />
       )}
       {!hideParty && view.party && <PartyToken x={view.party.x} y={view.party.y} scale={ctx.scale} />}
+      {!hideParty && view.pcs?.filter((p) => p.split?.mapId === view.map.id).map((p) => <PcTokenMark key={p.entityId} x={p.split!.x} y={p.split!.y} name={p.name} scale={ctx.scale} />)}
     </>
   )
 }
