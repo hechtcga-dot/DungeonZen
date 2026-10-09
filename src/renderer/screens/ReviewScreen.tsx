@@ -7,6 +7,7 @@ import { Dialog } from '../components/Dialog'
 import { formatClock } from '../../shared/time'
 import type { EncounterFeedback, KnowledgeField } from '../../shared/schemas'
 import type { ReviewConflict, ReviewProposal, ReviewView, WhatIfView } from '../../shared/types'
+import { call } from '../api'
 import { useSidePanel } from '../components/Splitter'
 
 const FEEDBACK: Array<[EncounterFeedback, string]> = [
@@ -207,8 +208,11 @@ function ProposalRows({ p, sessionId }: { p: ReviewProposal; sessionId: string }
 }
 
 function Recap({ r }: { r: ReviewView }) {
-  const { act, say } = useBoard()
+  const { act, say, setAiSettingsOpen } = useBoard()
   const [playerSafe, setPlayerSafe] = useState(false)
+  const [ai, setAi] = useState<{ text: string; source: string } | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState('')
   const s = r.session
   const stored = playerSafe ? s.playerRecap : s.recap
   const [draft, setDraft] = useState(stored)
@@ -233,6 +237,11 @@ function Recap({ r }: { r: ReviewView }) {
             if (text !== undefined) { setDraft(text); save(text) }
           }}>Draft from the log</button>
         )}
+        <button disabled={aiBusy} title={playerSafe ? 'The AI only sees the player-safe draft' : 'The AI reads the log, your session notes and this recap'} onClick={async () => {
+          setAiBusy(true); setAiError('')
+          try { setAi(await call('ai:recap', { sessionId: s.id, playerSafe })) } catch (e) { setAiError((e as Error).message) }
+          setAiBusy(false)
+        }}>{aiBusy ? 'Writing…' : 'Write with AI'}</button>
         <button onClick={async () => {
           try { await navigator.clipboard.writeText(draft); say('Copied the recap') } catch { say('Could not copy: select the text and copy it instead', true) }
         }}>Copy</button>
@@ -244,6 +253,18 @@ function Recap({ r }: { r: ReviewView }) {
           say('Added to your DM notes on the desk')
         }}>Save to DM notes</button>
       </div>
+      {aiError && <p className="field-error" role="alert">{aiError} {/service/i.test(aiError) && <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose one…</button>}</p>}
+      {ai && (
+        <div className="ai-suggestion" role="region" aria-label="AI recap">
+          <span className="ai-badge">AI suggestion · {ai.source}</span>
+          <p className="ai-suggestion-text selectable" style={{ whiteSpace: 'pre-wrap' }}>{ai.text}</p>
+          <div className="row tight wrap">
+            <button className="primary" onClick={() => { setDraft(ai.text); save(ai.text); setAi(null) }}>Use this recap</button>
+            <button onClick={() => { const t = `${draft.trim()}\n\n${ai.text}`.trim(); setDraft(t); save(t); setAi(null) }}>Add below mine</button>
+            <button onClick={() => setAi(null)}>Discard</button>
+          </div>
+        </div>
+      )}
       <p className="hint">{playerSafe
         ? 'The draft names only people whose name the party knows; everyone else is "a stranger". Check it before you share it.'
         : 'Started from your log when you ended the session. PDF export comes with the exports.'}</p>

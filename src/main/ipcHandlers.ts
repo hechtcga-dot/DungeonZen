@@ -9,6 +9,7 @@ import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
+import { RECAP_SYSTEM, recapPrompt } from './ai/recap'
 import { BUILD_SYSTEM, buildPrompt, COMBAT_SYSTEM, combatPrompt, parseBuild, RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
 import { STATBLOCK_SYSTEM, parseStatBlock, statBlockPrompt } from './ai/statblock'
@@ -902,6 +903,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('review:decide', ({ sessionId, ...input }) => current().decide(sessionId, input))
   handle('review:approveAll', ({ sessionId }) => current().approveAllUnflagged(sessionId))
   handle('review:feedback', ({ logId, feedback }) => current().setFeedback(logId, feedback))
+  handle('ai:recap', async ({ sessionId, playerSafe }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const text = await generateText(r, { system: RECAP_SYSTEM, prompt: recapPrompt({ ...current().recapSources(sessionId, playerSafe), playerSafe }), maxTokens: 2000 })
+    return { text: text.trim(), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
   handle('review:draftPlayerRecap', ({ sessionId }) => current().draftPlayerRecap(sessionId))
   handle('review:undoSession', ({ sessionId }) => current().undoSession(sessionId))
   handle('session:start', () => current().startSession())

@@ -1806,6 +1806,17 @@ export class Campaign {
       }).join('\n')
   }
 
+  /** What the AI recap reads: the log (player-safe draft for the players), the session's DM notes, and the recap so far. */
+  recapSources(sessionId: string, playerSafe: boolean): { number: number; log: string; notes: string; current: string } {
+    const s = this.sessionRow(sessionId)
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
+    const log = playerSafe ? this.draftPlayerRecap(sessionId) : this.db.select().from(logEntry)
+      .where(and(eq(logEntry.sessionId, sessionId), eq(logEntry.status, 'active'))).all()
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+      .map((l) => `${formatClock(l.atMin)} (${l.kind}): ${[l.entityId ? names.get(l.entityId) : '', l.text].filter(Boolean).join(': ')}`).join('\n')
+    return { number: s.number, log, notes: playerSafe ? '' : s.dmNotes, current: playerSafe ? s.playerRecap : s.recap }
+  }
+
   /** Undoes everything since the session started (the session itself included). Redo brings it back. */
   undoSession(sessionId: string): number {
     const started = this.log.recent(5000).find((c) => c.state === 'done' &&

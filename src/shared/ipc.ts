@@ -70,6 +70,7 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:delete': z.void(),
+  'ai:recap': z.object({ sessionId: Id, playerSafe: z.boolean() }),
   'map:reimport': z.object({ mapId: Id }),
   'notedoc:reimport': z.object({ id: Id }),
   'notedoc:allLines': z.object({ id: Id }),
@@ -406,6 +407,7 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:delete': string
+  'ai:recap': AiSuggestion
   'map:reimport': MapView | null
   'notedoc:reimport': { changed: string[] } | null
   'notedoc:allLines': string[]
