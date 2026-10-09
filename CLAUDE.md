@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.2.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.3.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -56,6 +56,10 @@ Bump `package.json` + `package-lock.json` version. Push branch `claude/friendly-
 ## 1.2.0 (built 2026-10-09)
 Owner's 16-item list (board menus/hide, Links and Story panels, linked boards, underlay pictures, resizable panels, metric/imperial, PC tokens, SRD browser, fight summary sheet, encounter scene and AI build, combat tracker, fixes). Details in `docs/STATE.md`.
 Owner's decisions: hide applies to every board; measurements stored metric, display metric (default) or imperial, free text keeps its words; split PC travel never moves the clock (clock = party only); AI encounter monsters stay in the encounter until "Put on board"; combat tracker: no dice, no initiative (DM orders the list), PC HP typed by hand, not linked to Live.
+
+## 1.3.0 (built 2026-10-09)
+Owner's list: Setup menu (save, copy, about, uninstall), background pictures with a Cards/Background move switch, Ctrl+drag pans, menus close on click, New link from the card menu (types with colours), strings on six card points, sheet tabs (traits/descriptions with AI fill, Secrets, Factions), character-sheet Full sheet, desk party cards, pictures on every card and Library › Pictures with style examples, Draw windows show the prompt, Notes screen. Details in `docs/STATE.md`.
+Owner's decisions: link colour belongs to the link type; Setup holds file actions and Uninstall; every card type gets a fill-in tab; NPC, PC and places get a Factions field; art style plan approved (uploads are style examples for everything until unticked; Draw window can untick per drawing); "base character sheets on library art" = choose the AI's style examples (option b); notes are for the DM only.
 
 ## Remind the owner (until answered)
 - Player preview in a second window (TV): put off by owner; ask again later.

@@ -239,10 +239,46 @@ built.
   - Back to the previous screen on sheets and the review (`BackButton`, Alt+Left). Battle maps: import
     a picture, try again after an error, plain Gemini no-image messages. Timeline lane titles, XP meter
     labels, battle map field, SRD humanoid sizes "Medium or Small", Octopus scores fixed.
+- 1.3.0 (owner's list, 2026-10-09):
+  - Setup (rail, `SetupMenu.tsx`): New campaign, Open, Save (WAL checkpoint; every change is already saved),
+    Save a copy (`Campaign.saveCopy`: whole folder), Print or save cards, AI services, About (version, folders,
+    SRD credit), Uninstall (runs `Uninstall Dungeon Zen.exe` next to the exe; campaigns kept).
+  - Board: Background pictures (was Pictures under the cards) with a Move: Cards / Background switch
+    (`boardPrefs.layer`, not remembered between runs; the other layer is `is-passive`, faded cards); the frame
+    is drawn over the board (`.canvas::after`) so pictures never spill over it. Ctrl+drag pans the board, Map and
+    Timeline (`useCtrlPan`, capture phase: nothing is selected or moved; Shift-click selects several now).
+    Right-click menus close on any click (capture `pointerdown`). Card menu › New link…: a string follows the
+    mouse; the next card clicked asks "Link these two?" with the link type, Secret and "+ New link type…" with a
+    colour (`LinkTypeFields`, also on the sheet's Connections; `relationship:create` `colour` adds the type in the
+    same undo step). Strings attach to the nearest of six card points (`stringEnds` in `src/shared/layout.ts`).
+  - Sheets: tabs Fight summary, Full sheet (creatures), "Features, traits, background" (creatures) or
+    "Descriptions & history" (others; first tab), Secrets, Notes, Connections. Fields per type in
+    `cardFields.ts` (`tabFields`), each tab with Fill blanks with AI (only that tab's empty fields; PCs too).
+    Factions field on NPC/PC (MEMBER_OF) and Location (CONTROLLED_BY): strings to faction cards, New faction.
+    Full sheet: character-sheet layout (ability boxes, proficiency from CR or PC level, speed, initiative, AC,
+    HP now/max/temp, saves, passive senses, skills from `parseBonuses`, defenses and conditions, tabs Actions /
+    Features & traits / Defenses / Details).
+  - Desk party cards: portrait (card picture), AC, HP now (editable) / max + temp, PP, size, resistances,
+    conditions (editable); Live party cards show temp HP and conditions.
+  - Pictures: every card has a picture panel (Choose from Library, Upload, Draw with AI, Remove); board cards
+    show it. Library › Pictures (`PicturesTab`): folders (Art, Portraits, Places, Items, Maps, Battle maps,
+    Background pictures, the DM's own), upload several, rename, drag to a folder, Remove to History, style
+    example ticks (portraits, maps, battle maps). Draw windows (card picture, battle map, world map): "Prompt
+    being sent" (editable, Reset), art style in words (setting), style example thumbnails ticked for that use
+    (untick per drawing); `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
+  - Notes (rail, was Import notes): Your notes (`NotesLibrary.tsx`) and Import notes. Imported files are kept
+    (`note_doc`); Word/text/PDF open with formatting in `NoteEditor` (bold, italic, underline, headings,
+    lists, tables; `src/main/importers/docx.ts` reads and writes .docx); Save writes a Word version (earlier
+    versions listed, Bring back); Open in Word (copy in `notes-edit/`, changes brought in on return); Save a
+    copy as Word; New note. Changed lines (`changedLines`) → "Notes changed: update cards?" → the AI reads only
+    those → the import review, where merges show the card now beside the notes with Replace per field.
+    Re-importing a file of the same name asks Replace / Keep both. DM notes: between sessions (setting) and per
+    session (`session.dm_notes`, the desk journal while it runs); Pop out opens them in their own window
+    (`#journal`, `JournalWindow.tsx`; windows refresh each other via the `changed` event).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
 Not yet: the Guard Captain's SRD 2024 stat block has no ally boost (add a Leadership trait and the tracker shows it); rivers and roads on made maps; re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, code signing, auto-update; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
-with tokens. Phases 1 to 5, the Windows installer (1.0.0) and the getting started guide (1.1.0) and the 1.2.0 list are built.
+with tokens. Phases 1 to 5, the Windows installer (1.0.0), the getting started guide (1.1.0) and the 1.2.0 and 1.3.0 lists are built. Notes imported before 1.3.0 were not kept as files.

@@ -208,5 +208,16 @@ commands. `group_id` lets a session or an import undo as one step.
   state JSON `CombatState` from `src/shared/combat.ts`, status active | ended). Settings `link_positions`,
   `shared_strings`, `string_types`, `units`. Card attributes `picture`, `picture_source`, encounter `scene`;
   `ai_filled.statblock` marks an AI stat block.
+- 1.3.0 migrations: `style_example` is the Library's pictures: `folder` and `style_for` (JSON list of
+  portraits | maps | battle; new uploads get all three, 1.2 example maps keep battle). Maps, card pictures and
+  board pictures show in Library › Pictures without a row; filing or ticking one adds a row pointing at the same
+  file. Setting `picture_folders` (folders the DM made), `art_style` (the art style in words, added to drawings).
+  `note_doc` (title, kind word | pdf | text | picture, file under `assets/notes/` never changed once written,
+  original_name, versions JSON `[{file, at}]` newest first, status): the Notes screen; a save writes a new file.
+  Word copies opened from Notes live in `notes-edit/` (with `state.json`: the copy's path and time when made),
+  not campaign data. `session.dm_notes`: the desk journal while that session runs (setting `dm_notes` between
+  sessions). Card attributes: `secret` (Secrets tab), `history`, `sights`, `sounds`, `smells`, `ideals`, `bonds`,
+  `flaws`, `background`, `lore`, `stakes` (per type, `src/shared/cardFields.ts`), PC `level`, `temp_hp`,
+  `conditions` (text). Import drafts: `overwrite` (fields a merge replaces).
 - Schema changes are numbered migrations in `src/main/db/open.ts`
   (`PRAGMA user_version`).

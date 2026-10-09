@@ -437,6 +437,9 @@ export interface PartyHealth {
   maxHp: number
   ac: string
   colour: string | null
+  tempHp: number
+  /** Conditions the DM typed (desk party card or full sheet). */
+  conditions: string
 }
 
 export interface AdvisorNote {

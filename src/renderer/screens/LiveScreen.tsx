@@ -293,7 +293,7 @@ function PartyCard({ p, i }: { p: PartyHealth; i: number }) {
       <div className="pc-live-head">
         <button className="pc-live-name" onClick={() => void openSheet(p.id)}>{p.name}</button>
         {edit === null ? (
-          <button className="pc-live-hp mono" title="Type an exact number" onClick={() => setEdit(String(p.hp))}>HP {p.hp} / {p.maxHp}</button>
+          <button className="pc-live-hp mono" title="Type an exact number" onClick={() => setEdit(String(p.hp))}>HP {p.hp} / {p.maxHp}{p.tempHp ? ` +${p.tempHp}` : ''}</button>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); const n = Number(edit); if (Number.isFinite(n)) set(n); setEdit(null) }}>
             <label htmlFor={`hp-${p.id}`} className="visually-hidden">{p.name} hit points</label>
@@ -306,6 +306,7 @@ function PartyCard({ p, i }: { p: PartyHealth; i: number }) {
         <span style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
       {p.maxHp === 0 && <p className="pc-live-hint">Set hit points on the sheet.</p>}
+      {p.conditions && <p className="pc-live-hint" title="Conditions (change them on the desk card or the full sheet)">{p.conditions}</p>}
       <div className="hp-buttons">
         {[-5, -1, 1, 5].map((d) => (
           <button key={d} aria-label={`${d > 0 ? 'Heal' : 'Damage'} ${p.name} by ${Math.abs(d)}`} onClick={() => set(p.hp + d)}>{d > 0 ? `+${d}` : `−${-d}`}</button>

@@ -1299,7 +1299,9 @@ export class Campaign {
         const cur = typeof e.attributes.current_hp === 'number' ? e.attributes.current_hp : maxHp
         return {
           id: e.id, name: e.name, hp: cur, maxHp, ac: sb?.ac ? String(leadingNumber(sb.ac) ?? sb.ac) : '',
-          colour: typeof e.attributes.colour === 'string' ? e.attributes.colour : null
+          colour: typeof e.attributes.colour === 'string' ? e.attributes.colour : null,
+          tempHp: typeof e.attributes.temp_hp === 'number' ? e.attributes.temp_hp : 0,
+          conditions: typeof e.attributes.conditions === 'string' ? e.attributes.conditions : ''
         }
       })
   }
