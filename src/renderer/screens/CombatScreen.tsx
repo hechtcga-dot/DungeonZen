@@ -86,6 +86,7 @@ function Fight({ v }: { v: CombatView }) {
           <h1>{v.encounterName}</h1>
           <p className="combat-round">{ended ? 'Fight over' : <>Round <strong>{s.round}</strong>{now && <> · {now.name}'s turn</>}</>}</p>
         </div>
+        <button className="ink-button" title="The encounter's pictures and maps folder" onClick={() => void act('encounter:openFolder', { id: v.encounterId })}>Pictures and maps</button>
         {!ended && (
           <div className="row tight wrap">
             <button className="ink-button" title="Key: P" onClick={prev}>Previous turn</button>

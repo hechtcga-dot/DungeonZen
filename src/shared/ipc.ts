@@ -222,6 +222,12 @@ export const ipcInputs = {
       notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable()
     }).partial()
   }),
+  'encounter:pictures': z.object({ id: Id }),
+  'encounter:addPictures': z.object({ id: Id }),
+  'encounter:openFolder': z.object({ id: Id, file: z.string().max(260).optional() }),
+  'encounter:chooseFolder': z.object({ id: Id }),
+  'encounter:resetFolder': z.object({ id: Id }),
+  'encounter:removePicture': z.object({ id: Id, name: z.string().min(1).max(260) }),
   'encounter:addCreature': z.object({ encounterId: Id, entityId: Id, count: z.number().int().min(1).max(100) }),
   'encounter:addSrd': z.object({ encounterId: Id, groups: z.array(z.object({ key: z.string().min(1).max(200), count: z.number().int().min(1).max(100) })).min(1).max(10) }),
   'encounter:creature': z.object({ rowId: Id, patch: z.object({ count: z.number().int().min(0).max(100), notes: z.string().max(1000) }).partial() }),
@@ -497,6 +503,12 @@ export interface IpcOutputs {
   'combat:update': void
   'combat:end': void
   'ai:combatAdvice': AiSuggestion
+  'encounter:pictures': { folder: string; own: boolean; files: Array<{ name: string; url: string; picture: boolean }>; removed: number }
+  'encounter:addPictures': number
+  'encounter:openFolder': void
+  'encounter:chooseFolder': boolean
+  'encounter:resetFolder': void
+  'encounter:removePicture': void
   'encounter:addCreature': void
   'encounter:addSrd': void
   'encounter:creature': void

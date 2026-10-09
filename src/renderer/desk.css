@@ -1181,3 +1181,13 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .cs-slots { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; }
 .cs-slots label { display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 700; }
 .cs-slots input { width: 100%; min-height: 0; height: 28px; padding: 0; text-align: center; }
+
+.enc-pictures { margin: 10px 0; }
+.enc-pictures .side-h { margin: 0; }
+.enc-folder { font-size: 12px; word-break: break-all; }
+.enc-thumbs { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.enc-thumbs li { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 128px; }
+.enc-thumb { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px; width: 128px; min-height: 0; background: rgba(255, 250, 240, 0.6); }
+.enc-thumb img { width: 116px; height: 86px; object-fit: cover; border-radius: 3px; }
+.enc-pdf { width: 116px; height: 86px; display: grid; place-items: center; font-weight: 700; border: 1px dashed #6b5a3a; }
+.enc-thumb-name { font-size: 11px; max-width: 116px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

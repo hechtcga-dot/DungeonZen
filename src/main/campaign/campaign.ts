@@ -2489,6 +2489,79 @@ export class Campaign {
     })
   }
 
+  /**
+   * An encounter's pictures and maps folder: one the DM chose anywhere on the computer, else
+   * assets/encounters/<name> in the campaign (made, and remembered, the first time it is needed).
+   */
+  encounterFolder(id: string, make = false): string {
+    const e = this.entityRow(id)
+    const own = typeof e.attributes.folder === 'string' ? e.attributes.folder : ''
+    if (own) {
+      const abs = /^([a-zA-Z]:)?[\\/]/.test(own) ? own : join(this.folder, ASSETS_DIR, ...own.split('/'))
+      if (make) mkdirSync(abs, { recursive: true })
+      return abs
+    }
+    const base = e.name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '').slice(0, 80) || 'Encounter'
+    let rel = `encounters/${base}`
+    for (let n = 2; existsSync(join(this.folder, ASSETS_DIR, rel)); n++) rel = `encounters/${base} ${n}`
+    if (!make) return join(this.folder, ASSETS_DIR, rel)
+    mkdirSync(join(this.folder, ASSETS_DIR, rel), { recursive: true })
+    this.log.run(`Made a pictures folder for ${e.name}`, (w) => { w.update('entity', id, { attributes: { ...e.attributes, folder: rel } }) })
+    return join(this.folder, ASSETS_DIR, rel)
+  }
+
+  /** The DM's own folder for an encounter's pictures (null: back to the campaign's). One undo step. */
+  setEncounterFolder(id: string, folder: string | null): void {
+    const e = this.entityRow(id)
+    this.log.run(folder ? `${e.name} uses the folder ${folder}` : `${e.name} uses a folder in the campaign`, (w) => {
+      w.update('entity', id, { attributes: { ...e.attributes, folder } })
+    })
+  }
+
+  /** Pictures, maps and PDFs in an encounter's folder (files the DM put there in Windows count too). */
+  encounterPictures(id: string): { folder: string; own: boolean; files: Array<{ name: string; url: string; picture: boolean }>; removed: number } {
+    const e = this.entityRow(id)
+    const own = typeof e.attributes.folder === 'string' && /^([a-zA-Z]:)?[\\/]/.test(e.attributes.folder)
+    const folder = this.encounterFolder(id)
+    const list = (dir: string) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((f) => f.isFile()) : [])
+    const files = list(folder)
+      .filter((f) => [...MAP_EXTENSIONS, '.pdf'].includes(extname(f.name).toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((f) => ({ name: f.name, url: `dz-asset://encounter/${id}/${encodeURIComponent(f.name)}`, picture: MAP_EXTENSIONS.includes(extname(f.name).toLowerCase()) }))
+    return { folder, own, files, removed: list(join(folder, 'Removed')).length }
+  }
+
+  /** One file in an encounter's folder, by name; null when there is none. */
+  encounterFile(id: string, name: string): string | null {
+    if (!name || /[\\/]|^\.\.?$/.test(name) || name.includes(':')) return null
+    const file = join(this.encounterFolder(id), name)
+    return existsSync(file) ? file : null
+  }
+
+  /** Copies the DM's files into the encounter's folder (a name already there gets a number). */
+  addEncounterPictures(id: string, paths: string[]): number {
+    const folder = this.encounterFolder(id, true)
+    for (const src of paths) {
+      const ext = extname(src)
+      const stem = basename(src, ext)
+      let name = `${stem}${ext}`
+      for (let n = 2; existsSync(join(folder, name)); n++) name = `${stem} ${n}${ext}`
+      copyFileSync(src, join(folder, name))
+    }
+    return paths.length
+  }
+
+  /** Moves a file into the folder's Removed subfolder (nothing is deleted; move it back in Windows). */
+  removeEncounterPicture(id: string, name: string): void {
+    const file = this.encounterFile(id, name)
+    if (!file) throw new Error('That file is not in the folder any more')
+    const bin = join(this.encounterFolder(id), 'Removed')
+    mkdirSync(bin, { recursive: true })
+    let to = join(bin, name)
+    for (let n = 2; existsSync(to); n++) to = join(bin, `${basename(name, extname(name))} ${n}${extname(name)}`)
+    renameSync(file, to)
+  }
+
   /** An old encounter (counts on the cards) gets its own rows the first time it is edited. */
   private adoptLegacyCreatures(w: Writer, encounterId: string): void {
     const rows = this.db.select().from(encounterCreature).where(eq(encounterCreature.encounterId, encounterId)).all()

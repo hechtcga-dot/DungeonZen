@@ -16,6 +16,7 @@ import { useSidePanel } from '../components/Splitter'
 import { SrdBrowser } from '../components/SrdBrowser'
 import { StatBlockView } from '../components/FightSummary'
 import type { IpcOutputs } from '../../shared/ipc'
+import { EncounterPictures } from '../components/EncounterPictures'
 
 type Suggestion = NonNullable<Awaited<ReturnType<typeof call<'encounter:suggest'>>>>
 const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about right', hard: 'hard', nearly_deadly: 'nearly deadly' }
@@ -144,6 +145,8 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
       <CommitField id="enc-scene" label="Scene" multiline rows={3} value={e.scene}
         placeholder="A collapsed watchtower in the rain; smugglers unload crates by lantern light…"
         hint="What the place looks like and what is going on. Build with AI works from it." onCommit={(scene) => up({ scene })} />
+
+      <EncounterPictures id={e.id} />
 
       <div className="enc-meter" role="img" aria-label={`${d.totalXp} XP: ${RATING_LABELS[d.rating]}`}>
         <div className="meter-bar">

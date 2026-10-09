@@ -297,6 +297,32 @@ built.
   - Notes pop-up (⤢). End combat dialog: XP total and per PC, defeated cards to resolve (NPCs ticked), summary
     to the session log; one undo step. Keys: N, P, digits type damage for the selected row (Enter damage,
     Shift+Enter heal).
+- After 1.4.0 (owner, 2026-10-09; not released yet):
+  - Notes › a notes file › Make a character card… (`CharSheetDialog.tsx`, `src/main/ai/charsheet.ts`): tick the
+    files with the character (sheet, background, notes; ones starting with the same word pre-ticked); the writing AI
+    copies them (`ai:charsheet`): stat block, attacks and spells, level, HP now, spell slots, casting ability,
+    prepared spells, traits-tab fields, armor/weapons/tools, DM notes (added below). Review: new PC card or a PC/NPC
+    whose name fits, "Now:" beside each, tick what to keep; one undo step (`Campaign.applyCharSheet`; old actions to
+    History), then the card opens.
+  - Full sheet editable and linked: proficiency bonus (own number `attributes.prof_bonus`, empty = level/CR;
+    `profFor`), initiative (`attributes.initiative`, empty = Dex), walking speed, senses, languages, armor/weapons/
+    tools (`attributes.proficiencies`), size, species/type, alignment, challenge inline. Save and skill dots click
+    none → proficient → expertise (skills); bonuses typed over (`setListed`); scores and the proficiency bonus move
+    listed saves and skills (`rebase`: plain proficiency and expertise follow, other bonuses move with the score).
+  - Attacks: Actions tab lists non-spells; Add from the SRD… / Your own attack… (`AttackPicker.tsx`,
+    `src/shared/attacks.ts`): SRD 5.2 weapons (proficient, magic +1–3; Finesse best of Str/Dex, Ammunition Dex) and
+    spells (search, level, class, casting ability; cantrips scale with level) from `resources/srd/srd-2024-attacks.json`
+    (`scripts/build-srd-attacks.mjs`); your own: roll (attack/save/none), ability, proficiency, extra bonus, reach,
+    two damage lines, effects, live preview. Each gets a 2024-style description and a Roll20 macro; several are one
+    undo step (`ability:addMany`). Make macro on every ability (`macroFor`, now in `src/shared/attacks.ts`).
+  - Spells tab: spellcasting ability (`attributes.spell_ability`, default best of Int/Wis/Cha), save DC and spell
+    attack, spells (kind SPELL) by level (`spellLevel`: description starts "Cantrip"/"Level N"), prepared ticks
+    (`attributes.prepared`, ability ids), click to edit, add from the SRD or your own.
+  - Encounter pictures and maps (`EncounterPictures.tsx`): a folder per encounter, `assets/encounters/<name>` in the
+    campaign (made on first use, `attributes.folder`) or one the DM chose (Use another folder…, undoable); files put
+    there in Windows show up (refresh on focus); Add pictures… copies in; thumbnails open in Windows; Remove moves to
+    the folder's Removed subfolder; Open folder. Run encounter has a Pictures and maps button. Served as
+    `dz-asset://encounter/<id>/<file>`.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.

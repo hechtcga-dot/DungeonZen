@@ -77,10 +77,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     })
   }
 
-  // dz-asset://campaign/<path> serves files from the open campaign's assets folder only.
+  // dz-asset://campaign/<path> serves files from the open campaign's assets folder only;
+  // dz-asset://encounter/<id>/<file> a file in that encounter's pictures folder.
   protocol.handle('dz-asset', (request) => {
     const url = new URL(request.url)
-    const file = url.hostname === 'campaign' && campaign ? campaign.assetFile(decodeURIComponent(url.pathname.slice(1))) : null
+    const path = decodeURIComponent(url.pathname.slice(1))
+    const [encId, ...rest] = path.split('/')
+    const file = !campaign ? null : url.hostname === 'campaign' ? campaign.assetFile(path)
+      : url.hostname === 'encounter' && rest.length === 1 ? (() => { try { return campaign.encounterFile(encId, rest[0]) } catch { return null } })() : null
     if (!file) return new Response('Not found', { status: 404 })
     return net.fetch(pathToFileURL(file).toString())
   })
@@ -445,6 +449,34 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     }
     return proposeFrom(read, title)
   })
+  // ---- an encounter's pictures and maps folder
+  handle('encounter:pictures', ({ id }) => current().encounterPictures(id))
+  handle('encounter:addPictures', async ({ id }) => {
+    const win = getWindow()
+    const options = {
+      title: 'Add pictures and maps to this encounter', buttonLabel: 'Add', properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
+      filters: [{ name: 'Pictures, maps and PDFs', extensions: [...MAP_EXTENSIONS.map((e) => e.slice(1)), 'pdf'] }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return result.canceled ? 0 : current().addEncounterPictures(id, result.filePaths)
+  })
+  handle('encounter:openFolder', async ({ id, file }) => {
+    const c = current()
+    const target = file ? c.encounterFile(id, file) : c.encounterFolder(id, true)
+    if (!target) throw new Error('That file is not in the folder any more')
+    const err = await shell.openPath(target)
+    if (err) throw new Error(`Windows could not open it: ${err}`)
+  })
+  handle('encounter:chooseFolder', async ({ id }) => {
+    const win = getWindow()
+    const options = { title: 'Choose the folder with this encounter\'s pictures and maps', buttonLabel: 'Use this folder', properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || !result.filePaths.length) return false
+    current().setEncounterFolder(id, result.filePaths[0])
+    return true
+  })
+  handle('encounter:resetFolder', ({ id }) => current().setEncounterFolder(id, null))
+  handle('encounter:removePicture', ({ id, name }) => current().removeEncounterPicture(id, name))
   handle('notes:screen', () => current().notesScreen())
   handle('notes:popout', () => openJournal())
   handle('session:notes', ({ id, text }) => current().setSessionNotes(id, text))
