@@ -1,5 +1,6 @@
 import { memo } from 'react'
-import { BaseEdge, EdgeLabelRenderer, getStraightPath, type Edge, type EdgeProps } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, getStraightPath, useInternalNode, type Edge, type EdgeProps, type InternalNode } from '@xyflow/react'
+import { stringEnds } from '../../shared/layout'
 
 export type StringEdgeData = {
   type: string; isSecret: boolean; resolved: boolean; dimmed: boolean
@@ -16,8 +17,16 @@ const GREY = '#6b727c'
 const SELECTED = '#6cb6d9'
 
 // Known link: solid. Secret link: dashed. Touching a resolved card: grey. Hidden: faint.
-function StringEdgeImpl({ id, sourceX, sourceY, targetX, targetY, data, selected }: EdgeProps<StringEdgeType>) {
-  const [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY })
+const rect = (n: InternalNode) => ({
+  x: n.internals.positionAbsolute.x, y: n.internals.positionAbsolute.y, w: n.measured.width ?? 0, h: n.measured.height ?? 0
+})
+
+// The string attaches to whichever of each card's six points (corners, top and bottom middle) are closest.
+function StringEdgeImpl({ id, source, target, sourceX, sourceY, targetX, targetY, data, selected }: EdgeProps<StringEdgeType>) {
+  const a = useInternalNode(source)
+  const b = useInternalNode(target)
+  const ends = a?.measured.width && b?.measured.width ? stringEnds(rect(a), rect(b)) : { sx: sourceX, sy: sourceY, tx: targetX, ty: targetY }
+  const [path, labelX, labelY] = getStraightPath({ sourceX: ends.sx, sourceY: ends.sy, targetX: ends.tx, targetY: ends.ty })
   const colour = selected ? SELECTED : data?.resolved ? GREY : data?.colour ?? RED
   const label = (data?.type ?? '').replace(/_/g, ' ')
   const opacity = data?.dimmed ? 0.25 : data?.hidden ? 0.35 : 1

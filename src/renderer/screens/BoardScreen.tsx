@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   ConnectionMode, Controls, ReactFlow, ReactFlowProvider, applyEdgeChanges,
-  applyNodeChanges, useReactFlow, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams
+  applyNodeChanges, useReactFlow, useStore, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams
 } from '@xyflow/react'
 import { useBoard, useView } from '../store'
 import { CardNode, roman, type CardNodeType } from '../components/CardNode'
@@ -26,6 +26,9 @@ import { StorylineDialog } from '../components/EditDialogs'
 import { useBoardPrefs } from '../boardPrefs'
 import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import type { BoardView, EntityView } from '../../shared/types'
+import { useCtrlPan } from '../useCtrlPan'
+import { Dialog } from '../components/Dialog'
+import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 
 type BoardNode = CardNodeType | NoteNodeType | ImageNodeType
 
@@ -57,7 +60,7 @@ function BoardLayout() {
   const view = useView()
   const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say } = useBoard()
   const prefs = useBoardPrefs()
-  const { screenToFlowPosition, fitView, setCenter } = useReactFlow()
+  const { screenToFlowPosition, flowToScreenPosition, fitView, setCenter, getViewport, setViewport } = useReactFlow()
   const paneRef = useRef<HTMLDivElement>(null)
   const [nodes, setNodes] = useState<BoardNode[]>([])
   const [edges, setEdges] = useState<StringEdgeType[]>([])
@@ -66,6 +69,18 @@ function BoardLayout() {
   const [newStoryline, setNewStoryline] = useState<string | null>(null)
   const [editStory, setEditStory] = useState(false)
   const [askLink, setAskLink] = useState(false)
+  /** Card menu › New link…: the string follows the mouse from this card until another card is clicked. */
+  const [linking, setLinking] = useState<{ itemId: string; entity: EntityView } | null>(null)
+  const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null)
+  const [confirmLink, setConfirmLink] = useState<{ a: EntityView; b: EntityView } | null>(null)
+  const [linkChoice, setLinkChoice] = useState<LinkChoice>(DEFAULT_LINK)
+  const background = prefs.layer === 'background'
+  useBoard((s) => s.view) // keeps the rubber-band string in step with the view
+  useStore((s) => s.transform) // and with panning and zooming
+  useCtrlPan(paneRef, useCallback((dx: number, dy: number) => {
+    const v = getViewport()
+    void setViewport({ x: v.x + dx, y: v.y + dy, zoom: v.zoom })
+  }, [getViewport, setViewport]))
   const [lighting] = useLightingPref()
   const [sideWidth, setSideWidth] = useSplit('board-side', 360)
   useBoard((s) => s.info?.clockMin) // re-render when the clock moves, for the candle
@@ -77,6 +92,8 @@ function BoardLayout() {
 
   // Rebuild nodes and strings whenever the board data changes, keeping what was selected.
   useEffect(() => {
+    // While the background moves, the cards stay put and let clicks through.
+    const frontLayer = background ? { draggable: false, selectable: false, className: 'is-passive is-faded' } : {}
     setNodes((prev) => {
       const selected = new Set(prev.filter((n) => n.selected).map((n) => n.id))
       return view.items.flatMap((item): BoardNode[] => {
@@ -86,13 +103,14 @@ function BoardLayout() {
           if (!prefs.pictures || (item.hidden && !prefs.showHidden) || !item.content?.image) return []
           const locked = !!item.content.locked
           return [{
-            ...base, type: 'image', zIndex: -1, draggable: !locked,
+            ...base, type: 'image', zIndex: -1, draggable: background && !locked, selectable: background,
+            className: background ? undefined : 'is-passive',
             data: { src: ASSET + item.content.image, name: item.content.name ?? 'Picture', opacity: item.content.opacity ?? 0.6, locked, hidden: item.hidden }
           }]
         }
         if (item.kind === 'note') {
           if (item.hidden && !prefs.showHidden) return []
-          return [{ ...base, type: 'note', data: { text: item.content?.text ?? '', dimmed: q !== '' || (linkMode && prefs.greyNotes), hidden: item.hidden } }]
+          return [{ ...base, type: 'note', ...frontLayer, data: { text: item.content?.text ?? '', dimmed: q !== '' || (linkMode && prefs.greyNotes), hidden: item.hidden } }]
         }
         const entity = item.entityId ? view.entities[item.entityId] : undefined
         if (!entity || (entity.hidden && !prefs.showHidden)) return []
@@ -102,10 +120,10 @@ function BoardLayout() {
           key: m.actId, numeral: roman(m.number), colour: storyColours.get(m.storylineId) ?? '#5a4a32',
           title: `${view.boards.find((b) => b.storylineId === m.storylineId)?.name ?? 'Storyline'}: act ${roman(m.number)}, ${m.title}`
         })) : []
-        return [{ ...base, type: 'card', data: { entity, dimmed: (q !== '' && !match) || (linkMode && prefs.greyCards), match, tints, marks } }]
+        return [{ ...base, type: 'card', ...frontLayer, data: { entity, dimmed: (q !== '' && !match) || (linkMode && prefs.greyCards), match, tints, marks } }]
       })
     })
-  }, [view, q, prefs, storyColours, linkMode])
+  }, [view, q, prefs, storyColours, linkMode, background])
 
   const itemByEntity = useMemo(
     () => new Map(view.items.filter((i) => i.entityId).map((i) => [i.entityId!, i.id])),
@@ -126,7 +144,7 @@ function BoardLayout() {
         const dimmed = q !== '' && !(matches(a, q) || matches(b, q))
         return [{
           id: r.id, source, target, sourceHandle: 'pin', targetHandle: 'pin', type: 'string',
-          selected: selected.has(r.id),
+          selected: selected.has(r.id), selectable: !background, className: background ? 'is-passive' : undefined,
           data: {
             type: r.type, isSecret: r.isSecret, resolved: a.status === 'resolved' || b.status === 'resolved', dimmed,
             colour: typeColours.get(r.type) ?? null, hidden: r.hidden || ends, highlight: linkMode
@@ -134,7 +152,7 @@ function BoardLayout() {
         }]
       })
     })
-  }, [view, itemByEntity, q, prefs.showHidden, typeColours, linkMode])
+  }, [view, itemByEntity, q, prefs.showHidden, typeColours, linkMode, background])
 
   const onNodesChange = useCallback((changes: NodeChange<BoardNode>[]) => {
     setNodes((ns) => applyNodeChanges(changes, ns))
@@ -203,8 +221,8 @@ function BoardLayout() {
   const addPicture = useCallback(async (mapId: string | null, at?: { x: number; y: number }) => {
     const item = await act('boardImage:add', { boardId: view.board.id, mapId, position: at ?? centre() })
     if (item) {
-      if (!prefs.pictures) prefs.set({ pictures: true })
-      say(`Put ${item.content?.name ?? 'the picture'} under the cards. Drag a corner to resize it; right-click to lock it or change how see-through it is.`)
+      prefs.set({ pictures: true, layer: 'background' })
+      say(`Added ${item.content?.name ?? 'the picture'} as a background picture. Now moving the background: drag it, drag a corner to resize, right-click to lock it. Switch back with Move: Cards.`)
     }
   }, [act, view.board.id, centre, prefs, say])
 
@@ -225,6 +243,7 @@ function BoardLayout() {
   // Delete moves the selection to History (undo and redo keys live in the top bar).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLinking(null)
       if (isTyping(e.target)) return
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); void removeSelected() }
     }
@@ -258,6 +277,7 @@ function BoardLayout() {
 
   const cardItems = (e: EntityView, itemId: string): MenuItem[] => [
     { label: 'Open sheet', onClick: () => void openSheet(e.id) },
+    { label: 'New link…', hint: 'Then click the card to link it to', onClick: () => { setLinking({ itemId, entity: e }); say(`Click the card to link ${e.name} to (Escape to cancel).`) } },
     { label: 'Edit in the panel', onClick: () => { select({ kind: 'entity', id: e.id }); setPanel('inspector') } },
     'separator',
     { label: 'Acts', items: storylineBoards.map((b) => ({
@@ -338,11 +358,12 @@ function BoardLayout() {
   const paneItems = (at: { x: number; y: number }): MenuItem[] => [
     { label: 'New card', items: ENTITY_TYPES.map((t) => ({ label: ENTITY_LABELS[t], onClick: () => void addCard(t, at) })) },
     { label: 'New note', onClick: () => void addNote(at) },
-    { label: 'Put a picture here', items: [
+    { label: 'Add background picture', items: [
       ...maps.map((m) => ({ label: `${m.name}${m.kind === 'battle' ? ' (battle map)' : ''}`, onClick: () => void addPicture(m.id, at) })),
       ...(maps.length ? ['separator' as const] : []),
       { label: 'Choose a picture file…', onClick: () => void addPicture(null, at) }
     ] },
+    { label: 'Move the background (cards stay put)', checked: background, onClick: () => prefs.set({ layer: background ? 'cards' : 'background' }) },
     'separator',
     ...displayItems()
   ]
@@ -350,7 +371,7 @@ function BoardLayout() {
   function displayItems(): MenuItem[] {
     return [
       { label: 'Show hidden things (greyed)', checked: prefs.showHidden, onClick: () => prefs.set({ showHidden: !prefs.showHidden }) },
-      { label: 'Pictures under the cards', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
+      { label: 'Background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
       { label: 'Storyline colours on cards', checked: prefs.tint, onClick: () => prefs.set({ tint: !prefs.tint }) },
       { label: 'Act marks on cards', checked: prefs.actMarks, onClick: () => prefs.set({ actMarks: !prefs.actMarks }) },
       { label: 'Moving a card moves it on every board', checked: view.settings.linkPositions,
@@ -427,13 +448,20 @@ function BoardLayout() {
             onClick={() => setPanel(panel === 'connections' ? 'inspector' : 'connections')}>Links</button>
           <button className="tool" aria-pressed={panel === 'storylines'} title="Storylines: colours, acts and display"
             onClick={() => setPanel(panel === 'storylines' ? 'inspector' : 'storylines')}>Story</button>
-          <button className="tool" title="Put a map or picture under the cards" onClick={(e) => openMenu(e, [
+          <button className="tool" title="Add a map or picture behind the cards" onClick={(e) => openMenu(e, [
             ...maps.map((m) => ({ label: `${m.name}${m.kind === 'battle' ? ' (battle map)' : ''}`, onClick: () => void addPicture(m.id) })),
             ...(maps.length ? ['separator' as const] : []),
             { label: 'Choose a picture file…', onClick: () => void addPicture(null) },
             'separator',
-            { label: 'Show pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) }
-          ])}>Picture</button>
+            { label: 'Show background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) }
+          ])}>Background</button>
+          <div className="tool-layer" role="group" aria-label="What a drag moves">
+            <span className="eyebrow">MOVE</span>
+            <button className="tool" aria-pressed={!background} title="Drag cards, notes and strings; the background stays put"
+              onClick={() => prefs.set({ layer: 'cards' })}>Cards</button>
+            <button className="tool" aria-pressed={background} title="Drag and resize background pictures; the cards stay put"
+              onClick={() => prefs.set({ layer: 'background', pictures: true })}>Background</button>
+          </div>
           <button className="tool" aria-pressed={prefs.showHidden} title={`Show hidden things greyed (${hiddenCount} hidden)`}
             onClick={() => prefs.set({ showHidden: !prefs.showHidden })}>Hidden{hiddenCount ? ` (${hiddenCount})` : ''}</button>
           <button className="tool" onClick={() => fitView({ padding: 0.2, duration: 300 })}>Fit all</button>
@@ -453,6 +481,13 @@ function BoardLayout() {
             onConnect={onConnect}
             onNodeDragStop={onNodeDragStop}
             onNodeDoubleClick={(_e, n: BoardNode) => { if (n.type === 'card') void openSheet(n.data.entity.id) }}
+            onNodeClick={(_e, n: BoardNode) => {
+              if (!linking) return
+              if (n.type === 'card' && n.id !== linking.itemId) { setConfirmLink({ a: linking.entity, b: n.data.entity }); setLinkChoice(DEFAULT_LINK) }
+              setLinking(null)
+            }}
+            onPaneClick={() => setLinking(null)}
+            onMouseMove={(e) => { if (linking) setMouse({ x: e.clientX, y: e.clientY }) }}
             onNodeContextMenu={(e, n: BoardNode) => openMenu(e, n.type === 'card' ? cardItems(n.data.entity, n.id) : n.type === 'image' ? imageItems(n.id) : noteItems(n.id))}
             onEdgeContextMenu={(e, edge) => openMenu(e, stringItems(edge.id))}
             onPaneContextMenu={(e) => openMenu(e, paneItems(screenToFlowPosition({ x: e.clientX, y: e.clientY })))}
@@ -460,7 +495,7 @@ function BoardLayout() {
             connectionLineStyle={{ stroke: '#d2453a', strokeWidth: 2 }}
             deleteKeyCode={null}
             selectionKeyCode="Shift"
-            multiSelectionKeyCode={['Control', 'Meta']}
+            multiSelectionKeyCode={['Shift']}
             minZoom={0.1}
             maxZoom={2}
             fitView
@@ -476,12 +511,24 @@ function BoardLayout() {
               <p>Add a card with <em>New NPC</em> or the <em>Card</em> tool, then drag between the red pins to tie strings. Right-click the board for more.</p>
             </div>
           )}
+          {linking && mouse && (() => {
+            const item = view.items.find((i) => i.id === linking.itemId)
+            const rect = paneRef.current?.getBoundingClientRect()
+            if (!item || !rect) return null
+            const from = flowToScreenPosition({ x: item.x + (item.w ?? 220) / 2, y: item.y + (item.h ?? 120) / 2 })
+            return (
+              <svg className="link-rubber" aria-hidden="true">
+                <line x1={from.x - rect.left} y1={from.y - rect.top} x2={mouse.x - rect.left} y2={mouse.y - rect.top} />
+              </svg>
+            )
+          })()}
+          {background && <div className="layer-banner" role="status">Moving the background: the cards stay put. <button className="link-button" onClick={() => prefs.set({ layer: 'cards' })}>Move cards</button></div>}
           <div className="legend" aria-label="Legend">
             <span><i className="line" />Known link</span>
             <span><i className="line dashed" />Secret link</span>
             <span><i className="line grey" />Resolved</span>
             {view.settings.stringTypes.filter((t) => t.colour).map((t) => (
-              <span key={t.type}><i className="line" style={{ background: t.colour! }} />{t.type.replace(/_/g, ' ').toLowerCase()}</span>
+              <span key={t.type}><i className="line" style={{ borderTopColor: t.colour! }} />{t.type.replace(/_/g, ' ').toLowerCase()}</span>
             ))}
           </div>
         </main>
@@ -501,6 +548,25 @@ function BoardLayout() {
         </aside>
       </div>
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      <Dialog title="Link these two?" open={!!confirmLink} onClose={() => setConfirmLink(null)}>
+        {confirmLink && (
+          <form onSubmit={(e) => {
+            e.preventDefault()
+            if (!linkReady(linkChoice)) return
+            const { a, b } = confirmLink
+            setConfirmLink(null)
+            void act('relationship:create', { sourceId: a.id, targetId: b.id, boardId: view.board.id, ...linkInput(linkChoice) })
+              .then((rel) => { if (rel) select({ kind: 'string', id: rel.id }) })
+          }}>
+            <p className="link-confirm"><strong>{confirmLink.a.name}</strong> <span aria-hidden="true">→</span> <strong>{confirmLink.b.name}</strong></p>
+            <LinkTypeFields id="new-link" value={linkChoice} onChange={setLinkChoice} />
+            <div className="dz-actions">
+              <button type="button" onClick={() => setConfirmLink(null)}>Cancel</button>
+              <button type="submit" className="primary" disabled={!linkReady(linkChoice)}>Yes, link them</button>
+            </div>
+          </form>
+        )}
+      </Dialog>
       {askLink && (
         <WinnerDialog title="Move cards on every board"
           text="From now on, moving or resizing a card moves it on every board. The boards may have the card in different places now: which layout should every board take?"

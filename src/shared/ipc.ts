@@ -65,6 +65,10 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:info': z.void(),
+  'campaign:save': z.void(),
+  'campaign:saveCopy': z.void(),
+  'app:about': z.void(),
+  'app:uninstall': z.void(),
   'board:view': z.object({ boardId: Id }),
   'entity:create': z.object({ boardId: Id, type: EntityType, name: Name, position: Position.optional() }),
   'entity:duplicate': z.object({ id: Id }),
@@ -298,7 +302,11 @@ export const ipcInputs = {
   'entity:setStatus': z.object({ id: Id, status: EntityStatus }),
   'entity:addToStoryline': z.object({ entityId: Id, storylineId: Id, position: Position }),
   'entity:removeFromStoryline': z.object({ entityId: Id, storylineId: Id }),
-  'relationship:create': z.object({ sourceId: Id, targetId: Id, type: RelationshipType, isSecret: z.boolean(), boardId: Id.optional() }),
+  'relationship:create': z.object({
+    sourceId: Id, targetId: Id, type: RelationshipType, isSecret: z.boolean(), boardId: Id.optional(),
+    /** Set for a new kind of link: it joins the list with this colour. */
+    colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional()
+  }),
   'relationship:update': z.object({
     id: Id, patch: z.object({ type: RelationshipType.optional(), isSecret: z.boolean().optional() })
   }),
@@ -330,6 +338,10 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:info': CampaignInfo | null
+  'campaign:save': string
+  'campaign:saveCopy': string | null
+  'app:about': { version: string; campaignFolder: string | null; dataFolder: string; installed: boolean }
+  'app:uninstall': void
   'board:view': BoardView
   'entity:create': EntityView
   'entity:duplicate': EntityView

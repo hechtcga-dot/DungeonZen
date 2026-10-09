@@ -78,8 +78,13 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
   background-color: #b98a55;
   background-image: radial-gradient(ellipse at 50% 45%, rgba(255, 220, 160, 0.25), transparent 70%), var(--tex-cork-light), var(--tex-cork);
   background-size: auto, 300px 300px, 240px 240px;
+}
+/* The wooden frame sits above the board, so background pictures never spill over it. */
+.desk-theme .canvas::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4;
   box-shadow: inset 0 0 0 10px #4a2e16, inset 0 0 0 12px #150c06, inset 0 0 40px 12px rgba(0, 0, 0, 0.55);
 }
+.desk-theme .canvas .react-flow { clip-path: inset(10px); }
 .desk-theme .react-flow { background: transparent; }
 .desk-theme .card { box-shadow: 0 8px 14px rgba(40, 20, 5, 0.55), 0 1px 0 rgba(255, 255, 255, 0.4) inset; }
 .desk-theme .card-name { font-family: var(--display); font-size: 19px; font-weight: 400; }

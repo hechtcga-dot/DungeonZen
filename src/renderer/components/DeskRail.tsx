@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useBoard, type Mode } from '../store'
 import { isTyping } from './TopBar'
+import { SetupMenu } from './SetupMenu'
 
 const ICONS = {
   desk: <path d="M4 10h16M6 10v9M18 10v9M8 6h8l2 4H6z" />,
@@ -14,6 +15,7 @@ const ICONS = {
   import: <><path d="M12 3v11M7 9l5 5 5-5" /><path d="M4 15v5h16v-5" /></>,
   prep: <><path d="M6 3h9l3 3v15H6z" /><path d="M9 9h6M9 13h6M9 17h4" /></>,
   players: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M2.5 19q0-5 5.5-5t5.5 5M10.5 19q0-5 5.5-5t5.5 5" /></>,
+  setup: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" /></>,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
 }
 
@@ -77,6 +79,7 @@ export function DeskRail() {
       )}
       {mode === 'players' && item('players', 'What they know', 'players')}
       <span className="spacer" />
+      <SetupMenu icon={<Icon name="setup" />} />
       <button className="rail-item" onClick={() => setAiSettingsOpen(true)} title="Choose AI services for writing and battle maps">
         <Icon name="ai" /><span>AI</span>
       </button>

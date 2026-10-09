@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCtrlPan } from '../useCtrlPan'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { TopBar } from '../components/TopBar'
@@ -47,6 +48,12 @@ function effectText(t: TimelineView, e: TriggerEffectView): string {
 }
 
 function Timeline({ t }: { t: TimelineView }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // Ctrl + drag scrolls the timeline without picking up acts.
+  useCtrlPan(scrollRef, useCallback((dx: number, dy: number) => {
+    const el = scrollRef.current
+    if (el) { el.scrollLeft -= dx; el.scrollTop -= dy }
+  }, []))
   const side = useSidePanel('timeline-side', 'right', 380)
   const [zoom, setZoom] = useState(2)
   const [selected, setSelected] = useState<string | null>(null)
@@ -90,7 +97,7 @@ function Timeline({ t }: { t: TimelineView }) {
               <p className="hint">Add a storyline on the desk or the board, then give it acts here.</p>
             </div>
           ) : (
-            <div className="tl-scroll">
+            <div className="tl-scroll" ref={scrollRef}>
               <div className="tl-grid" style={{ width: LANE_HEAD + width }}>
                 <div className="tl-days" style={{ marginLeft: LANE_HEAD, width }}>
                   {dayHeads.map((d) => (

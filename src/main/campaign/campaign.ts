@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
@@ -128,6 +128,21 @@ export class Campaign {
 
   close(): void {
     this.opened.sqlite.close()
+  }
+
+  /** Every change is already written; this folds the write-ahead log into campaign.db. */
+  save(): void {
+    this.opened.sqlite.pragma('wal_checkpoint(TRUNCATE)')
+  }
+
+  /** Copies the whole campaign folder (database, maps, pictures, notes) to a new folder. */
+  saveCopy(dest: string): void {
+    if (existsSync(dest)) throw new Error(`${dest} already exists`)
+    this.save()
+    cpSync(this.folder, dest, {
+      recursive: true,
+      filter: (src) => !/campaign\.db-(wal|shm)$/.test(src) && !src.startsWith(join(this.folder, ASSETS_DIR, 'pending'))
+    })
   }
 
   // ---- reads ---------------------------------------------------------------
@@ -370,15 +385,22 @@ export class Campaign {
   }
 
   /** Ties a string. While strings are kept per board, it belongs to `boardId` (the board it was tied on). */
-  createRelationship(input: { sourceId: string; targetId: string; type: string; isSecret: boolean; boardId?: string }): RelationshipView {
+  createRelationship(input: { sourceId: string; targetId: string; type: string; isSecret: boolean; boardId?: string; colour?: string }): RelationshipView {
     if (input.sourceId === input.targetId) throw new Error('A string needs two different cards')
     const a = this.entityRow(input.sourceId)
     const b = this.entityRow(input.targetId)
     const id = randomUUID()
-    const { boardId, ...rest } = input
-    const owner = this.boardSettings().sharedStrings ? null : boardId ?? this.globalBoard().id
+    const { boardId, colour, ...rest } = input
+    const settings = this.boardSettings()
+    const owner = settings.sharedStrings ? null : boardId ?? this.globalBoard().id
     this.log.run(`Linked ${a.name} to ${b.name}`, (w) => {
       w.insert('relationship', { id, ...rest, boardId: owner, status: 'active' })
+      // A new kind of link (with its colour) joins the list in the same undo step.
+      if (colour !== undefined) {
+        const types = [...settings.stringTypes.filter((t) => t.type !== input.type), { type: input.type, colour }]
+        if (w.get('campaign_settings', 'string_types')) w.update('campaign_settings', 'string_types', { value: types })
+        else w.insert('campaign_settings', { key: 'string_types', value: types })
+      }
     })
     return toRelationshipView(this.db.select().from(relationship).where(eq(relationship.id, id)).get()!)
   }

@@ -17,9 +17,10 @@ export function ContextMenu({ x, y, items, onClose }: { x: number; y: number; it
   useEffect(() => {
     const down = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose() }
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('mousedown', down)
+    // Capture phase: the board's pan and zoom stop mouse events before they bubble up to the window.
+    window.addEventListener('pointerdown', down, true)
     window.addEventListener('keydown', key)
-    return () => { window.removeEventListener('mousedown', down); window.removeEventListener('keydown', key) }
+    return () => { window.removeEventListener('pointerdown', down, true); window.removeEventListener('keydown', key) }
   }, [onClose])
   useEffect(() => { ref.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus() }, [])
   return (

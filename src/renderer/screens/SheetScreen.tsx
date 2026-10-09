@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { BackButton } from '../components/BackButton'
+import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
@@ -13,7 +14,7 @@ import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
 import {
   ABILITY_KEYS, HAS_STATBLOCK, abilityModifier, emptyStatBlock, formatModifier, readStatBlock, type StatBlock
 } from '../../shared/statblock'
-import { AbilityKind, ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType, type KnowledgeField } from '../../shared/schemas'
+import { AbilityKind, ENTITY_TYPES, type EntityType, type KnowledgeField } from '../../shared/schemas'
 import type { IpcInput } from '../../shared/ipc'
 import type { AbilityView, SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
@@ -497,14 +498,13 @@ function Connections({ sheet }: { sheet: SheetView }) {
   const { act, openSheet } = useBoard()
   const e = sheet.entity
   const [otherId, setOtherId] = useState('')
-  const [type, setType] = useState('KNOWS')
-  const [secret, setSecret] = useState(false)
+  const [link, setLink] = useState<LinkChoice>(DEFAULT_LINK)
 
   const add = async (ev: FormEvent) => {
     ev.preventDefault()
-    if (!otherId || !type.trim()) return
-    const rel = await act('relationship:create', { sourceId: e.id, targetId: otherId, type, isSecret: secret })
-    if (rel) { setOtherId(''); setSecret(false) }
+    if (!otherId || !linkReady(link)) return
+    const rel = await act('relationship:create', { sourceId: e.id, targetId: otherId, ...linkInput(link) })
+    if (rel) { setOtherId(''); setLink(DEFAULT_LINK) }
   }
 
   return (
@@ -543,18 +543,8 @@ function Connections({ sheet }: { sheet: SheetView }) {
               {sheet.others.map((o) => <option key={o.id} value={o.id}>{o.name} ({ENTITY_LABELS[o.type]})</option>)}
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="conn-type">Link type</label>
-            <input id="conn-type" list="conn-types" value={type} onChange={(ev) => setType(ev.target.value)} />
-            <datalist id="conn-types">
-              {RELATIONSHIP_TYPES.map((t) => <option key={t} value={t.replace(/_/g, ' ')} />)}
-            </datalist>
-          </div>
-          <div className="field checkbox">
-            <input id="conn-secret" type="checkbox" checked={secret} onChange={(ev) => setSecret(ev.target.checked)} />
-            <label htmlFor="conn-secret">Secret link</label>
-          </div>
-          <button type="submit" className="primary" disabled={!otherId || !type.trim()}>Add string</button>
+          <LinkTypeFields id="conn" value={link} onChange={setLink} />
+          <button type="submit" className="primary" disabled={!otherId || !linkReady(link)}>Add string</button>
         </form>
       </section>
     </div>

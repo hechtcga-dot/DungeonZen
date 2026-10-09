@@ -8,9 +8,11 @@ export interface BoardPrefs {
   actMarks: boolean
   greyCards: boolean
   greyNotes: boolean
+  /** What a drag moves: the cards, or the background pictures under them. */
+  layer: 'cards' | 'background'
 }
 const KEY = 'dz-board-prefs'
-const DEFAULTS: BoardPrefs = { showHidden: false, pictures: true, tint: true, actMarks: true, greyCards: true, greyNotes: true }
+const DEFAULTS: BoardPrefs = { showHidden: false, pictures: true, tint: true, actMarks: true, greyCards: true, greyNotes: true, layer: 'cards' }
 
 function load(): BoardPrefs {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } } catch { return DEFAULTS }

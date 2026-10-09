@@ -1,3 +1,4 @@
+import { useCtrlPan } from '../useCtrlPan'
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { fitTransform, zoomAt, type Transform } from '../../shared/zoom'
 
@@ -78,6 +79,9 @@ export function MapView(props: {
     if (!rect) return [0, 0]
     return [(clientX - rect.left - cur.x) / cur.scale, (clientY - rect.top - cur.y) / cur.scale]
   }, [])
+
+  // Ctrl + drag moves the map even over regions and tokens, without clicking them.
+  useCtrlPan(frame, useCallback((dx: number, dy: number) => setT((c) => ({ ...c, x: c.x + dx, y: c.y + dy })), []))
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return

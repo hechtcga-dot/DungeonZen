@@ -1,7 +1,8 @@
-import { copyFileSync, writeFileSync } from 'node:fs'
-import { basename, extname, join } from 'node:path'
+import { copyFileSync, existsSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { basename, dirname, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { dialog, ipcMain, nativeImage, net, protocol, safeStorage, type BrowserWindow } from 'electron'
+import { app, dialog, ipcMain, nativeImage, net, protocol, safeStorage, type BrowserWindow } from 'electron'
 import { Campaign, MAP_EXTENSIONS } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
@@ -101,6 +102,26 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('campaign:openRecent', ({ folder }) => openFolder(folder))
   handle('campaign:close', () => { campaign?.close(); campaign = null })
   handle('campaign:info', () => campaign?.info() ?? null)
+  handle('campaign:save', () => { current().save(); return new Date().toISOString() })
+  handle('campaign:saveCopy', async () => {
+    const c = current()
+    const win = getWindow()
+    const options = { title: 'Save a copy of the campaign', defaultPath: `${c.folder} copy`, buttonLabel: 'Save copy' }
+    const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (result.canceled || !result.filePath) return null
+    c.saveCopy(result.filePath)
+    return result.filePath
+  })
+  handle('app:about', () => ({
+    version: app.getVersion(), campaignFolder: campaign?.folder ?? null, dataFolder: app.getPath('userData'), installed: existsSync(uninstallerPath())
+  }))
+  handle('app:uninstall', () => {
+    const file = uninstallerPath()
+    if (!existsSync(file)) throw new Error('No uninstaller here: only the installed Dungeon Zen can uninstall itself (Windows Settings › Apps works too).')
+    campaign?.save()
+    spawn(file, [], { detached: true, stdio: 'ignore' }).unref()
+    app.quit()
+  })
 
   handle('board:view', ({ boardId }) => current().boardView(boardId))
   handle('entity:create', ({ position, ...rest }) =>
@@ -674,4 +695,9 @@ export function safeFolderName(name: string): string {
     .replace(/[. ]+$/, '')
   const reserved = /^(con|prn|aux|nul|com\d|lpt\d)$/i
   return !cleaned || reserved.test(cleaned) ? 'Campaign' : cleaned.slice(0, 80)
+}
+
+/** The NSIS uninstaller electron-builder puts next to DungeonZen.exe (absent when run from source). */
+function uninstallerPath(): string {
+  return join(dirname(process.execPath), 'Uninstall Dungeon Zen.exe')
 }

@@ -17,3 +17,24 @@ export function freeSpot(start: { x: number; y: number }, items: Array<{ x: numb
   }
   return start
 }
+
+export interface Rect { x: number; y: number; w: number; h: number }
+
+/** A card's six string points: top middle, bottom middle (first, so they win ties), then the four corners. */
+export function stringPoints(r: Rect): Array<{ x: number; y: number }> {
+  return [
+    { x: r.x + r.w / 2, y: r.y }, { x: r.x + r.w / 2, y: r.y + r.h },
+    { x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x, y: r.y + r.h }, { x: r.x + r.w, y: r.y + r.h }
+  ]
+}
+
+/** Where a string between two cards attaches: the closest pair of their six points. */
+export function stringEnds(a: Rect, b: Rect): { sx: number; sy: number; tx: number; ty: number } {
+  let best = { sx: 0, sy: 0, tx: 0, ty: 0 }
+  let bestD = Infinity
+  for (const p of stringPoints(a)) for (const q of stringPoints(b)) {
+    const d = (p.x - q.x) ** 2 + (p.y - q.y) ** 2
+    if (d < bestD) { bestD = d; best = { sx: p.x, sy: p.y, tx: q.x, ty: q.y } }
+  }
+  return best
+}
