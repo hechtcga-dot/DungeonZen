@@ -71,6 +71,7 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:delete': z.void(),
+  'export:vtt': z.object({ target: z.enum(['foundry', 'owlbear']), maps: z.boolean(), sheets: z.boolean(), handouts: z.boolean() }),
   'notes:master': z.void(),
   'notes:masterLink': z.object({ section: z.string().max(80), linked: z.boolean() }),
   'notes:masterSave': z.object({ section: z.string().max(80), blocks: Blocks }),
@@ -416,6 +417,7 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:delete': string
+  'export:vtt': { folder: string; count: number }
   'notes:master': Array<{ id: string; title: string; kind: 'dm' | 'session' | 'doc'; blocks: Block[]; linked: boolean; picture: string | null }>
   'notes:masterLink': void
   'notes:masterSave': void

@@ -24,6 +24,7 @@ import { combatHints } from '../shared/combat'
 import { readStatBlock } from '../shared/statblock'
 import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from './exporters/roll20'
 import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './exporters/pages'
+import { FOUNDRY_README, foundryActor, foundryJournal, foundryScene, handoutHtml, OWLBEAR_README, owlbearMapName } from './exporters/vtt'
 import { renderJpg, renderPdf } from './exporters/render'
 import { chunkBlocks, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
 import { writeDocx } from './importers/docx'
@@ -735,6 +736,61 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       writeFileSync(join(r.filePaths[0], `${base}.jpg`), await renderJpg(d.html, o.size))
     }
     return r.filePaths[0]
+  })
+  // Foundry VTT / Owlbear Rodeo: a dated folder in exports with maps, sheets and handouts.
+  handle('export:vtt', async ({ target, maps, sheets, handouts }) => {
+    const c = current()
+    const d = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    let dir = join(exportsDir(), `${target === 'foundry' ? 'Foundry' : 'Owlbear'} ${safeFolderName(c.info().name)} ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`)
+    for (let n = 2; existsSync(dir); n++) dir = `${dir.replace(/ \(\d+\)$/, '')} (${n})`
+    const sub = (name: string) => { const x = join(dir, name); mkdirSync(x, { recursive: true }); return x }
+    const used = new Set<string>()
+    const unique = (base: string) => { let b = safeFolderName(base); for (let n = 2; used.has(b); n++) b = `${safeFolderName(base)} ${n}`; used.add(b); return b }
+    // Pictures: copied once; Foundry files point at dungeonzen/pictures/<file>.
+    const picture = (rel: string, base: string): string | null => {
+      const src = c.assetFile(rel)
+      if (!src) return null
+      const file = `${unique(base)}${extname(src)}`
+      copyFileSync(src, join(sub(target === 'foundry' ? 'pictures' : 'tokens'), file))
+      return target === 'foundry' ? `dungeonzen/pictures/${file}` : file
+    }
+    let count = 0
+    if (maps) for (const m of c.maps()) {
+      const src = c.assetFile(m.url.replace('dz-asset://campaign/', ''))
+      if (!src) continue
+      if (target === 'foundry') {
+        const file = `${unique(m.name)}${extname(src)}`
+        copyFileSync(src, join(sub('pictures'), file))
+        writeFileSync(join(sub('scenes'), `${safeFolderName(m.name)}.json`), JSON.stringify(foundryScene(m, `dungeonzen/pictures/${file}`), null, 2))
+      } else copyFileSync(src, join(sub('maps'), owlbearMapName({ ...m, name: safeFolderName(m.name) }, extname(src))))
+      count++
+    }
+    const cards = c.importTargets().filter((t) => t.status !== 'stashed').map((t) => c.sheet(t.id))
+    if (sheets) {
+      const people = cards.filter((s) => ['PC', 'NPC', 'MONSTER'].includes(s.entity.type))
+      for (const s of people) {
+        const pic = typeof s.entity.attributes.picture === 'string' ? picture(s.entity.attributes.picture, s.entity.name) : null
+        if (target === 'foundry') writeFileSync(join(sub('actors'), `${unique(`${s.entity.name} actor`)}.json`), JSON.stringify(foundryActor(s.entity, s.abilities, pic), null, 2))
+        count++
+      }
+      if (target === 'owlbear' && people.length) {
+        const html = sheetsDocument('Sheets', people.map((s) => sheetPage(s.entity, s.abilities, { playerSafe: false, knows: s.partyKnows, includeNotes: true })), 'A4')
+        writeFileSync(join(sub('sheets'), 'Sheets.pdf'), await renderPdf(html, 'A4'))
+      }
+    }
+    if (handouts) {
+      const list = cards.filter((s) => s.entity.type === 'HANDOUT')
+      for (const s of list) {
+        if (target === 'foundry') writeFileSync(join(sub('journal'), `${unique(`${s.entity.name} journal`)}.json`), JSON.stringify(foundryJournal(s.entity.name, handoutHtml(s.entity)), null, 2))
+        else writeFileSync(join(sub('handouts'), `${unique(s.entity.name)}.jpg`), await renderJpg(letterDocument([s.entity], { hand: 'handwritten', seal: true }, 'A4'), 'A4'))
+        count++
+      }
+    }
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'README.txt'), target === 'foundry' ? FOUNDRY_README : OWLBEAR_README)
+    await shell.openPath(dir)
+    return { folder: dir, count }
   })
   handle('file:saveText', async ({ name, content, ext }) => {
     const label = { json: 'Data', js: 'Script', txt: 'Text' }[ext]

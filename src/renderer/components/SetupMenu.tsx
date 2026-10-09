@@ -13,7 +13,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
   const { openCampaign, closeCampaign, say, setAiSettingsOpen } = useBoard()
   const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | null>(null)
+  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | null>(null)
   const [name, setName] = useState('')
   const [about, setAbout] = useState<About | null>(null)
 
@@ -46,6 +46,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           }) },
           'separator',
           { label: 'Print or save cards…', onClick: () => setDialog('export') },
+          { label: 'Export to Foundry VTT or Owlbear Rodeo…', hint: 'Battle maps with their grid, character and monster sheets, handouts', onClick: () => setDialog('vtt') },
           { label: 'AI services…', onClick: () => setAiSettingsOpen(true) },
           { label: 'Delete this campaign…', danger: true, hint: 'Moves its folder to the Recycle Bin', onClick: () => setDialog('delete') },
           'separator',
@@ -80,6 +81,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
       </Dialog>
 
       {dialog === 'backups' && <BackupsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'vtt' && <VttDialog onClose={() => setDialog(null)} />}
 
       <Dialog title="Delete this campaign?" open={dialog === 'delete'} onClose={() => setDialog(null)}>
         <p>Are you sure you want to delete <strong>{campaignName}</strong>?</p>
@@ -136,6 +138,43 @@ function BackupsDialog({ onClose }: { onClose(): void }) {
         {v?.own && <button onClick={() => void act('backups:resetFolder', undefined).then(load)}>Use the campaign folder</button>}
       </div>
       <div className="dz-actions"><button className="primary" onClick={onClose}>Close</button></div>
+    </Dialog>
+  )
+}
+
+/** Setup › Export to Foundry VTT or Owlbear Rodeo: a folder in exports, opened when done (README inside). */
+function VttDialog({ onClose }: { onClose(): void }) {
+  const { act, say } = useBoard()
+  const [target, setTarget] = useState<'foundry' | 'owlbear'>('foundry')
+  const [pick, setPick] = useState({ maps: true, sheets: true, handouts: true })
+  const [busy, setBusy] = useState(false)
+  const tick = (k: keyof typeof pick, label: string) => (
+    <label className="field checkbox"><input type="checkbox" checked={pick[k]} onChange={(e) => setPick({ ...pick, [k]: e.target.checked })} /> {label}</label>
+  )
+  return (
+    <Dialog title="Export to a virtual tabletop" open onClose={onClose}>
+      <div className="dz-form">
+        <div className="segmented" role="radiogroup" aria-label="Tabletop">
+          <button role="radio" aria-checked={target === 'foundry'} aria-pressed={target === 'foundry'} onClick={() => setTarget('foundry')}>Foundry VTT</button>
+          <button role="radio" aria-checked={target === 'owlbear'} aria-pressed={target === 'owlbear'} onClick={() => setTarget('owlbear')}>Owlbear Rodeo</button>
+        </div>
+        <p className="hint">{target === 'foundry'
+          ? 'Files for Foundry\'s Import Data: scenes with the battle grid, actors for the dnd5e system (scores, AC, HP, features, attacks and spells), journal entries for handouts, and the pictures.'
+          : 'Owlbear Rodeo has no import file: you get the maps named with their grid, token pictures, all sheets in one PDF and handouts as pictures, ready to upload.'}</p>
+        {tick('maps', 'Maps and battle maps')}
+        {tick('sheets', 'Characters, NPCs and monsters')}
+        {tick('handouts', 'Handouts and letters')}
+        <p className="hint">Saved in the campaign's exports folder; it opens when done. A README inside says how to bring it in.</p>
+        <div className="dz-actions">
+          <button onClick={onClose}>Cancel</button>
+          <button className="primary" disabled={busy || !(pick.maps || pick.sheets || pick.handouts)} onClick={async () => {
+            setBusy(true)
+            const r = await act('export:vtt', { target, ...pick })
+            setBusy(false)
+            if (r) { say(`Exported ${r.count} thing${r.count === 1 ? '' : 's'} to ${r.folder}`); onClose() }
+          }}>{busy ? 'Exporting…' : 'Export'}</button>
+        </div>
+      </div>
     </Dialog>
   )
 }

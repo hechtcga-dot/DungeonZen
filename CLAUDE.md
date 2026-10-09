@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.5.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.6.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -75,14 +75,5 @@ Owner's decisions: from the D&D Beyond list not taken: rest buttons on the sheet
 - Dice, music, initiative, battle maps at the table stay in Roll20: do not build them in.
 - Not wanted (dropped from the plan): player view on a second window/TV; party loot/treasure list.
 - One computer only (no sync work). XP levelling, not milestones.
-- Next build (waiting on "go"), owner's answers 2026-10-09:
-  - Map: option B, board gets a "map view" switch (same picture) with region tools, AI find regions, party token and travel time. Map screen stays.
-  - Library: entries grouped in expandable folders (PCs, NPCs, monsters, places…), not one long list.
-  - Generators: own rail item, many tables (names, taverns, shops, NPC quirks/voices, rumours/hooks, loot by CR, trinkets, weather, travel events, encounter and non-encounter random events, dungeon rooms, traps, riddles); results copy or go on the board; own tables typed or pasted.
-  - Travel: suggest checks per travel time as a roll table (DM rolls in Roll20), DM confirms; nothing happens on its own.
-  - XP: equal share per fight, running total per PC, close-to-level shown.
-  - AI session recap (edit before sending).
-  - Backups: dated, end of session + once a day, keep 20, in `backups/` in the campaign by default, DM can choose another folder.
-  - Re-import everywhere (map picture, character sheet, notes files, encounter pictures) plus "read again with AI".
-  - Notes: one master notes document with bookmarks/headings/table of contents, individual notes kept with their original copy; tickbox to sync an edit between master and the note.
-  - Foundry VTT and Owlbear Rodeo exports: battle maps with grid, character and monster sheets, handouts.
+- 1.6.0 built (2026-10-09) from these answers: backups, re-import everywhere, XP per PC, AI recap, Library folders, Generators, travel checks, board Map view (option B), Master notes (linked tick box both ways), Foundry/Owlbear exports. Details in `docs/STATE.md`.
+- Owner's decisions for 1.6.0: Map view on the board (Map screen stays); generator results copy or go on the board; own tables typed or pasted; travel checks are a roll table the DM confirms (dice in Roll20); XP equal share; backups in the campaign by default, folder choosable; master notes keep each note's original copy.

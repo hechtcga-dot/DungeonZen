@@ -2408,10 +2408,10 @@ export class Campaign {
   }
 
   /** Cards an import can match or link to. */
-  importTargets(): Array<{ id: string; name: string; type: string }> {
+  importTargets(): Array<{ id: string; name: string; type: string; status: string }> {
     return this.db.select().from(entity).all()
       .filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
-      .map((e) => ({ id: e.id, name: e.name, type: e.type }))
+      .map((e) => ({ id: e.id, name: e.name, type: e.type, status: e.status }))
   }
 
   importDrafts(): ImportDraftSummary[] {
