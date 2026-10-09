@@ -297,7 +297,7 @@ built.
   - Notes pop-up (⤢). End combat dialog: XP total and per PC, defeated cards to resolve (NPCs ticked), summary
     to the session log; one undo step. Keys: N, P, digits type damage for the selected row (Enter damage,
     Shift+Enter heal).
-- After 1.4.0 (owner, 2026-10-09; not released yet):
+- 1.5.0 (owner, 2026-10-09):
   - Notes › a notes file › Make a character card… (`CharSheetDialog.tsx`, `src/main/ai/charsheet.ts`): tick the
     files with the character (sheet, background, notes; ones starting with the same word pre-ticked); the writing AI
     copies them (`ai:charsheet`): stat block, attacks and spells, level, HP now, spell slots, casting ability,
@@ -359,4 +359,4 @@ built.
 
 Not yet: the Guard Captain's SRD 2024 stat block has no ally boost (add a Leadership trait and the tracker shows it); rivers and roads on made maps; re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, code signing, auto-update; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
-with tokens. Phases 1 to 5, the Windows installer (1.0.0), the getting started guide (1.1.0) and the 1.2.0 and 1.3.0 lists are built. Notes imported before 1.3.0 were not kept as files.
+with tokens. Phases 1 to 5, the Windows installer (1.0.0), the getting started guide (1.1.0) and the 1.2.0 to 1.5.0 lists are built. Notes imported before 1.3.0 were not kept as files.

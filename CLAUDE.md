@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.4.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.5.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -64,6 +64,10 @@ Owner's decisions: link colour belongs to the link type; Setup holds file action
 ## 1.4.0 (built 2026-10-09)
 Run encounter upgrades: CR/level and balance bar, fight follows the encounter (no "Someone joins"), damage types, Split / Mirror Image / Displacement, death saves, bloodied, selected-row tactics and Ask AI, terrain and spell effects, expandable rows (round track, reactions, concentration, legendary actions and resistances, limited uses with Refresh, spell slots), notes pop-up, group damage with saves, End combat summary, keys. Details in `docs/STATE.md`.
 Owner's decisions: creatures join a fight only through the encounter (and new PCs); spell slots live on the card, Long rest refills; suggestion "players' view of the fight on a TV" not taken this build.
+
+## 1.5.0 (built 2026-10-09)
+Character sheets and fight planning: Make a character card from notes files (AI, review), full sheet editable and linked (proficiency, saves/skills with expertise), SRD weapons and spells picker and your own attack with Roll20 macros, Spells and Actions tables, D&D Beyond list (classes, Heroic Inspiration, heal/damage, hit dice, death saves, exhaustion, limited uses, companions, description fields), encounter pictures folder, sheet tracking on Run encounter rows, Battle planner, spell links. Details in `docs/STATE.md`.
+Owner's decisions: from the D&D Beyond list not taken: rest buttons on the sheet, inventory; sheet keeps the desk style; death saves live on the card (shared by sheet and fight); encounter pictures in `assets/encounters/<name>` or a folder the DM chooses.
 
 ## Remind the owner (until answered)
 - Player preview in a second window (TV): put off by owner; ask again later.
