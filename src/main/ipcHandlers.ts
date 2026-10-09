@@ -58,6 +58,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     campaign = next
     const info = next.info()
     profile.remember(folder, info.name)
+    try { next.backupIfDue() } catch { /* a backup that fails never stops the campaign opening */ }
     return info
   }
 
@@ -136,6 +137,23 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const err = await shell.openPath(target)
     if (err) throw new Error(`Windows could not open it: ${err}`)
   })
+  handle('backups:view', () => { const c = current(); return { ...c.backupFolder(), list: c.backups() } })
+  handle('backups:now', () => current().backup())
+  handle('backups:open', async () => {
+    const { folder } = current().backupFolder()
+    mkdirSync(folder, { recursive: true })
+    const err = await shell.openPath(folder)
+    if (err) throw new Error(`Windows could not open it: ${err}`)
+  })
+  handle('backups:chooseFolder', async () => {
+    const win = getWindow()
+    const options = { title: 'Choose where backups go', buttonLabel: 'Keep backups here', properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> }
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (r.canceled || !r.filePaths[0]) return null
+    current().setSetting('backup_folder', r.filePaths[0], 'Backups go to another folder')
+    return r.filePaths[0]
+  })
+  handle('backups:resetFolder', () => current().setSetting('backup_folder', '', 'Backups go to the campaign folder'))
   handle('campaign:info', () => campaign?.info() ?? null)
   handle('campaign:save', () => { current().save(); return new Date().toISOString() })
   handle('campaign:saveCopy', async () => {
@@ -847,7 +865,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('review:draftPlayerRecap', ({ sessionId }) => current().draftPlayerRecap(sessionId))
   handle('review:undoSession', ({ sessionId }) => current().undoSession(sessionId))
   handle('session:start', () => current().startSession())
-  handle('session:end', ({ id }) => current().endSession(id))
+  handle('session:end', ({ id }) => {
+    current().endSession(id)
+    try { current().backup() } catch { /* shown in Setup › Backups; the session still ends */ }
+  })
   handle('session:update', ({ id, patch }) => current().updateSession(id, patch))
   handle('session:setStatus', ({ id, status }) => current().setSessionStatus(id, status))
   handle('log:add', (i) => current().addLog(i))

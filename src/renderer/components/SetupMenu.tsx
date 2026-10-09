@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { IpcOutputs } from '../../shared/ipc'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { ContextMenu } from './ContextMenu'
@@ -12,7 +13,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
   const { openCampaign, closeCampaign, say, setAiSettingsOpen } = useBoard()
   const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | null>(null)
   const [name, setName] = useState('')
   const [about, setAbout] = useState<About | null>(null)
 
@@ -38,6 +39,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
             say(`All changes saved (${new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`)
           }) },
           { label: 'Open campaign folder', hint: 'Everything is in it: back up this one folder', onClick: () => void attempt(() => call('campaign:openFolder', { sub: '' })) },
+          { label: 'Backups…', hint: 'Made at the end of every session and once a day', onClick: () => setDialog('backups') },
           { label: 'Save a copy…', hint: 'Copies the whole campaign folder, pictures and notes included', onClick: () => void attempt(async () => {
             const where = await call('campaign:saveCopy', undefined)
             if (where) say(`Copy saved to ${where}`)
@@ -77,6 +79,8 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
         <div className="dz-actions"><button className="primary" onClick={() => setDialog(null)}>Close</button></div>
       </Dialog>
 
+      {dialog === 'backups' && <BackupsDialog onClose={() => setDialog(null)} />}
+
       <Dialog title="Delete this campaign?" open={dialog === 'delete'} onClose={() => setDialog(null)}>
         <p>Are you sure you want to delete <strong>{campaignName}</strong>?</p>
         <p className="hint">The campaign closes and its whole folder (cards, maps, pictures, notes) goes to the Windows Recycle Bin.
@@ -106,5 +110,32 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
         </div>
       </Dialog>
     </>
+  )
+}
+
+/** Setup › Backups: dated copies of the whole campaign folder (end of each session, once a day; the newest 20 kept). */
+function BackupsDialog({ onClose }: { onClose(): void }) {
+  const { act, say } = useBoard()
+  const [v, setV] = useState<IpcOutputs['backups:view'] | null>(null)
+  const load = () => void call('backups:view', undefined).then(setV).catch(() => setV(null))
+  useEffect(load, [])
+  const [busy, setBusy] = useState(false)
+  return (
+    <Dialog title="Backups" open onClose={onClose}>
+      <p>A dated copy of the whole campaign folder is made at the end of every session and once a day you use it. The newest 20 are kept.</p>
+      <p className="hint selectable">{v ? `${v.folder}${v.own ? '' : ' (in the campaign folder)'}` : '…'}</p>
+      {v && (v.list.length === 0 ? <p className="hint">No backups yet.</p> : (
+        <ul className="ink-list">{v.list.slice(0, 6).map((b) => <li key={b.name}>{b.name}</li>)}
+          {v.list.length > 6 && <li className="hint">and {v.list.length - 6} older</li>}</ul>
+      ))}
+      <p className="hint">To restore one, open its folder with Open campaign.</p>
+      <div className="row tight wrap">
+        <button disabled={busy} onClick={async () => { setBusy(true); const f = await act('backups:now', undefined); setBusy(false); if (f) { say('Backup made'); load() } }}>{busy ? 'Backing up…' : 'Back up now'}</button>
+        <button onClick={() => void act('backups:open', undefined)}>Open backups folder</button>
+        <button onClick={async () => { if (await act('backups:chooseFolder', undefined)) load() }}>Choose another folder…</button>
+        {v?.own && <button onClick={() => void act('backups:resetFolder', undefined).then(load)}>Use the campaign folder</button>}
+      </div>
+      <div className="dz-actions"><button className="primary" onClick={onClose}>Close</button></div>
+    </Dialog>
   )
 }

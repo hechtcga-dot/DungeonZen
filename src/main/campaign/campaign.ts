@@ -85,7 +85,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -156,6 +156,62 @@ export class Campaign {
       recursive: true,
       filter: (src) => !/campaign\.db-(wal|shm)$/.test(src) && !src.startsWith(join(this.folder, ASSETS_DIR, 'pending'))
     })
+  }
+
+  // ---- backups: dated copies of the whole folder (owner, 1.6.0) ----------------
+
+  /** Where backups go: `backups` in the campaign, or a folder the DM chose. */
+  backupFolder(): { folder: string; own: boolean } {
+    const own = this.setting('backup_folder')
+    return typeof own === 'string' && own ? { folder: own, own: true } : { folder: join(this.folder, 'backups'), own: false }
+  }
+
+  /** Backups of this campaign, newest first. */
+  backups(): Array<{ name: string; at: string }> {
+    const { folder } = this.backupFolder()
+    const mine = `${this.backupStem()} `
+    if (!existsSync(folder)) return []
+    return readdirSync(folder, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name.startsWith(mine))
+      .map((d) => ({ name: d.name, at: statSync(join(folder, d.name)).mtime.toISOString() }))
+      .sort((a, b) => b.at.localeCompare(a.at))
+  }
+
+  private backupStem(): string {
+    return this.info().name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Campaign'
+  }
+
+  /**
+   * Copies the campaign folder (not its backups) to `<stem> YYYY-MM-DD HH-MM`, then keeps the
+   * newest `keep` backups. Returns the new folder.
+   */
+  backup(keep = 20): string {
+    const { folder } = this.backupFolder()
+    mkdirSync(folder, { recursive: true })
+    const d = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}-${p(d.getMinutes())}`
+    let dest = join(folder, `${this.backupStem()} ${stamp}`)
+    for (let n = 2; existsSync(dest); n++) dest = join(folder, `${this.backupStem()} ${stamp} (${n})`)
+    this.save()
+    const skip = (src: string) => /campaign\.db-(wal|shm)$/.test(src) || src.startsWith(join(this.folder, ASSETS_DIR, 'pending')) || src.startsWith(folder)
+    // Entry by entry: a backups folder inside the campaign cannot be copied into itself.
+    for (const entry of readdirSync(this.folder)) {
+      const src = join(this.folder, entry)
+      if (entry === 'backups' || skip(src)) continue
+      cpSync(src, join(dest, entry), { recursive: true, filter: (x) => !skip(x) })
+    }
+    // Old backups beyond `keep` are removed (copies, not campaign data).
+    for (const old of this.backups().slice(keep)) rmSync(join(folder, old.name), { recursive: true, force: true })
+    return dest
+  }
+
+  /** The daily backup: made when there is none from today yet. */
+  backupIfDue(): string | null {
+    const d = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    const today = `${this.backupStem()} ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    return this.backups().some((b) => b.name.startsWith(today)) ? null : this.backup()
   }
 
   // ---- reads ---------------------------------------------------------------

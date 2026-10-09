@@ -70,6 +70,11 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:delete': z.void(),
+  'backups:view': z.void(),
+  'backups:now': z.void(),
+  'backups:open': z.void(),
+  'backups:chooseFolder': z.void(),
+  'backups:resetFolder': z.void(),
   'charsheet:importDialog': z.void(),
   'campaign:openFolder': z.object({ sub: z.enum(['', 'assets', 'maps', 'styles', 'pictures', 'notes', 'board', 'encounters', 'exports']) }),
   'campaign:info': z.void(),
@@ -397,6 +402,11 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:delete': string
+  'backups:view': { folder: string; own: boolean; list: Array<{ name: string; at: string }> }
+  'backups:now': string
+  'backups:open': void
+  'backups:chooseFolder': string | null
+  'backups:resetFolder': void
   'charsheet:importDialog': string[]
   'campaign:openFolder': void
   'campaign:info': CampaignInfo | null
