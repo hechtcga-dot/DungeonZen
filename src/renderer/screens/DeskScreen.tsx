@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useBoard } from '../store'
 import { Candle, CompassRose, D20, Leaf, Potion, Quill } from '../art/props'
 import { PartyEmblem, roman, StoryEmblemArt } from '../art/emblems'
@@ -11,7 +11,7 @@ import { DeskFrame } from '../components/DeskFrame'
 import { lightingAt, moonOn, skyAt } from '../../shared/sky'
 import { useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
-import type { DeskView } from '../../shared/types'
+import type { DeskPartyMember, DeskView } from '../../shared/types'
 
 
 export function DeskScreen() {
@@ -221,26 +221,7 @@ function Desk({ desk }: { desk: DeskView }) {
         <div className="mat-party">
           <h2 className="mat-heading">The party</h2>
           <div className="party-row">
-            {desk.party.map((p, i) => (
-              <TarotCard
-                key={p.id}
-                className="tarot-pc"
-                numeral={roman(i + 1)}
-                title={p.name}
-                subtitle={p.summary || 'Player character'}
-                art={<PartyEmblem index={i} />}
-                tint={p.colour ?? ['#23395b', '#7a2230', '#24553a', '#4b2d6b'][i % 4]}
-                footer={(
-                  <span className="pc-stats">
-                    <span title="Armor class"><b>AC</b> {p.ac || '–'}</span>
-                    <span title="Hit points"><b>HP</b> {p.hp || '–'}</span>
-                    <span title="Passive Perception"><b>PP</b> {p.passivePerception ?? '–'}</span>
-                  </span>
-                )}
-                onClick={() => void openSheet(p.id)}
-                label={`Open ${p.name}'s sheet`}
-              />
-            ))}
+            {desk.party.map((p, i) => <PartyCard key={p.id} p={p} index={i} />)}
             <button className="tarot tarot-new tarot-pc" onClick={() => void newCard('PC')}>
               <span className="tarot-plus" aria-hidden="true">+</span>
               <span>Add a player character</span>
@@ -273,5 +254,50 @@ function Journal({ notes }: { notes: string }) {
         <span className="journal-hint">Saved when you click away. Only you see these.</span>
       </div>
     </div>
+  )
+}
+
+/** A player character's tarot card on the mat: portrait, and what the DM checks at the table (HP and conditions editable). */
+function PartyCard({ p, index }: { p: DeskPartyMember; index: number }) {
+  const { act, openSheet } = useBoard()
+  const [hp, setHp] = useState(p.currentHp === null ? '' : String(p.currentHp))
+  const [conditions, setConditions] = useState(p.conditions)
+  useEffect(() => setHp(p.currentHp === null ? '' : String(p.currentHp)), [p.currentHp])
+  useEffect(() => setConditions(p.conditions), [p.conditions])
+  const saveHp = () => {
+    const n = Number.parseInt(hp, 10)
+    if (Number.isFinite(n) && n !== p.currentHp) void act('party:setHp', { entityId: p.id, hp: Math.max(0, n) })
+    else setHp(p.currentHp === null ? '' : String(p.currentHp))
+  }
+  const saveConditions = () => { if (conditions.trim() !== p.conditions) void act('entity:update', { id: p.id, patch: { attributes: { conditions: conditions.trim() } } }) }
+  const blurOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.currentTarget.blur() }
+  return (
+    <TarotCard
+      className="tarot-pc"
+      numeral={roman(index + 1)}
+      title={p.name}
+      subtitle={p.summary || 'Player character'}
+      art={p.picture
+        ? <img className="tarot-portrait" src={`dz-asset://campaign/${p.picture}`} alt={`Portrait of ${p.name}`} />
+        : <PartyEmblem index={index} />}
+      tint={p.colour ?? ['#23395b', '#7a2230', '#24553a', '#4b2d6b'][index % 4]}
+      footer={(
+        <span className="pc-table">
+          <span className="pc-stats">
+            <span title="Armor class"><b>AC</b> {p.ac || '–'}</span>
+            <label title="Hit points now (type and press Enter; Ctrl+Z undoes)"><b>HP</b>
+              <input className="pc-hp" inputMode="numeric" value={hp} aria-label={`${p.name} hit points now`} onChange={(e) => setHp(e.target.value)} onBlur={saveHp} onKeyDown={blurOnEnter} />
+              <span className="pc-max">/{p.maxHp ?? '–'}{p.tempHp ? ` +${p.tempHp}` : ''}</span>
+            </label>
+            <span title="Passive Perception"><b>PP</b> {p.passivePerception ?? '–'}</span>
+            <span title="Size"><b>Size</b> {p.size || '–'}</span>
+          </span>
+          {p.resistances && <span className="pc-line" title={p.resistances}>{p.resistances}</span>}
+          <input className="pc-conditions" value={conditions} placeholder="No conditions" aria-label={`${p.name} conditions`}
+            onChange={(e) => setConditions(e.target.value)} onBlur={saveConditions} onKeyDown={blurOnEnter} />
+          <button type="button" className="pc-open" onClick={() => void openSheet(p.id)}>Open sheet</button>
+        </span>
+      )}
+    />
   )
 }

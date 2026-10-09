@@ -288,6 +288,15 @@ export interface DeskPartyMember {
   passivePerception: number | null
   /** The DM's card colour, if set. */
   colour: string | null
+  /** At the table: hit points now (max when never changed), temporary hit points, size, resistances, conditions. */
+  currentHp: number | null
+  maxHp: number | null
+  tempHp: number
+  size: string
+  resistances: string
+  conditions: string
+  /** Portrait in the campaign assets (dz-asset path), when the card has one. */
+  picture: string | null
 }
 
 export interface DeskView {

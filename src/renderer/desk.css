@@ -1000,3 +1000,16 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .cs-conditions .cs-title { text-align: left; }
 .cs-tabs { margin: 0; }
 @media (max-width: 1250px) { .cs-body { grid-template-columns: 1fr 1fr; } .cs-right { grid-column: span 2; } }
+
+/* Party cards on the mat: portrait and table stats (1.3.0) */
+.tarot-pc { cursor: default; }
+.tarot-portrait { width: 100%; height: 100%; max-height: 150px; object-fit: cover; border-radius: 2px; display: block; }
+.tarot-pc .tarot-art { overflow: hidden; }
+.pc-table { display: flex; flex-direction: column; gap: 3px; }
+.pc-stats { flex-wrap: wrap; }
+.pc-stats label { display: inline-flex; align-items: baseline; gap: 2px; }
+.mat .tarot-pc input.pc-hp { color: var(--ink); width: 3.2em; min-height: 0; height: 22px; padding: 0 2px; text-align: right; font: inherit; border: 1px solid #a8916a; background: rgba(255, 252, 240, 0.8); }
+.pc-max { color: var(--ink-muted); }
+.pc-line { font-family: var(--sans); font-size: 11px; color: #5c2a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mat .tarot-pc input.pc-conditions { color: var(--ink); min-height: 0; height: 24px; padding: 0 6px; font-family: var(--sans); font-size: 11.5px; border: 1px dashed #a8916a; background: rgba(255, 252, 240, 0.6); text-align: center; }
+.pc-open { min-height: 26px; padding: 0 8px; font-family: var(--sans); font-size: 12px; }

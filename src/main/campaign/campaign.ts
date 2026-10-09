@@ -18,7 +18,7 @@ import { formatClock } from '../../shared/time'
 import { KNOWLEDGE_FIELDS, type PrepKind, type SceneType } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
-import { crToNumber, HAS_STATBLOCK, leadingNumber, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
+import { crToNumber, HAS_STATBLOCK, leadingNumber, passiveScore, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type { CombatView, PcToken,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
@@ -943,14 +943,22 @@ export class Campaign {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .map((e) => {
         const sb = readStatBlock(e.attributes.statblock)
-        const pp = sb ? /passive perception\s+(\d+)/i.exec(sb.senses) : null
+        const a = e.attributes
+        const maxHp = sb ? leadingNumber(sb.hp) : null
         return {
           id: e.id, name: e.name,
-          summary: typeof e.attributes.summary === 'string' ? e.attributes.summary : '',
+          summary: typeof a.summary === 'string' ? a.summary : '',
           ac: sb?.ac ? String(leadingNumber(sb.ac) ?? sb.ac) : '',
           hp: sb?.hp ? String(leadingNumber(sb.hp) ?? sb.hp) : '',
-          passivePerception: pp ? Number(pp[1]) : sb ? 10 + Math.floor((sb.wis - 10) / 2) : null,
-          colour: typeof e.attributes.colour === 'string' ? e.attributes.colour : null
+          passivePerception: sb ? passiveScore(sb, 'Perception') : null,
+          colour: typeof a.colour === 'string' ? a.colour : null,
+          currentHp: typeof a.current_hp === 'number' ? a.current_hp : maxHp,
+          maxHp,
+          tempHp: typeof a.temp_hp === 'number' ? a.temp_hp : 0,
+          size: sb?.size ?? '',
+          resistances: [sb?.resistances && `resists ${sb.resistances}`, sb?.immunities && `immune ${sb.immunities}`].filter(Boolean).join('; '),
+          conditions: typeof a.conditions === 'string' ? a.conditions : '',
+          picture: typeof a.picture === 'string' ? a.picture : null
         }
       })
     const maps = this.maps()
