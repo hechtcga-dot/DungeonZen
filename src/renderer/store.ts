@@ -20,6 +20,9 @@ export const SCREEN_NAMES: Record<Screen, string> = {
   import: 'notes', guide: 'getting started', combat: 'the fight'
 }
 export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
+/** The map belongs to every mode; other screens belong to one. */
+const modeFor = (screen: Screen, current: Mode): Mode =>
+  screen === 'map' ? current : screen === 'live' || screen === 'review' ? 'live' : screen === 'players' ? 'players' : 'prep'
 
 interface BoardState {
   info: CampaignInfo | null
@@ -54,7 +57,7 @@ interface BoardState {
   reviewSessionId: string | null
   openReview(sessionId: string): Promise<void>
   sheetId: string | null
-  /** Where Back goes: the screens the DM came from (sheet, review). */
+  /** Where Back (and the Backspace key) goes: the screens the DM came from. */
   backStack: Array<{ screen: Screen; sheetId: string | null }>
   goBack(): Promise<void>
   /** A card to bring into view the next time the board shows. */
@@ -68,6 +71,8 @@ interface BoardState {
   setAiSettingsOpen(open: boolean): void
   /** Notes screen: open on Import (the getting started guide) instead of Your notes. */
   notesTab: 'notes' | 'import'
+  /** Getting started: the step on show (kept so Back returns to it). */
+  guideStep: 'map' | 'regions' | 'notes'
   /** The battle map dialog is open. */
   battleMapOpen: boolean
   setBattleMapOpen(open: boolean): void
@@ -104,7 +109,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   review: null,
   mapScreen: null,
   mode: 'prep',
-  setMode(mode) { set({ mode, screen: MODE_HOME[mode] }); void get().refresh() },
+  setMode(mode) { set({ mode, screen: MODE_HOME[mode], backStack: pushed(get(), MODE_HOME[mode]) }); void get().refresh() },
   prepScreen: null,
   where: null,
   players: null,
@@ -117,13 +122,14 @@ export const useBoard = create<BoardState>((set, get) => ({
     set({ screen: 'combat', combatId: id, combat: null, backStack: screen === 'combat' ? backStack : [...backStack, { screen, sheetId }].slice(-20) })
     await get().refresh()
   },
-  openEncounter(id) { set({ encounterId: id, screen: 'encounters', mode: 'prep' }); void get().refresh() },
+  openEncounter(id) { set({ encounterId: id, screen: 'encounters', mode: 'prep', backStack: pushed(get(), 'encounters') }); void get().refresh() },
   prep: null,
   prepNumber: null,
   setPrepNumber(n) { set({ prepNumber: n }); void get().refresh() },
   aiSettingsOpen: false,
   setAiSettingsOpen(open) { set({ aiSettingsOpen: open }) },
   notesTab: 'notes',
+  guideStep: 'map',
   battleMapOpen: false,
   setBattleMapOpen(open) { set({ battleMapOpen: open }) },
   reviewSessionId: null,
@@ -132,7 +138,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   async goBack() {
     const stack = get().backStack
     const prev = stack.at(-1) ?? { screen: 'board' as Screen, sheetId: null }
-    set({ backStack: stack.slice(0, -1), screen: prev.screen, sheetId: prev.sheetId, sheet: null, mode: prev.screen === 'live' || prev.screen === 'review' ? 'live' : prev.screen === 'players' ? 'players' : get().mode })
+    set({ backStack: stack.slice(0, -1), screen: prev.screen, sheetId: prev.sheetId, sheet: null, mode: modeFor(prev.screen, get().mode) })
     await get().refresh()
   },
   focusEntityId: null,
@@ -144,7 +150,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   async openCampaign(info) {
     set({
       info, screen: info.gettingStarted ? 'guide' : 'desk', mode: 'prep', prepNumber: null, boardId: info.globalBoardId, desk: null, selection: null, view: null, history: null,
-      sheet: null, sheetId: null, search: ''
+      sheet: null, sheetId: null, search: '', backStack: [], guideStep: 'map'
     })
     await get().refresh()
   },
@@ -155,19 +161,17 @@ export const useBoard = create<BoardState>((set, get) => ({
   },
 
   async showBoard(boardId) {
-    set({ boardId, selection: null, screen: 'board', mode: 'prep' })
+    set({ boardId, selection: null, screen: 'board', mode: 'prep', backStack: pushed(get(), 'board') })
     await get().refresh()
   },
 
   goTo(screen) {
-    // The map belongs to every mode; other screens belong to one.
-    const mode: Mode = screen === 'map' ? get().mode : screen === 'live' ? 'live' : screen === 'players' ? 'players' : 'prep'
-    set({ screen, mode, backStack: [] })
+    set({ screen, mode: modeFor(screen, get().mode), backStack: pushed(get(), screen), ...(screen === 'guide' ? { guideStep: 'map' as const } : {}) })
     void get().refresh()
   },
 
   async openReview(sessionId) {
-    set({ screen: 'review', reviewSessionId: sessionId, review: null, backStack: [...get().backStack, { screen: get().screen, sheetId: get().sheetId }].slice(-20) })
+    set({ screen: 'review', reviewSessionId: sessionId, review: null, backStack: pushed(get(), 'review') })
     await get().refresh()
   },
 
@@ -181,7 +185,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   async showOnBoard(entityId) {
     const { info } = get()
     if (!info) return
-    set({ boardId: info.globalBoardId, screen: 'board', focusEntityId: entityId, selection: { kind: 'entity', id: entityId } })
+    set({ boardId: info.globalBoardId, screen: 'board', backStack: pushed(get(), 'board'), focusEntityId: entityId, selection: { kind: 'entity', id: entityId } })
     await get().refresh()
   },
 
@@ -288,4 +292,10 @@ export function useView(): BoardView {
   const view = useBoard((s) => s.view)
   if (!view) throw new Error('Board view not loaded')
   return view
+}
+
+/** The back stack with the screen on show added, when going to another screen. */
+function pushed({ screen, sheetId, backStack }: Pick<BoardState, 'screen' | 'sheetId' | 'backStack'>, to: Screen): BoardState['backStack'] {
+  if (to === screen) return backStack
+  return [...backStack, { screen, sheetId }].slice(-20)
 }

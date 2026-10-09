@@ -245,11 +245,12 @@ function BoardLayout() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setLinking(null)
       if (isTyping(e.target)) return
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); void removeSelected() }
+      // Backspace with nothing selected is left for Back.
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (nodes.some((n) => n.selected) || edges.some((x) => x.selected))) { e.preventDefault(); void removeSelected() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [removeSelected])
+  }, [removeSelected, nodes, edges])
 
   // Bring a card into view when another screen asked to show it on the board.
   useEffect(() => {

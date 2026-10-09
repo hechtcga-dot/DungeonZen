@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useBoard, type Mode } from '../store'
+import { SCREEN_NAMES, useBoard, type Mode } from '../store'
 import { isTyping } from './TopBar'
 import { SetupMenu } from './SetupMenu'
 
@@ -17,6 +17,7 @@ const ICONS = {
   players: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M2.5 19q0-5 5.5-5t5.5 5M10.5 19q0-5 5.5-5t5.5 5" /></>,
   notes: <><path d="M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6z" /><path d="M6 3v18M9 8h6M9 12h6M9 16h4" /><path d="M4 6h2M4 10h2M4 14h2M4 18h2" /></>,
   setup: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" /></>,
+  back: <path d="M10 6l-6 6 6 6M4 12h16" />,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
 }
 
@@ -29,7 +30,8 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
 
 /** The dark iron-and-wood rail down the left of the desk style screens. */
 export function DeskRail() {
-  const { screen, goTo, closeCampaign, undo, redo, setAiSettingsOpen, mode, setMode } = useBoard()
+  const { screen, goTo, closeCampaign, undo, redo, setAiSettingsOpen, mode, setMode, goBack } = useBoard()
+  const prev = useBoard((s) => s.backStack.at(-1))
 
   // Same undo shortcuts as the top bar on the other screens.
   useEffect(() => {
@@ -39,10 +41,15 @@ export function DeskRail() {
       const key = e.key.toLowerCase()
       if (mod && key === 'z' && !e.shiftKey) { e.preventDefault(); void undo() }
       else if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); void redo() }
+      else if ((e.key === 'Backspace' && !mod && !e.altKey) || (e.altKey && e.key === 'ArrowLeft')) {
+        // Back, unless a pop-up is open or the screen used the key (the board's Backspace removes a selection).
+        if (document.querySelector('dialog[open]') || !useBoard.getState().backStack.length) return
+        setTimeout(() => { if (!e.defaultPrevented) void goBack() })
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo])
+  }, [undo, redo, goBack])
 
   const item = (id: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import', label: string, icon: keyof typeof ICONS = id) => (
     <button className="rail-item" aria-current={screen === id ? 'page' : undefined} onClick={() => goTo(id)}>
@@ -55,6 +62,11 @@ export function DeskRail() {
   return (
     <nav className="rail" aria-label="Screens">
       <div className="rail-mark" aria-hidden="true">DZ</div>
+      {prev && (
+        <button className="rail-item" onClick={() => void goBack()} title={`Back to ${SCREEN_NAMES[prev.screen]} (Backspace)`}>
+          <Icon name="back" /><span>Back</span>
+        </button>
+      )}
       <div className="rail-modes" role="group" aria-label="Mode">
         {modeButton('prep', 'Prep', 'DM prep: every screen and option')}
         {modeButton('live', 'Live', 'Live session: what you need at the table, for where the party is')}

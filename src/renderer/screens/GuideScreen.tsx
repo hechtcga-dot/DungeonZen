@@ -27,7 +27,8 @@ export function GuideScreen() {
   const desk = useBoard((s) => s.desk)
   const { goTo, act } = useBoard()
   const [lighting] = useLightingPref()
-  const [step, setStep] = useState<Step>('map')
+  const step = useBoard((s) => s.guideStep)
+  const setStep = (guideStep: Step) => useBoard.setState({ guideStep })
   const [map, setMap] = useState<MapView | null>(null)
   const [madeRegions, setMadeRegions] = useState(0)
   // Coming back to the guide with a map already on the desk: offer to go on from it.
