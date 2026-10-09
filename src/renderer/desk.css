@@ -1097,6 +1097,7 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 }
 .notes-items button span { font-weight: 400; font-size: 12px; }
 .notes-items button[aria-current='true'] { background: #2a1f12; color: var(--parchment-light); }
+.notes-items button[aria-current='true']:hover:not(:disabled) { background: #3d2c18; color: var(--parchment-light); }
 .notes-items button[aria-current='true'] .ink-muted { color: #d8c7a0; }
 .notes-edited { padding: 8px 10px; border-radius: 6px; background: #f4dcae; border: 1px solid #8f2a21; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
 .notes-hint { font-size: 12px; }
@@ -1302,3 +1303,13 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .board-mapview { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 8px; gap: 8px; overflow: auto; }
 .board-mapview-bar { color: #2a1f12; padding: 6px 10px; background: rgba(255, 250, 236, 0.85); border: 1px solid #a8916a; border-radius: 4px; }
 .board-mapview .map-layout { flex: 1; min-height: 0; }
+
+.master-notes { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.master-toc { position: sticky; top: 0; max-height: calc(100vh - 140px); overflow: auto; }
+.master-toc ol { list-style: none; margin: 6px 0; padding-left: 0; }
+.master-toc ol ol { padding-left: 14px; }
+.master-toc li { margin: 2px 0; }
+.master-toc .link-button { color: var(--ink); text-decoration: none; text-align: left; }
+.master-toc .toc-h2 { padding-left: 8px; } .master-toc .toc-h3 { padding-left: 16px; font-size: 13px; }
+.master-doc { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.master-section .note-page[contenteditable='false'] { border: 0; background: transparent; min-height: 0; }

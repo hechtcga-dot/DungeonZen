@@ -27,7 +27,7 @@ import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './expo
 import { renderJpg, renderPdf } from './exporters/render'
 import { chunkBlocks, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
 import { writeDocx } from './importers/docx'
-import { blockLines, changedLines, textToBlocks } from '../shared/noteDoc'
+import { blockLines, changedLines, textToBlocks, type Block } from '../shared/noteDoc'
 import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
 import type { ImportDraft } from '../shared/notesImport'
 import { AI_PROVIDERS, maxReferences, providerById, type AiChoice } from '../shared/aiProviders'
@@ -633,6 +633,38 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const doc = c.notesScreen().docs.find((d) => d.id === id)
     if (!doc || doc.kind === 'picture') return []
     return blockLines(await noteBlocks(c.noteFile(id), doc.kind)).filter((l) => l.trim())
+  })
+  // Master notes (owner, 1.6.0): every note as one document. A section linked to its note is the
+  // note itself (edits save to the note); unticked, the master keeps its own copy.
+  const masterSections = async () => {
+    const c = current()
+    const screen = c.notesScreen()
+    const copies = c.masterCopies()
+    const out: IpcOutputs['notes:master'] = []
+    const add = (id: string, title: string, kind: 'dm' | 'session' | 'doc', blocks: Block[], picture: string | null = null) =>
+      out.push({ id, title, kind, blocks: (copies[id] as Block[] | undefined) ?? blocks, linked: !copies[id], picture })
+    add('dm', 'DM notes between sessions', 'dm', textToBlocks(screen.dmNotes))
+    for (const s of [...screen.sessions].sort((a, b) => a.number - b.number)) add(`session:${s.id}`, `Session ${s.number}`, 'session', textToBlocks(s.dmNotes))
+    for (const d of [...screen.docs].sort((a, b) => a.title.localeCompare(b.title))) {
+      const file = c.noteFile(d.id)
+      const rel = file.slice(join(c.folder, ASSETS_DIR).length + 1).replace(/\\/g, '/')
+      add(`doc:${d.id}`, d.title, 'doc', d.kind === 'picture' ? [] : await noteBlocks(file, d.kind).catch(() => []), d.kind === 'picture' ? `dz-asset://campaign/${rel}` : null)
+    }
+    return out
+  }
+  handle('notes:master', () => masterSections())
+  handle('notes:masterLink', async ({ section, linked }) => {
+    const s = (await masterSections()).find((x) => x.id === section)
+    if (!s) throw new Error('That note is gone')
+    current().setMasterCopy(section, linked ? null : s.blocks, linked ? `${s.title}: master follows the note again` : `${s.title}: master keeps its own copy`)
+  })
+  handle('notes:masterSave', ({ section, blocks }) => current().setMasterCopy(section, blocks, 'Edited the master notes'))
+  handle('notes:masterDocx', async () => {
+    const blocks = (await masterSections()).flatMap((s) => [{ kind: 'h1' as const, runs: [{ text: s.title }] }, ...s.blocks.map((b) => (b.kind === 'h1' ? { ...b, kind: 'h2' as const } : b.kind === 'h2' ? { ...b, kind: 'h3' as const } : b))])
+    const file = await saveAs('Save the master notes as Word', 'Master notes.docx', [{ name: 'Word document', extensions: ['docx'] }])
+    if (!file) return null
+    writeFileSync(file, writeDocx(blocks))
+    return file
   })
   handle('notedoc:named', ({ names }) => current().noteDocsNamed(names))
   handle('file:saveDocx', async ({ name, text }) => {

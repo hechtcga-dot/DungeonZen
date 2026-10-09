@@ -86,7 +86,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -157,6 +157,21 @@ export class Campaign {
       recursive: true,
       filter: (src) => !/campaign\.db-(wal|shm)$/.test(src) && !src.startsWith(join(this.folder, ASSETS_DIR, 'pending'))
     })
+  }
+
+  // ---- master notes: sections unticked from their note keep their own copy here ----
+
+  masterCopies(): Record<string, unknown[]> {
+    const raw = this.setting('master_notes')
+    return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown[]> : {}
+  }
+
+  /** blocks = the master's own copy of a section (not linked to its note); null = linked again. One undo step. */
+  setMasterCopy(section: string, blocks: unknown[] | null, label: string): void {
+    const next = { ...this.masterCopies() }
+    if (blocks) next[section] = blocks
+    else delete next[section]
+    this.setSetting('master_notes', next, label)
   }
 
   // ---- generators: the DM's own roll tables (setting roll_tables; History = status defunct) ----

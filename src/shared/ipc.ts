@@ -71,6 +71,10 @@ export const ipcInputs = {
   'campaign:openRecent': z.object({ folder: z.string().min(1) }),
   'campaign:close': z.void(),
   'campaign:delete': z.void(),
+  'notes:master': z.void(),
+  'notes:masterLink': z.object({ section: z.string().max(80), linked: z.boolean() }),
+  'notes:masterSave': z.object({ section: z.string().max(80), blocks: Blocks }),
+  'notes:masterDocx': z.void(),
   'tables:view': z.void(),
   'tables:save': z.object({ id: z.string().min(1).max(80), name: Name, group: z.string().trim().min(1).max(80), card: EntityType, entries: z.array(z.string().max(2000)).min(1).max(1000), hint: z.string().max(300).optional() }),
   'tables:setStatus': z.object({ id: z.string().max(80), status: z.enum(['active', 'defunct']) }),
@@ -412,6 +416,10 @@ export interface IpcOutputs {
   'campaign:openRecent': CampaignInfo
   'campaign:close': void
   'campaign:delete': string
+  'notes:master': Array<{ id: string; title: string; kind: 'dm' | 'session' | 'doc'; blocks: Block[]; linked: boolean; picture: string | null }>
+  'notes:masterLink': void
+  'notes:masterSave': void
+  'notes:masterDocx': string | null
   'tables:view': Array<RollTable & { status: 'active' | 'defunct' }>
   'tables:save': void
   'tables:setStatus': void

@@ -9,9 +9,10 @@ import type { ImportDraft } from '../../shared/notesImport'
 import type { NoteDocView, NotesScreenView } from '../../shared/types'
 import { OpenFolder } from './OpenFolder'
 import { ImportCharSheet } from './ImportCharSheet'
-import type { Block } from '../../shared/noteDoc'
+import { blockLines, type Block } from '../../shared/noteDoc'
+import type { IpcOutputs } from '../../shared/ipc'
 
-type Open = { kind: 'dm' } | { kind: 'session'; id: string } | { kind: 'doc'; id: string }
+type Open = { kind: 'master' } | { kind: 'dm' } | { kind: 'session'; id: string } | { kind: 'doc'; id: string }
 const KIND_LABEL: Record<NoteDocView['kind'], string> = { word: 'Word', pdf: 'PDF', text: 'Text', picture: 'Picture' }
 const when = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -55,6 +56,9 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
             <TakeEdit id={e.id} onDone={(changed) => { load(); setOpen({ kind: 'doc', id: e.id }); if (changed.length) useBoard.setState({ message: { text: `${changed.length} changed part${changed.length === 1 ? '' : 's'} brought in.`, isError: false } }) }} onOpen={onOpen} />
           </div>
         ))}
+        <ul className="notes-items">
+          <li><button aria-current={open.kind === 'master'} onClick={() => setOpen({ kind: 'master' })}>Master notes<span className="ink-muted">every note in one document, with contents and search</span></button></li>
+        </ul>
         <h2 className="panel-title">DM notes</h2>
         <ul className="notes-items">
           <li><button aria-current={open.kind === 'dm'} onClick={() => setOpen({ kind: 'dm' })}>Between sessions<span className="ink-muted">{data.dmNotes.trim() ? `${data.dmNotes.trim().split(/\s+/).length} words` : 'empty'}</span></button></li>
@@ -90,6 +94,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
         <p className="ink-muted notes-hint">Notes imported before 1.3 were not kept as files: import them again to see them here.</p>
       </aside>
       <section className="notes-view">
+        {open.kind === 'master' && <MasterNotes onOpen={(o) => setOpen(o)} />}
         {open.kind === 'dm' && (
           <TextNote key="dm" title="DM notes between sessions" text={data.dmNotes}
             hint={data.sessions.some((x) => x.running) ? 'A session is running: the desk journal writes to that session’s notes.' : 'The desk journal shows these while no session runs.'}
@@ -223,6 +228,92 @@ function DocNote({ doc, docs, onOpenDraft, onChanged }: { doc: NoteDocView; docs
       )}
       {making && <CharSheetDialog doc={doc} docs={docs} onClose={() => setMaking(false)} />}
       {changed && <UpdateCards id={doc.id} lines={changed} onClose={() => setChanged(null)} onOpen={onOpenDraft} />}
+    </div>
+  )
+}
+
+type Section = IpcOutputs['notes:master'][number]
+
+/** Blocks back to the plain text the DM and session notes keep ("# " headings, "- " lists). */
+const blocksToText = (blocks: Block[]) => blocks.map((b) => {
+  if (b.kind === 'table') return blockLines([b]).join('\n')
+  const t = b.runs.map((r) => r.text).join('')
+  return b.kind === 'h1' ? `# ${t}` : b.kind === 'h2' ? `## ${t}` : b.kind === 'h3' ? `### ${t}` : b.kind === 'bullet' ? `- ${t}` : b.kind === 'number' ? `1. ${t}` : t
+}).join('\n\n')
+
+/**
+ * Notes › Master notes (owner, 1.6.0): every note as one long document. Contents down the side
+ * (each note and its headings), search, edit a section in place. A section ticked "Linked" is the
+ * note itself, so edits go both ways; unticked, the master keeps its own copy.
+ */
+function MasterNotes({ onOpen }: { onOpen(o: Open): void }) {
+  const { act, say, view } = useBoard()
+  const [secs, setSecs] = useState<Section[] | null>(null)
+  const [q, setQ] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
+  const ed = useRef<NoteEditorHandle>(null)
+  const load = useCallback(() => { void call('notes:master', undefined).then(setSecs).catch(() => setSecs([])) }, [])
+  useEffect(load, [load, view?.undo])
+  if (!secs) return <p className="ink-muted">Loading…</p>
+  const lower = q.trim().toLowerCase()
+  const shown = lower ? secs.filter((s) => `${s.title}\n${blockLines(s.blocks).join('\n')}`.toLowerCase().includes(lower)) : secs
+  const headings = (s: Section) => s.blocks.filter((b) => b.kind === 'h1' || b.kind === 'h2' || b.kind === 'h3')
+    .map((b) => ({ level: b.kind, text: b.kind === 'table' ? '' : b.runs.map((r) => r.text).join('') }))
+  const jump = (id: string, n = -1) => {
+    const el = document.getElementById(`m-${id}`)
+    const target = n < 0 ? el : el?.querySelectorAll('.note-page h1, .note-page h2, .note-page h3')[n]
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const save = async (s: Section) => {
+    const blocks = ed.current?.blocks() ?? []
+    if (!s.linked) await act('notes:masterSave', { section: s.id, blocks })
+    else if (s.kind === 'dm') await act('notes:set', { text: blocksToText(blocks) })
+    else if (s.kind === 'session') await act('session:notes', { id: s.id.slice(8), text: blocksToText(blocks) })
+    else await act('notedoc:save', { id: s.id.slice(4), blocks })
+    setEditing(null)
+    say(s.linked ? `Saved to ${s.title} too` : 'Saved in the master only')
+  }
+  return (
+    <div className="master-notes">
+      <nav className="parchment-note master-toc" aria-label="Contents">
+        <input type="search" value={q} placeholder="Search all notes" aria-label="Search all notes" onChange={(e) => setQ(e.target.value)} />
+        {lower && <p className="ink-muted">{shown.length} of {secs.length} notes match</p>}
+        <ol>
+          {shown.map((s) => (
+            <li key={s.id}>
+              <button className="link-button" onClick={() => jump(s.id)}>{s.title}</button>
+              {headings(s).length > 0 && <ol>{headings(s).map((h, i) => (
+                <li key={i} className={`toc-${h.level}`}><button className="link-button" onClick={() => jump(s.id, i)}>{h.text}</button></li>
+              ))}</ol>}
+            </li>
+          ))}
+        </ol>
+        <div className="row tight wrap">
+          <button className="ink-button" onClick={async () => { const f = await act('notes:masterDocx', undefined); if (f) say(`Saved ${f}`) }}>Save as Word…</button>
+        </div>
+        <p className="hint">In Word, the headings show in the Navigation pane.</p>
+      </nav>
+      <div className="master-doc">
+        {shown.map((s) => (
+          <section key={s.id} id={`m-${s.id}`} className="parchment-sheet master-section">
+            <div className="row spread wrap">
+              <h2 className="panel-title">{s.title}</h2>
+              <span className="row tight wrap">
+                <label className="field checkbox" title={s.linked ? 'Edits here change the note, and the note shows here' : 'The master keeps its own copy; the note is not changed'}>
+                  <input type="checkbox" checked={s.linked} onChange={(e) => void act('notes:masterLink', { section: s.id, linked: e.target.checked })} /> Linked to the note
+                </label>
+                {!s.picture && (editing === s.id
+                  ? <><button className="ink-button primary-ink" onClick={() => void save(s)}>Save</button><button className="ink-button" onClick={() => setEditing(null)}>Cancel</button></>
+                  : <button className="ink-button" onClick={() => setEditing(s.id)}>Edit</button>)}
+                <button className="link-button" onClick={() => onOpen(s.kind === 'dm' ? { kind: 'dm' } : s.kind === 'session' ? { kind: 'session', id: s.id.slice(8) } : { kind: 'doc', id: s.id.slice(4) })}>Open the note</button>
+              </span>
+            </div>
+            {s.picture ? <img className="notes-picture" src={s.picture} alt={s.title} />
+              : editing === s.id ? <NoteEditor ref={ed} initial={s.blocks} label={s.title} onDirty={() => undefined} />
+                : s.blocks.length ? <NoteEditor initial={s.blocks} readOnly label={s.title} onDirty={() => undefined} /> : <p className="ink-muted">Empty.</p>}
+          </section>
+        ))}
+      </div>
     </div>
   )
 }
