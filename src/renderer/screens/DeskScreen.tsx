@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useBoard } from '../store'
 import { call } from '../api'
-import { Candle, CompassRose, D20, Leaf, Potion, Quill } from '../art/props'
+import { Candle, CompassRose, Leaf, Potion, Quill } from '../art/props'
+import { EggCandle, EggDice } from '../art/DeskEggs'
 import { PartyEmblem, roman, StoryEmblemArt } from '../art/emblems'
 import { CampaignSettingsDialog, emblemOf, MapDialog, StorylineDialog, STORYLINE_STATUS_LABELS } from '../components/EditDialogs'
 import { TarotCard } from '../art/TarotCard'
@@ -54,7 +55,7 @@ function Desk({ desk }: { desk: DeskView }) {
   return (
     <main className="desk" aria-label="DM desk">
       <header className="desk-head">
-        <Candle className="desk-candle" lit={candlesLit} />
+        <EggCandle lit={candlesLit} fullMoonNight={moon.name === 'Full moon' && lightingAt(minutes).darkness > 0.5} />
         <div className="desk-title">
           <span className="desk-eyebrow">The campaign of</span>
           <h1>{info?.name}</h1>
@@ -134,7 +135,7 @@ function Desk({ desk }: { desk: DeskView }) {
       <section className="mat" aria-label="Campaign table">
         <Leaf className="leaf leaf-a" />
         <Leaf className="leaf leaf-b" colour="#c9862e" />
-        <D20 className="mat-d20" />
+        <EggDice />
         <Potion className="mat-potion" />
         <Candle className="mat-candle" lit={candlesLit} />
 

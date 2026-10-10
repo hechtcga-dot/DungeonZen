@@ -48,7 +48,7 @@ export function Candle({ className, style, lit = true }: PropProps & { lit?: boo
   )
 }
 
-export function D20({ className, style }: PropProps) {
+export function D20({ className, style, value = 20 }: PropProps & { value?: number }) {
   return (
     <svg className={`prop ${className ?? ''}`} style={style} viewBox="0 0 100 100" width="84" height="84" aria-hidden="true">
       <defs>
@@ -62,7 +62,7 @@ export function D20({ className, style }: PropProps) {
       <g stroke="#f0c4a0" strokeOpacity="0.45" strokeWidth="1.2" fill="none">
         <path d="M50 4 L50 22 M8 28 L50 22 L92 28 M8 28 L24 64 M92 28 L76 64 M8 72 L24 64 L50 96 L76 64 L92 72" />
       </g>
-      <text x="50" y="56" textAnchor="middle" fontFamily="'IM Fell English', serif" fontSize="18" fill="#fbe7c6">20</text>
+      <text x="50" y="56" textAnchor="middle" fontFamily="'IM Fell English', serif" fontSize="18" fill="#fbe7c6">{value}</text>
     </svg>
   )
 }
