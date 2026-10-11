@@ -28,7 +28,8 @@ import { FOUNDRY_README, foundryActor, foundryJournal, foundryScene, handoutHtml
 import { renderJpg, renderPdf } from './exporters/render'
 import { chunkBlocks, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
 import { writeDocx } from './importers/docx'
-import { blockLines, changedLines, textToBlocks, type Block } from '../shared/noteDoc'
+import { blockLines, changedLines, headingsOf, textToBlocks, type Block } from '../shared/noteDoc'
+import { prepBlocks } from '../shared/prepDoc'
 import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
 import type { ImportDraft } from '../shared/notesImport'
 import { AI_PROVIDERS, maxReferences, providerById, type AiChoice } from '../shared/aiProviders'
@@ -668,6 +669,36 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return file
   })
   handle('notedoc:named', ({ names }) => current().noteDocsNamed(names))
+  // The Notes list: every note's headings (opened out under the note, click to jump).
+  handle('notes:outline', async () => {
+    const c = current()
+    const screen = c.notesScreen()
+    const out: IpcOutputs['notes:outline'] = { dm: headingsOf(textToBlocks(screen.dmNotes)) }
+    for (const x of screen.sessions) out[`session:${x.id}`] = headingsOf(textToBlocks(x.dmNotes))
+    for (const d of screen.docs) out[`doc:${d.id}`] = d.kind === 'picture' ? [] : headingsOf(await noteBlocks(c.noteFile(d.id), d.kind).catch(() => []))
+    return out
+  })
+  handle('notedoc:setFolder', ({ ids, folder }) => current().setNoteFolder(ids, folder))
+  handle('notedoc:showInFolder', ({ id }) => shell.showItemInFolder(current().noteFile(id)))
+  handle('notedoc:duplicate', ({ id }) => current().duplicateNoteDoc(id))
+  // Combine (owner, 1.7.0): each note under its title (its own headings one level down), in the order chosen.
+  handle('notedoc:combine', async ({ ids, title, removeOriginals }) => {
+    const c = current()
+    const docs = c.notesScreen().docs
+    const blocks: Block[] = []
+    for (const id of ids) {
+      const d = docs.find((x) => x.id === id)
+      if (!d) throw new Error('One of those notes is gone')
+      if (d.kind === 'picture') continue
+      blocks.push({ kind: 'h1', runs: [{ text: d.title }] })
+      for (const b of await noteBlocks(c.noteFile(id), d.kind)) blocks.push(b.kind === 'h1' ? { ...b, kind: 'h2' } : b.kind === 'h2' ? { ...b, kind: 'h3' } : b)
+    }
+    return c.combineNoteDocs(title, writeDocx(blocks), ids, removeOriginals)
+  })
+  // History › Delete file for good: every version of the file to the Recycle Bin (not undoable; the DM confirmed).
+  handle('notedoc:forget', async ({ id }) => {
+    for (const f of current().forgetNoteDoc(id)) if (existsSync(f)) await shell.trashItem(f)
+  })
   handle('file:saveDocx', async ({ name, text }) => {
     const win = getWindow()
     const options = { title: 'Save as a Word file', defaultPath: join(exportsDir(), `${safeFolderName(name)}.docx`), filters: [{ name: 'Word document', extensions: ['docx'] }] }
@@ -889,6 +920,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('prep:update', ({ id, patch }) => current().updatePrep(id, patch))
   handle('prep:setStatus', ({ id, status }) => current().setPrepStatus(id, status))
   handle('prep:spread', ({ prepId }) => current().spreadSceneTimes(prepId))
+  handle('prep:bringThreads', ({ prepId }) => current().bringThreads(prepId))
+  handle('prep:makeCard', ({ itemId, type }) => current().cardFromPrepLine(itemId, type))
+  handle('prep:saveNote', ({ id }) => {
+    const c = current()
+    const p = c.prepView(id)
+    return c.savePrepNote(id, `Session ${p.number}${p.title.trim() ? ` - ${p.title.trim()}` : ''}`, writeDocx(prepBlocks(p)))
+  })
   handle('prep:rollNames', ({ count }) => rollNames(seededRng(Date.now() % 2147483647), count))
   handle('prepItem:add', ({ prepId, kind, fields }) => current().addPrepItem(prepId, kind, fields))
   handle('prepItem:update', ({ id, patch }) => current().updatePrepItem(id, patch))

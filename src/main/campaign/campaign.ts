@@ -57,7 +57,7 @@ export interface NewRegion {
   source?: string
 }
 export type SrdCopy = { type: 'MONSTER' | 'ITEM'; name: string; attributes: EntityAttributes; abilities: NewAbility[] }
-const PREP_LABELS: Record<PrepKind, string> = { discovery: 'discovery', scene: 'scene', clue: 'clue', npc: 'key NPC', threat: 'threat' }
+const PREP_LABELS: Record<PrepKind, string> = { discovery: 'secret', scene: 'scene', clue: 'clue', npc: 'NPC', threat: 'threat', thread: 'loose thread', bible: 'world bible line' }
 export type PrepItemPatch = Partial<Pick<PrepItemRow,
   'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'role' | 'stats' | 'tactics'>>
 const STYLE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
@@ -399,9 +399,12 @@ export class Campaign {
       removedPrep: [
         ...this.db.select().from(sessionPrep).where(eq(sessionPrep.status, 'defunct')).all()
           .map((p) => ({ id: p.id, name: p.title || `Session ${p.number}`, what: 'prep sheet' })),
-        ...this.db.select().from(prepItem).where(eq(prepItem.status, 'defunct')).all()
+        // Threats left the sheet in 1.7.0 (their text went into the sheet's notes).
+        ...this.db.select().from(prepItem).where(eq(prepItem.status, 'defunct')).all().filter((i) => i.kind !== 'threat')
           .map((i) => ({ id: i.id, name: i.title || '(untitled)', what: PREP_LABELS[i.kind as PrepKind] }))
       ],
+      removedNoteDocs: this.db.select().from(noteDoc).where(eq(noteDoc.status, 'defunct')).all()
+        .filter((r) => existsSync(join(this.folder, ASSETS_DIR, r.file))).map((r) => ({ id: r.id, title: r.title })),
       removedStyles: this.db.select().from(styleExample).where(eq(styleExample.status, 'defunct')).all()
         .map((r) => ({ id: r.id, name: r.name })),
       log: this.log.recent().map((c) => ({ id: c.id, label: c.label, at: c.at, undone: c.state === 'undone' }))
@@ -3159,9 +3162,8 @@ export class Campaign {
         secrets.push({ id: r.id, source: 'string', text: `${names.get(r.sourceId) ?? '?'} ${r.type.toLowerCase().replace(/_/g, ' ')} ${names.get(r.targetId) ?? '?'}` })
       }
       for (const c of detail?.plotPoints ?? []) if (c.type === 'CLUE') secrets.push({ id: c.id, source: 'card', text: c.name })
-      for (const c of (prep?.items ?? []).filter((i) => i.kind === 'clue' && i.locationId === loc.id)) {
-        const d = prep!.items.find((x) => x.id === c.discoveryId)
-        secrets.push({ id: c.id, source: 'clue', done: c.done, text: `${c.body || c.title}${d ? ` (leads to: ${d.title || 'a discovery'})` : ''}` })
+      for (const c of (prep?.items ?? []).filter((i) => i.kind === 'discovery' && i.locationId === loc.id)) {
+        secrets.push({ id: c.id, source: 'clue', done: c.done, text: [c.title, c.body].filter(Boolean).join(': ') })
       }
     }
 
@@ -3232,9 +3234,10 @@ export class Campaign {
   notesScreen(): NotesScreenView {
     const open = this.openSession()
     return {
-      docs: this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all()
+      // A note whose file is gone (Delete file for good, then an undo past it) is not shown.
+      docs: this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all().filter((r) => existsSync(join(this.folder, ASSETS_DIR, r.file)))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        .map((r) => ({ id: r.id, title: r.title, kind: r.kind as NoteDocView['kind'], originalName: r.originalName, updatedAt: r.updatedAt, versions: r.versions })),
+        .map((r) => ({ id: r.id, title: r.title, kind: r.kind as NoteDocView['kind'], originalName: r.originalName, updatedAt: r.updatedAt, versions: r.versions, folder: r.folder })),
       sessions: this.db.select().from(session).where(eq(session.status, 'active')).all()
         .sort((a, b) => b.number - a.number)
         .map((r) => ({ id: r.id, number: r.number, startedAt: r.startedAt, running: r.id === open?.id, dmNotes: r.dmNotes, recap: r.recap })),
@@ -3329,6 +3332,50 @@ export class Campaign {
   setNoteDocStatus(id: string, status: RowStatus): void {
     const r = this.noteRow(id)
     this.log.run(status === 'defunct' ? `Moved note ${r.title} to History` : `Restored note ${r.title}`, (w) => { w.update('note_doc', id, { status }) })
+  }
+
+  /** Puts notes files in a folder of the Notes list ('' = no folder). One undo step. */
+  setNoteFolder(ids: string[], folder: string): void {
+    const rows = ids.map((id) => this.noteRow(id))
+    this.log.run(folder ? `Moved ${rows.length === 1 ? rows[0].title : `${rows.length} notes`} to the folder ${folder}` : 'Took notes out of their folder', (w) => {
+      for (const r of rows) w.update('note_doc', r.id, { folder })
+    })
+  }
+
+  /** A copy of a notes file (its current version) as a new note. */
+  duplicateNoteDoc(id: string): string {
+    const r = this.noteRow(id)
+    const rel = this.storeNoteFile({ file: join(this.folder, ASSETS_DIR, r.file) })
+    const nid = randomUUID()
+    const now = new Date().toISOString()
+    this.log.run(`Copied the note ${r.title}`, (w) => {
+      w.insert('note_doc', { ...r, id: nid, title: `${r.title} (copy)`, file: rel, versions: [], createdAt: now, updatedAt: now })
+    })
+    return nid
+  }
+
+  /** Combine: a new note (Word) from several; the originals stay or go to History. One undo step. */
+  combineNoteDocs(title: string, bytes: Buffer, ids: string[], removeOriginals: boolean): string {
+    const rows = ids.map((id) => this.noteRow(id))
+    const rel = this.storeNoteFile({ bytes, ext: '.docx' })
+    const id = randomUUID()
+    const now = new Date().toISOString()
+    this.log.run(`Combined ${rows.length} notes into ${title}`, (w) => {
+      w.insert('note_doc', { id, title, kind: 'word', file: rel, originalName: `${title}.docx`, versions: [], folder: rows[0]?.folder ?? '', status: 'active', createdAt: now, updatedAt: now })
+      if (removeOriginals) for (const r of rows) w.update('note_doc', r.id, { status: 'defunct' })
+    })
+    return id
+  }
+
+  /**
+   * History › Delete file for good (owner, 1.7.0): forgets a note that is in History and returns its files
+   * (every version) for the Recycle Bin. Not undoable on purpose; the DM confirmed first.
+   */
+  forgetNoteDoc(id: string): string[] {
+    const r = this.noteRow(id)
+    if (r.status !== 'defunct') throw new Error('Move the note to History first')
+    this.db.delete(noteDoc).where(eq(noteDoc.id, id)).run()
+    return [r.file, ...r.versions.map((v) => v.file)].map((f) => join(this.folder, ASSETS_DIR, f))
   }
 
   /** Notes whose original file has the same name (asked before an import: replace or keep both). */
@@ -3476,8 +3523,8 @@ export class Campaign {
         .sort((a, b) => a.number - b.number).map((p) => ({ id: p.id, number: p.number, title: p.title })),
       ...this.sessionNumbers(),
       people: live.filter((e) => e.type === 'NPC' || e.type === 'FACTION').map(brief),
-      threats: live.filter((e) => e.type === 'MONSTER' || e.type === 'NPC').map(brief),
-      locations: live.filter((e) => e.type === 'LOCATION').map(brief)
+      locations: live.filter((e) => e.type === 'LOCATION').map(brief),
+      encounters: this.encountersView().encounters.map((e) => ({ id: e.id, name: e.name, placeName: e.locationName }))
     }
   }
 
@@ -3500,7 +3547,12 @@ export class Campaign {
         locationId: i.locationId, locationName: i.locationId ? names.get(i.locationId) ?? null : null,
         discoveryId: i.discoveryId, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin
       }))
-    return { id: p.id, number: p.number, title: p.title, premise: p.premise, pacingMinutes: p.pacingMinutes, backupNames: p.backupNames, notes: p.notes, items }
+    const sess = this.db.select().from(session).where(and(eq(session.number, p.number), eq(session.status, 'active'))).get()
+    const doc = p.noteDocId ? this.db.select().from(noteDoc).where(eq(noteDoc.id, p.noteDocId)).get() : undefined
+    return {
+      id: p.id, number: p.number, title: p.title, premise: p.premise, pacingMinutes: p.pacingMinutes, backupNames: p.backupNames, notes: p.notes,
+      wantNext: p.wantNext, session: sess ? { id: sess.id, recap: sess.recap } : null, noteDocId: doc?.status === 'active' ? doc.id : null, items
+    }
   }
 
   createPrep(number: number): string {
@@ -3508,12 +3560,12 @@ export class Campaign {
     if (existing) return existing.id
     const id = randomUUID()
     this.log.run(`Started the prep sheet for session ${number}`, (w) => {
-      w.insert('session_prep', { id, number, title: '', premise: '', pacingMinutes: 180, backupNames: '', notes: '', status: 'active' })
+      w.insert('session_prep', { id, number, title: '', premise: '', pacingMinutes: 180, backupNames: '', notes: '', wantNext: '', noteDocId: null, status: 'active' })
     })
     return id
   }
 
-  updatePrep(id: string, patch: Partial<Pick<PrepRow, 'number' | 'title' | 'premise' | 'pacingMinutes' | 'backupNames' | 'notes'>>): void {
+  updatePrep(id: string, patch: Partial<Pick<PrepRow, 'number' | 'title' | 'premise' | 'pacingMinutes' | 'backupNames' | 'notes' | 'wantNext'>>): void {
     const p = this.prepRow(id)
     if (patch.number !== undefined && patch.number !== p.number) {
       const taken = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, patch.number), eq(sessionPrep.status, 'active'))).get()
@@ -3554,7 +3606,8 @@ export class Campaign {
   private prepFromCard(kind: PrepKind, e: EntityRow): PrepItemPatch {
     const a = e.attributes as Record<string, unknown>
     const text = (k: string) => (typeof a[k] === 'string' ? (a[k] as string).trim() : '')
-    if (kind === 'npc') return { role: [text('occupation') || text('role'), text('faction')].filter(Boolean).join(', '), body: text('appearance') || text('quirk') || text('motivation') }
+    // NPCs: what they want, and one cue for how to play them (the one-page DM tool).
+    if (kind === 'npc') return { role: text('motivation') || text('goal'), body: text('quirk') || text('mannerism') || text('appearance') }
     if (kind === 'threat') {
       const sb = readStatBlock(a.statblock)
       return { stats: sb ? statLine(sb) : '', tactics: text('tactics') }
@@ -3571,7 +3624,8 @@ export class Campaign {
   /** Ticks a discovery as revealed, a scene as played or a clue as found, at the campaign time. */
   setPrepDone(id: string, done: boolean): void {
     const i = this.prepItemRow(id)
-    const what = i.kind === 'discovery' ? (done ? 'Revealed' : 'Unrevealed') : i.kind === 'scene' ? (done ? 'Played' : 'Unplayed') : done ? 'Found' : 'Unfound'
+    const what = i.kind === 'discovery' ? (done ? 'Revealed' : 'Unrevealed') : i.kind === 'scene' ? (done ? 'Played' : 'Unplayed')
+      : i.kind === 'thread' ? (done ? 'Followed up' : 'Reopened') : done ? 'Found' : 'Unfound'
     this.log.run(`${what} ${i.title || PREP_LABELS[i.kind as PrepKind]}`, (w) => {
       w.update('prep_item', id, { done, doneAtMin: done ? this.info().clockMin : null })
     })
@@ -3595,6 +3649,66 @@ export class Campaign {
       w.update('prep_item', id, { sort: other.sort })
       w.update('prep_item', other.id, { sort: i.sort })
     })
+  }
+
+  /**
+   * Loose threads from the last session (one undo step): its "what the players seem to want next"
+   * and its threads not ticked off, copied onto this sheet.
+   */
+  bringThreads(prepId: string): number {
+    const p = this.prepRow(prepId)
+    const last = this.db.select().from(sessionPrep).where(eq(sessionPrep.status, 'active')).all()
+      .filter((x) => x.number < p.number).sort((a, b) => b.number - a.number)[0]
+    if (!last) throw new Error('No earlier prep sheet to bring threads from')
+    const have = new Set(this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'thread'), eq(prepItem.status, 'active'))).all()
+      .map((i) => i.body.trim().toLowerCase()))
+    const texts = [
+      ...last.wantNext.split('\n').map((l) => l.trim()),
+      ...this.db.select().from(prepItem).where(and(eq(prepItem.prepId, last.id), eq(prepItem.kind, 'thread'), eq(prepItem.status, 'active'), eq(prepItem.done, false))).all()
+        .sort((a, b) => a.sort - b.sort).map((i) => i.body.trim())
+    ].filter((t) => t && !have.has(t.toLowerCase()))
+    if (!texts.length) return 0
+    const start = this.db.select().from(prepItem).where(eq(prepItem.prepId, prepId)).all().reduce((n, x) => Math.max(n, x.sort), 0) + 1
+    this.log.run(`Brought ${texts.length} loose thread${texts.length === 1 ? '' : 's'} from session ${last.number}`, (w) => {
+      texts.forEach((body, k) => w.insert('prep_item', {
+        id: randomUUID(), prepId, kind: 'thread', sort: start + k, title: '', body, sceneType: null, targetStart: null, targetEnd: null,
+        entityId: null, locationId: null, discoveryId: null, role: '', stats: '', tactics: '', done: false, doneAtMin: null, status: 'active'
+      }))
+    })
+    return texts.length
+  }
+
+  /** World bible line › Make a card (owner: right away, no AI): a card named from the line, the line as its bio. One undo step. */
+  cardFromPrepLine(itemId: string, type: EntityType): string {
+    const i = this.prepItemRow(itemId)
+    const text = (i.body || i.title).trim()
+    if (!text) throw new Error('Write the line first')
+    const name = text.split(/ [—–-] |[:.;,(]/)[0].replace(/^(the|a|an) /i, (m) => m).trim().slice(0, 60) || text.slice(0, 60)
+    let id = ''
+    this.log.run(`Made a card ${name} from the world bible`, (w) => {
+      id = this.insertEntity(w, { boardId: this.globalBoard().id, type, name, position: this.freeGlobalSpot(), attributes: { bio: text } })
+      w.update('prep_item', itemId, { entityId: id })
+    })
+    return id
+  }
+
+  /** Save as notes file: "Session N - Title" in Notes (a new version of the same file on later saves). */
+  savePrepNote(prepId: string, title: string, bytes: Buffer): string {
+    const p = this.prepRow(prepId)
+    const doc = p.noteDocId ? this.db.select().from(noteDoc).where(eq(noteDoc.id, p.noteDocId)).get() : undefined
+    if (doc?.status === 'active') {
+      this.saveNoteVersion(doc.id, bytes, 'Saved the prep sheet to')
+      if (doc.title !== title) this.renameNoteDoc(doc.id, title)
+      return doc.id
+    }
+    const rel = this.storeNoteFile({ bytes, ext: '.docx' })
+    const id = randomUUID()
+    const now = new Date().toISOString()
+    this.log.run(`Saved the prep sheet as the note ${title}`, (w) => {
+      w.insert('note_doc', { id, title, kind: 'word', file: rel, originalName: `${title}.docx`, versions: [], folder: '', status: 'active', createdAt: now, updatedAt: now })
+      w.update('session_prep', prepId, { noteDocId: id })
+    })
+    return id
   }
 
   /** Spreads the scenes evenly over the pacing target (one undo step). */

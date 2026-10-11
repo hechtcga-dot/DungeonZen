@@ -178,7 +178,12 @@ commands. `group_id` lets a session or an import undo as one step.
   scene | clue | npc | threat, sort, title, body, scene_type, target_start /
   target_end in real minutes from the session start, entity_id, location_id,
   discovery_id, role, stats, tactics, done, done_at_min in campaign time,
-  status). Campaign settings: `heading_location_id` (where the party is
+  status). 1.7.0 (one-page DM tool): `session_prep.want_next` (recap: what the
+  players seem to want next; "what happened" is `session.recap` of that number),
+  `session_prep.note_doc_id` (the notes file Save as notes file writes to);
+  kinds now discovery (= secret or clue) | scene | npc | thread | bible; old
+  clue rows became discovery, old threat rows were copied into the sheet's
+  notes and set defunct. Campaign settings: `heading_location_id` (where the party is
   heading). Location cards: `attributes.player_notes` (what the players see).
 - Encounters (migration 11): an encounter is an entity of type SCENE with
   `attributes.encounter = true`, `target` (low | moderate | high), `tactics`,
@@ -214,7 +219,8 @@ commands. `group_id` lets a session or an import undo as one step.
   board pictures show in Library › Pictures without a row; filing or ticking one adds a row pointing at the same
   file. Setting `picture_folders` (folders the DM made), `art_style` (the art style in words, added to drawings).
   `note_doc` (title, kind word | pdf | text | picture, file under `assets/notes/` never changed once written,
-  original_name, versions JSON `[{file, at}]` newest first, status): the Notes screen; a save writes a new file.
+  original_name, versions JSON `[{file, at}]` newest first, folder (1.7.0, '' = none), status): the Notes screen; a save writes a new file.
+  History › Delete file for good removes the row (not undoable) and sends every version's file to the Recycle Bin.
   Word copies opened from Notes live in `notes-edit/` (with `state.json`: the copy's path and time when made),
   not campaign data. `session.dm_notes`: the desk journal while that session runs (setting `dm_notes` between
   sessions). Card attributes: `secret` (Secrets tab), `history`, `sights`, `sounds`, `smells`, `ideals`, `bonds`,

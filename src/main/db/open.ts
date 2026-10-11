@@ -4,7 +4,7 @@ import * as schema from './schema'
 
 // Schema migrations, applied in order. PRAGMA user_version records how many ran.
 // Append new steps; never edit a step that has shipped.
-const MIGRATIONS: string[] = [
+export const MIGRATIONS: string[] = [
   `
   CREATE TABLE campaign_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   CREATE TABLE entity (
@@ -207,6 +207,20 @@ const MIGRATIONS: string[] = [
   // 1.5.x: the square grid over a battle map is shown only when the DM ticks it (off by default).
   `
   ALTER TABLE map ADD COLUMN grid_shown INTEGER NOT NULL DEFAULT 0;
+  `,
+  // 1.7.0: notes folders; the prep sheet follows the owner's one-page DM tool: clues join the secrets,
+  // threats leave the sheet (their text is kept in the sheet's notes), loose threads and world bible lines.
+  `
+  ALTER TABLE note_doc ADD COLUMN folder TEXT NOT NULL DEFAULT '';
+  ALTER TABLE session_prep ADD COLUMN want_next TEXT NOT NULL DEFAULT '';
+  ALTER TABLE session_prep ADD COLUMN note_doc_id TEXT;
+  UPDATE prep_item SET kind = 'discovery', sort = sort + 1000 WHERE kind = 'clue';
+  UPDATE session_prep SET notes = notes || CASE WHEN notes = '' THEN '' ELSE char(10) || char(10) END || 'Threats (from the old sheet):' || char(10) ||
+    (SELECT group_concat(trim(title || CASE WHEN stats = '' THEN '' ELSE ' (' || stats || ')' END ||
+      CASE WHEN body = '' THEN '' ELSE ': ' || body END || CASE WHEN tactics = '' THEN '' ELSE '. Tactics: ' || tactics END), char(10))
+     FROM prep_item WHERE prep_id = session_prep.id AND kind = 'threat' AND status = 'active')
+  WHERE EXISTS (SELECT 1 FROM prep_item WHERE prep_id = session_prep.id AND kind = 'threat' AND status = 'active');
+  UPDATE prep_item SET status = 'defunct' WHERE kind = 'threat';
   `
 ]
 

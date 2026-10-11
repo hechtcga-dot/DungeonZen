@@ -224,6 +224,12 @@ export const ipcInputs = {
   'notedoc:takeEdit': z.object({ id: Id }),
   'notedoc:updateCards': z.object({ id: Id, lines: z.array(z.string().max(20000)).min(1).max(5000) }),
   'notedoc:named': z.object({ names: z.array(z.string().max(300)).max(50) }),
+  'notes:outline': z.void(),
+  'notedoc:setFolder': z.object({ ids: z.array(Id).min(1).max(1000), folder: z.string().trim().max(80) }),
+  'notedoc:showInFolder': z.object({ id: Id }),
+  'notedoc:duplicate': z.object({ id: Id }),
+  'notedoc:combine': z.object({ ids: z.array(Id).min(2).max(200), title: Name, removeOriginals: z.boolean() }),
+  'notedoc:forget': z.object({ id: Id }),
   'file:saveDocx': z.object({ name: z.string().trim().min(1).max(120), text: z.string().max(1_000_000) }),
   'import:cancel': z.void(),
   'import:drafts': z.void(),
@@ -289,12 +295,15 @@ export const ipcInputs = {
     id: Id,
     patch: z.object({
       number: z.number().int().min(1).max(100000), title: z.string().trim().max(300), premise: Text,
-      pacingMinutes: z.number().int().min(15).max(1440), backupNames: Text, notes: Text
+      pacingMinutes: z.number().int().min(15).max(1440), backupNames: Text, notes: Text, wantNext: Text
     }).partial()
   }),
   'prep:setStatus': z.object({ id: Id, status: RowStatus }),
   'prep:spread': z.object({ prepId: Id }),
   'prep:rollNames': z.object({ count: z.number().int().min(1).max(20) }),
+  'prep:bringThreads': z.object({ prepId: Id }),
+  'prep:makeCard': z.object({ itemId: Id, type: EntityType }),
+  'prep:saveNote': z.object({ id: Id }),
   'prepItem:add': z.object({ prepId: Id, kind: PrepKind, fields: PrepItemFields.optional() }),
   'prepItem:update': z.object({ id: Id, patch: PrepItemFields }),
   'prepItem:done': z.object({ id: Id, done: z.boolean() }),
@@ -533,6 +542,13 @@ export interface IpcOutputs {
   'notedoc:takeEdit': { changed: string[] }
   'notedoc:updateCards': ImportDraft
   'notedoc:named': Array<{ id: string; title: string; originalName: string }>
+  /** Headings per note, keyed like the master notes sections: 'dm', 'session:<id>', 'doc:<id>'. */
+  'notes:outline': Record<string, Array<{ level: 'h1' | 'h2' | 'h3'; text: string }>>
+  'notedoc:setFolder': void
+  'notedoc:showInFolder': void
+  'notedoc:duplicate': string
+  'notedoc:combine': string
+  'notedoc:forget': void
   'file:saveDocx': string | null
   'import:cancel': void
   'import:drafts': ImportDraftSummary[]
@@ -579,6 +595,9 @@ export interface IpcOutputs {
   'prep:update': void
   'prep:setStatus': void
   'prep:spread': void
+  'prep:bringThreads': number
+  'prep:makeCard': string
+  'prep:saveNote': string
   'prep:rollNames': string[]
   'prepItem:add': string
   'prepItem:update': void

@@ -34,6 +34,7 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
   const prep = where.prep
   const discoveries = prep?.items.filter((i) => i.kind === 'discovery') ?? []
   const scenes = prep?.items.filter((i) => i.kind === 'scene') ?? []
+  const threads = prep?.items.filter((i) => i.kind === 'thread') ?? []
   return (
     <section className="where" aria-labelledby="where-h">
       <div className="where-head">
@@ -99,7 +100,7 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
                   {x.source === 'clue'
                     ? <label><input type="checkbox" checked={!!x.done} onChange={(e) => void act('prepItem:done', { id: x.id, done: e.target.checked })} /> {x.text}</label>
                     : <span>{x.text}</span>}
-                  <span className="secret-src">{x.source === 'string' ? 'secret string' : x.source === 'card' ? 'clue card' : 'prep clue'}</span>
+                  <span className="secret-src">{x.source === 'string' ? 'secret string' : x.source === 'card' ? 'clue card' : 'prep secret'}</span>
                 </li>
               ))}
             </ul>
@@ -112,10 +113,11 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
             <p className="ink-muted">No prep sheet for this session. <button className="link-button" onClick={() => goTo('prep')}>Start one</button></p>
           ) : (
             <>
-              {prep.premise && <p className="prep-premise">{prep.premise}</p>}
+              {prep.premise && <p className="prep-premise"><strong>Opening:</strong> {prep.premise}</p>}
               <Pacing v={v} scenes={scenes} pacing={prep.pacingMinutes} />
-              <PrepTicks title="Discoveries" one="Discovery" items={discoveries} label="Revealed" />
+              <PrepTicks title="Secrets & clues" one="Secret" items={discoveries} label="Revealed" />
               <PrepTicks title="Scenes" one="Scene" items={scenes} label="Played" here={where.place?.locationId} />
+              {threads.length > 0 && <PrepTicks title="Loose threads" one="Thread" items={threads} label="Followed up" />}
             </>
           )}
         </div>

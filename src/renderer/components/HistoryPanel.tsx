@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useBoard } from '../store'
+import { Dialog } from './Dialog'
 import { ENTITY_LABELS } from '../entityStyle'
 
 function timeAgo(iso: string): string {
@@ -15,10 +17,11 @@ export function HistoryPanel() {
   const history = useBoard((s) => s.history)
   const act = useBoard((s) => s.act)
   const say = useBoard((s) => s.say)
+  const [forget, setForget] = useState<{ id: string; title: string } | null>(null)
   if (!history) return <p className="muted">Loading…</p>
   const removedCount = history.removedEntities.length + history.removedStrings.length + history.removedNotes.length +
     history.removedStorylines.length + history.removedMaps.length + history.removedActs.length +
-    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length + history.removedPrep.length
+    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length + history.removedPrep.length + history.removedNoteDocs.length
 
   return (
     <div className="history">
@@ -92,6 +95,13 @@ export function HistoryPanel() {
               <button onClick={() => void act('style:setStatus', { id: r.id, status: 'active' })}>Restore</button>
             </li>
           ))}
+          {history.removedNoteDocs.map((r) => (
+            <li key={r.id}>
+              <div className="removed-text"><strong>{r.title}</strong><span className="muted">Notes file</span></div>
+              <button onClick={() => void act('notedoc:setStatus', { id: r.id, status: 'active' })}>Restore</button>
+              <button className="danger" title="Sends the file (every version) to the Windows Recycle Bin" onClick={() => setForget(r)}>Delete file for good</button>
+            </li>
+          ))}
           {history.removedPrep.map((r) => (
             <li key={r.id}>
               <div className="removed-text"><strong>{r.name}</strong><span className="muted">Prep {r.what}</span></div>
@@ -124,6 +134,16 @@ export function HistoryPanel() {
           ))}
         </ol>
       </section>
+      {forget && (
+        <Dialog title="Delete the file for good?" open onClose={() => setForget(null)}>
+          <p><strong>{forget.title}</strong> and all its earlier versions go to the Windows Recycle Bin and leave Dungeon Zen.</p>
+          <p>This can’t be undone here. You can still restore the files from the Recycle Bin.</p>
+          <div className="dz-actions">
+            <button onClick={() => setForget(null)}>Cancel</button>
+            <button className="danger" onClick={async () => { await act('notedoc:forget', { id: forget.id }); setForget(null); say(`${forget.title} sent to the Recycle Bin`) }}>Delete file for good</button>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }

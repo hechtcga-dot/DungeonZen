@@ -99,13 +99,19 @@ built.
   Desk, Session prep, Board, Map, Timeline, Library in Prep; Live desk and Map in
   Live; What they know in Players). Going to a screen sets its mode; the Map
   keeps the current one.
-- Session prep (Prep › Session prep, `PrepScreen.tsx`): one sheet per session
-  number (`session_prep`, `prep_item`); title, premise, pacing target, for
-  session; discoveries (Revealed), scenes (type, where, target time, Played,
-  Spread times evenly), clues (leads to a discovery, where, Found), key NPCs and
-  threats (link a card to fill role/look or the stat line; all editable),
-  backup names (Roll 4 names, offline), notes, cheat sheet. Reorder, remove to
-  History and restore, undo.
+- Session prep (Prep › Session prep, `PrepScreen.tsx`; 1.7.0 follows the owner's One-Page DM Session Prep):
+  one sheet per session number (`session_prep`, `prep_item`); title, for session, pacing target; 1 Session
+  opening (`premise`), 2 Likely scenes (location, location card, type, target time, tension; Played; Spread
+  times evenly), 3 Secrets & clues (kind discovery: text, short name, where; Revealed), 4 NPCs (card, name,
+  wants = `role`, how to play them = `body`; a card fills motivation and quirk), 5 Loose threads (kind thread,
+  Followed up; Bring in from last session copies the previous sheet's want-next lines and unticked threads,
+  one undo step), 6 Session recap (What happened = that session's `recap`, shown once it has started; What the
+  players seem to want next = `want_next`), 7 World bible updates (kind bible; Make a card as the type picked:
+  name from the line, line as bio, one undo step, then Open card). Side: the one-page test, Encounters (links
+  to each encounter and the Encounters screen), backup names (Roll 4 names), notes. Save as notes file writes
+  "Session N - Title" to Notes (Word; again = new version of the same file, renamed if the title changed; Open
+  it in Notes). Reorder, remove to History and restore, undo. Old clues joined the secrets; the threats section
+  is gone (their text went into the sheet's notes).
 - Live › Where they are (`WhereTheyAre.tsx`, `Campaign.liveWhere`): place,
   came from (last other position), heading to (setting `heading_location_id`,
   with travel time), tips, notes, who is here (Met / Not met / KEY, They meet),
@@ -195,6 +201,18 @@ built.
 - AI recap (1.6.0): Review › Session recap › Write with AI (`ai:recap`, `src/main/ai/recap.ts`): reads the log with names, the session's DM notes and the current recap; the player-safe version only sees the player-safe draft. AI suggestion box: Use this recap / Add below mine / Discard.
 - XP (1.6.0): PC `attributes.xp`; End combat ticks "Add N XP to each character" (equal share, `combat:end` xp, same undo step); sheet class strip XP field with XP to next level (`xpProgress`, PHB thresholds), close/level-up in red; Desk party cards and ledger show XP.
 - Re-import (1.6.0): Map › Re-import picture… (`replaceMapImage`: new file, regions and party positions stretched to the new size, one undo step); Notes › Re-import file… (new version, then propose card changes for what changed) and Read again with AI… (all lines to the update-cards proposal); encounter picture Replace (old file to Removed); PC/NPC sheet › Character sheet file ▾ (re-import onto this card, or read notes files again; `CharSheetDialog` targetId).
+- Notes list and contents (1.7.0, owner, Campfire-style; `NotesLibrary.tsx`): the list is a tree: DM notes,
+  sessions and notes files each open out (▸) to their headings (`notes:outline`), click one to open the note at
+  it; « hides the list (browser storage). Notes files sit in the DM's folders (`note_doc.folder`; Move to folder ▸
+  existing, New folder…, No folder; drag files onto a folder; right-click a folder: Rename folder…, Take the
+  notes out). Ctrl+click / Shift+click selects several. Right-click a file: Open, Open file location (Explorer,
+  `notedoc:showInFolder`), Rename (in place), Duplicate, Save a copy as Word…, Move to folder, Delete (to
+  History); several: Combine… (dialog: order, title, keep the originals or move them to History; one undo step;
+  pictures left out), Move to folder, Delete. Delete key deletes the selection. Every open note has a Contents
+  panel (its headings, click to jump; text notes use # lines) and Find headings… (`guessHeadings`/`headingLevel`
+  in `noteDoc.ts`: Chapter/Part/Act lines, numbered, ALL CAPS, Session/Scene and bold short lines; the DM ticks
+  them and picks the level; Make headings saves one undoable version). History lists notes files: Restore, or
+  Delete file for good (are-you-sure; every version to the Recycle Bin; not undoable).
 - Campaign folder holds everything (1.5.x): `campaign:openFolder` (sub: '', assets, maps, styles, pictures, notes, board, encounters, exports) behind `OpenFolder` links on Map, Library › Pictures, card pictures, Notes, board Background menu, Print or save, and Setup › Open campaign folder. Save dialogs (PDF/JPG, text, Word, map image) start in `<campaign>/exports`. Encounter pictures: "Copy from a folder…" copies a folder's pictures in; an encounter still on an outside folder shows "Copy into the campaign" (copies, then back to `assets/encounters/<name>`).
 - Import a character sheet (1.5.x; Desk › The party, Notes): PDF (fillable forms read: `pdfPages` appends form field values), pictures (sent to the AI as images), Word or text; files go into the notes (`charsheet:importDialog`), then the Make a character card review (`CharSheetDialog`, pictures allowed now).
 - Encounter party (1.5.x): each encounter lists every active PC (name, level from the sheet's classes else the party level, HP), ticked by default; unticked ids in `attributes.pcs_out` (`encounter:update` pcsOut, undoable). Budgets sum per ticked character's level (`rateEncounter` takes a level list); Run encounter starts with the ticked PCs only, the Battle planner (before the fight) plans for them. Ticks apply when the fight starts.

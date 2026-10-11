@@ -107,7 +107,7 @@ function Players({ p }: { p: PlayersView }) {
           <section className="parchment-note">
             <h2 className="panel-title">What you have discovered</h2>
             <ul className="players-people">
-              {p.discoveries.map((d) => <li key={d.id}><strong>{d.title || 'A discovery'}</strong>{d.text && <span className="fact">{d.text}</span>}</li>)}
+              {p.discoveries.map((d) => <li key={d.id}><strong>{d.title || d.text}</strong>{d.title && d.text && <span className="fact">{d.text}</span>}</li>)}
             </ul>
           </section>
         )}

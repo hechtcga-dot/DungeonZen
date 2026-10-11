@@ -50,3 +50,42 @@ export function textToBlocks(text: string): Block[] {
   flush()
   return blocks
 }
+
+export type HeadingLevel = 'h1' | 'h2' | 'h3'
+
+/** The note's headings, in order (the contents panel and the Notes list). */
+export function headingsOf(blocks: Block[]): Array<{ level: HeadingLevel; text: string }> {
+  return blocks.flatMap((b) => (b.kind === 'h1' || b.kind === 'h2' || b.kind === 'h3'
+    ? [{ level: b.kind, text: b.runs.map((r) => r.text).join('').trim() }] : [])).filter((h) => h.text)
+}
+
+/**
+ * Does this line look like a heading someone typed as plain text? Chapter/Part/Act lines are
+ * top level, "1.2 Something" a small heading; numbered, ALL CAPS, Session/Scene and bold-only
+ * short lines are headings. Lines ending like a sentence are not.
+ */
+export function headingLevel(line: string, bold = false): HeadingLevel | null {
+  const t = line.trim()
+  if (!t || t.length > 80 || t.includes('\n') || /[.,;]$/.test(t) || !/\p{L}/u.test(t)) return null
+  const words = t.split(/\s+/).length
+  if (/^(chapter|part|book|act)\b/i.test(t)) return 'h1'
+  if (/^\d+(\.\d+)+\.?\s+\S/.test(t)) return 'h3'
+  if (/^(session|scene|appendix|prologue|epilogue|interlude)\b/i.test(t) && words <= 10) return 'h2'
+  if (/^\d+[.)]?\s+\p{Lu}/u.test(t) && words <= 7) return 'h2'
+  const letters = t.replace(/[^\p{L}]/gu, '')
+  if (letters.length >= 3 && t === t.toUpperCase() && words <= 10) return 'h2'
+  if (bold && words <= 10) return 'h2'
+  return null
+}
+
+/** Find headings: paragraphs (and bold numbered lines) that look like headings, for the DM to tick. */
+export function guessHeadings(blocks: Block[]): Array<{ index: number; level: HeadingLevel; text: string }> {
+  return blocks.flatMap((b, index) => {
+    if (b.kind !== 'p' && b.kind !== 'number') return []
+    const text = b.runs.map((r) => r.text).join('').trim()
+    const bold = b.runs.filter((r) => r.text.trim()).every((r) => r.b)
+    if (b.kind === 'number' && !bold) return []
+    const level = headingLevel(text, bold)
+    return level ? [{ index, level, text }] : []
+  })
+}

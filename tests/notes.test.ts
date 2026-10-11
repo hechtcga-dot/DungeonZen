@@ -66,3 +66,35 @@ describe('Notes screen', () => {
     expect(c.notesScreen()).toMatchObject({ dmNotes: 'Before the game', sessions: [{ id: s.id, running: true, dmNotes: 'At the table\n\nA rumour' }] })
   })
 })
+
+describe('Notes list (1.7.0)', () => {
+  it('folders, duplicate, combine (one undo step), and delete file for good from History', () => {
+    const a = c.createNoteDoc('Alpha', word('one'))
+    const b = c.createNoteDoc('Beta', word('two'))
+    c.setNoteFolder([a, b], 'Chapter 1')
+    expect(c.notesScreen().docs.map((d) => d.folder)).toEqual(['Chapter 1', 'Chapter 1'])
+    c.log.undo()
+    expect(c.notesScreen().docs.every((d) => d.folder === '')).toBe(true)
+
+    const copy = c.duplicateNoteDoc(a)
+    expect(c.notesScreen().docs.find((d) => d.id === copy)).toMatchObject({ title: 'Alpha (copy)', kind: 'word' })
+    expect(c.noteFile(copy)).not.toBe(c.noteFile(a))
+
+    const both = c.combineNoteDocs('Both', word('one two'), [a, b], true)
+    expect(c.notesScreen().docs.map((d) => d.id).sort()).toEqual([both, copy].sort())
+    expect(c.history().removedNoteDocs.map((d) => d.title).sort()).toEqual(['Alpha', 'Beta'])
+    c.log.undo()
+    expect(c.notesScreen().docs.map((d) => d.id).sort()).toEqual([a, b, copy].sort())
+
+    expect(() => c.forgetNoteDoc(a)).toThrow(/History first/)
+    c.setNoteDocStatus(a, 'defunct')
+    const files = c.forgetNoteDoc(a)
+    expect(files).toHaveLength(1)
+    expect(files[0]).toMatch(/notes[\\/][\w-]+\.docx$/)
+    expect(c.history().removedNoteDocs).toEqual([])
+    // The files are gone (the handler sends them to the Recycle Bin): an undo past it shows nothing broken.
+    for (const f of files) rmSync(f)
+    c.log.undo()
+    expect(c.notesScreen().docs.some((d) => d.id === a)).toBe(false)
+  })
+})

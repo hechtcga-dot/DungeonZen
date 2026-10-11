@@ -135,6 +135,7 @@ export interface HistoryView {
   removedRegions: Array<{ id: string; name: string }>
   removedStyles: Array<{ id: string; name: string }>
   removedPrep: Array<{ id: string; name: string; what: string }>
+  removedNoteDocs: Array<{ id: string; title: string }>
   log: LogEntryView[]
 }
 
@@ -651,6 +652,12 @@ export interface PrepView {
   pacingMinutes: number
   backupNames: string
   notes: string
+  /** Recap: what the players seem to want next ("What happened" is the session's own recap). */
+  wantNext: string
+  /** The session with this number, once it has started (its recap is "What happened"). */
+  session: { id: string; recap: string } | null
+  /** The notes file "Save as notes file" writes to, while it is not in History. */
+  noteDocId: string | null
   items: PrepItemView[]
 }
 
@@ -662,8 +669,9 @@ export interface PrepScreenView {
   nextNumber: number
   /** Cards to link from the sheet. */
   people: EntityBrief[]
-  threats: EntityBrief[]
   locations: EntityBrief[]
+  /** Planned encounters (the Encounters box links to them). */
+  encounters: Array<{ id: string; name: string; placeName: string | null }>
 }
 
 /** Live desk: everything about where the party is, for the DM at the table. */
@@ -783,6 +791,8 @@ export interface NoteDocView {
   originalName: string
   updatedAt: string
   versions: Array<{ file: string; at: string }>
+  /** The DM's folder in the Notes list ('' = none). */
+  folder: string
 }
 /** Notes screen: DM notes kept per session (the desk journal while that session runs). */
 export interface SessionNotesView { id: string; number: number; startedAt: string; running: boolean; dmNotes: string; recap: string }

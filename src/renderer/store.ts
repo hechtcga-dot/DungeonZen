@@ -71,6 +71,8 @@ interface BoardState {
   setAiSettingsOpen(open: boolean): void
   /** Notes screen: open on Import (the getting started guide) instead of Your notes. */
   notesTab: 'notes' | 'import'
+  /** A notes file to open when the Notes screen opens (e.g. after Save as notes file). */
+  notesOpenId: string | null
   /** Getting started: the step on show (kept so Back returns to it). */
   guideStep: 'map' | 'regions' | 'notes'
   /** The battle map dialog is open. */
@@ -129,6 +131,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   aiSettingsOpen: false,
   setAiSettingsOpen(open) { set({ aiSettingsOpen: open }) },
   notesTab: 'notes',
+  notesOpenId: null,
   guideStep: 'map',
   battleMapOpen: false,
   setBattleMapOpen(open) { set({ battleMapOpen: open }) },

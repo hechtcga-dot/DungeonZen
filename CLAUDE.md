@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.6.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.7.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -77,3 +77,7 @@ Owner's decisions: from the D&D Beyond list not taken: rest buttons on the sheet
 - One computer only (no sync work). XP levelling, not milestones.
 - 1.6.0 built (2026-10-09) from these answers: backups, re-import everywhere, XP per PC, AI recap, Library folders, Generators, travel checks, board Map view (option B), Master notes (linked tick box both ways), Foundry/Owlbear exports. Details in `docs/STATE.md`.
 - Owner's decisions for 1.6.0: Map view on the board (Map screen stays); generator results copy or go on the board; own tables typed or pasted; travel checks are a roll table the DM confirms (dice in Roll20); XP equal share; backups in the campaign by default, folder choosable; master notes keep each note's original copy.
+
+## 1.7.0 (built 2026-10-11)
+Notes like Campfire: tree list with headings per note, folders, Contents panel and Find headings per note, right-click (Open file location, Rename, Duplicate, Combine, Delete), multi-select. Session prep remodelled on the owner's One-Page DM Session Prep, Save as notes file. Details in `docs/STATE.md`.
+Owner's decisions: Combine asks keep originals or move to History; delete = Move to History, and History › Delete file for good sends the file to the Recycle Bin (not undoable); contents is a side panel only (nothing inserted in the document); tree, contents and Find headings cover DM notes, session notes and notes files; clues merged into Secrets & clues; Enemies and threats section removed, Encounters box links to Encounters instead; world bible Make a card makes the card right away (no AI).

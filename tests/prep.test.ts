@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Campaign } from '../src/main/campaign/campaign'
-import { emptyStatBlock } from '../src/shared/statblock'
 import { askPrompt } from '../src/main/ai/ask'
 import type { Point } from '../src/shared/geometry'
 
@@ -34,7 +33,6 @@ describe('session prep sheet', () => {
     c.addPrepItem(id, 'discovery', { title: 'The cult' })
     const s1 = c.addPrepItem(id, 'scene', { title: 'Arrival' })
     c.addPrepItem(id, 'scene', { title: 'Bell tower', sceneType: 'combat' })
-    c.addPrepItem(id, 'clue', { body: 'Wet footprints up the tower stairs', discoveryId: d1 })
     const p = c.prepFor()!
     expect(p).toMatchObject({ number: 1, title: 'The Drowned Bell', pacingMinutes: 240 })
     expect(p.items.filter((i) => i.kind === 'discovery').map((i) => i.title)).toEqual(['The ringer', 'The cult'])
@@ -53,17 +51,12 @@ describe('session prep sheet', () => {
     expect(c.prepView(id).items.some((i) => i.id === s1)).toBe(true)
   })
 
-  it('fills key NPCs and threats from their cards, and the DM can change it', () => {
+  it('fills NPCs from their cards (what they want, how to play them), and the DM can change it', () => {
     const id = c.createPrep(1)
     const npc = c.createEntity({ boardId: g, type: 'NPC', name: 'Ciaf Crol', position: at })
-    c.updateEntity(npc.id, { attributes: { occupation: 'harbourmaster', faction: 'The Tide Guild', quirk: 'hums sea shanties' } })
-    const ghoul = c.createEntity({ boardId: g, type: 'MONSTER', name: 'Ghoul', position: at })
-    c.updateEntity(ghoul.id, { attributes: { statblock: { ...emptyStatBlock(), ac: '12', hp: '22', cr: '1' } } })
+    c.updateEntity(npc.id, { attributes: { motivation: 'the party gone', quirk: 'hums sea shanties' } })
     const n = c.addPrepItem(id, 'npc', { entityId: npc.id })
-    const t = c.addPrepItem(id, 'threat', { entityId: ghoul.id })
-    const items = c.prepView(id).items
-    expect(items.find((i) => i.id === n)).toMatchObject({ title: 'Ciaf Crol', role: 'harbourmaster, The Tide Guild', body: 'hums sea shanties', entityName: 'Ciaf Crol' })
-    expect(items.find((i) => i.id === t)?.stats).toBe('CR 1 · HP 22 · AC 12')
+    expect(c.prepView(id).items.find((i) => i.id === n)).toMatchObject({ title: 'Ciaf Crol', role: 'the party gone', body: 'hums sea shanties', entityName: 'Ciaf Crol' })
     c.updatePrepItem(n, { role: 'secret cultist' })
     expect(c.prepView(id).items.find((i) => i.id === n)?.role).toBe('secret cultist')
   })
@@ -108,7 +101,7 @@ describe('live: where they are, and the player preview', () => {
     const prep = c.prepFor()!.id
     const disc = c.addPrepItem(prep, 'discovery', { title: 'The bell is a summons', body: 'The drowned answer it.' })
     c.addPrepItem(prep, 'discovery', { title: 'Brine leads the cult' })
-    c.addPrepItem(prep, 'clue', { body: 'A wet hymn book on the pier', locationId: loc(harbour), discoveryId: disc })
+    c.addPrepItem(prep, 'discovery', { body: 'A wet hymn book on the pier', locationId: loc(harbour) })
     c.addPrepItem(prep, 'scene', { title: 'Dockside ambush', locationId: loc(harbour), sceneType: 'combat' })
     c.addPrepItem(prep, 'npc', { entityId: tom.id })
     return { mapId, loc, harbour, tower, ciaf, tom, secret, disc, ford }
@@ -127,7 +120,7 @@ describe('live: where they are, and the player preview', () => {
     expect(where.people.map((p) => [p.name, p.met, p.keyNpc])).toEqual([['Old Tom', false, true], ['Ciaf Crol', true, false]])
     expect(where.secrets.map((x) => x.source)).toEqual(['string', 'clue'])
     expect(where.secrets[0].text).toBe('Ciaf Crol ally Father Brine')
-    expect(where.secrets[1].text).toContain('leads to: The bell is a summons')
+    expect(where.secrets[1].text).toBe('A wet hymn book on the pier')
     expect(where.tips.join(' ')).toMatch(/came from Miller's Ford.*heading to Bell Tower.*met Ciaf Crol.*Not met yet: Old Tom.*2 secrets.*Planned here: Dockside ambush/)
     // Once the party knows the secret string, it is no longer a secret here.
     c.setStringKnown(w.secret.id, true)
@@ -167,5 +160,66 @@ describe('live: where they are, and the player preview', () => {
     expect(p).toMatch(/Request: Give four rumours.*The DM adds: about the bell/)
     expect(p).not.toContain('Describe the scene')
     expect(w.ford).toBeTruthy()
+  })
+})
+
+describe('one-page DM tool (1.7.0)', () => {
+  it('merges old clues into the secrets and moves old threats into the sheet notes', async () => {
+    const Database = (await import('better-sqlite3')).default
+    const { MIGRATIONS, migrate } = await import('../src/main/db/open')
+    const db = new Database(':memory:')
+    for (const m of MIGRATIONS.slice(0, -1)) db.exec(m)
+    db.pragma(`user_version = ${MIGRATIONS.length - 1}`)
+    db.prepare("INSERT INTO session_prep (id, number, title, premise, pacing_minutes, backup_names, notes, status) VALUES ('p', 1, '', '', 180, '', 'Bring rope', 'active')").run()
+    const item = db.prepare("INSERT INTO prep_item (id, prep_id, kind, sort, title, body, stats, tactics, status) VALUES (?, 'p', ?, ?, ?, ?, ?, ?, 'active')")
+    item.run('d', 'discovery', 1, 'The ringer', '', '', '')
+    item.run('c', 'clue', 1, '', 'Wet footprints', '', '')
+    item.run('t', 'threat', 1, 'Ghoul', 'Claws', 'CR 1', 'Flees at half HP')
+    migrate(db)
+    const rows = db.prepare('SELECT id, kind, status FROM prep_item ORDER BY sort').all()
+    expect(rows).toEqual([{ id: 'd', kind: 'discovery', status: 'active' }, { id: 't', kind: 'threat', status: 'defunct' }, { id: 'c', kind: 'discovery', status: 'active' }])
+    expect((db.prepare('SELECT notes FROM session_prep').get() as { notes: string }).notes)
+      .toBe('Bring rope\n\nThreats (from the old sheet):\nGhoul (CR 1): Claws. Tactics: Flees at half HP')
+    db.close()
+  })
+
+  it('brings loose threads from last session, makes cards from world bible lines, and saves the sheet as a notes file', async () => {
+    const one = c.createPrep(1)
+    c.updatePrep(one, { wantNext: 'Track the smuggler\nFind who hired him' })
+    c.addPrepItem(one, 'thread', { body: 'The abandoned mine' })
+    const done = c.addPrepItem(one, 'thread', { body: 'The letter' })
+    c.setPrepDone(done, true)
+    const two = c.createPrep(2)
+    expect(c.bringThreads(two)).toBe(3)
+    expect(c.prepView(two).items.filter((i) => i.kind === 'thread').map((i) => i.body)).toEqual(['Track the smuggler', 'Find who hired him', 'The abandoned mine'])
+    expect(c.bringThreads(two)).toBe(0) // nothing twice
+    c.undo()
+    expect(c.prepView(two).items.filter((i) => i.kind === 'thread')).toHaveLength(0)
+
+    const line = c.addPrepItem(two, 'bible', { body: 'Pell — the dockworker, 20 years at the harbour' })
+    const card = c.cardFromPrepLine(line, 'NPC')
+    expect(c.entityView(card)).toMatchObject({ name: 'Pell', type: 'NPC', attributes: { bio: 'Pell — the dockworker, 20 years at the harbour' } })
+    expect(c.prepView(two).items.find((i) => i.id === line)?.entityId).toBe(card)
+    c.undo() // one step: card and link
+    expect(c.prepView(two).items.find((i) => i.id === line)?.entityId).toBeNull()
+
+    const { prepBlocks } = await import('../src/shared/prepDoc')
+    const { writeDocx } = await import('../src/main/importers/docx')
+    c.updatePrep(two, { title: 'Smugglers', premise: 'A trusted ally is bleeding in the street.' })
+    const blocks = prepBlocks(c.prepView(two))
+    expect(blocks.filter((b) => b.kind === 'h2').map((b) => b.kind !== 'table' && b.runs[0].text).slice(0, 7))
+      .toEqual(['1. Session opening', '2. Likely scenes', '3. Secrets & clues', '4. NPCs', '5. Loose threads', '6. Session recap', '7. World bible updates'])
+    const doc = c.savePrepNote(two, 'Session 2 - Smugglers', writeDocx(blocks))
+    expect(c.prepView(two).noteDocId).toBe(doc)
+    expect(c.savePrepNote(two, 'Session 2 - The Smugglers', writeDocx(blocks))).toBe(doc) // same file, a new version
+    expect(c.notesScreen().docs).toMatchObject([{ id: doc, title: 'Session 2 - The Smugglers', versions: [{}] }])
+  })
+
+  it('"What happened" is the session recap', () => {
+    const p = c.createPrep(1)
+    expect(c.prepView(p).session).toBeNull()
+    const s = c.startSession()
+    c.updateSession(s.id, { recap: 'They let the smuggler escape.' })
+    expect(c.prepView(p).session).toEqual({ id: s.id, recap: 'They let the smuggler escape.' })
   })
 })

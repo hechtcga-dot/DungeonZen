@@ -247,6 +247,7 @@ export const noteDoc = sqliteTable('note_doc', {
   file: text('file').notNull(), // relative to assets/
   originalName: text('original_name').notNull(),
   versions: text('versions', { mode: 'json' }).$type<Array<{ file: string; at: string }>>().notNull().default([]),
+  folder: text('folder').notNull().default(''), // the DM's folder in the Notes list ('' = none)
   status: text('status').notNull(),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull()
@@ -305,14 +306,17 @@ export const sessionPrep = sqliteTable('session_prep', {
   pacingMinutes: integer('pacing_minutes').notNull(), // real minutes at the table
   backupNames: text('backup_names').notNull(), // spare NPC names, one per line
   notes: text('notes').notNull(),
+  wantNext: text('want_next').notNull().default(''), // recap: what the players seem to want next
+  noteDocId: text('note_doc_id'), // the notes file "Save as notes file" writes to
   status: text('status').notNull()
 })
 
-// One line of a prep sheet: a discovery, scene, clue, key NPC or threat.
+// One line of a prep sheet: a secret (kind discovery), scene, key NPC, loose thread or world bible line.
+// Old kinds: clue (merged into the secrets in 1.7.0) and threat (section removed in 1.7.0).
 export const prepItem = sqliteTable('prep_item', {
   id: text('id').primaryKey(),
   prepId: text('prep_id').notNull(),
-  kind: text('kind').notNull(), // discovery | scene | clue | npc | threat
+  kind: text('kind').notNull(), // discovery | scene | npc | thread | bible (old: clue | threat)
   sort: real('sort').notNull(),
   title: text('title').notNull(),
   body: text('body').notNull(), // discovery: the secret; scene: setup; clue: the clue; npc: aspect; threat: attacks and abilities

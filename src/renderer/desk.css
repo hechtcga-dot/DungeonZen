@@ -1337,3 +1337,34 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .egg-note.n2 { animation-delay: 0.5s; left: 80px; } .egg-note.n3 { animation-delay: 1s; left: 40px; }
 @keyframes egg-note { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-40px) translateX(10px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .egg-dwarf, .egg-lute, .egg-note, .egg-taper-flame, .egg-dice.is-rolling .egg-d20 { animation: none; } .egg-hobbit { animation: none; } }
+
+/* Notes (1.7.0): Campfire-style list (folders, headings under each note, multi-select) and a contents panel beside the note. */
+.notes-lib.is-collapsed { grid-template-columns: 44px minmax(0, 1fr); }
+.notes-list-collapsed { padding: 8px 4px; align-items: center; }
+.tree-h { margin: 6px 0 0; font-family: var(--display); font-size: 16px; color: var(--ink); }
+.tree-item.is-selected > .tree-row > button:last-child:not([aria-current='true']) { background: #e9d6a8; border-color: #8a6a3a; }
+.tree-row { display: flex; align-items: stretch; gap: 2px; }
+.tree-row > button:last-child { flex: 1; min-width: 0; }
+.notes-items .tree-toggle { flex: none; width: 22px; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; font-weight: 400; }
+.tree-rename { flex: 1; min-width: 0; }
+.tree-heads { list-style: none; margin: 2px 0 4px 24px; padding: 0; font-size: 13px; }
+.tree-heads .link-button { color: var(--ink); text-decoration: none; text-align: left; padding: 1px 0; }
+.tree-heads .toc-h2 { padding-left: 8px; } .tree-heads .toc-h3 { padding-left: 16px; font-size: 12px; }
+.notes-items .tree-folder-h { flex-direction: row; align-items: center; gap: 6px; background: transparent; font-weight: 700; }
+.tree-in { margin-left: 14px; }
+.notes-with-toc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 240px); gap: 14px; align-items: start; }
+.notes-toc { position: sticky; top: 0; max-height: calc(100vh - 140px); overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.notes-toc ol { list-style: none; margin: 0; padding: 0; }
+.notes-toc li { margin: 2px 0; }
+.notes-toc .link-button { color: var(--ink); text-decoration: none; text-align: left; }
+.notes-toc .toc-h2 { padding-left: 8px; } .notes-toc .toc-h3 { padding-left: 16px; font-size: 13px; }
+.combine-list, .find-heads { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow: auto; }
+.combine-list li, .find-heads li { display: flex; align-items: center; gap: 8px; }
+.combine-list li span, .find-heads li label { flex: 1; min-width: 0; }
+@media (max-width: 1300px) { .notes-with-toc { grid-template-columns: minmax(0, 1fr); } .notes-toc { position: static; } }
+.notes-items .tree-heads button { width: auto; display: inline; min-height: 0; padding: 1px 4px; background: transparent; border: 0; font-weight: 400; }
+.notes-items .tree-heads button:hover { text-decoration: underline; }
+.find-heads li label { display: flex; align-items: baseline; gap: 6px; }
+.find-heads select, .find-heads input[type='checkbox'] { width: auto; flex: none; }
+.prep-section-head label.row { white-space: nowrap; }
+.desk-theme .notes-list .notes-items button[aria-current='true'], .desk-theme .notes-list .notes-items button[aria-current='true']:hover:not(:disabled) { background: #2a1f12; color: var(--parchment-light); }
