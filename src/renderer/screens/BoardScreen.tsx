@@ -59,7 +59,7 @@ type Menu = { x: number; y: number; items: MenuItem[] }
 
 function BoardLayout() {
   const view = useView()
-  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say } = useBoard()
+  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, goTo } = useBoard()
   const prefs = useBoardPrefs()
   const { screenToFlowPosition, flowToScreenPosition, fitView, setCenter, getViewport, setViewport } = useReactFlow()
   const paneRef = useRef<HTMLDivElement>(null)
@@ -399,6 +399,8 @@ function BoardLayout() {
             placeholder="Search names, types, tags, notes" />
           {q && <span className="search-count mono" aria-live="polite">{matchCount} found</span>}
         </div>
+        <button className="brass" onClick={() => goTo('map')}>Map</button>
+        <button className="brass" onClick={() => goTo('timeline')}>Timeline</button>
       </TopBar>
 
       <nav className="viewbar" aria-label="Board views">

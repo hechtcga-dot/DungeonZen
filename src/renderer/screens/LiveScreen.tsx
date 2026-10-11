@@ -61,6 +61,8 @@ function Live({ v }: { v: LiveView }) {
           <h1>{s ? `Session ${s.number}` : 'Live session'}</h1>
         </div>
         <div className="desk-head-actions">
+          <button className="brass" onClick={() => goTo('map')}>Map</button>
+          <button className="brass" onClick={() => goTo('generators')}>Generators</button>
           {s ? <button className="wax" onClick={() => setEnding(true)}>End session</button>
             : <button className="wax" onClick={() => void act('session:start', undefined)}>Start session {v.sessions.length + 1}</button>}
         </div>

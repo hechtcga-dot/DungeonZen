@@ -30,7 +30,7 @@ function num(text: string): number | undefined {
 
 export function LibraryScreen() {
   const left = useSidePanel('library-left', 'left', 240)
-  const { act, openSheet, showOnBoard, say, view, info } = useBoard()
+  const { act, openSheet, showOnBoard, say, view, info, goTo } = useBoard()
   const [query, setQuery] = useState('')
   const [printing, setPrinting] = useState(false)
   const [type, setType] = useState<EntityType | ''>('')
@@ -79,6 +79,9 @@ export function LibraryScreen() {
       <div className="library">
         <aside className="panel library-templates" style={{ flexBasis: left.width }}>
           {left.grip}
+          <h2 className="panel-heading">Roll tables</h2>
+          <button className="template" onClick={() => goTo('generators')}>Generators…</button>
+          <p className="hint">People, places, treasure and your own tables.</p>
           <h2 className="panel-heading">New from template</h2>
           {TEMPLATES.map(([t, label]) => (
             <button key={t} className="template" onClick={() => void createFromTemplate(t, label)}>

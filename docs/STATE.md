@@ -96,9 +96,13 @@ built.
   of kind `battle` with a grid, its source and prompt (one undo step). The app
   draws the grid lines (`GridLines`); any map can get a grid in Scale and grid.
 - Modes: the rail's Prep / Live / Players switch (`store.mode`; the rail shows
-  Desk, Session prep, Board, Map, Timeline, Library in Prep; Live desk and Map in
+  Desk, Session prep, Encounters, Board, Library, Notes in Prep; Live desk in
   Live; What they know in Players). Going to a screen sets its mode; the Map
-  keeps the current one.
+  keeps the current one. Since 1.6.x no rail buttons for Map, Timeline,
+  Generators: Map from the board top bar, Session prep and Live desk headers;
+  Timeline from the board top bar; Generators from Library (Roll tables) and the
+  Live desk header. The rail scrolls on its own in short windows (the page never
+  scrolls past the desk: `.desk-screen` overflow hidden).
 - Session prep (Prep › Session prep, `PrepScreen.tsx`; 1.7.0 follows the owner's One-Page DM Session Prep):
   one sheet per session number (`session_prep`, `prep_item`); title, for session, pacing target; 1 Session
   opening (`premise`), 2 Likely scenes (location, location card, type, target time, tension; Played; Spread
@@ -196,7 +200,7 @@ built.
 - Master notes (1.6.0; Notes › Master notes): every note in one document (DM notes, sessions, notes files), contents down the side (each note and its headings, click to jump), search, Edit a section in place, "Linked to the note" tick box: linked = the note itself (edits save to it), unticked = the master's own copy (setting `master_notes`, `notes:masterLink`/`masterSave`). Save as Word… (note titles as Heading 1, their headings one level down).
 - Board map view (1.6.0, owner's option B): board tool "Map view" swaps the canvas for `MapViewPanel` (MapScreen.tsx: the Map screen's workspace for one map: regions, Draw region, Find regions with AI, Scale and grid, party token, travel with checks); picks the board's background map (matched by image path), else a menu of maps. "Back to the cards". Map screen stays.
 - Travel checks (1.6.0): Confirm travel (1 h or more) shows one d20 check per started 4 hours (`travelChecks`) on "Every 4 hours of travel"; an encounter result rolls on the destination region's table (`encounterTableFor` by kind and land). Roll here or in Roll20; Log it (session running) adds a log note; nothing happens on its own.
-- Generators (1.6.0; rail, screen 'generators', `GeneratorsScreen.tsx`): On the fly builders (character, SRD encounter, tavern, battle map; shared with Live) and roll tables (`src/shared/rolltables.ts`: ~70 built-in tables in 8 groups, {table-id} nesting, die shown for rolling in Roll20). Result: Copy, or Put on the board as a card type you pick (`generator:toBoard`, summary = text). Own tables (setting `roll_tables`, typed or pasted, `parseEntries` drops numbers/bullets), Edit, Copy a built-in to my tables, Move to History / Bring back.
+- Generators (1.6.0; Library › Roll tables or Live desk header, screen 'generators', `GeneratorsScreen.tsx`): On the fly builders (character, SRD encounter, tavern, battle map; shared with Live) and roll tables (`src/shared/rolltables.ts`: ~70 built-in tables in 8 groups, {table-id} nesting, die shown for rolling in Roll20). Result: Copy, or Put on the board as a card type you pick (`generator:toBoard`, summary = text). Own tables (setting `roll_tables`, typed or pasted, `parseEntries` drops numbers/bullets), Edit, Copy a built-in to my tables, Move to History / Bring back.
 - Library folders (1.6.0): In this campaign is grouped by card type in closed folders (open while searching or filtering); the SRD list sits in a closed folder too.
 - AI recap (1.6.0): Review › Session recap › Write with AI (`ai:recap`, `src/main/ai/recap.ts`): reads the log with names, the session's DM notes and the current recap; the player-safe version only sees the player-safe draft. AI suggestion box: Use this recap / Add below mine / Discard.
 - XP (1.6.0): PC `attributes.xp`; End combat ticks "Add N XP to each character" (equal share, `combat:end` xp, same undo step); sheet class strip XP field with XP to next level (`xpProgress`, PHB thresholds), close/level-up in red; Desk party cards and ledger show XP.

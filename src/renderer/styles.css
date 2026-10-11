@@ -75,7 +75,7 @@ textarea { padding: 10px 12px; resize: vertical; line-height: 1.45; }
 .board-screen { height: 100%; display: flex; flex-direction: column; }
 .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel); }
 .brand { font-weight: 600; font-size: 17px; letter-spacing: 0.02em; }
-.topbar-middle { flex: 1 1 220px; min-width: 0; display: flex; }
+.topbar-middle { flex: 1 1 220px; min-width: 0; display: flex; gap: 8px; }
 .search { flex: 1; min-width: 0; position: relative; }
 .search-count { position: absolute; right: 40px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--muted); pointer-events: none; }
 .topbar button[aria-label] { min-width: var(--control); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
