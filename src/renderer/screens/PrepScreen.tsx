@@ -27,7 +27,7 @@ const DONE_LABEL: Record<PrepKind, string> = { discovery: 'Revealed', scene: 'Pl
 
 /** DM Prep › Session prep: the one-page prep sheet (premise, discoveries, scenes, clues, key NPCs, threats). */
 export function PrepScreen() {
-  const { prepScreen, prep, info, act, prepNumber, setPrepNumber } = useBoard()
+  const { prepScreen, prep, info, act, prepNumber, setPrepNumber, goTo } = useBoard()
   const [lighting] = useLightingPref()
   const minutes = info?.clockMin ?? 0
   const number = prep?.number ?? prepNumber ?? prepScreen?.openNumber ?? prepScreen?.nextNumber ?? 1
@@ -42,6 +42,7 @@ export function PrepScreen() {
             <h1>Session {number}{prep?.title ? `: ${prep.title}` : ''}</h1>
           </div>
           <div className="desk-head-actions">
+            <button className="brass" onClick={() => goTo('map')}>Map</button>
             <label htmlFor="prep-pick" className="visually-hidden">Prep sheet for session</label>
             <select id="prep-pick" className="ink-select on-wood" value={number} onChange={(e) => setPrepNumber(Number(e.target.value))}>
               {numbers.map((n) => (

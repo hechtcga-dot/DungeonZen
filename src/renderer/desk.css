@@ -24,7 +24,7 @@
 
 /* ---- the table ---- */
 .desk-screen {
-  height: 100%; display: flex; color: var(--parchment-light);
+  height: 100%; display: flex; overflow: hidden; color: var(--parchment-light);
   background-color: #2e1c0e;
   background-image:
     radial-gradient(ellipse at 50% 35%, transparent 40%, rgba(0, 0, 0, 0.55) 100%),
@@ -39,6 +39,7 @@
 /* ---- the rail ---- */
 .rail {
   flex: 0 0 84px; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 10px 8px;
+  min-height: 0; overflow-y: auto; scrollbar-width: none;
   background: linear-gradient(90deg, #120b05, #1e130a 70%, #120b05);
   border-right: 2px solid #000; box-shadow: 4px 0 18px rgba(0, 0, 0, 0.6);
 }
