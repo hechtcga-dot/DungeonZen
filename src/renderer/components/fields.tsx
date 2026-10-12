@@ -1,4 +1,20 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+
+/** A colour picker that saves once, when the picker closes (one undo step, not one per step of the drag). */
+export function ColourInput({ id, value, onCommit, label }: { id?: string; value: string; onCommit(colour: string): void; label?: string }) {
+  const [draft, setDraft] = useState(value)
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => setDraft(value), [value])
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // The native change event fires when the picker closes; React's onChange fires on every step.
+    const done = () => { if (el.value.toLowerCase() !== value.toLowerCase()) onCommit(el.value) }
+    el.addEventListener('change', done)
+    return () => el.removeEventListener('change', done)
+  }, [value, onCommit])
+  return <input ref={ref} id={id} type="color" className="colour-input" aria-label={label} value={draft} onChange={(e) => setDraft(e.target.value)} />
+}
 
 /** A text field that saves when you leave it or press Enter (one undo step per edit, not per key). */
 export function CommitField(props: {

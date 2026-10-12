@@ -11,7 +11,7 @@ import { CommitField } from '../components/fields'
 import { MapDialog } from '../components/EditDialogs'
 import { FindRegions } from './GuideScreen'
 import { OpenFolder } from '../components/OpenFolder'
-import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
+import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { centroid, regionAt, type Point } from '../../shared/geometry'
@@ -431,6 +431,7 @@ function TravelChecks({ view, minutes, toLocationId }: { view: MapScreenView; mi
 function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
   detail: RegionDetail; view: MapScreenView; onMoveHere(): void; onEditShape(): void; onSelect(locationId: string): void
 }) {
+  const typeColour = useTypeColour()
   const { act, openSheet, showOnBoard, openEncounter } = useBoard()
   const parents = view.regions.filter((r) => r.locationId !== detail.region.locationId)
   const list = (title: string, items: EntityBrief[], empty: string) => (
@@ -440,7 +441,7 @@ function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
         <ul className="here-list">
           {items.map((e) => (
             <li key={e.id}>
-              <span className="badge" style={{ background: ENTITY_COLOURS[e.type] }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
+              <span className="badge" style={{ background: typeColour(e.type) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
               <button className="ledger-name" onClick={() => void openSheet(e.id)}>{e.name}</button>
             </li>
           ))}
@@ -458,7 +459,7 @@ function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
         <ul className="here-list">
           {detail.hereNow.map((e) => (
             <li key={e.id}>
-              <span className="badge" style={{ background: ENTITY_COLOURS[e.type] }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
+              <span className="badge" style={{ background: typeColour(e.type) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
               <button className="ledger-name" onClick={() => void openSheet(e.id)}>{e.name}</button>
             </li>
           ))}

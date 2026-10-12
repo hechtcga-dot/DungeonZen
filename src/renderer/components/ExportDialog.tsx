@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Dialog } from './Dialog'
 import { call } from '../api'
 import { useBoard } from '../store'
-import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
+import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { OpenFolder } from './OpenFolder'
 import type { EntityView } from '../../shared/types'
 
@@ -20,6 +20,7 @@ const DEFAULT_TYPES: Record<ExportKind, string[]> = { sheets: ['NPC', 'PC', 'MON
  * handouts, or a bulletin board. Pass entityIds to export those; otherwise pick cards here.
  */
 export function ExportDialog({ kind: fixedKind, entityIds, title, onClose }: { kind?: ExportKind; entityIds?: string[]; title?: string; onClose(): void }) {
+  const typeColour = useTypeColour()
   const say = useBoard((s) => s.say)
   const [kind, setKind] = useState<ExportKind>(fixedKind ?? 'sheets')
   const [cards, setCards] = useState<EntityView[]>([])
@@ -69,7 +70,7 @@ export function ExportDialog({ kind: fixedKind, entityIds, title, onClose }: { k
                   <li key={c.id}>
                     <label>
                       <input type="checkbox" checked={picked.has(c.id)} onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(c.id); else n.delete(c.id); return n })} />
-                      <span className="swatch" style={{ background: ENTITY_COLOURS[c.type] }} aria-hidden="true" /> {c.name}
+                      <span className="swatch" style={{ background: typeColour(c.type) }} aria-hidden="true" /> {c.name}
                     </label>
                   </li>
                 ))}

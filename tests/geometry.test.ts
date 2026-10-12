@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { centroid, estimateTravel, pointInPolygon, polygonArea, regionAt, type Point } from '../src/shared/geometry'
+import { centroid, estimateTravel, pointInPolygon, polygonArea, regionAt, regionOnBoard, type Point } from '../src/shared/geometry'
 
 const square = (x: number, y: number, s: number): Point[] => [[x, y], [x + s, y], [x + s, y + s], [x, y + s]]
 
@@ -33,5 +33,21 @@ describe('map geometry', () => {
     expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: 30, kmh: 3, savedMinutes: 180 }).minutes).toBe(180)
     expect(estimateTravel({ from: [0, 0], to: [1, 0], imageWidth: 1000, widthKm: 1, kmh: 3 }).minutes).toBe(10)
     expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: null, kmh: 3 }).minutes).toBeNull()
+  })
+})
+
+describe('regionOnBoard', () => {
+  const regions = [{ name: 'A', polygon: square(0, 0, 500) }, { name: 'B', polygon: square(500, 0, 500) }]
+  // A 1000 x 800 map shown 500 x 400 at (100, 100) on the board.
+  const pic = { x: 100, y: 100, w: 500, h: 400, mapW: 1000, mapH: 800, regions }
+  it('scales a board point onto the map picture', () => {
+    expect(regionOnBoard([150, 150], [pic])?.name).toBe('A')
+    expect(regionOnBoard([400, 150], [pic])?.name).toBe('B')
+    expect(regionOnBoard([400, 450], [pic])).toBeNull() // on the map, outside every region
+    expect(regionOnBoard([50, 50], [pic])).toBeNull() // off the picture
+  })
+  it('uses the top-most picture under the point', () => {
+    const top = { ...pic, regions: [{ name: 'Top', polygon: square(0, 0, 1000) }] }
+    expect(regionOnBoard([150, 150], [pic, top])?.name).toBe('Top')
   })
 })

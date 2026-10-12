@@ -392,10 +392,24 @@ built.
     there in Windows show up (refresh on focus); Add pictures… copies in; thumbnails open in Windows; Remove moves to
     the folder's Removed subfolder; Open folder. Run encounter has a Pictures and maps button. Served as
     `dz-asset://encounter/<id>/<file>`.
+- Card colours and map backgrounds (1.8.0, owner):
+  - Board cards are coloured by type (tinted paper and a band on the left, `CardNode`, `.card` in `styles.css`);
+    standard colours in `entityStyle.ts` (NPC and PC blues, Location green, Monster red, Faction plum since 1.8.0).
+  - Board › Card: right-click a type to set the colour of every card of that type (campaign setting `type_colours`,
+    `entityType:setColour`, optionally also clears colours given to single cards; one undo step; Standard colour
+    resets). Card right-click › Card colour… and sheet › Card colour set one card (`attributes.colour`). Type colours
+    show wherever a type swatch or badge does (`useTypeColour`: board, Library, Map, sheet, Import, Export).
+  - Sheet › Card colour saves when the picker closes (`ColourInput` in `fields.tsx`; before 1.8.0 the controlled
+    input snapped back and the colour often never saved, and only the small badge used it).
+  - Board › Background: Use a map (a campaign map as a background picture, `content.mapId`), Add a picture…, Show
+    map regions (board pref `regions`; regions drawn with `MapOverlay` over the picture, `ImageNode`), Show background
+    pictures, Open folder. A card dropped on a region of a map picture takes the region's name as its location in the
+    same undo step (`moveItems` › `placesOnMaps`, `regionOnBoard` in `geometry.ts`); a toast says where. Dropping
+    outside every region keeps the old location.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
 
 Not yet: the Guard Captain's SRD 2024 stat block has no ally boost (add a Leadership trait and the tracker shows it); rivers and roads on made maps; re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, code signing, auto-update; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
-with tokens. Phases 1 to 5, the Windows installer (1.0.0), the getting started guide (1.1.0) and the 1.2.0 to 1.5.0 lists are built. Notes imported before 1.3.0 were not kept as files.
+with tokens. Phases 1 to 5, the Windows installer (1.0.0), the getting started guide (1.1.0) and the 1.2.0 to 1.8.0 lists are built. Notes imported before 1.3.0 were not kept as files.

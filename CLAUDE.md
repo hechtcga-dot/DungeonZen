@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.7.1 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.8.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -82,3 +82,7 @@ Owner's decisions: from the D&D Beyond list not taken: rest buttons on the sheet
 Notes like Campfire: tree list with headings per note, folders, Contents panel and Find headings per note, right-click (Open file location, Rename, Duplicate, Combine, Delete), multi-select. Session prep remodelled on the owner's One-Page DM Session Prep, Save as notes file. Details in `docs/STATE.md`.
 Owner's decisions: Combine asks keep originals or move to History; delete = Move to History, and History › Delete file for good sends the file to the Recycle Bin (not undoable); contents is a side panel only (nothing inserted in the document); tree, contents and Find headings cover DM notes, session notes and notes files; clues merged into Secrets & clues; Enemies and threats section removed, Encounters box links to Encounters instead; world bible Make a card makes the card right away (no AI).
 1.7.1 (2026-10-11): 1.7.0 plus the rail change from another session (no Map, Timeline, Generators on the rail; Map/Timeline on the board top bar, Map on prep and Live, Generators in Library and Live).
+
+## 1.8.0 (built 2026-10-12)
+Card colours by type (Card menu right-click recolours every card of a type; card right-click and sheet colour per card, now on the whole board card), Background › Use a map with regions (toggle) and a card dropped on a region takes it as its location, Actions artifact holds only the .exe (no zip in a zip). Details in `docs/STATE.md`.
+Defaults picked (owner may change): a type colour change also clears single-card colours (tick box, on by default); dropping a card outside every region keeps its location; Faction got its own plum (was the same purple as Clue).

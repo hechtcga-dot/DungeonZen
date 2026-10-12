@@ -71,3 +71,15 @@ export function estimateTravel(input: {
   const minutes = Math.max(10, Math.round(((km / input.kmh) * 60) / 10) * 10)
   return { minutes, km: Math.round(km * 10) / 10, basis: `about ${fmtDistance(km, units)} in a straight line at ${fmtSpeed(input.kmh, units)}` }
 }
+
+/** A map picture on a board: where it sits (board units) and the map's own size and regions (map pixels). */
+export interface BoardMapPicture<R extends { polygon: Point[] }> { x: number; y: number; w: number; h: number; mapW: number; mapH: number; regions: R[] }
+
+/** The region under a board point, on the top-most map picture that covers it (pictures listed bottom first), or null. */
+export function regionOnBoard<R extends { polygon: Point[] }>([px, py]: Point, pictures: Array<BoardMapPicture<R>>): R | null {
+  for (const p of [...pictures].reverse()) {
+    if (px < p.x || py < p.y || px > p.x + p.w || py > p.y + p.h) continue
+    return regionAt([((px - p.x) * p.mapW) / p.w, ((py - p.y) * p.mapH) / p.h], p.regions)
+  }
+  return null
+}

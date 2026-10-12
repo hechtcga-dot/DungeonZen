@@ -9,8 +9,8 @@ import { Dialog } from '../components/Dialog'
 import { call } from '../api'
 import { FACTION_LINK, fillableFields, INTERNAL_KEYS, SECRET, tabFields, tabTitle, type CardField } from '../../shared/cardFields'
 import { ExportDialog } from '../components/ExportDialog'
-import { CommitField, ScoreField } from '../components/fields'
-import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
+import { ColourInput, CommitField, ScoreField } from '../components/fields'
+import { ENTITY_LABELS, cardColour, useTypeColour } from '../entityStyle'
 import {
   ABILITY_KEYS, HAS_STATBLOCK, SKILLS, abilityModifier, emptyStatBlock, formatModifier, leadingNumber, passiveScore, profFor,
   readStatBlock, rebase, saveBonus, setListed, skillBonus, type AbilityKey, type StatBlock
@@ -44,11 +44,11 @@ export function SheetScreen() {
 }
 
 function Sheet({ sheet }: { sheet: SheetView }) {
+  const typeColour = useTypeColour()
   const side = useSidePanel('sheet-side', 'right', 340)
   const { act, showOnBoard, openSheet } = useBoard()
   const creature = HAS_STATBLOCK.has(sheet.entity.type)
   const [tab, setTab] = useState<Tab>(['NPC', 'MONSTER'].includes(sheet.entity.type) ? 'fight' : creature ? 'sheet' : 'traits')
-  const [colourDraft, setColourDraft] = useState('')
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
   /** Fill blanks with AI: null = closed; otherwise the fields to offer (empty list = every empty field). */
   const [filling, setFilling] = useState<string[] | null>(null)
@@ -86,16 +86,14 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                 <div className="field">
                   <label htmlFor={`${p}-colour`}>Card colour</label>
                   <div className="row tight">
-                    <input id={`${p}-colour`} type="color" className="colour-input" value={colourOf(e)}
-                      onChange={(ev) => setColourDraft(ev.target.value)}
-                      onBlur={() => { if (colourDraft && colourDraft !== colourOf(e)) update({ attributes: { colour: colourDraft } }) }} />
+                    <ColourInput id={`${p}-colour`} value={cardColour(e, typeColour)} onCommit={(colour) => update({ attributes: { colour } })} />
                     {typeof e.attributes.colour === 'string' && (
-                      <button type="button" onClick={() => { setColourDraft(''); update({ attributes: { colour: null } }) }}>
+                      <button type="button" onClick={() => update({ attributes: { colour: null } })}>
                         Use the {ENTITY_LABELS[e.type]} colour
                       </button>
                     )}
                   </div>
-                  <div className="hint">Shown on the board card and its badge.</div>
+                  <div className="hint">Shown on the board card. Every card of a type: board › Card, right-click the type.</div>
                 </div>
               </section>
               <DetailsPanel sheet={sheet} lab={lab} />
@@ -109,7 +107,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
       <div className="page-head">
         <BackButton />
         <div className="page-title">
-          <span className="badge" style={{ background: colourOf(e) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
+          <span className="badge" style={{ background: cardColour(e, typeColour) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
           <h1>{e.name}</h1>
           {e.status === 'defunct' && <span className="source-tag">In History</span>}
           {e.status === 'resolved' && <span className="muted">Resolved</span>}
@@ -203,10 +201,6 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   )
 }
 
-/** The card colour: the DM's choice, or the colour for its type. */
-function colourOf(e: SheetView['entity']): string {
-  return typeof e.attributes.colour === 'string' ? e.attributes.colour : ENTITY_COLOURS[e.type]
-}
 
 type CustomField = { label: string; value: string }
 
@@ -730,6 +724,7 @@ function PartyKnows({ sheet }: { sheet: SheetView }) {
 }
 
 function Connections({ sheet }: { sheet: SheetView }) {
+  const typeColour = useTypeColour()
   const { act, openSheet } = useBoard()
   const e = sheet.entity
   const [otherId, setOtherId] = useState('')
@@ -750,7 +745,7 @@ function Connections({ sheet }: { sheet: SheetView }) {
         <ul className="connections">
           {sheet.connections.map((c) => (
             <li key={c.relationship.id}>
-              <span className="badge" style={{ background: ENTITY_COLOURS[c.other.type] }}>{ENTITY_LABELS[c.other.type].toUpperCase()}</span>
+              <span className="badge" style={{ background: typeColour(c.other.type) }}>{ENTITY_LABELS[c.other.type].toUpperCase()}</span>
               <span className="conn-text">
                 {c.outgoing && <span>{e.name}</span>}
                 {!c.outgoing && <button className="link" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button>}

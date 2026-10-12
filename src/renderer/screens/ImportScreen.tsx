@@ -5,7 +5,7 @@ import { DeskFrame } from '../components/DeskFrame'
 import { Candle } from '../art/props'
 import { useLightingPref } from '../art/TableLighting'
 import { lightingAt } from '../../shared/sky'
-import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
+import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { providerById } from '../../shared/aiProviders'
 import { RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import { IMPORT_CARD_TYPES, type CardProposal, type ImportDraft, type ImportDraftSummary, type Source } from '../../shared/notesImport'
@@ -196,6 +196,7 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
 }
 
 function Review({ initial, onDone }: { initial: ImportDraft; onDone(): void }) {
+  const typeColour = useTypeColour()
   const { say, act, goTo } = useBoard()
   const [d, setD] = useState(initial)
   const [onlyGuesses, setOnlyGuesses] = useState(false)
@@ -252,7 +253,7 @@ function Review({ initial, onDone }: { initial: ImportDraft; onDone(): void }) {
                     <option value="skip">Skip</option>
                   </select>
                   <select aria-label="Card type" value={c.type} disabled={readOnly} onChange={(e) => card(c.id, { type: e.target.value as EntityType })}
-                    style={{ borderLeft: `6px solid ${ENTITY_COLOURS[c.type]}` }}>
+                    style={{ borderLeft: `6px solid ${typeColour(c.type)}` }}>
                     {IMPORT_CARD_TYPES.map((t) => <option key={t} value={t}>{ENTITY_LABELS[t]}</option>)}
                   </select>
                   <input aria-label="Name" className="proposal-name" value={c.name} disabled={readOnly} onChange={(e) => card(c.id, { name: e.target.value })} />

@@ -32,7 +32,7 @@ import { STYLE_USES } from '../../shared/types'
 import { advise } from '../advisor'
 import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
-import { centroid, estimateTravel, regionAt, type Point } from '../../shared/geometry'
+import { centroid, estimateTravel, regionAt, regionOnBoard, type Point } from '../../shared/geometry'
 import { scaleToCr } from '../../shared/crscale'
 import { boostsAllies, CombatState, DAMAGE_TYPES, isLeaderName, legendaryCount, limitedUses, newCombatant, slotsFromText, type Combatant, type CombatantInfo } from '../../shared/combat'
 import { rowsFor } from '../../shared/battlemap'
@@ -86,7 +86,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -343,7 +343,8 @@ export class Campaign {
     return {
       linkPositions: this.setting('link_positions') === true,
       sharedStrings: this.setting('shared_strings') !== false,
-      stringTypes: Array.isArray(types) ? (types as StringType[]) : []
+      stringTypes: Array.isArray(types) ? (types as StringType[]) : [],
+      typeColours: (this.setting('type_colours') ?? {}) as Partial<Record<EntityType, string>>
     }
   }
 
@@ -560,15 +561,39 @@ export class Campaign {
     })
   }
 
-  moveItems(moves: Array<{ itemId: string } & Position>): void {
-    if (moves.length === 0) return
-    const label = moves.length === 1 ? this.moveLabel(moves[0].itemId) : `Moved ${moves.length} items`
+  /** Moves board items. A card dropped on a region of a map picture takes that place as its location (same undo step); returns what moved where. */
+  moveItems(moves: Array<{ itemId: string } & Position>): string[] {
+    if (moves.length === 0) return []
+    const placed = this.placesOnMaps(moves)
+    const label = moves.length === 1 ? this.moveLabel(moves[0].itemId) + (placed[0] ? ` to ${placed[0].place}` : '') : `Moved ${moves.length} items`
     const linked = this.boardSettings().linkPositions
     this.log.run(label, (w) => {
       for (const m of moves) {
         w.update('board_item', m.itemId, { x: m.x, y: m.y })
         if (linked) for (const twin of this.twins(m.itemId)) w.update('board_item', twin.id, { x: m.x, y: m.y })
       }
+      for (const p of placed) w.update('entity', p.entity.id, { attributes: { ...p.entity.attributes, location: p.place } })
+    })
+    return placed.map((p) => `${p.entity.name} is now at ${p.place}.`)
+  }
+
+  /** Cards among the moves that land on a region of a map picture on their board, with a new location. */
+  private placesOnMaps(moves: Array<{ itemId: string } & Position>): Array<{ entity: EntityRow; place: string }> {
+    const items = moves.map((m) => ({ m, item: this.itemRow(m.itemId) })).filter(({ item }) => item.kind === 'card' && item.entityId)
+    if (items.length === 0) return []
+    const maps = this.db.select().from(map).where(eq(map.status, 'active')).all()
+    const pictures = (boardId: string) => this.db.select().from(boardItem)
+      .where(and(eq(boardItem.boardId, boardId), eq(boardItem.kind, 'image'), eq(boardItem.status, 'active'))).all()
+      .flatMap((i) => {
+        const m = maps.find((x) => x.id === i.content?.mapId || x.imagePath === i.content?.image)
+        if (i.hidden || !m?.width || !m.height || !i.w || !i.h) return []
+        return [{ x: i.x, y: i.y, w: i.w, h: i.h, mapW: m.width, mapH: m.height, regions: this.regionViews(m.id) }]
+      })
+    return items.flatMap(({ m, item }) => {
+      const r = regionOnBoard([m.x + (item.w ?? 220) / 2, m.y + (item.h ?? 120) / 2], pictures(item.boardId))
+      const e = this.entityRow(item.entityId!)
+      if (!r || r.locationId === e.id || e.attributes.location === r.name) return []
+      return [{ entity: e, place: r.name }]
     })
   }
 
@@ -645,6 +670,22 @@ export class Campaign {
     }
     for (const list of out.values()) list.sort((x, y) => x.storylineId.localeCompare(y.storylineId) || x.number - y.number)
     return out
+  }
+
+  /** The colour of every card of a type (null: the standard colour); `clearOwn` also drops colours given to single cards of that type. One undo step. */
+  setTypeColour(type: EntityType, colour: string | null, clearOwn: boolean): void {
+    const colours = { ...this.boardSettings().typeColours }
+    if (colour) colours[type] = colour
+    else delete colours[type]
+    const own = clearOwn ? this.db.select().from(entity).where(eq(entity.type, type)).all().filter((e) => typeof e.attributes.colour === 'string') : []
+    this.log.run(`Changed the colour of ${type.toLowerCase()} cards`, (w) => {
+      if (w.get('campaign_settings', 'type_colours')) w.update('campaign_settings', 'type_colours', { value: colours })
+      else w.insert('campaign_settings', { key: 'type_colours', value: colours })
+      for (const e of own) {
+        const { colour: _c, ...rest } = e.attributes
+        w.update('entity', e.id, { attributes: rest })
+      }
+    })
   }
 
   /** The DM's own kinds of string (with an optional colour). */
@@ -751,7 +792,7 @@ export class Campaign {
     this.log.run(`Put the picture ${name} on the board`, (w) => {
       w.insert('board_item', {
         id, boardId, kind: 'image', entityId: null, x: position.x, y: position.y, w: wPx, h: hPx,
-        content: { image: rel, name, opacity: 0.6, locked: false }, status: 'active'
+        content: { image: rel, name, opacity: 0.6, locked: false, ...('mapId' in from ? { mapId: from.mapId } : {}) }, status: 'active'
       })
     })
     return toItemView(this.itemRow(id))

@@ -89,4 +89,34 @@ describe('map regions and the party token', () => {
     c.setRegionStatus(r, 'active')
     expect(c.mapScreen(mapId).regions).toHaveLength(1)
   })
+
+  it('a card dropped on a region of a map under the cards takes it as its location (one undo step)', () => {
+    c.createRegion({ mapId, polygon: sq(0, 0, 400), newName: 'The Docks' })
+    const pic = c.addBoardImage(g, { mapId }, { x: 0, y: 0 }) // 1200 x 960 on the board
+    expect(pic.content?.mapId).toBe(mapId)
+    const npc = c.createEntity({ boardId: g, type: 'NPC', name: 'Luna', position: { x: 2000, y: 2000 } })
+    const item = c.boardView(g).items.find((i) => i.entityId === npc.id)!
+    expect(c.moveItems([{ itemId: item.id, x: 100, y: 100 }])).toEqual(['Luna is now at The Docks.'])
+    expect(c.boardView(g).entities[npc.id].attributes.location).toBe('The Docks')
+    expect(c.moveItems([{ itemId: item.id, x: 120, y: 100 }])).toEqual([]) // already there
+    c.moveItems([{ itemId: item.id, x: 1000, y: 800 }]) // on the map, outside the region: keeps it
+    expect(c.boardView(g).entities[npc.id].attributes.location).toBe('The Docks')
+    c.undo(); c.undo(); c.undo()
+    expect(c.boardView(g).entities[npc.id].attributes.location).toBeUndefined()
+    expect(c.boardView(g).items.find((i) => i.id === item.id)!.x).toBe(2000)
+  })
+
+  it('colours every card of a type, optionally clearing cards with their own colour', () => {
+    const a = c.createEntity({ boardId: g, type: 'NPC', name: 'A', position: { x: 0, y: 0 } })
+    c.updateEntity(a.id, { attributes: { colour: '#111111' } })
+    c.setTypeColour('NPC', '#3366aa', false)
+    expect(c.boardView(g).settings.typeColours.NPC).toBe('#3366aa')
+    expect(c.boardView(g).entities[a.id].attributes.colour).toBe('#111111')
+    c.setTypeColour('NPC', '#4477bb', true)
+    expect(c.boardView(g).entities[a.id].attributes.colour).toBeUndefined()
+    c.undo()
+    expect(c.boardView(g).entities[a.id].attributes.colour).toBe('#111111')
+    c.setTypeColour('NPC', null, false)
+    expect(c.boardView(g).settings.typeColours).toEqual({})
+  })
 })

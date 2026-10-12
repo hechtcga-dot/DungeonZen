@@ -52,6 +52,8 @@ export interface BoardItemContent {
   name?: string
   opacity?: number
   locked?: boolean
+  /** A campaign map put under the cards (its regions can show on the board). */
+  mapId?: string
 }
 
 export const Id = z.string().uuid()

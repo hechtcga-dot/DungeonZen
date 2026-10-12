@@ -4,7 +4,7 @@ import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
 import { ExportDialog } from '../components/ExportDialog'
-import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
+import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { LibraryFilters, LibrarySearch, SrdSearch } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
@@ -29,6 +29,7 @@ function num(text: string): number | undefined {
 }
 
 export function LibraryScreen() {
+  const typeColour = useTypeColour()
   const left = useSidePanel('library-left', 'left', 240)
   const { act, openSheet, showOnBoard, say, view, info, goTo } = useBoard()
   const [query, setQuery] = useState('')
@@ -85,7 +86,7 @@ export function LibraryScreen() {
           <h2 className="panel-heading">New from template</h2>
           {TEMPLATES.map(([t, label]) => (
             <button key={t} className="template" onClick={() => void createFromTemplate(t, label)}>
-              <span className="swatch" style={{ background: ENTITY_COLOURS[t] }} aria-hidden="true" />{label}
+              <span className="swatch" style={{ background: typeColour(t) }} aria-hidden="true" />{label}
             </button>
           ))}
           <p className="hint">Creates the card on the global board and opens its sheet.</p>
@@ -153,11 +154,11 @@ export function LibraryScreen() {
               if (!rows.length) return null
               return (
                 <details key={`${t}-${query || filtersActive ? 'open' : 'shut'}`} className="lib-folder" open={!!(query || filtersActive)}>
-                  <summary><span className="swatch" style={{ background: ENTITY_COLOURS[t] }} aria-hidden="true" />{ENTITY_LABELS[t]} <span className="muted">({rows.length})</span></summary>
+                  <summary><span className="swatch" style={{ background: typeColour(t) }} aria-hidden="true" />{ENTITY_LABELS[t]} <span className="muted">({rows.length})</span></summary>
             <ul className="results">
               {rows.map(({ entity: e, line }) => (
                 <li key={e.id}>
-                  <span className="badge" style={{ background: ENTITY_COLOURS[e.type] }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
+                  <span className="badge" style={{ background: typeColour(e.type) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
                   <span className="result-name">{e.name}</span>
                   {(() => { const full = line + (e.status === 'resolved' ? ' · Resolved' : e.status === 'stashed' ? ' · Saved for later' : ''); return <span className="muted result-line" title={full}>{full}</span> })()}
                   <button onClick={() => void openSheet(e.id)}>Open sheet</button>

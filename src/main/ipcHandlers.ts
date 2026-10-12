@@ -226,6 +226,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('board:setHidden', ({ kind, id, hidden }) => current().setHidden(kind, id, hidden))
   handle('act:mark', ({ entityId, actId, on }) => current().setActMark(entityId, actId, on))
   handle('stringTypes:set', ({ types }) => current().setStringTypes(types))
+  handle('entityType:setColour', ({ type, colour, clearOwn }) => current().setTypeColour(type, colour, clearOwn))
   handle('stringTypes:rename', ({ from, to }) => current().renameStringType(from, to))
   handle('board:linkPositions', ({ on, winner }) => current().setLinkPositions(on, winner))
   handle('board:sharedStrings', ({ on, winner }) => current().setSharedStrings(on, winner))

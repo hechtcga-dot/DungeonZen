@@ -56,6 +56,8 @@ export interface BoardSettings {
   /** Strings show on every board (off: each board keeps its own). */
   sharedStrings: boolean
   stringTypes: StringType[]
+  /** The DM's colour for every card of a type (missing: the standard colour). */
+  typeColours: Partial<Record<EntityType, string>>
 }
 
 export interface RelationshipView {

@@ -15,7 +15,8 @@ import { StorylinesPanel } from '../components/StorylinesPanel'
 import { ContextMenu, type MenuItem } from '../components/ContextMenu'
 import { WinnerDialog } from '../components/WinnerDialog'
 import { Splitter, useSplit } from '../components/Splitter'
-import { ENTITY_COLOURS, ENTITY_LABELS } from '../entityStyle'
+import { ENTITY_LABELS, cardColour, useTypeColour } from '../entityStyle'
+import { ColourDialog, type ColourTarget } from '../components/ColourDialog'
 import { freeSpot } from '../../shared/layout'
 import { TopBar, isTyping } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
@@ -25,7 +26,7 @@ import { useLightingPref } from '../art/TableLighting'
 import { StorylineDialog } from '../components/EditDialogs'
 import { useBoardPrefs } from '../boardPrefs'
 import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
-import type { BoardView, EntityView } from '../../shared/types'
+import type { BoardView, EntityView, MapScreenView } from '../../shared/types'
 import { useCtrlPan } from '../useCtrlPan'
 import { Dialog } from '../components/Dialog'
 import { MapViewPanel } from './MapScreen'
@@ -75,6 +76,8 @@ function BoardLayout() {
   const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null)
   const [confirmLink, setConfirmLink] = useState<{ a: EntityView; b: EntityView } | null>(null)
   const [linkChoice, setLinkChoice] = useState<LinkChoice>(DEFAULT_LINK)
+  const [colourFor, setColourFor] = useState<ColourTarget | null>(null)
+  const typeColour = useTypeColour()
   const background = prefs.layer === 'background'
   useBoard((s) => s.view) // keeps the rubber-band string in step with the view
   useStore((s) => s.transform) // and with panning and zooming
@@ -85,6 +88,19 @@ function BoardLayout() {
   const [lighting] = useLightingPref()
   const [sideWidth, setSideWidth] = useSplit('board-side', 360)
   useBoard((s) => s.info?.clockMin) // re-render when the clock moves, for the candle
+
+  const [maps, setMaps] = useState<Array<{ id: string; name: string; kind: string; url: string }>>([])
+  const [mapView, setMapView] = useState<string | null>(null)
+  useEffect(() => { void useBoard.getState().query('desk:view', undefined).then((d) => setMaps(d?.maps ?? [])) }, [view])
+  /** The campaign map a background picture shows, if it is one. */
+  const mapOf = useCallback((c: { mapId?: string; image?: string } | null) => maps.find((m) => m.id === c?.mapId || (!!c?.image && m.url.endsWith(c.image))), [maps])
+  // Regions of the maps under the cards, by map id.
+  const [regionViews, setRegionViews] = useState<Record<string, MapScreenView>>({})
+  useEffect(() => {
+    const ids = [...new Set(view.items.flatMap((i) => (i.kind === 'image' ? [mapOf(i.content)?.id ?? ''] : [])).filter(Boolean))]
+    void Promise.all(ids.map((mapId) => useBoard.getState().query('mapscreen:view', { mapId }).then((v) => (v ? [mapId, { ...v, route: [] as MapScreenView['route'] }] as [string, MapScreenView] : null))))
+      .then((list) => setRegionViews(Object.fromEntries(list.filter((x) => x !== null))))
+  }, [view, mapOf])
 
   const q = search.trim().toLowerCase()
   const linkMode = panel === 'connections'
@@ -106,7 +122,10 @@ function BoardLayout() {
           return [{
             ...base, type: 'image', zIndex: -1, draggable: background && !locked, selectable: background,
             className: background ? undefined : 'is-passive',
-            data: { src: ASSET + item.content.image, name: item.content.name ?? 'Picture', opacity: item.content.opacity ?? 0.6, locked, hidden: item.hidden }
+            data: {
+              src: ASSET + item.content.image, name: item.content.name ?? 'Picture', opacity: item.content.opacity ?? 0.6, locked, hidden: item.hidden,
+              map: prefs.regions ? regionViews[mapOf(item.content)?.id ?? ''] : undefined
+            }
           }]
         }
         if (item.kind === 'note') {
@@ -121,10 +140,10 @@ function BoardLayout() {
           key: m.actId, numeral: roman(m.number), colour: storyColours.get(m.storylineId) ?? '#5a4a32',
           title: `${view.boards.find((b) => b.storylineId === m.storylineId)?.name ?? 'Storyline'}: act ${roman(m.number)}, ${m.title}`
         })) : []
-        return [{ ...base, type: 'card', ...frontLayer, data: { entity, dimmed: (q !== '' && !match) || (linkMode && prefs.greyCards), match, tints, marks } }]
+        return [{ ...base, type: 'card', ...frontLayer, data: { entity, dimmed: (q !== '' && !match) || (linkMode && prefs.greyCards), match, tints, marks, colour: cardColour(entity, typeColour) } }]
       })
     })
-  }, [view, q, prefs, storyColours, linkMode, background])
+  }, [view, q, prefs, storyColours, linkMode, background, regionViews, mapOf, typeColour])
 
   const itemByEntity = useMemo(
     () => new Map(view.items.filter((i) => i.entityId).map((i) => [i.entityId!, i.id])),
@@ -186,8 +205,8 @@ function BoardLayout() {
         const item = view.items.find((i) => i.id === m.itemId)
         return item && (item.x !== m.x || item.y !== m.y)
       })
-    if (moves.length > 0) void act('items:move', { moves })
-  }, [view.items, act])
+    if (moves.length > 0) void act('items:move', { moves }).then((placed) => { if (placed?.length) say(placed.join(' ')) })
+  }, [view.items, act, say])
 
   /** A free spot near the middle of the visible board, so new cards don't land on top of others. */
   const centre = useCallback(() => {
@@ -227,9 +246,6 @@ function BoardLayout() {
     }
   }, [act, view.board.id, centre, prefs, say])
 
-  const [maps, setMaps] = useState<Array<{ id: string; name: string; kind: string; url: string }>>([])
-  const [mapView, setMapView] = useState<string | null>(null)
-  useEffect(() => { void useBoard.getState().query('desk:view', undefined).then((d) => setMaps(d?.maps ?? [])) }, [view])
 
   const removeSelected = useCallback(async () => {
     const selNodes = nodes.filter((n) => n.selected)
@@ -302,6 +318,7 @@ function BoardLayout() {
     e.status === 'resolved'
       ? { label: 'Mark active', onClick: () => void act('entity:setStatus', { id: e.id, status: 'active' }) }
       : { label: 'Mark resolved', onClick: () => void act('entity:setStatus', { id: e.id, status: 'resolved' }) },
+    { label: 'Card colour…', onClick: () => setColourFor({ kind: 'card', entity: e }) },
     { label: 'Duplicate', onClick: () => void act('entity:duplicate', { id: e.id }) },
     { label: 'Normal size', disabled: !view.items.find((i) => i.id === itemId)?.w, onClick: () => void act('item:resize', { itemId, size: null }) },
     'separator',
@@ -361,20 +378,30 @@ function BoardLayout() {
   const paneItems = (at: { x: number; y: number }): MenuItem[] => [
     { label: 'New card', items: ENTITY_TYPES.map((t) => ({ label: ENTITY_LABELS[t], onClick: () => void addCard(t, at) })) },
     { label: 'New note', onClick: () => void addNote(at) },
-    { label: 'Add background picture', items: [
-      ...maps.map((m) => ({ label: `${m.name}${m.kind === 'battle' ? ' (battle map)' : ''}`, onClick: () => void addPicture(m.id, at) })),
-      ...(maps.length ? ['separator' as const] : []),
-      { label: 'Choose a picture file…', onClick: () => void addPicture(null, at) }
-    ] },
+    { label: 'Background', items: backgroundItems(at) },
     { label: 'Move the background (cards stay put)', checked: background, onClick: () => prefs.set({ layer: background ? 'cards' : 'background' }) },
     'separator',
     ...displayItems()
   ]
 
+  function backgroundItems(at?: { x: number; y: number }): MenuItem[] {
+    return [
+      { label: 'Use a map', hint: 'With its regions: drop a card on a region to set its location', items: maps.length
+        ? maps.map((m) => ({ label: `${m.name}${m.kind === 'battle' ? ' (battle map)' : ''}`, onClick: () => void addPicture(m.id, at) }))
+        : [{ label: 'No maps yet: import one on the Map screen', disabled: true }] },
+      { label: 'Add a picture…', onClick: () => void addPicture(null, at) },
+      'separator',
+      { label: 'Show map regions', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
+      { label: 'Show background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
+      { label: 'Open background pictures folder', onClick: () => void act('campaign:openFolder', { sub: 'board' }) }
+    ]
+  }
+
   function displayItems(): MenuItem[] {
     return [
       { label: 'Show hidden things (greyed)', checked: prefs.showHidden, onClick: () => prefs.set({ showHidden: !prefs.showHidden }) },
       { label: 'Background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
+      { label: 'Regions on background maps', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
       { label: 'Storyline colours on cards', checked: prefs.tint, onClick: () => prefs.set({ tint: !prefs.tint }) },
       { label: 'Act marks on cards', checked: prefs.actMarks, onClick: () => prefs.set({ actMarks: !prefs.actMarks }) },
       { label: 'Moving a card moves it on every board', checked: view.settings.linkPositions,
@@ -440,8 +467,9 @@ function BoardLayout() {
             {cardMenu && (
               <div className="menu" role="menu" aria-label="New card type">
                 {ENTITY_TYPES.map((t) => (
-                  <button key={t} role="menuitem" onClick={() => void addCard(t)}>
-                    <span className="swatch" style={{ background: ENTITY_COLOURS[t] }} aria-hidden="true" />
+                  <button key={t} role="menuitem" onClick={() => void addCard(t)} title={`Right-click: the colour of every ${ENTITY_LABELS[t]} card`}
+                    onContextMenu={(e) => { e.preventDefault(); setCardMenu(false); setColourFor({ kind: 'type', type: t }) }}>
+                    <span className="swatch" style={{ background: typeColour(t) }} aria-hidden="true" />
                     {ENTITY_LABELS[t]}
                   </button>
                 ))}
@@ -453,14 +481,7 @@ function BoardLayout() {
             onClick={() => setPanel(panel === 'connections' ? 'inspector' : 'connections')}>Links</button>
           <button className="tool" aria-pressed={panel === 'storylines'} title="Storylines: colours, acts and display"
             onClick={() => setPanel(panel === 'storylines' ? 'inspector' : 'storylines')}>Story</button>
-          <button className="tool" title="Add a map or picture behind the cards" onClick={(e) => openMenu(e, [
-            ...maps.map((m) => ({ label: `${m.name}${m.kind === 'battle' ? ' (battle map)' : ''}`, onClick: () => void addPicture(m.id) })),
-            ...(maps.length ? ['separator' as const] : []),
-            { label: 'Choose a picture file…', onClick: () => void addPicture(null) },
-            { label: 'Open background pictures folder', onClick: () => void act('campaign:openFolder', { sub: 'board' }) },
-            'separator',
-            { label: 'Show background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) }
-          ])}>Background</button>
+          <button className="tool" title="Put a map or a picture behind the cards" onClick={(e) => openMenu(e, backgroundItems())}>Background</button>
           <button className="tool" aria-pressed={!!mapView} title="Regions, the party token and travel on a map (the board's background map first)" onClick={(e) => {
             if (mapView) return setMapView(null)
             const used = view.items.filter((i) => i.kind === 'image' && i.content && 'image' in i.content).map((i) => String((i.content as { image: string }).image))
@@ -565,6 +586,7 @@ function BoardLayout() {
           </div>
         </aside>
       </div>
+      {colourFor && <ColourDialog target={colourFor} onClose={() => setColourFor(null)} />}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       <Dialog title="Link these two?" open={!!confirmLink} onClose={() => setConfirmLink(null)}>
         {confirmLink && (

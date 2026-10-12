@@ -8,11 +8,13 @@ export interface BoardPrefs {
   actMarks: boolean
   greyCards: boolean
   greyNotes: boolean
+  /** Regions drawn over map pictures under the cards. */
+  regions: boolean
   /** What a drag moves: the cards, or the background pictures under them. */
   layer: 'cards' | 'background'
 }
 const KEY = 'dz-board-prefs'
-const DEFAULTS: BoardPrefs = { showHidden: false, pictures: true, tint: true, actMarks: true, greyCards: true, greyNotes: true, layer: 'cards' }
+const DEFAULTS: BoardPrefs = { showHidden: false, pictures: true, tint: true, actMarks: true, greyCards: true, greyNotes: true, regions: true, layer: 'cards' }
 
 function load(): BoardPrefs {
   // The board always opens moving cards; moving the background is a short job.

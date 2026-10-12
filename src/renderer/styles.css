@@ -151,6 +151,8 @@ textarea { padding: 10px 12px; resize: vertical; line-height: 1.45; }
   width: 220px; background: var(--card-paper); color: var(--card-ink); border-radius: 4px; padding: 14px;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 6px; position: relative;
 }
+/* Coloured by type (or the card's own colour): tinted paper and a strong band on the left. */
+.card:not(.card-resolved) { --paper: color-mix(in srgb, var(--type, transparent) 30%, var(--card-paper)); background: var(--paper); border-left: 7px solid var(--type, transparent); }
 .card.card-resolved { background: #8d9198; box-shadow: none; }
 .card.is-selected, .note.is-selected { outline: 3px solid var(--selection); outline-offset: 2px; }
 .card.is-match { outline: 3px solid var(--amber); outline-offset: 2px; }

@@ -407,6 +407,7 @@ export const ipcInputs = {
   'board:setHidden': z.object({ kind: z.enum(['entity', 'string', 'item']), id: Id, hidden: z.boolean() }),
   'act:mark': z.object({ entityId: Id, actId: Id, on: z.boolean() }),
   'stringTypes:set': z.object({ types: z.array(z.object({ type: RelationshipType, colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable() })).max(100) }),
+  'entityType:setColour': z.object({ type: EntityType, colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable(), clearOwn: z.boolean() }),
   'stringTypes:rename': z.object({ from: z.string().min(1).max(40), to: RelationshipType }),
   'board:linkPositions': z.object({ on: z.boolean(), winner: z.enum(['global', 'storyline']) }),
   'board:sharedStrings': z.object({ on: z.boolean(), winner: z.enum(['global', 'storyline']) }),
@@ -659,11 +660,12 @@ export interface IpcOutputs {
   'note:create': BoardItemView
   'note:update': void
   'note:setStatus': void
-  'items:move': void
+  'items:move': string[]
   'item:resize': void
   'board:setHidden': void
   'act:mark': void
   'stringTypes:set': void
+  'entityType:setColour': void
   'stringTypes:rename': number
   'board:linkPositions': void
   'board:sharedStrings': void
