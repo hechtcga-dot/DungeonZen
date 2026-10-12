@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.9.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.9.1 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -93,3 +93,4 @@ Defaults picked (owner may change): a type colour change also clears single-card
 ## 1.9.0 (built 2026-10-12)
 Map regions on a board act as Location cards (pin, strings, select, double-click sheet, card menu); while a region shows, the place's card on that board steps aside and its strings reroute to the region, back when regions/map go. Card menu › Take off this board (History restores). Fixes: picture resize NaN, cards/strings vanishing after adding a map or a refresh, clicks not selecting (React Flow `measured` kept on rebuild). Details in `docs/STATE.md`.
 Owner's decisions: regions replace their cards automatically (render only, no data change). Defaults picked: Delete key ignores region names. Region names always show; Display › Region boundaries toggles outlines only (owner, 2026-10-12).
+1.9.1 (2026-10-12): region names always shown, Display › Region boundaries toggles smoothed outlines; Draw windows start with no style examples ticked; style tags on Library pictures (AI read on click) blended into prompts; card pictures: Include in the picture, composition picker. Release has only the .exe.
