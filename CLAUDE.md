@@ -38,7 +38,7 @@ Electron + electron-vite, React 19 + Vite (no Next.js), SQLite better-sqlite3 + 
 `npm install` · `npm run dev` · `npm test` · `npm run typecheck` · `npm run build` · `npm run dist:win` (installer; on Linux needs wine64 + wine32:i386).
 
 ## Release
-Bump `package.json` + `package-lock.json` version. Push branch `claude/friendly-pascal-t9tphb`, fast-forward `main`. Tag push is blocked (proxy 403): run workflow `windows-installer.yml` on `main` via GitHub MCP `actions_run_trigger` with input `release_tag: vX.Y.Z`; check with `get_latest_release`.
+Bump `package.json` + `package-lock.json` version. Push the session branch, fast-forward `main`. New build started on a new branch: first fast-forward `main` with the previous build branch, then delete that branch (owner, 2026-10-12). Tag push is blocked (proxy 403): run workflow `windows-installer.yml` on `main` via GitHub MCP `actions_run_trigger` with input `release_tag: vX.Y.Z`; check with `get_latest_release`.
 
 ## Decided (owner)
 - Rules edition default 2024 (SRD 5.2), per campaign.
