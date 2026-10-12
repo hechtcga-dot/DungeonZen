@@ -1376,3 +1376,14 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .find-heads select, .find-heads input[type='checkbox'] { width: auto; flex: none; }
 .prep-section-head label.row { white-space: nowrap; }
 .desk-theme .notes-list .notes-items button[aria-current='true'], .desk-theme .notes-list .notes-items button[aria-current='true']:hover:not(:disabled) { background: #2a1f12; color: var(--parchment-light); }
+/* Composition picker (card pictures) */
+.cmp-sketch { width: 100%; aspect-ratio: 4 / 3; display: block; background: #fbf6e6; border-radius: 3px; }
+.cmp-frame { fill: none; stroke: #2a1f12; stroke-width: 1; }
+.cmp-mass { fill: #3a2c1c; stroke: #2a1f12; stroke-width: 0.8; }
+.cmp-line { fill: none; stroke: #2a1f12; stroke-width: 1.2; stroke-linecap: round; }
+.cmp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 6px; }
+.cmp-tile { display: flex; flex-direction: column; gap: 3px; padding: 4px; border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 4px; background: rgba(255, 252, 240, 0.6); font-size: 12px; text-align: center; cursor: pointer; }
+.cmp-tile.is-on { border-color: #8f2a21; box-shadow: 0 0 0 2px #8f2a21; }
+.cmp-chosen { display: flex; gap: 10px; align-items: center; }
+.cmp-chosen .cmp-sketch { width: 110px; flex: none; }
+.cmp-guide { fill: none; stroke: #8f2a21; stroke-width: 0.6; stroke-dasharray: 2 2; }

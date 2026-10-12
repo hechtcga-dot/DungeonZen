@@ -310,7 +310,12 @@ built.
     tags or Read style with AI (`pictures:readStyle`, writing service with the picture, suggestion to Keep/Discard).
     Draw windows blend the ticked pictures' tags (per field, no repeats) into Style/Medium/Palette/Light/Textures
     lines; card pictures also get Composition (tags, else the default asymmetric rule-of-thirds line), the field
-    "Include in the picture" (was Anything to add), and "No text, no frame."; maps get style lines only. `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
+    "Include in the picture" (was Anything to add), and "No text, no frame."; maps get style lines only.
+    Composition picker (card pictures, owner 2026-10-12): 16 forms (`src/shared/compositions.ts`: rule of thirds,
+    pyramid, steelyard, balanced scales, S-curve, diagonal, tunnel, radiating, circular, L, cross, three spots, group
+    mass, silhouette, centred, pattern) with sketches drawn in code (`art/compositions.tsx`); default by card type
+    (`DEFAULT_COMPOSITION_FOR`: people pyramid, monsters/scenes diagonal, places thirds, quests S-curve, items/clues/
+    handouts centred, factions group mass); "As in the style examples" when ticked pictures have a composition tag. `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
   - Notes (rail, was Import notes): Your notes (`NotesLibrary.tsx`) and Import notes. Imported files are kept
     (`note_doc`); Word/text/PDF open with formatting in `NoteEditor` (bold, italic, underline, headings,
     lists, tables; `src/main/importers/docx.ts` reads and writes .docx); Save writes a Word version (earlier

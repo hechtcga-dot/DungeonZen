@@ -1,4 +1,6 @@
-import { DEFAULT_COMPOSITION, STYLE_TAG_FIELDS, blendTags, styleLines, type StyleTags } from '../../shared/styleTags'
+import { STYLE_TAG_FIELDS, blendTags, styleLines, type StyleTags } from '../../shared/styleTags'
+import { COMPOSITIONS, DEFAULT_COMPOSITION_FOR, compositionById } from '../../shared/compositions'
+import { CompositionSketch } from '../art/compositions'
 import { useEffect, useMemo, useState } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
@@ -101,6 +103,9 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   const [edited, setEdited] = useState(false)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [tags, setTags] = useState<StyleTags[]>([])
+  // The card type picks the composition; 'examples' = the ticked pictures' own composition tag.
+  const [comp, setComp] = useState<string>(DEFAULT_COMPOSITION_FOR[entity.type])
+  const blended = blendTags(tags)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [drawn, setDrawn] = useState<IpcOutputs['entity:drawPicture'] | null>(null)
@@ -109,7 +114,8 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   const build = (wish: string) => call('entity:picturePrompt', { entityId: entity.id, ask: wish })
     .then((p) => setPrompt([
       p,
-      ...styleLines(blendTags(tags), useBoard.getState().info?.artStyle ?? info?.artStyle ?? '', { composition: DEFAULT_COMPOSITION, fallback: 'Style: classic fantasy book illustration.' }),
+      ...styleLines({ ...blended, composition: comp === 'examples' ? blended.composition : undefined }, useBoard.getState().info?.artStyle ?? info?.artStyle ?? '',
+        { composition: compositionById(comp).prompt, fallback: 'Style: classic fantasy book illustration.' }),
       'No text, no frame.'
     ].join('\n'))).catch(() => undefined)
   // The prompt follows the wishes and ticked pictures until the DM edits it by hand.
@@ -117,7 +123,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
     if (edited) return
     const t = setTimeout(() => void build(ask), 300)
     return () => clearTimeout(t)
-  }, [ask, edited, tags])
+  }, [ask, edited, tags, comp])
   const draw = async () => {
     setBusy(true); setError('')
     try {
@@ -134,6 +140,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
           <input id="pic-ask" value={ask} maxLength={2000} placeholder="ducks, a boat, a fisherman in the boat" onChange={(ev) => setAsk(ev.target.value)} />
           <div className="hint">Things to show, separated by commas. The card's appearance, summary and description go with it. Uses the image service chosen in AI services.</div>
         </div>
+        <CompositionPicker value={comp} onChange={setComp} fromExamples={blended.composition} />
         <DrawExtras use={use} prompt={prompt} onPrompt={(p) => { setPrompt(p); setEdited(true) }}
           onReset={() => { setEdited(false); void build(ask) }} picked={picked} onPicked={setPicked} onTags={setTags} />
         {error && (
@@ -297,6 +304,35 @@ export function PicturesTab() {
           ))}
         </div>
       </section>
+    </div>
+  )
+}
+
+/** Composition for a card picture: the chosen one with its sketch, and every other to pick from. */
+function CompositionPicker({ value, onChange, fromExamples }: { value: string; onChange(id: string): void; fromExamples?: string }) {
+  const own = value === 'examples' && fromExamples
+  const c = compositionById(value)
+  return (
+    <div className="field">
+      <span className="field-label">Composition</span>
+      <div className="cmp-chosen">
+        {own ? <span className="hint">As in the style examples: {fromExamples}</span> : <><CompositionSketch id={c.id} /><span><strong>{c.name}</strong><br /><span className="hint">{c.blurb}</span></span></>}
+      </div>
+      <details className="draw-composition">
+        <summary>Choose another composition</summary>
+        <div className="cmp-grid" role="radiogroup" aria-label="Composition">
+          {COMPOSITIONS.map((x) => (
+            <button key={x.id} type="button" role="radio" aria-checked={!own && x.id === c.id} className={`cmp-tile${!own && x.id === c.id ? ' is-on' : ''}`} title={x.blurb} onClick={() => onChange(x.id)}>
+              <CompositionSketch id={x.id} />{x.name}
+            </button>
+          ))}
+          {fromExamples && (
+            <button type="button" role="radio" aria-checked={!!own} className={`cmp-tile${own ? ' is-on' : ''}`} title={fromExamples} onClick={() => onChange('examples')}>
+              <span className="hint">{fromExamples}</span>As in the style examples
+            </button>
+          )}
+        </div>
+      </details>
     </div>
   )
 }
