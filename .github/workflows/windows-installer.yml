@@ -30,9 +30,6 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx electron-builder --win --x64 --publish never
-      # Browsers (Chrome) block unsigned .exe downloads; a .zip of it gets through.
-      - run: Get-ChildItem dist/*.exe | ForEach-Object { Compress-Archive $_.FullName ($_.FullName -replace '\.exe$', '.zip') }
-        shell: pwsh
       # GitHub zips every artifact itself: upload only the .exe, or the download holds the installer twice (once inside a .zip).
       - uses: actions/upload-artifact@v4
         with:
@@ -45,12 +42,11 @@ jobs:
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: Dungeon Zen ${{ inputs.release_tag || github.ref_name }}
-          files: |
-            dist/*.exe
-            dist/*.zip
+          # Only the .exe (owner, 2026-10-12: no second copy as a .zip).
+          files: dist/*.exe
           body: |
-            **Install:** download the `Dungeon-Zen-Setup-…zip` file below (if your browser blocks the `.exe`),
-            open it and run the `Dungeon-Zen-Setup-…exe` inside.
+            **Install:** download the `Dungeon-Zen-Setup-…exe` file below and run it
+            (if your browser warns about it, choose Keep).
             It installs for your Windows account only, so no administrator rights are needed
             (default folder: `%LOCALAPPDATA%\Programs\DungeonZen`, with Start menu and desktop shortcuts).
             Windows SmartScreen may warn that the publisher is unknown (the installer is not code-signed):

@@ -50,6 +50,7 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 - Session prep follows owner's one-page template (reference, use where it fits).
 - AI services: DM picks writing and map service from drop-downs, switch any time.
 - Card colours: Item `#9c4f1f`, Handout `#6b5a3a` (`entityStyle.ts`).
+- Release assets: only the .exe, no .zip copy (owner, 2026-10-12).
 - Installer: per-user NSIS, no admin (`electron-builder.yml`, `build/installer.nsh`), `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU. Not code-signed yet.
 - New campaign: getting started guide, world map first (1.1.0).
 - All files live in the campaign folder (one folder to back up): imports are copied in, saves default to `exports/`, Open folder links wherever pictures, maps, sheets or notes show (2026-10-09). Replaces "or a folder the DM chooses" for encounter pictures.
