@@ -1,4 +1,5 @@
 import { DrawExtras, withArtStyle } from '../components/Pictures'
+import type { StyleTags } from '../../shared/styleTags'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoard, useUnits } from '../store'
 import { kmToShown, shownToKm } from '../../shared/units'
@@ -210,7 +211,8 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   }, [aiSettingsOpen])
   const artStyle = useBoard((st) => st.info?.artStyle ?? '')
   const [picked, setPicked] = useState<Set<string>>(new Set())
-  const told = prompt ?? withArtStyle(worldMapPrompt({ description, climate, style }), artStyle)
+  const [tags, setTags] = useState<StyleTags[]>([])
+  const told = prompt ?? withArtStyle(worldMapPrompt({ description, climate, style }), artStyle, tags)
   const draw = async () => {
     setBusy(true); setError(null)
     try {
@@ -252,7 +254,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
               <option value="painted">Painted</option><option value="parchment">Inked parchment</option>
             </select></div>
         </div>
-        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} />
+        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} />
         {service === null ? (
           <p>Drawing needs an image service. <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>
         ) : (

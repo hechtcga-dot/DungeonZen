@@ -122,6 +122,17 @@ describe('map regions and the party token', () => {
     expect(v.items.some((i) => i.entityId === place)).toBe(false)
   })
 
+  it('keeps style tags on Library pictures (undoable), and files a map picture when it gets tags', () => {
+    const key = `map:${mapId}`
+    c.updatePicture(key, { tags: { artist: 'Arthur Rackham' } })
+    const p = c.pictures().pictures.find((x) => x.path.includes(mapId) || x.tags.artist)!
+    expect(p.key.startsWith('lib:')).toBe(true)
+    c.updatePicture(p.key, { tags: { ...p.tags, medium: 'pen and ink' } })
+    expect(c.styleExamples().find((x) => x.id === p.key.slice(4))!.tags).toEqual({ artist: 'Arthur Rackham', medium: 'pen and ink' })
+    c.undo()
+    expect(c.styleExamples().find((x) => x.id === p.key.slice(4))!.tags).toEqual({ artist: 'Arthur Rackham' })
+  })
+
   it('colours every card of a type, optionally clearing cards with their own colour', () => {
     const a = c.createEntity({ boardId: g, type: 'NPC', name: 'A', position: { x: 0, y: 0 } })
     c.updateEntity(a.id, { attributes: { colour: '#111111' } })

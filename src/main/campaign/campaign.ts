@@ -1,3 +1,4 @@
+import type { StyleTags } from '../../shared/styleTags'
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
@@ -2137,7 +2138,7 @@ export class Campaign {
     return this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all()
       .filter((r) => !use || r.styleFor.includes(use))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .map((r) => ({ id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath }))
+      .map((r) => ({ id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath, tags: r.tags ?? {} }))
   }
 
   /** Uploads a picture into the Library; new art is a style example for every kind of drawing until the DM unticks it. */
@@ -2164,12 +2165,12 @@ export class Campaign {
     const filed = new Set(own.map((r) => r.imagePath))
     const out: LibraryPictureView[] = own.map((r) => ({
       key: `lib:${r.id}`, name: r.name, folder: r.folder, path: r.imagePath, url: ASSET_URL_PREFIX + r.imagePath,
-      styleFor: r.styleFor.filter((u): u is StyleUse => (STYLE_USES as readonly string[]).includes(u)), from: null
+      styleFor: r.styleFor.filter((u): u is StyleUse => (STYLE_USES as readonly string[]).includes(u)), tags: r.tags ?? {}, from: null
     }))
     const add = (key: string, name: string, folder: string, path: string, from: LibraryPictureView['from']) => {
       if (filed.has(path)) return
       filed.add(path)
-      out.push({ key, name, folder, path, url: ASSET_URL_PREFIX + path, styleFor: [], from })
+      out.push({ key, name, folder, path, url: ASSET_URL_PREFIX + path, styleFor: [], tags: {}, from })
     }
     for (const m of this.maps()) {
       const row = this.mapRow(m.id)
@@ -2189,7 +2190,7 @@ export class Campaign {
   }
 
   /** Renames, files or ticks a picture (one undo step). A map or card picture becomes a Library picture first. */
-  updatePicture(key: string, patch: { name?: string; folder?: string; styleFor?: StyleUse[] }): void {
+  updatePicture(key: string, patch: { name?: string; folder?: string; styleFor?: StyleUse[]; tags?: StyleTags }): void {
     const [kind, id] = key.split(':') as [string, string]
     if (kind === 'lib') {
       const r = this.styleRow(id)
@@ -2201,7 +2202,7 @@ export class Campaign {
     this.log.run(`Filed picture ${p.name} in the Library`, (w) => {
       w.insert('style_example', {
         id: randomUUID(), name: patch.name ?? p.name, imagePath: p.path, createdAt: new Date().toISOString(), status: 'active',
-        folder: patch.folder ?? p.folder, styleFor: patch.styleFor ?? []
+        folder: patch.folder ?? p.folder, styleFor: patch.styleFor ?? [], tags: patch.tags ?? {}
       })
     })
   }

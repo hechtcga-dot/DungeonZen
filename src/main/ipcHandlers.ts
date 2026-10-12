@@ -1,3 +1,4 @@
+import { STYLE_TAGS_SYSTEM, parseStyleTags } from '../shared/styleTags'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
@@ -419,11 +420,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return [
       `A fantasy illustration of ${e.name}${sb ? `, a ${[sb.size, sb.creatureType].filter(Boolean).join(' ')}` : creature ? '' : ` (${e.type.toLowerCase()})`}, for a tabletop role-playing game.`,
       looks ? `What it is like: ${looks.trim().slice(0, 600)}` : '',
-      ask.trim() ? `The DM asks: ${ask.trim()}` : '',
-      creature
-        ? 'Full figure on a plain, softly lit background, painted in a classic fantasy book style. No text, no frame.'
-        : 'Painted in a classic fantasy book style. No text, no frame.'
-    ].filter(Boolean).join('\n')
+      ask.trim() ? `Include in the picture: ${ask.trim().replace(/[.\s]+$/, '')}.` : '',
+      creature ? 'Full figure, set in a fitting place.' : ''
+    ].filter(Boolean).join('\n') // the Draw window adds style, composition and "No text, no frame."
   })
   handle('entity:drawPicture', async ({ entityId, prompt, styleIds }) => {
     const r = imageService()
@@ -447,6 +446,21 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return result.filePaths.length
   })
   handle('pictures:update', ({ key, patch }) => current().updatePicture(key, patch))
+  // The AI reads a picture's art style; a suggestion only, the DM keeps or edits it (rule 2).
+  handle('pictures:readStyle', async ({ key }) => {
+    const c = current()
+    const p = c.pictures().pictures.find((x) => x.key === key)
+    if (!p) throw new Error('That picture is gone')
+    let pic = nativeImage.createFromPath(c.assetFile(p.path) ?? '')
+    if (pic.isEmpty()) throw new Error('Could not read this picture')
+    if (pic.getSize().width > 1024) pic = pic.resize({ width: 1024, quality: 'good' })
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const reply = await generateText(r, {
+      system: STYLE_TAGS_SYSTEM, prompt: `Describe the art style of this picture ("${p.name}").`, images: [{ bytes: pic.toJPEG(85), mime: 'image/jpeg' }], json: true, maxTokens: 800
+    })
+    return { tags: parseStyleTags(reply), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
   handle('pictures:addFolder', ({ name }) => current().addPictureFolder(name))
   handle('entity:keepPicture', ({ entityId, pendingId, source }) => current().setPicture(entityId, { pendingId, source }))
   handle('entity:removePicture', ({ entityId }) => current().setPicture(entityId, null))

@@ -1,3 +1,4 @@
+import { DEFAULT_COMPOSITION, STYLE_TAG_FIELDS, blendTags, styleLines, type StyleTags } from '../../shared/styleTags'
 import { useEffect, useMemo, useState } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
@@ -10,28 +11,34 @@ const ASSET = 'dz-asset://campaign/'
 export const STYLE_USE_LABELS: Record<StyleUse, string> = { portraits: 'Portraits', maps: 'Maps', battle: 'Battle maps' }
 
 /** The art style line every drawing starts with (Setup in each Draw window; campaign setting). */
-export const withArtStyle = (prompt: string, artStyle: string) => (artStyle.trim() ? `${prompt}\nArt style: ${artStyle.trim()}` : prompt)
+/** A map prompt plus the ticked pictures' style tags and the campaign's art style (no composition: maps have their own). */
+export const withArtStyle = (prompt: string, artStyle: string, tags: StyleTags[] = []) =>
+  [prompt, ...styleLines(blendTags(tags), artStyle, { composition: null })].join('\n')
 
 /**
  * In every Draw window: "Prompt being sent" (open it to read or change every word), and the Library
  * pictures ticked as style examples for this kind of drawing (all on; untick any for this drawing only).
  */
-export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked }: {
+export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags }: {
   use: StyleUse
   prompt: string
   onPrompt(next: string): void
   onReset(): void
   picked: Set<string>
   onPicked(next: Set<string>): void
+  /** The ticked pictures' style tags, for the prompt. */
+  onTags?(tags: StyleTags[]): void
 }) {
   const { act, info } = useBoard()
   const [styles, setStyles] = useState<StyleExampleView[] | null>(null)
   const [service, setService] = useState<IpcOutputs['ai:imageInfo'] | null>(null)
   const [artStyle, setArtStyle] = useState(info?.artStyle ?? '')
   useEffect(() => {
-    void call('style:list', { use }).then((s) => { setStyles(s); onPicked(new Set()) }) // none ticked until the DM picks (owner, 2026-10-12).catch(() => setStyles([]))
+    // None ticked until the DM picks (owner, 2026-10-12).
+    void call('style:list', { use }).then((s) => { setStyles(s); onPicked(new Set()) }).catch(() => setStyles([]))
     void call('ai:imageInfo', undefined).then(setService).catch(() => setService(null))
   }, [use])
+  useEffect(() => { onTags?.((styles ?? []).filter((s) => picked.has(s.id)).map((s) => s.tags)) }, [styles, picked]) // eslint-disable-line react-hooks/exhaustive-deps
   const max = service?.maxReferences ?? 0
   const sending = Math.min(max, picked.size)
   return (
@@ -77,7 +84,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked }:
                 : max === 0
                 ? `${service.name} can't see examples; the style is described in words only (the art style above).`
                 : `${service?.name} takes ${max === 1 ? 'one example' : `up to ${max} examples`}: ${sending ? `the first ${sending} ticked go with this drawing` : 'none ticked'}.`}
-              {' '}Tick the examples to send with this drawing.
+              {' '}Tick the examples to send with this drawing; their style tags (Library › Pictures) go into the prompt.
             </p>
           </>
         )}
@@ -93,18 +100,24 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   const [prompt, setPrompt] = useState('')
   const [edited, setEdited] = useState(false)
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [tags, setTags] = useState<StyleTags[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [drawn, setDrawn] = useState<IpcOutputs['entity:drawPicture'] | null>(null)
   const use: StyleUse = 'portraits'
+  // Subject and wishes from the card, then style (ticked pictures' tags), composition and art style in words.
   const build = (wish: string) => call('entity:picturePrompt', { entityId: entity.id, ask: wish })
-    .then((p) => setPrompt(withArtStyle(p, useBoard.getState().info?.artStyle ?? info?.artStyle ?? ''))).catch(() => undefined)
-  // The prompt follows the wishes until the DM edits it by hand.
+    .then((p) => setPrompt([
+      p,
+      ...styleLines(blendTags(tags), useBoard.getState().info?.artStyle ?? info?.artStyle ?? '', { composition: DEFAULT_COMPOSITION, fallback: 'Style: classic fantasy book illustration.' }),
+      'No text, no frame.'
+    ].join('\n'))).catch(() => undefined)
+  // The prompt follows the wishes and ticked pictures until the DM edits it by hand.
   useEffect(() => {
     if (edited) return
     const t = setTimeout(() => void build(ask), 300)
     return () => clearTimeout(t)
-  }, [ask, edited])
+  }, [ask, edited, tags])
   const draw = async () => {
     setBusy(true); setError('')
     try {
@@ -117,12 +130,12 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
     <Dialog title={`Draw ${entity.name}`} open onClose={close} wide>
       <div className="dz-form">
         <div className="field">
-          <label htmlFor="pic-ask">Anything to add? (optional)</label>
-          <input id="pic-ask" value={ask} maxLength={2000} placeholder="scarred face, red cloak, holding a lantern" onChange={(ev) => setAsk(ev.target.value)} />
-          <div className="hint">The card's appearance, summary and description go with it. Uses the image service chosen in AI services.</div>
+          <label htmlFor="pic-ask">Include in the picture (optional)</label>
+          <input id="pic-ask" value={ask} maxLength={2000} placeholder="ducks, a boat, a fisherman in the boat" onChange={(ev) => setAsk(ev.target.value)} />
+          <div className="hint">Things to show, separated by commas. The card's appearance, summary and description go with it. Uses the image service chosen in AI services.</div>
         </div>
         <DrawExtras use={use} prompt={prompt} onPrompt={(p) => { setPrompt(p); setEdited(true) }}
-          onReset={() => { setEdited(false); void build(ask) }} picked={picked} onPicked={setPicked} />
+          onReset={() => { setEdited(false); void build(ask) }} picked={picked} onPicked={setPicked} onTags={setTags} />
         {error && (
           <div className="field-error battle-error" role="alert"><span>{error}</span>
             <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
@@ -214,7 +227,7 @@ export function PicturesTab() {
   const [dragKey, setDragKey] = useState<string | null>(null)
   const load = () => void query('pictures:view', undefined).then((v) => { if (v) setData(v) })
   useEffect(load, [query, boardView?.undo])
-  const update = (p: LibraryPictureView, patch: { name?: string; folder?: string; styleFor?: StyleUse[] }) => void act('pictures:update', { key: p.key, patch }).then(load)
+  const update = (p: LibraryPictureView, patch: { name?: string; folder?: string; styleFor?: StyleUse[]; tags?: StyleTags }) => void act('pictures:update', { key: p.key, patch }).then(load)
   if (!data) return <p className="hint">Loading…</p>
   const shown = folder === 'All' ? data.pictures : data.pictures.filter((p) => p.folder === folder)
   const count = (f: string) => data.pictures.filter((p) => p.folder === f).length
@@ -279,6 +292,7 @@ export function PicturesTab() {
                 )}
               </div>
               {p.from && <span className="hint">{p.from.kind === 'card' ? 'Picture of' : p.from.kind === 'map' ? 'Map:' : 'On the board:'} {p.from.name}</span>}
+              <StyleTagsEditor picture={p} onSave={(tags) => update(p, { tags })} />
             </article>
           ))}
         </div>
@@ -287,12 +301,54 @@ export function PicturesTab() {
   )
 }
 
-function CommitName({ value, label, onCommit }: { value: string; label: string; onCommit(v: string): void }) {
+/** A picture's art style in words: typed by the DM, or read by AI as a suggestion to keep (rule 2). */
+function StyleTagsEditor({ picture, onSave }: { picture: LibraryPictureView; onSave(tags: StyleTags): void }) {
+  const { setAiSettingsOpen } = useBoard()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [found, setFound] = useState<IpcOutputs['pictures:readStyle'] | null>(null)
+  const tagged = STYLE_TAG_FIELDS.filter((f) => picture.tags[f.key]).length
+  const read = async () => {
+    setBusy(true); setError('')
+    try { setFound(await call('pictures:readStyle', { key: picture.key })) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+  }
+  return (
+    <details className="pic-tags">
+      <summary>Style tags <span className="muted">({tagged ? `${tagged} of ${STYLE_TAG_FIELDS.length}` : 'none yet'})</span></summary>
+      {STYLE_TAG_FIELDS.map((f) => (
+        <label key={f.key} className="field">
+          <span className="field-label">{f.label}</span>
+          <CommitName value={picture.tags[f.key] ?? ''} label={`${f.label} of ${picture.name}`} placeholder={`e.g. ${f.example}`} allowEmpty
+            onCommit={(v) => onSave({ ...picture.tags, [f.key]: v || undefined })} />
+        </label>
+      ))}
+      <div className="row tight wrap">
+        <button type="button" disabled={busy} onClick={() => void read()}>{busy ? 'Reading…' : 'Read style with AI'}</button>
+        <span className="hint">Uses the writing service; it needs to see pictures.</span>
+      </div>
+      {error && <div className="field-error" role="alert"><span>{error}</span> <button className="link-button" onClick={() => setAiSettingsOpen(true)}>AI services…</button></div>}
+      {found && (
+        <div className="ai-suggestion">
+          <span className="ai-badge">AI suggestion · {found.source}</span>
+          <dl className="pic-tags-found">
+            {STYLE_TAG_FIELDS.filter((f) => found.tags[f.key]).map((f) => <div key={f.key}><dt>{f.label}</dt><dd>{found.tags[f.key]}</dd></div>)}
+          </dl>
+          <div className="row tight">
+            <button className="primary" onClick={() => { onSave({ ...picture.tags, ...found.tags }); setFound(null) }}>Keep</button>
+            <button onClick={() => setFound(null)}>Discard</button>
+          </div>
+        </div>
+      )}
+    </details>
+  )
+}
+
+function CommitName({ value, label, onCommit, placeholder, allowEmpty }: { value: string; label: string; onCommit(v: string): void; placeholder?: string; allowEmpty?: boolean }) {
   const [draft, setDraft] = useState(value)
   useEffect(() => setDraft(value), [value])
   return (
-    <input className="pic-name" aria-label={label} value={draft} maxLength={200} onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { if (draft.trim() && draft.trim() !== value) onCommit(draft.trim()); else setDraft(value) }}
+    <input className={allowEmpty ? undefined : 'pic-name'} aria-label={label} value={draft} maxLength={allowEmpty ? 300 : 200} placeholder={placeholder} onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { if ((draft.trim() || allowEmpty) && draft.trim() !== value) onCommit(draft.trim()); else setDraft(value) }}
       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
   )
 }

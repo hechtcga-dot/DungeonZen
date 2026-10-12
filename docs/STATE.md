@@ -304,7 +304,13 @@ built.
     Background pictures, the DM's own), upload several, rename, drag to a folder, Remove to History, style
     example ticks (portraits, maps, battle maps). Draw windows (card picture, battle map, world map): "Prompt
     being sent" (editable, Reset), art style in words (setting), style example thumbnails for that use,
-    none ticked at first (tick per drawing; owner, 2026-10-12); `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
+    none ticked at first (tick per drawing; owner, 2026-10-12);
+    style tags per Library picture (owner, 2026-10-12; `style_example.tags`, `src/shared/styleTags.ts`): artist or
+    school, period, medium, palette, light, textures and details, composition; typed in Library › Pictures › Style
+    tags or Read style with AI (`pictures:readStyle`, writing service with the picture, suggestion to Keep/Discard).
+    Draw windows blend the ticked pictures' tags (per field, no repeats) into Style/Medium/Palette/Light/Textures
+    lines; card pictures also get Composition (tags, else the default asymmetric rule-of-thirds line), the field
+    "Include in the picture" (was Anything to add), and "No text, no frame."; maps get style lines only. `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
   - Notes (rail, was Import notes): Your notes (`NotesLibrary.tsx`) and Import notes. Imported files are kept
     (`note_doc`); Word/text/PDF open with formatting in `NoteEditor` (bold, italic, underline, headings,
     lists, tables; `src/main/importers/docx.ts` reads and writes .docx); Save writes a Word version (earlier

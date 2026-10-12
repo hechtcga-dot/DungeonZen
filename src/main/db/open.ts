@@ -221,6 +221,10 @@ export const MIGRATIONS: string[] = [
      FROM prep_item WHERE prep_id = session_prep.id AND kind = 'threat' AND status = 'active')
   WHERE EXISTS (SELECT 1 FROM prep_item WHERE prep_id = session_prep.id AND kind = 'threat' AND status = 'active');
   UPDATE prep_item SET status = 'defunct' WHERE kind = 'threat';
+  `,
+  // 1.9.x: style tags on Library pictures (artist, medium, palette…) for cleaner image prompts.
+  `
+  ALTER TABLE style_example ADD COLUMN tags TEXT NOT NULL DEFAULT '{}';
   `
 ]
 

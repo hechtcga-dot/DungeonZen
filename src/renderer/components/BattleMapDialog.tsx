@@ -105,7 +105,7 @@ export function BattleMapDialog() {
 
   const maxRefs = maxReferences(service?.info)
   const withExamples = maxRefs > 0 && picked.size > 0
-  const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples }), artStyle)
+  const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples }), artStyle, styles.filter((st) => picked.has(st.id)).map((st) => st.tags))
   const prompt = ownPrompt ?? generated
   const [gridShown, setGridShown] = useState(false)
   const sizeOk = [cols, rows].every((n) => Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX)

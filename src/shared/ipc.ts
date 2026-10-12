@@ -17,6 +17,7 @@ import type { BuiltCreature, CombatView, SrdMonsterRow,
   StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export, PicturesView
 } from './types'
 import { STYLE_USES } from './types'
+import { StyleTagsSchema, type StyleTags } from './styleTags'
 import type { NotesScreenView } from './types'
 import type { RollTable } from './rolltables'
 import { Blocks, type Block } from './noteDoc'
@@ -140,8 +141,9 @@ export const ipcInputs = {
   'pictures:upload': z.object({ folder: z.string().trim().min(1).max(80) }),
   'pictures:update': z.object({
     key: z.string().min(3).max(120),
-    patch: z.object({ name: Name.optional(), folder: z.string().trim().min(1).max(80).optional(), styleFor: z.array(z.enum(STYLE_USES)).max(3).optional() })
+    patch: z.object({ name: Name.optional(), folder: z.string().trim().min(1).max(80).optional(), styleFor: z.array(z.enum(STYLE_USES)).max(3).optional(), tags: StyleTagsSchema.optional() })
   }),
+  'pictures:readStyle': z.object({ key: z.string().min(3).max(120) }),
   'pictures:addFolder': z.object({ name: z.string().trim().min(1).max(80) }),
   'ai:imageInfo': z.void(),
   'entity:keepPicture': z.object({ entityId: Id, pendingId: z.string().max(80), source: z.string().max(200) }),
@@ -485,6 +487,7 @@ export interface IpcOutputs {
   'pictures:view': PicturesView
   'pictures:upload': number | null
   'pictures:update': void
+  'pictures:readStyle': { tags: StyleTags; source: string }
   'pictures:addFolder': void
   'ai:imageInfo': { name: string | null; maxReferences: number }
   'entity:keepPicture': void

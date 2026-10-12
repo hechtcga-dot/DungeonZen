@@ -1072,6 +1072,12 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .pic-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }
 .pic-card .field.checkbox { margin: 0; font-size: 12.5px; }
 .pic-name { font-weight: 600; }
+.pic-tags summary { cursor: pointer; font-size: 13px; }
+.pic-tags .field { margin: 4px 0; }
+.pic-tags .field input { width: 100%; font-size: 12.5px; }
+.pic-tags-found { margin: 4px 0; font-size: 12.5px; }
+.pic-tags-found dt { font-weight: 600; }
+.pic-tags-found dd { margin: 0 0 4px; }
 .pic-uses { display: flex; flex-direction: column; gap: 0; }
 .library-tabs { margin-bottom: 10px; }
 .pic-card { background: #f6ecd4; color: var(--ink); }

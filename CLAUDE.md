@@ -51,6 +51,7 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 - AI services: DM picks writing and map service from drop-downs, switch any time.
 - Card colours: Item `#9c4f1f`, Handout `#6b5a3a` (`entityStyle.ts`).
 - Draw windows (card picture, battle map, world map): style examples start unticked (owner, 2026-10-12).
+- Style tags on Library pictures (artist, period, medium, palette, light, details, composition): AI reads them only on the DM's click, DM keeps/edits; prompts blend all ticked pictures' tags; card pictures get an asymmetric rule-of-thirds composition line and "Include in the picture" (owner, 2026-10-12).
 - Release assets: only the .exe, no .zip copy (owner, 2026-10-12).
 - Installer: per-user NSIS, no admin (`electron-builder.yml`, `build/installer.nsh`), `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU. Not code-signed yet.
 - New campaign: getting started guide, world map first (1.1.0).

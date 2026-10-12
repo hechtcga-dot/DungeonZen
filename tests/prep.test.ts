@@ -168,8 +168,10 @@ describe('one-page DM tool (1.7.0)', () => {
     const Database = (await import('better-sqlite3')).default
     const { MIGRATIONS, migrate } = await import('../src/main/db/open')
     const db = new Database(':memory:')
-    for (const m of MIGRATIONS.slice(0, -1)) db.exec(m)
-    db.pragma(`user_version = ${MIGRATIONS.length - 1}`)
+    // Up to just before the 1.7.0 migration (the one that moves clues and threats).
+    const at = MIGRATIONS.findIndex((m) => m.includes("WHERE kind = 'threat'"))
+    for (const m of MIGRATIONS.slice(0, at)) db.exec(m)
+    db.pragma(`user_version = ${at}`)
     db.prepare("INSERT INTO session_prep (id, number, title, premise, pacing_minutes, backup_names, notes, status) VALUES ('p', 1, '', '', 180, '', 'Bring rope', 'active')").run()
     const item = db.prepare("INSERT INTO prep_item (id, prep_id, kind, sort, title, body, stats, tactics, status) VALUES (?, 'p', ?, ?, ?, ?, ?, ?, 'active')")
     item.run('d', 'discovery', 1, 'The ringer', '', '', '')

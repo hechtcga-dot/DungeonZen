@@ -1,6 +1,7 @@
 import type { CombatantInfo, CombatState } from './combat'
 import type { Units } from './units'
 import type { StatBlock } from './statblock'
+import type { StyleTags } from './styleTags'
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, BoardItemContent, RowStatus,
@@ -265,6 +266,7 @@ export interface StyleExampleView {
   id: string
   name: string
   url: string
+  tags: StyleTags
 }
 
 /** What a Library picture is a style example for. */
@@ -281,6 +283,8 @@ export interface LibraryPictureView {
   path: string
   url: string
   styleFor: StyleUse[]
+  /** Its art style in words (Library pictures; {} for one not filed yet). */
+  tags: StyleTags
   /** Where it is used, when it came from a map, a card or a board. */
   from: { kind: 'map' | 'card' | 'board'; id: string; name: string } | null
 }

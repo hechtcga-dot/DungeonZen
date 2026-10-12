@@ -1,6 +1,7 @@
 import type { CombatState } from '../../shared/combat'
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
 import type { BoardItemContent, EntityAttributes } from '../../shared/schemas'
+import type { StyleTags } from '../../shared/styleTags'
 
 // Phase 1 tables from docs/DATA_MODEL.md. Column names match the doc (snake_case);
 // enum-like columns are plain strings checked with Zod (src/shared/schemas.ts).
@@ -139,7 +140,9 @@ export const styleExample = sqliteTable('style_example', {
   createdAt: text('created_at').notNull(),
   status: text('status').notNull(),
   folder: text('folder').notNull().default('Art'),
-  styleFor: text('style_for', { mode: 'json' }).$type<string[]>().notNull().default(['battle'])
+  styleFor: text('style_for', { mode: 'json' }).$type<string[]>().notNull().default(['battle']),
+  // What the art looks like in words (artist, medium, palette…), read by AI on request, edited by the DM.
+  tags: text('tags', { mode: 'json' }).$type<StyleTags>().notNull().default({})
 })
 
 // A region drawn on a map, tied to a Location card (sub-regions: the card's parent_id).
