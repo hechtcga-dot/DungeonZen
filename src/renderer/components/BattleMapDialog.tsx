@@ -79,7 +79,7 @@ export function BattleMapDialog() {
     setError(null); setDrawn(null); setOwnPrompt(null)
     void (async () => {
       try {
-        const [ctx, list] = await Promise.all([call('battlemap:context', undefined), loadStyles()])
+        const [ctx] = await Promise.all([call('battlemap:context', undefined), loadStyles()])
         const terrain = guessTerrain(`${ctx.placeName ?? ''} ${ctx.description}`)
         const setting = settingFor(terrain)
         const filled = { description: ctx.description, timeOfDay: ctx.timeOfDay, terrain, setting }
@@ -89,7 +89,7 @@ export function BattleMapDialog() {
           weather: setting === 'indoors' || setting === 'underground' ? 'indoors (none)' : cur.weather === 'indoors (none)' ? 'clear' : cur.weather
         }))
         setName(ctx.placeName ? `${ctx.placeName} battle map` : 'Battle map')
-        setPicked(new Set(list.map((x) => x.id)))
+        setPicked(new Set()) // none ticked until the DM picks (owner, 2026-10-12)
       } catch (e) { setError((e as Error).message) }
     })()
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps

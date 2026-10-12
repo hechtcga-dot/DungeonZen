@@ -303,8 +303,8 @@ built.
     show it. Library › Pictures (`PicturesTab`): folders (Art, Portraits, Places, Items, Maps, Battle maps,
     Background pictures, the DM's own), upload several, rename, drag to a folder, Remove to History, style
     example ticks (portraits, maps, battle maps). Draw windows (card picture, battle map, world map): "Prompt
-    being sent" (editable, Reset), art style in words (setting), style example thumbnails ticked for that use
-    (untick per drawing); `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
+    being sent" (editable, Reset), art style in words (setting), style example thumbnails for that use,
+    none ticked at first (tick per drawing; owner, 2026-10-12); `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
   - Notes (rail, was Import notes): Your notes (`NotesLibrary.tsx`) and Import notes. Imported files are kept
     (`note_doc`); Word/text/PDF open with formatting in `NoteEditor` (bold, italic, underline, headings,
     lists, tables; `src/main/importers/docx.ts` reads and writes .docx); Save writes a Word version (earlier

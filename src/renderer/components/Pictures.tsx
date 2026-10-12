@@ -29,7 +29,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked }:
   const [service, setService] = useState<IpcOutputs['ai:imageInfo'] | null>(null)
   const [artStyle, setArtStyle] = useState(info?.artStyle ?? '')
   useEffect(() => {
-    void call('style:list', { use }).then((s) => { setStyles(s); onPicked(new Set(s.map((x) => x.id))) }).catch(() => setStyles([]))
+    void call('style:list', { use }).then((s) => { setStyles(s); onPicked(new Set()) }) // none ticked until the DM picks (owner, 2026-10-12).catch(() => setStyles([]))
     void call('ai:imageInfo', undefined).then(setService).catch(() => setService(null))
   }, [use])
   const max = service?.maxReferences ?? 0
@@ -77,7 +77,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked }:
                 : max === 0
                 ? `${service.name} can't see examples; the style is described in words only (the art style above).`
                 : `${service?.name} takes ${max === 1 ? 'one example' : `up to ${max} examples`}: ${sending ? `the first ${sending} ticked go with this drawing` : 'none ticked'}.`}
-              {' '}Unticking only changes this drawing.
+              {' '}Tick the examples to send with this drawing.
             </p>
           </>
         )}
