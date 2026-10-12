@@ -45,12 +45,14 @@ export const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' 
 /** Regions (dashed ink outlines with labels), the route and the party, drawn over a map image. */
 // Clicks are handled by the map (MapView onMapClick + regionAt), because the map
 // captures the pointer for panning.
-export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = true }: {
+export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = true, outlines = true }: {
   view: MapScreenView
   ctx: MapLayerContext
   selectedRegionId?: string | null
   hideParty?: boolean
   labels?: boolean
+  /** False: names only, no region shapes. */
+  outlines?: boolean
 }) {
   const s = 1 / ctx.scale
   const sorted = [...view.regions].sort((a, b) => area(b) - area(a)) // big regions first, sub-regions on top
@@ -60,15 +62,15 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
       {view.map.gridShown && view.map.gridCols && view.map.width && view.map.height && (
         <GridLines cols={view.map.gridCols} width={view.map.width} height={view.map.height} scale={ctx.scale} />
       )}
-      {sorted.map((r) => {
+      {outlines && sorted.map((r) => {
         const selected = r.id === selectedRegionId
         const party = view.party?.locationId === r.locationId
         return (
           <g key={r.id} className={`map-region${selected ? ' is-selected' : ''}`}>
-            <polygon points={r.polygon.map((p) => p.join(',')).join(' ')}
-              fill={placeColour(r) ?? FILL} fillOpacity={selected ? 0.4 : party ? 0.3 : isSpot(r) ? 0.1 : 0.18}
-              stroke={selected ? '#8f2a21' : '#2a1f12'} strokeWidth={(selected ? 4 : 2.5) * s} strokeDasharray={`${10 * s} ${7 * s}`}
-              pointerEvents="none" />
+            <polygon points={smooth(r.polygon).map((p) => p.join(',')).join(' ')}
+              fill={placeColour(r) ?? FILL} fillOpacity={selected ? 0.35 : party ? 0.25 : isSpot(r) ? 0.06 : 0.12}
+              stroke={selected ? '#8f2a21' : '#2a1f12'} strokeOpacity={selected ? 1 : 0.55} strokeWidth={(selected ? 3.5 : 1.8) * s}
+              strokeLinejoin="round" pointerEvents="none" />
           </g>
         )
       })}
@@ -126,6 +128,21 @@ export function GridLines({ cols, width, height, scale }: { cols: number; width:
       <path d={d.join('')} stroke="#120c05" strokeOpacity="0.45" strokeWidth={Math.max(1 / scale, cell * 0.012)} fill="none" />
     </g>
   )
+}
+
+/**
+ * Rounded outline for drawing only (clicks still use the real polygon): two rounds of corner cutting.
+ * Each edge's new points depend on that edge alone, so a border shared by two regions stays one line.
+ */
+function smooth(poly: Array<[number, number]>, rounds = 2): Array<[number, number]> {
+  let p = poly
+  for (let k = 0; k < rounds && p.length > 2; k++) {
+    p = p.flatMap(([x0, y0], i) => {
+      const [x1, y1] = p[(i + 1) % p.length]
+      return [[0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1], [0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1]] as Array<[number, number]>
+    })
+  }
+  return p
 }
 
 function area(r: RegionView): number {

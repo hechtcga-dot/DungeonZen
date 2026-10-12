@@ -108,7 +108,7 @@ function BoardLayout() {
 
   // Region names on map pictures act as their Location cards: where each name sits on the board (as MapOverlay draws it).
   const regionSpots = useMemo(() => {
-    if (!prefs.pictures || !prefs.regions) return []
+    if (!prefs.pictures) return []
     return view.items.flatMap((item) => {
       const rv = item.kind === 'image' && item.w && !item.hidden ? regionViews[mapOf(item.content)?.id ?? ''] : undefined
       if (!rv?.map.width || !item.w) return []
@@ -127,7 +127,7 @@ function BoardLayout() {
         return [{ id: `region:${item.id}:${r.id}`, entity, x: x - w / 2, y: cy - 11, w, h: 22 }]
       })
     })
-  }, [view.items, view.entities, regionViews, mapOf, prefs.pictures, prefs.regions, prefs.showHidden])
+  }, [view.items, view.entities, regionViews, mapOf, prefs.pictures, prefs.showHidden])
 
   const q = search.trim().toLowerCase()
   const linkMode = panel === 'connections'
@@ -160,7 +160,7 @@ function BoardLayout() {
             className: background ? undefined : 'is-passive',
             data: {
               src: ASSET + item.content.image, name: item.content.name ?? 'Picture', opacity: item.content.opacity ?? 0.6, locked, hidden: item.hidden,
-              map: prefs.regions ? regionViews[mapOf(item.content)?.id ?? ''] : undefined
+              map: regionViews[mapOf(item.content)?.id ?? ''], outlines: prefs.regions
             }
           }]
         }
@@ -435,7 +435,7 @@ function BoardLayout() {
         : [{ label: 'No maps yet: import one on the Map screen', disabled: true }] },
       { label: 'Add a picture…', onClick: () => void addPicture(null, at) },
       'separator',
-      { label: 'Show map regions', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
+      { label: 'Region boundaries', hint: 'Names always show', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
       { label: 'Show background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
       { label: 'Open background pictures folder', onClick: () => void act('campaign:openFolder', { sub: 'board' }) }
     ]
@@ -445,7 +445,7 @@ function BoardLayout() {
     return [
       { label: 'Show hidden things (greyed)', checked: prefs.showHidden, onClick: () => prefs.set({ showHidden: !prefs.showHidden }) },
       { label: 'Background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
-      { label: 'Regions on background maps', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
+      { label: 'Region boundaries on maps', hint: 'Names always show', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
       { label: 'Storyline colours on cards', checked: prefs.tint, onClick: () => prefs.set({ tint: !prefs.tint }) },
       { label: 'Act marks on cards', checked: prefs.actMarks, onClick: () => prefs.set({ actMarks: !prefs.actMarks }) },
       { label: 'Moving a card moves it on every board', checked: view.settings.linkPositions,

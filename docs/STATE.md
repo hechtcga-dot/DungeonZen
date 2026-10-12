@@ -409,13 +409,17 @@ built.
   - Board rebuilds keep React Flow's `measured` size per node (`BoardScreen`): without it sized nodes lost their
     size and pins, so resizing a keep-aspect picture sent NaN to `items:move`, cards/strings could stay unshown after
     adding a map, and a click on a card sometimes did not select it. `onResized` ignores non-finite values.
-  - Regions act as Location cards (owner, 2026-10-12): with Show map regions on, each region name on a board map
+  - Regions act as Location cards (owner, 2026-10-12): each region name on a board map
     picture is a `region` node (`RegionNode`, placed like `MapOverlay`'s labels via `placeLabels`): pin for strings,
     click selects (Inspector), double-click opens the sheet, right-click the card menu; not draggable (moves with
     the map), hidden while the background moves. `boardView` brings in the places of map pictures' regions and their
     strings. While a place's region shows on a board, its card there steps aside (not drawn) and its strings end on
-    the region name; the card comes back when regions are switched off or the map picture is hidden or removed
-    (render only, nothing stored, 1.9.0). Show on board goes to the region first. Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
+    the region name; the card comes back when the map picture is hidden or removed
+    (render only, nothing stored, 1.9.0). Show on board goes to the region first. Region names always show;
+    Display › Region boundaries on maps (board pref `regions`) turns only the outlines on/off (`MapOverlay outlines`).
+    Outlines (board and Map screen) are drawn smoothed (`smooth` in `MapOverlay`, 2 rounds of corner cutting, shared
+    borders stay one line), thin solid ink at 55%, lighter fill; clicks and drops still use the stored polygon.
+    Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
     "Card: name", Restore puts it back; cards that left with a storyline are not listed).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar

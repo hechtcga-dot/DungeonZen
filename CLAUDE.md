@@ -90,4 +90,4 @@ Defaults picked (owner may change): a type colour change also clears single-card
 
 ## 1.9.0 (built 2026-10-12)
 Map regions on a board act as Location cards (pin, strings, select, double-click sheet, card menu); while a region shows, the place's card on that board steps aside and its strings reroute to the region, back when regions/map go. Card menu › Take off this board (History restores). Fixes: picture resize NaN, cards/strings vanishing after adding a map or a refresh, clicks not selecting (React Flow `measured` kept on rebuild). Details in `docs/STATE.md`.
-Owner's decisions: regions replace their cards automatically (render only, no data change). Defaults picked: Delete key ignores region names; region names follow Background › Show map regions.
+Owner's decisions: regions replace their cards automatically (render only, no data change). Defaults picked: Delete key ignores region names. Region names always show; Display › Region boundaries toggles outlines only (owner, 2026-10-12).

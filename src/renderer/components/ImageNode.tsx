@@ -6,8 +6,10 @@ import type { MapScreenView } from '../../shared/types'
 
 export type ImageNodeData = {
   src: string; name: string; opacity: number; locked: boolean; hidden: boolean
-  /** A campaign map: its regions, drawn over the picture (Background › Show map regions). */
+  /** A campaign map: its regions, names always drawn over the picture, shapes per Display › Region boundaries. */
   map?: MapScreenView
+  /** Region outlines (Display › Region boundaries); names always show. */
+  outlines?: boolean
 }
 export type ImageNodeType = Node<ImageNodeData, 'image'>
 
@@ -21,7 +23,7 @@ function ImageNodeImpl({ id, data, selected, width }: NodeProps<ImageNodeType>) 
       <img src={data.src} alt={data.name} draggable={false} style={{ opacity: data.opacity }} />
       {data.map && m?.width && m.height && (
         <svg className="board-image-regions" viewBox={`0 0 ${m.width} ${m.height}`} preserveAspectRatio="none" aria-hidden="true">
-          <MapOverlay view={data.map} ctx={{ scale: (width ?? 1200) / m.width, toImage: () => [0, 0] }} hideParty />
+          <MapOverlay view={data.map} ctx={{ scale: (width ?? 1200) / m.width, toImage: () => [0, 0] }} hideParty outlines={data.outlines} />
         </svg>
       )}
       {data.locked && selected && <span className="board-image-lock" aria-hidden="true">🔒</span>}
