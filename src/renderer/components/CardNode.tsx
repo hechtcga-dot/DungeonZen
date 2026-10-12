@@ -35,6 +35,7 @@ export function tintBackground(colours: string[]): string | undefined {
 
 export function onResized(itemId: string) {
   return (_e: unknown, p: ResizeParams) => {
+    if (![p.x, p.y, p.width, p.height].every(Number.isFinite)) return
     const { act } = useBoard.getState()
     void act('item:resize', { itemId, size: { w: p.width, h: p.height } }).then(() => act('items:move', { moves: [{ itemId, x: Math.round(p.x), y: Math.round(p.y) }] }))
   }

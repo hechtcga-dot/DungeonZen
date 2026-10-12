@@ -113,9 +113,11 @@ function BoardLayout() {
     const frontLayer = background ? { draggable: false, selectable: false, className: 'is-passive is-faded' } : {}
     setNodes((prev) => {
       const selected = new Set(prev.filter((n) => n.selected).map((n) => n.id))
+      // Keep React Flow's measured size: without it a resize starts from 0 x 0 (keep-aspect pictures got NaN).
+      const measured = new Map(prev.map((n) => [n.id, n.measured]))
       return view.items.flatMap((item): BoardNode[] => {
         const size = item.w && item.h ? { width: item.w, height: item.h } : {}
-        const base = { id: item.id, position: { x: item.x, y: item.y }, selected: selected.has(item.id), ...size }
+        const base = { id: item.id, position: { x: item.x, y: item.y }, selected: selected.has(item.id), measured: measured.get(item.id), ...size }
         if (item.kind === 'image') {
           if (!prefs.pictures || (item.hidden && !prefs.showHidden) || !item.content?.image) return []
           const locked = !!item.content.locked

@@ -406,6 +406,9 @@ built.
     pictures, Open folder. A card dropped on a region of a map picture takes the region's name as its location in the
     same undo step (`moveItems` › `placesOnMaps`, `regionOnBoard` in `geometry.ts`); a toast says where. Dropping
     outside every region keeps the old location.
+  - Board rebuilds keep React Flow's `measured` size per node (`BoardScreen`): without it a sized picture had no
+    measured size, so resizing a keep-aspect picture sent NaN to `items:move`, and cards/strings could stay unshown
+    after adding a map until the canvas resized. `onResized` ignores non-finite values.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.
