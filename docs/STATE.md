@@ -406,9 +406,16 @@ built.
     pictures, Open folder. A card dropped on a region of a map picture takes the region's name as its location in the
     same undo step (`moveItems` › `placesOnMaps`, `regionOnBoard` in `geometry.ts`); a toast says where. Dropping
     outside every region keeps the old location.
-  - Board rebuilds keep React Flow's `measured` size per node (`BoardScreen`): without it a sized picture had no
-    measured size, so resizing a keep-aspect picture sent NaN to `items:move`, and cards/strings could stay unshown
-    after adding a map until the canvas resized. `onResized` ignores non-finite values.
+  - Board rebuilds keep React Flow's `measured` size per node (`BoardScreen`): without it sized nodes lost their
+    size and pins, so resizing a keep-aspect picture sent NaN to `items:move`, cards/strings could stay unshown after
+    adding a map, and a click on a card sometimes did not select it. `onResized` ignores non-finite values.
+  - Regions act as Location cards (owner, 2026-10-12): with Show map regions on, each region name on a board map
+    picture is a `region` node (`RegionNode`, placed like `MapOverlay`'s labels via `placeLabels`): pin for strings,
+    click selects (Inspector), double-click opens the sheet, right-click the card menu; not draggable (moves with
+    the map), hidden while the background moves. `boardView` brings in the places of map pictures' regions and their
+    strings; a string ends on the place's card if it is on the board, else on its region name. Show on board finds
+    a region too. Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
+    "Card: name", Restore puts it back; cards that left with a storyline are not listed).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.

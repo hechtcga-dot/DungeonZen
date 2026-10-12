@@ -301,7 +301,8 @@ export class Campaign {
       .from(boardItem)
       .where(and(eq(boardItem.boardId, boardId), eq(boardItem.status, 'active')))
       .all()
-    const entityIds = items.flatMap((i) => (i.entityId ? [i.entityId] : []))
+    // Regions of map pictures act as their Location cards (strings, sheet), so their places come along.
+    const entityIds = [...new Set([...items.flatMap((i) => (i.entityId ? [i.entityId] : [])), ...this.mapPictures(boardId).flatMap((p) => p.regions.map((r) => r.locationId))])]
     const entities = this.entityViews(entityIds).filter((e) => e.status === 'active' || e.status === 'resolved')
     const visible = new Set(entities.map((e) => e.id))
     const visibleItems = items.filter((i) => i.kind !== 'card' || (i.entityId !== null && visible.has(i.entityId)))
@@ -377,8 +378,10 @@ export class Campaign {
       .from(boardItem)
       .innerJoin(board, eq(boardItem.boardId, board.id))
       .leftJoin(storyline, eq(board.storylineId, storyline.id))
-      .where(and(inArray(boardItem.kind, ['note', 'image']), eq(boardItem.status, 'defunct')))
+      .where(and(inArray(boardItem.kind, ['note', 'image', 'card']), eq(boardItem.status, 'defunct')))
       .all()
+      // Cards leave storyline boards with their storyline; only cards taken off by hand are listed.
+      .filter((n) => n.item.kind !== 'card' || (!n.title && n.item.entityId && this.entityRow(n.item.entityId).status !== 'defunct'))
     return {
       removedEntities: removed.map((r) => toEntityView(r, [], [])),
       removedStrings: strings.map((r) => ({
@@ -389,7 +392,7 @@ export class Campaign {
       removedNotes: notes.map((n) => ({
         itemId: n.item.id,
         boardName: n.title ?? n.boardName,
-        text: n.item.kind === 'image' ? `Picture: ${n.item.content?.name ?? ''}` : n.item.content?.text ?? ''
+        text: n.item.kind === 'image' ? `Picture: ${n.item.content?.name ?? ''}` : n.item.kind === 'card' ? `Card: ${this.nameOf(n.item.entityId!)}` : n.item.content?.text ?? ''
       })),
       removedStorylines: this.db.select().from(storyline).where(eq(storyline.removed, true)).all()
         .map((r) => ({ storylineId: r.id, title: r.title })),
@@ -554,7 +557,12 @@ export class Campaign {
 
   setNoteStatus(itemId: string, status: RowStatus): void {
     const item = this.itemRow(itemId)
-    if (item.kind === 'card') throw new Error('Not a note or picture')
+    // A card taken off a board keeps its entity (on other boards, Library, Map); History puts it back.
+    if (item.kind === 'card') {
+      const name = this.nameOf(item.entityId!)
+      this.log.run(status === 'defunct' ? `Took ${name} off the board` : `Put ${name} back on the board`, (w) => { w.update('board_item', itemId, { status }) })
+      return
+    }
     const what = item.kind === 'image' ? 'picture' : 'note'
     this.log.run(status === 'defunct' ? `Removed a ${what}` : `Restored a ${what}`, (w) => {
       w.update('board_item', itemId, { status })
@@ -581,20 +589,24 @@ export class Campaign {
   private placesOnMaps(moves: Array<{ itemId: string } & Position>): Array<{ entity: EntityRow; place: string }> {
     const items = moves.map((m) => ({ m, item: this.itemRow(m.itemId) })).filter(({ item }) => item.kind === 'card' && item.entityId)
     if (items.length === 0) return []
+    return items.flatMap(({ m, item }) => {
+      const r = regionOnBoard([m.x + (item.w ?? 220) / 2, m.y + (item.h ?? 120) / 2], this.mapPictures(item.boardId))
+      const e = this.entityRow(item.entityId!)
+      if (!r || r.locationId === e.id || e.attributes.location === r.name) return []
+      return [{ entity: e, place: r.name }]
+    })
+  }
+
+  /** The campaign maps shown as pictures on a board, with their regions. */
+  private mapPictures(boardId: string) {
     const maps = this.db.select().from(map).where(eq(map.status, 'active')).all()
-    const pictures = (boardId: string) => this.db.select().from(boardItem)
+    return this.db.select().from(boardItem)
       .where(and(eq(boardItem.boardId, boardId), eq(boardItem.kind, 'image'), eq(boardItem.status, 'active'))).all()
       .flatMap((i) => {
         const m = maps.find((x) => x.id === i.content?.mapId || x.imagePath === i.content?.image)
         if (i.hidden || !m?.width || !m.height || !i.w || !i.h) return []
         return [{ x: i.x, y: i.y, w: i.w, h: i.h, mapW: m.width, mapH: m.height, regions: this.regionViews(m.id) }]
       })
-    return items.flatMap(({ m, item }) => {
-      const r = regionOnBoard([m.x + (item.w ?? 220) / 2, m.y + (item.h ?? 120) / 2], pictures(item.boardId))
-      const e = this.entityRow(item.entityId!)
-      if (!r || r.locationId === e.id || e.attributes.location === r.name) return []
-      return [{ entity: e, place: r.name }]
-    })
   }
 
   /** Resizes a card, note or picture (null: back to the normal size). Linked boards resize the card everywhere. */

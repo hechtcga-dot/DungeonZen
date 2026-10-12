@@ -7,6 +7,10 @@ import { useBoard, useView } from '../store'
 import { CardNode, roman, type CardNodeType } from '../components/CardNode'
 import { NoteNode, type NoteNodeType } from '../components/NoteNode'
 import { ImageNode, type ImageNodeType } from '../components/ImageNode'
+import { RegionNode, type RegionNodeType } from '../components/RegionNode'
+import { isSpot } from '../components/MapOverlay'
+import { placeLabels } from '../../shared/labels'
+import { polygonArea } from '../../shared/geometry'
 import { StringEdge, type StringEdgeType } from '../components/StringEdge'
 import { Inspector } from '../components/Inspector'
 import { HistoryPanel } from '../components/HistoryPanel'
@@ -32,9 +36,9 @@ import { Dialog } from '../components/Dialog'
 import { MapViewPanel } from './MapScreen'
 import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 
-type BoardNode = CardNodeType | NoteNodeType | ImageNodeType
+type BoardNode = CardNodeType | NoteNodeType | ImageNodeType | RegionNodeType
 
-const nodeTypes = { card: CardNode, note: NoteNode, image: ImageNode }
+const nodeTypes = { card: CardNode, note: NoteNode, image: ImageNode, region: RegionNode }
 const edgeTypes = { string: StringEdge }
 const ASSET = 'dz-asset://campaign/'
 
@@ -102,6 +106,29 @@ function BoardLayout() {
       .then((list) => setRegionViews(Object.fromEntries(list.filter((x) => x !== null))))
   }, [view, mapOf])
 
+  // Region names on map pictures act as their Location cards: where each name sits on the board (as MapOverlay draws it).
+  const regionSpots = useMemo(() => {
+    if (!prefs.pictures || !prefs.regions) return []
+    return view.items.flatMap((item) => {
+      const rv = item.kind === 'image' && item.w && !item.hidden ? regionViews[mapOf(item.content)?.id ?? ''] : undefined
+      if (!rv?.map.width || !item.w) return []
+      const scale = item.w / rv.map.width
+      const sorted = [...rv.regions].sort((a, b) => Math.abs(polygonArea(b.polygon)) - Math.abs(polygonArea(a.polygon)))
+      const at = placeLabels(sorted.map((r) => ({ polygon: r.polygon, name: r.name, spot: isSpot(r) })), 1 / scale)
+      return sorted.flatMap((r, i) => {
+        const entity = view.entities[r.locationId]
+        if (!entity || (entity.hidden && !prefs.showHidden)) return []
+        const x = item.x + at[i][0] * scale
+        const y = item.y + at[i][1] * scale
+        // Settlements: marker and the tag under it; areas: the italic name (lifted when the party stands on it).
+        if (isSpot(r)) { const w = r.name.length * 6.8 + 16; return [{ id: `region:${item.id}:${r.id}`, entity, x: x - w / 2, y: y - 9, w, h: 40 }] }
+        const w = r.name.length * 8.5 + 8
+        const cy = rv.party?.locationId === r.locationId ? y - 44 : y
+        return [{ id: `region:${item.id}:${r.id}`, entity, x: x - w / 2, y: cy - 11, w, h: 22 }]
+      })
+    })
+  }, [view.items, view.entities, regionViews, mapOf, prefs.pictures, prefs.regions, prefs.showHidden])
+
   const q = search.trim().toLowerCase()
   const linkMode = panel === 'connections'
   const storyColours = useMemo(() => colours(view), [view])
@@ -115,7 +142,11 @@ function BoardLayout() {
       const selected = new Set(prev.filter((n) => n.selected).map((n) => n.id))
       // Keep React Flow's measured size: without it a resize starts from 0 x 0 (keep-aspect pictures got NaN).
       const measured = new Map(prev.map((n) => [n.id, n.measured]))
-      return view.items.flatMap((item): BoardNode[] => {
+      const regions: BoardNode[] = background ? [] : regionSpots.map((r) => ({
+        id: r.id, type: 'region', position: { x: r.x, y: r.y }, width: r.w, height: r.h, measured: measured.get(r.id), draggable: false, className: 'nopan', // nopan: double-click opens the sheet instead of zooming
+        selected: selected.has(r.id), data: { entity: r.entity, dimmed: q !== '' && !matches(r.entity, q) }
+      }))
+      return [...regions, ...view.items.flatMap((item): BoardNode[] => {
         const size = item.w && item.h ? { width: item.w, height: item.h } : {}
         const base = { id: item.id, position: { x: item.x, y: item.y }, selected: selected.has(item.id), measured: measured.get(item.id), ...size }
         if (item.kind === 'image') {
@@ -143,13 +174,14 @@ function BoardLayout() {
           title: `${view.boards.find((b) => b.storylineId === m.storylineId)?.name ?? 'Storyline'}: act ${roman(m.number)}, ${m.title}`
         })) : []
         return [{ ...base, type: 'card', ...frontLayer, data: { entity, dimmed: (q !== '' && !match) || (linkMode && prefs.greyCards), match, tints, marks, colour: cardColour(entity, typeColour) } }]
-      })
+      })]
     })
-  }, [view, q, prefs, storyColours, linkMode, background, regionViews, mapOf, typeColour])
+  }, [view, q, prefs, storyColours, linkMode, background, regionViews, mapOf, typeColour, regionSpots])
 
+  // Strings end on the card; a place without a card on this board uses its region's name instead.
   const itemByEntity = useMemo(
-    () => new Map(view.items.filter((i) => i.entityId).map((i) => [i.entityId!, i.id])),
-    [view.items]
+    () => new Map([...(background ? [] : regionSpots).map((r) => [r.entity.id, r.id] as const), ...view.items.filter((i) => i.entityId).map((i) => [i.entityId!, i.id] as const)]),
+    [view.items, regionSpots, background]
   )
 
   useEffect(() => {
@@ -187,14 +219,15 @@ function BoardLayout() {
     if (ns.length + es.length !== 1) { select(null); return }
     if (es.length === 1) { select({ kind: 'string', id: es[0].id }); return }
     const n = ns[0] as BoardNode
-    if (n.type === 'card') select({ kind: 'entity', id: n.data.entity.id })
+    if (n.type === 'card' || n.type === 'region') select({ kind: 'entity', id: n.data.entity.id })
     else select({ kind: 'note', id: n.id })
   }, [select])
 
   const onConnect = useCallback((c: Connection) => {
     const source = nodes.find((n) => n.id === c.source)
     const target = nodes.find((n) => n.id === c.target)
-    if (source?.type !== 'card' || target?.type !== 'card' || source.id === target.id) return
+    const ok = (n?: BoardNode): n is CardNodeType | RegionNodeType => n?.type === 'card' || n?.type === 'region'
+    if (!ok(source) || !ok(target) || source.data.entity.id === target.data.entity.id) return
     void act('relationship:create', {
       sourceId: source.data.entity.id, targetId: target.data.entity.id, type: 'KNOWS', isSecret: false, boardId: view.board.id
     }).then((rel) => { if (rel) select({ kind: 'string', id: rel.id }) })
@@ -255,6 +288,7 @@ function BoardLayout() {
     for (const e of selEdges) await act('relationship:setStatus', { id: e.id, status: 'defunct' })
     for (const n of selNodes) {
       if (n.type === 'card') await act('entity:setStatus', { id: n.data.entity.id, status: 'defunct' })
+      else if (n.type === 'region') continue // a place on the map: delete it from its sheet or the Map screen
       else await act('note:setStatus', { itemId: n.id, status: 'defunct' })
     }
     if (selNodes.length + selEdges.length > 0) select(null)
@@ -275,12 +309,15 @@ function BoardLayout() {
   // Bring a card into view when another screen asked to show it on the board.
   useEffect(() => {
     if (!focusEntityId) return
-    const item = view.items.find((i) => i.entityId === focusEntityId)
+    const card = view.items.find((i) => i.entityId === focusEntityId)
+    const region = regionSpots.find((r) => r.entity.id === focusEntityId)
+    const item = card ? { id: card.id, x: card.x + 110, y: card.y + 70 } : region && { id: region.id, x: region.x + region.w / 2, y: region.y + region.h / 2 }
+    // A region's name appears once its map's regions have loaded: wait a moment for it.
+    if (!item) { const t = setTimeout(() => useBoard.setState({ focusEntityId: null }), 2000); return () => clearTimeout(t) }
     useBoard.setState({ focusEntityId: null })
-    if (!item) return
     setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === item.id })))
-    setTimeout(() => void setCenter(item.x + 110, item.y + 70, { zoom: 1, duration: 300 }), 0)
-  }, [focusEntityId, view.items, setCenter])
+    setTimeout(() => void setCenter(item.x, item.y, { zoom: 1, duration: 300 }), 0)
+  }, [focusEntityId, view.items, setCenter, regionSpots])
 
   const createStoryline = async (e: FormEvent) => {
     e.preventDefault()
@@ -327,6 +364,8 @@ function BoardLayout() {
     e.hidden
       ? { label: 'Unhide', onClick: () => void act('board:setHidden', { kind: 'entity', id: e.id, hidden: false }) }
       : { label: 'Hide (on every board)', onClick: () => void act('board:setHidden', { kind: 'entity', id: e.id, hidden: true }) },
+    { label: 'Take off this board', hint: 'The card stays everywhere else; History puts it back', disabled: !view.items.some((i) => i.id === itemId),
+      onClick: () => { void act('note:setStatus', { itemId, status: 'defunct' }); select(null) } },
     { label: 'Delete (to History)', danger: true, onClick: () => { void act('entity:setStatus', { id: e.id, status: 'defunct' }); select(null) } }
   ]
 
@@ -521,15 +560,15 @@ function BoardLayout() {
             onSelectionChange={onSelectionChange}
             onConnect={onConnect}
             onNodeDragStop={onNodeDragStop}
-            onNodeDoubleClick={(_e, n: BoardNode) => { if (n.type === 'card') void openSheet(n.data.entity.id) }}
+            onNodeDoubleClick={(_e, n: BoardNode) => { if (n.type === 'card' || n.type === 'region') void openSheet(n.data.entity.id) }}
             onNodeClick={(_e, n: BoardNode) => {
               if (!linking) return
-              if (n.type === 'card' && n.id !== linking.itemId) { setConfirmLink({ a: linking.entity, b: n.data.entity }); setLinkChoice(DEFAULT_LINK) }
+              if ((n.type === 'card' || n.type === 'region') && n.data.entity.id !== linking.entity.id) { setConfirmLink({ a: linking.entity, b: n.data.entity }); setLinkChoice(DEFAULT_LINK) }
               setLinking(null)
             }}
             onPaneClick={() => setLinking(null)}
             onMouseMove={(e) => { if (linking) setMouse({ x: e.clientX, y: e.clientY }) }}
-            onNodeContextMenu={(e, n: BoardNode) => openMenu(e, n.type === 'card' ? cardItems(n.data.entity, n.id) : n.type === 'image' ? imageItems(n.id) : noteItems(n.id))}
+            onNodeContextMenu={(e, n: BoardNode) => openMenu(e, n.type === 'card' || n.type === 'region' ? cardItems(n.data.entity, n.id) : n.type === 'image' ? imageItems(n.id) : noteItems(n.id))}
             onEdgeContextMenu={(e, edge) => openMenu(e, stringItems(edge.id))}
             onPaneContextMenu={(e) => openMenu(e, paneItems(screenToFlowPosition({ x: e.clientX, y: e.clientY })))}
             connectionMode={ConnectionMode.Loose}

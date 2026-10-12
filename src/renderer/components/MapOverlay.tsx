@@ -40,7 +40,7 @@ export function PcTokenMark({ x, y, name, scale, onPointerDown, dragging }: {
 
 const FILL = '#c9b07a'
 /** Settlements and landmarks are drawn as a marker, land regions as a tinted area. */
-const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' || r.kind === 'village' || r.kind === 'landmark' || r.kind === 'dungeon'
+export const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' || r.kind === 'village' || r.kind === 'landmark' || r.kind === 'dungeon'
 
 /** Regions (dashed ink outlines with labels), the route and the party, drawn over a map image. */
 // Clicks are handled by the map (MapView onMapClick + regionAt), because the map

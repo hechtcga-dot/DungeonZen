@@ -106,6 +106,22 @@ describe('map regions and the party token', () => {
     expect(c.boardView(g).items.find((i) => i.id === item.id)!.x).toBe(2000)
   })
 
+  it('regions of a map picture bring their places (and their strings) to the board', () => {
+    c.createRegion({ mapId, polygon: sq(0, 0, 400), newName: 'Old City' })
+    const place = c.mapScreen(mapId).regions[0].locationId
+    const npc = c.createEntity({ boardId: g, type: 'NPC', name: 'Luna', position: { x: 2000, y: 2000 } })
+    c.createRelationship({ sourceId: npc.id, targetId: place, type: 'KNOWS', isSecret: false })
+    const card = c.boardView(g).items.find((i) => i.entityId === place)!
+    c.setNoteStatus(card.id, 'defunct') // taken off the board: the region stands in for it
+    expect(c.boardView(g).entities[place]).toBeUndefined()
+    expect(c.history().removedNotes.map((n) => n.text)).toContain('Card: Old City')
+    c.addBoardImage(g, { mapId }, { x: 0, y: 0 })
+    const v = c.boardView(g)
+    expect(v.entities[place].name).toBe('Old City')
+    expect(v.relationships).toHaveLength(1)
+    expect(v.items.some((i) => i.entityId === place)).toBe(false)
+  })
+
   it('colours every card of a type, optionally clearing cards with their own colour', () => {
     const a = c.createEntity({ boardId: g, type: 'NPC', name: 'A', position: { x: 0, y: 0 } })
     c.updateEntity(a.id, { attributes: { colour: '#111111' } })

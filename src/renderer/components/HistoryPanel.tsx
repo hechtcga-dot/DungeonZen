@@ -48,7 +48,7 @@ export function HistoryPanel() {
             <li key={n.itemId}>
               <div className="removed-text">
                 <strong>{n.text.slice(0, 60) || 'Empty note'}</strong>
-                <span className="muted">Note · {n.boardName}</span>
+                <span className="muted">{n.text.startsWith('Card: ') ? 'Taken off the board' : 'Note'} · {n.boardName}</span>
               </div>
               <button onClick={() => void act('note:setStatus', { itemId: n.itemId, status: 'active' })}>Restore</button>
             </li>
