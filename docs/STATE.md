@@ -413,8 +413,9 @@ built.
     picture is a `region` node (`RegionNode`, placed like `MapOverlay`'s labels via `placeLabels`): pin for strings,
     click selects (Inspector), double-click opens the sheet, right-click the card menu; not draggable (moves with
     the map), hidden while the background moves. `boardView` brings in the places of map pictures' regions and their
-    strings; a string ends on the place's card if it is on the board, else on its region name. Show on board finds
-    a region too. Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
+    strings. While a place's region shows on a board, its card there steps aside (not drawn) and its strings end on
+    the region name; the card comes back when regions are switched off or the map picture is hidden or removed
+    (render only, nothing stored, 1.9.0). Show on board goes to the region first. Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
     "Card: name", Restore puts it back; cards that left with a storyline are not listed).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar

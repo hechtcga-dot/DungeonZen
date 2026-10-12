@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.8.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.9.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -86,3 +86,7 @@ Owner's decisions: Combine asks keep originals or move to History; delete = Move
 ## 1.8.0 (built 2026-10-12)
 Card colours by type (Card menu right-click recolours every card of a type; card right-click and sheet colour per card, now on the whole board card), Background › Use a map with regions (toggle) and a card dropped on a region takes it as its location, Actions artifact holds only the .exe (no zip in a zip). Details in `docs/STATE.md`.
 Defaults picked (owner may change): a type colour change also clears single-card colours (tick box, on by default); dropping a card outside every region keeps its location; Faction got its own plum (was the same purple as Clue).
+
+## 1.9.0 (built 2026-10-12)
+Map regions on a board act as Location cards (pin, strings, select, double-click sheet, card menu); while a region shows, the place's card on that board steps aside and its strings reroute to the region, back when regions/map go. Card menu › Take off this board (History restores). Fixes: picture resize NaN, cards/strings vanishing after adding a map or a refresh, clicks not selecting (React Flow `measured` kept on rebuild). Details in `docs/STATE.md`.
+Owner's decisions: regions replace their cards automatically (render only, no data change). Defaults picked: Delete key ignores region names; region names follow Background › Show map regions.

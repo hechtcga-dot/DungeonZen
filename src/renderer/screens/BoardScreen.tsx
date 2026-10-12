@@ -142,13 +142,16 @@ function BoardLayout() {
       const selected = new Set(prev.filter((n) => n.selected).map((n) => n.id))
       // Keep React Flow's measured size: without it a resize starts from 0 x 0 (keep-aspect pictures got NaN).
       const measured = new Map(prev.map((n) => [n.id, n.measured]))
-      const regions: BoardNode[] = background ? [] : regionSpots.map((r) => ({
-        id: r.id, type: 'region', position: { x: r.x, y: r.y }, width: r.w, height: r.h, measured: measured.get(r.id), draggable: false, className: 'nopan', // nopan: double-click opens the sheet instead of zooming
+      // A place whose region shows here is its region name: its card steps aside until the map or regions go.
+      const onMap = new Set(regionSpots.map((r) => r.entity.id))
+      const regions: BoardNode[] = regionSpots.map((r) => ({
+        id: r.id, type: 'region', position: { x: r.x, y: r.y }, width: r.w, height: r.h, measured: measured.get(r.id) ?? { width: r.w, height: r.h }, draggable: false,
+        ...(background ? { selectable: false, className: 'is-passive' } : { className: 'nopan' }), // nopan: double-click opens the sheet instead of zooming
         selected: selected.has(r.id), data: { entity: r.entity, dimmed: q !== '' && !matches(r.entity, q) }
       }))
       return [...regions, ...view.items.flatMap((item): BoardNode[] => {
-        const size = item.w && item.h ? { width: item.w, height: item.h } : {}
-        const base = { id: item.id, position: { x: item.x, y: item.y }, selected: selected.has(item.id), measured: measured.get(item.id), ...size }
+        const size = item.w && item.h ? { width: item.w, height: item.h } : undefined
+        const base = { id: item.id, position: { x: item.x, y: item.y }, selected: selected.has(item.id), measured: measured.get(item.id) ?? size, ...size }
         if (item.kind === 'image') {
           if (!prefs.pictures || (item.hidden && !prefs.showHidden) || !item.content?.image) return []
           const locked = !!item.content.locked
@@ -166,7 +169,7 @@ function BoardLayout() {
           return [{ ...base, type: 'note', ...frontLayer, data: { text: item.content?.text ?? '', dimmed: q !== '' || (linkMode && prefs.greyNotes), hidden: item.hidden } }]
         }
         const entity = item.entityId ? view.entities[item.entityId] : undefined
-        if (!entity || (entity.hidden && !prefs.showHidden)) return []
+        if (!entity || (entity.hidden && !prefs.showHidden) || onMap.has(entity.id)) return []
         const match = q !== '' && matches(entity, q)
         const tints = prefs.tint ? entity.storylineIds.flatMap((id) => (storyColours.has(id) ? [storyColours.get(id)!] : [])) : []
         const marks = prefs.actMarks ? entity.acts.map((m) => ({
@@ -178,10 +181,10 @@ function BoardLayout() {
     })
   }, [view, q, prefs, storyColours, linkMode, background, regionViews, mapOf, typeColour, regionSpots])
 
-  // Strings end on the card; a place without a card on this board uses its region's name instead.
+  // Strings end on the card, or on the place's region name while that shows.
   const itemByEntity = useMemo(
-    () => new Map([...(background ? [] : regionSpots).map((r) => [r.entity.id, r.id] as const), ...view.items.filter((i) => i.entityId).map((i) => [i.entityId!, i.id] as const)]),
-    [view.items, regionSpots, background]
+    () => new Map([...view.items.filter((i) => i.entityId).map((i) => [i.entityId!, i.id] as const), ...regionSpots.map((r) => [r.entity.id, r.id] as const)]),
+    [view.items, regionSpots]
   )
 
   useEffect(() => {
@@ -311,7 +314,7 @@ function BoardLayout() {
     if (!focusEntityId) return
     const card = view.items.find((i) => i.entityId === focusEntityId)
     const region = regionSpots.find((r) => r.entity.id === focusEntityId)
-    const item = card ? { id: card.id, x: card.x + 110, y: card.y + 70 } : region && { id: region.id, x: region.x + region.w / 2, y: region.y + region.h / 2 }
+    const item = region ? { id: region.id, x: region.x + region.w / 2, y: region.y + region.h / 2 } : card && { id: card.id, x: card.x + 110, y: card.y + 70 }
     // A region's name appears once its map's regions have loaded: wait a moment for it.
     if (!item) { const t = setTimeout(() => useBoard.setState({ focusEntityId: null }), 2000); return () => clearTimeout(t) }
     useBoard.setState({ focusEntityId: null })
