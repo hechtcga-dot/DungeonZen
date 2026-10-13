@@ -492,6 +492,10 @@ built.
   `assets/pending`, then `ChangePicture add` (What to add box, sketch on the picture always open, one meaning per
   colour); `image:update add` sends `changePrompt(..., add=true)` (add only, change nothing already there). Result is
   an AI suggestion (add more on it, or Keep this picture: `entity:keepPicture`, Ctrl+Z puts the old one back).
+  Board › Display › Card types (owner, 2026-10-13): a tick per card type; a type switched off leaves the board
+  with its strings (view only, this computer: `hiddenTypes` in `boardPrefs.ts`, not campaign data, no undo needed);
+  "Card types (n off)" and Show all types; making a new card of a type that is off switches that type back on.
+  Region names on maps still show (they belong to the map picture).
   Speed: refresh results are structurally shared (`shared/share.ts`) and board nodes/strings reuse unchanged
   objects, so only changed cards redraw (500 cards, 1000 strings: an edit 344 → about 60-100 ms of screen work, a
   no-change refresh 300 → 0 ms); board draws only what is on screen; screens load the first time they open (start

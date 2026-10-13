@@ -131,6 +131,7 @@ function BoardLayout() {
   }, [view.items, view.entities, regionViews, mapOf, prefs.pictures, prefs.showHidden])
 
   const q = search.trim().toLowerCase()
+  const offTypes = useMemo(() => new Set(prefs.hiddenTypes), [prefs.hiddenTypes])
   const linkMode = panel === 'connections'
   const storyColours = useMemo(() => colours(view), [view])
   const typeColours = useMemo(() => new Map(view.settings.stringTypes.map((t) => [t.type, t.colour])), [view.settings.stringTypes])
@@ -171,7 +172,7 @@ function BoardLayout() {
           return [{ ...base, type: 'note', ...frontLayer, data: { text: item.content?.text ?? '', dimmed: q !== '' || (linkMode && prefs.greyNotes), hidden: item.hidden } }]
         }
         const entity = item.entityId ? view.entities[item.entityId] : undefined
-        if (!entity || (entity.hidden && !prefs.showHidden) || onMap.has(entity.id)) return []
+        if (!entity || (entity.hidden && !prefs.showHidden) || onMap.has(entity.id) || offTypes.has(entity.type)) return []
         const match = q !== '' && matches(entity, q)
         const tints = prefs.tint ? entity.storylineIds.flatMap((id) => (storyColours.has(id) ? [storyColours.get(id)!] : [])) : []
         const marks = prefs.actMarks ? entity.acts.map((m) => ({
@@ -200,6 +201,7 @@ function BoardLayout() {
         const b = view.entities[r.targetId]
         const ends = a.hidden || b.hidden
         if ((r.hidden || ends) && !prefs.showHidden) return []
+        if (offTypes.has(a.type) || offTypes.has(b.type)) return []
         const dimmed = q !== '' && !(matches(a, q) || matches(b, q))
         return [{
           id: r.id, source, target, sourceHandle: 'pin', targetHandle: 'pin', type: 'string',
@@ -211,7 +213,7 @@ function BoardLayout() {
         }]
       }))
     })
-  }, [view, itemByEntity, q, prefs.showHidden, typeColours, linkMode, background])
+  }, [view, itemByEntity, q, prefs.showHidden, offTypes, typeColours, linkMode, background])
 
   const onNodesChange = useCallback((changes: NodeChange<BoardNode>[]) => {
     setNodes((ns) => applyNodeChanges(changes, ns))
@@ -259,6 +261,9 @@ function BoardLayout() {
 
   const addCard = useCallback(async (type: EntityType, at?: { x: number; y: number }) => {
     setCardMenu(false)
+    // A new card of a type that is switched off turns its type back on, so it shows.
+    const off = useBoardPrefs.getState().hiddenTypes
+    if (off.includes(type)) useBoardPrefs.getState().set({ hiddenTypes: off.filter((x) => x !== type) })
     const entity = await act('entity:create', {
       boardId: view.board.id, type, name: `New ${ENTITY_LABELS[type]}`, position: at ?? centre()
     })
@@ -444,7 +449,14 @@ function BoardLayout() {
   }
 
   function displayItems(): MenuItem[] {
+    const off = prefs.hiddenTypes
+    const flip = (t: string) => prefs.set({ hiddenTypes: off.includes(t) ? off.filter((x) => x !== t) : [...off, t] })
     return [
+      { label: off.length ? `Card types (${off.length} off)` : 'Card types', items: [
+        ...ENTITY_TYPES.map((t): MenuItem => ({ label: ENTITY_LABELS[t], checked: !off.includes(t), onClick: () => flip(t) })),
+        'separator',
+        { label: 'Show all types', disabled: !off.length, onClick: () => prefs.set({ hiddenTypes: [] }) }
+      ] },
       { label: 'Show hidden things (greyed)', checked: prefs.showHidden, onClick: () => prefs.set({ showHidden: !prefs.showHidden }) },
       { label: 'Background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
       { label: 'Region boundaries on maps', hint: 'Names always show', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
