@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, protocol, safeStorage, shell } from 'electron'
+import { Campaign } from './campaign/campaign'
 import { registerIpc } from './ipcHandlers'
 import { ProfileStore } from './profile'
 import { KeyStore } from './ai/keys'
@@ -75,3 +76,9 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
+// A backup still copying its pictures finishes first.
+app.on('before-quit', (e) => {
+  if (Campaign.copying.size === 0) return
+  e.preventDefault()
+  void Promise.allSettled([...Campaign.copying]).then(() => app.quit())
+})

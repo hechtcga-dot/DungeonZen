@@ -89,7 +89,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
                     if (e.target.checked) next.add(s.id); else next.delete(s.id)
                     onPicked(next)
                   }} />
-                  <img src={s.url} alt={s.name} />
+                  <img src={`${s.url}?w=400`} alt={s.name} />
                 </label>
               ))}
             </div>
@@ -203,7 +203,7 @@ export function PicturePicker({ folder, title, onPick, onClose }: { folder: stri
             {shown.length === 0 && <p className="hint">Nothing in {open} yet.</p>}
             {shown.map((p) => (
               <button key={p.key} className="pic-tile" onClick={() => onPick(p)} title={p.name}>
-                <img src={p.url} alt="" loading="lazy" />
+                <img src={`${p.url}?w=400`} alt="" loading="lazy" />
                 <span>{p.name}</span>
               </button>
             ))}
@@ -299,7 +299,7 @@ export function PicturesTab() {
         <div className="pic-cards">
           {shown.map((p) => (
             <article key={p.key} className="pic-card" draggable onDragStart={() => setDragKey(p.key)} onDragEnd={() => setDragKey(null)}>
-              <img src={p.url} alt="" loading="lazy" />
+              <img src={`${p.url}?w=400`} alt="" loading="lazy" />
               <CommitName value={p.name} label={`Name of ${p.name}`} onCommit={(name) => update(p, { name })} />
               <div className="pic-uses" role="group" aria-label={`Style example for (${p.name})`}>
                 <span className="field-label">Style example for</span>

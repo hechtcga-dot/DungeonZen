@@ -34,7 +34,7 @@ export function EncounterPictures({ id, compact }: { id: string; compact?: boole
           {data.files.map((f) => (
             <li key={f.name}>
               <button className="enc-thumb" title={`Open ${f.name}`} onClick={() => open(f.name)}>
-                {f.picture ? <img src={f.url} alt={f.name} loading="lazy" /> : <span className="enc-pdf">PDF</span>}
+                {f.picture ? <img src={`${f.url}?w=400`} alt={f.name} loading="lazy" /> : <span className="enc-pdf">PDF</span>}
                 <span className="enc-thumb-name">{f.name}</span>
               </button>
               {!compact && <button className="link-button" aria-label={`Replace ${f.name}`} title="Re-import: a new file takes its place (the old one goes to Removed)" onClick={() => void act('encounter:replacePicture', { id, name: f.name }).then(load)}>Replace</button>}

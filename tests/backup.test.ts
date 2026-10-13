@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -21,8 +21,15 @@ describe('backups', () => {
     expect(existsSync(join(second, 'backups'))).toBe(false)
     expect(c.backups()).toHaveLength(2)
   })
-  it('keeps the newest ones and makes one a day', () => {
-    for (let i = 0; i < 4; i++) c.backup(3)
+  it('copies the pictures in the background', async () => {
+    mkdirSync(join(c.folder, 'assets', 'styles'), { recursive: true })
+    writeFileSync(join(c.folder, 'assets', 'styles', 'a.png'), 'png')
+    const b = c.backup()
+    await c.backupDone
+    expect(existsSync(join(b, 'assets', 'styles', 'a.png'))).toBe(true)
+  })
+  it('keeps the newest ones and makes one a day', async () => {
+    for (let i = 0; i < 4; i++) { c.backup(3); await c.backupDone }
     expect(c.backups()).toHaveLength(3)
     expect(c.backupIfDue()).toBeNull()
   })

@@ -474,6 +474,29 @@ built.
   dialog keeps its title bar at the top while the body scrolls; AI dialogs (Draw picture, Draw battle map, Fill
   with AI, Fill blanks) get Minimize while waiting: a chip in the corner, the window pops back when the answer or
   an error arrives (`Dialog busy`).
+- 1.11.0 (owner, 2026-10-13): Change this picture under every AI picture (card picture, battle map, world map;
+  `ChangePicture` in `OutlinePad.tsx`, `image:update`): What to change box (empty after each update; the original
+  prompt stays), optional marks drawn on the picture in six colours each with its own meaning; the picture (and a
+  marked copy, `markedCopy` blends the marks in main) go back with `changePrompt` and no style examples; the answer
+  replaces the suggestion (still only a suggestion until Keep). OpenAI images edits and Gemini take both pictures,
+  Stability image-to-image takes the picture only (marks greyed out, say where in words); Replicate, fal.ai and
+  local SD cannot (box explains). Outline in the card picture and world map Draw windows (`OutlinePanel`,
+  `shared/outline.ts`): freehand pen in six colours, Label, Eraser, Last line, Clear, or one uploaded outline
+  picture (`outline:upload`, copied to `assets/outlines`) with labels on top; saved on the card
+  (`attributes.outline`) or the campaign (`world_outline`), each change one undo step; Use the outline tick per
+  drawing; Write the labels on the picture (off). Sent as the first image (strokes on white, labels never drawn in)
+  with "layout and shapes only, not colours, art style or details"; labels go in the prompt with where they are
+  (`outlineText`); Stability uses control/sketch at 0.6.
+  Speed: refresh results are structurally shared (`shared/share.ts`) and board nodes/strings reuse unchanged
+  objects, so only changed cards redraw (500 cards, 1000 strings: an edit 344 → about 60-100 ms of screen work, a
+  no-change refresh 300 → 0 ms); board draws only what is on screen; screens load the first time they open (start
+  bundle 2.4 → 1.0 MB); pictures shown small use `?w=` small copies cached in userData/thumbs (originals untouched);
+  pictures sent to image services are at most 1536 px (1024 with Send smaller copies) and prepared once per file
+  (four big examples: 77.7 MB → 5.6 MB per drawing); Gemini asks for picture-only replies (falls back if a model
+  refuses that mode); daily/session backups copy the pictures in the background and the app waits for them before
+  quitting; storyline colour saves once when the picker closes; long lists skip off-screen rows
+  (`content-visibility`); torn parchment edge filter on its own layer; Model drop-down marks faster image models.
+  Not done: `synchronous = NORMAL` (faster writes, but a power cut could lose recent edits), no index was missing.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.

@@ -1,3 +1,4 @@
+import { share } from '../../shared/share'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   ConnectionMode, Controls, ReactFlow, ReactFlowProvider, applyEdgeChanges,
@@ -95,7 +96,7 @@ function BoardLayout() {
 
   const [maps, setMaps] = useState<Array<{ id: string; name: string; kind: string; url: string }>>([])
   const [mapView, setMapView] = useState<string | null>(null)
-  useEffect(() => { void useBoard.getState().query('desk:view', undefined).then((d) => setMaps(d?.maps ?? [])) }, [view])
+  useEffect(() => { void useBoard.getState().query('desk:view', undefined).then((d) => setMaps((m) => share(m, d?.maps ?? []))) }, [view])
   /** The campaign map a background picture shows, if it is one. */
   const mapOf = useCallback((c: { mapId?: string; image?: string } | null) => maps.find((m) => m.id === c?.mapId || (!!c?.image && m.url.endsWith(c.image))), [maps])
   // Regions of the maps under the cards, by map id.
@@ -103,7 +104,7 @@ function BoardLayout() {
   useEffect(() => {
     const ids = [...new Set(view.items.flatMap((i) => (i.kind === 'image' ? [mapOf(i.content)?.id ?? ''] : [])).filter(Boolean))]
     void Promise.all(ids.map((mapId) => useBoard.getState().query('mapscreen:view', { mapId }).then((v) => (v ? [mapId, { ...v, route: [] as MapScreenView['route'] }] as [string, MapScreenView] : null))))
-      .then((list) => setRegionViews(Object.fromEntries(list.filter((x) => x !== null))))
+      .then((list) => setRegionViews((rv) => share(rv, Object.fromEntries(list.filter((x) => x !== null)))))
   }, [view, mapOf])
 
   // Region names on map pictures act as their Location cards: where each name sits on the board (as MapOverlay draws it).
@@ -149,7 +150,8 @@ function BoardLayout() {
         ...(background ? { selectable: false, className: 'is-passive' } : { className: 'nopan' }), // nopan: double-click opens the sheet instead of zooming
         selected: selected.has(r.id), data: { entity: r.entity, dimmed: q !== '' && !matches(r.entity, q) }
       }))
-      return [...regions, ...view.items.flatMap((item): BoardNode[] => {
+      // Nodes equal to the last ones stay the same objects: those cards do not redraw (speed).
+      return share(prev, [...regions, ...view.items.flatMap((item): BoardNode[] => {
         const size = item.w && item.h ? { width: item.w, height: item.h } : undefined
         const base = { id: item.id, position: { x: item.x, y: item.y }, selected: selected.has(item.id), measured: measured.get(item.id) ?? size, ...size }
         if (item.kind === 'image') {
@@ -177,7 +179,7 @@ function BoardLayout() {
           title: `${view.boards.find((b) => b.storylineId === m.storylineId)?.name ?? 'Storyline'}: act ${roman(m.number)}, ${m.title}`
         })) : []
         return [{ ...base, type: 'card', ...frontLayer, data: { entity, dimmed: (q !== '' && !match) || (linkMode && prefs.greyCards), match, tints, marks, colour: cardColour(entity, typeColour) } }]
-      })]
+      })])
     })
   }, [view, q, prefs, storyColours, linkMode, background, regionViews, mapOf, typeColour, regionSpots])
 
@@ -190,7 +192,7 @@ function BoardLayout() {
   useEffect(() => {
     setEdges((prev) => {
       const selected = new Set(prev.filter((e) => e.selected).map((e) => e.id))
-      return view.relationships.flatMap((r): StringEdgeType[] => {
+      return share(prev, view.relationships.flatMap((r): StringEdgeType[] => {
         const source = itemByEntity.get(r.sourceId)
         const target = itemByEntity.get(r.targetId)
         if (!source || !target) return []
@@ -207,7 +209,7 @@ function BoardLayout() {
             colour: typeColours.get(r.type) ?? null, hidden: r.hidden || ends, highlight: linkMode
           }
         }]
-      })
+      }))
     })
   }, [view, itemByEntity, q, prefs.showHidden, typeColours, linkMode, background])
 
@@ -558,6 +560,7 @@ function BoardLayout() {
             edges={edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
+            onlyRenderVisibleElements // speed: cards and strings off screen are not drawn
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onSelectionChange={onSelectionChange}

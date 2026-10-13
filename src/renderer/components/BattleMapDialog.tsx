@@ -301,7 +301,7 @@ export function BattleMapDialog() {
                         <label className="style-thumb">
                           <input type="checkbox" checked={!!service.info.references && picked.has(st.id)} disabled={!service.info.references || (!picked.has(st.id) && picked.size >= 4)}
                             onChange={() => togglePick(st.id)} aria-label={`Use ${st.name} as a style example`} />
-                          <img src={st.url} alt="" />
+                          <img src={`${st.url}?w=400`} alt="" />
                         </label>
                         <CommitField id={`style-${st.id}`} label="Name" value={st.name} required className="style-name"
                           onCommit={(v) => void act('style:rename', { id: st.id, name: v }).then(loadStyles)} />

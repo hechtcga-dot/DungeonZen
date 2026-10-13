@@ -1,3 +1,4 @@
+import { ColourInput } from './fields'
 import { useState, type FormEvent } from 'react'
 import { useBoard, useView } from '../store'
 import { useBoardPrefs } from '../boardPrefs'
@@ -82,8 +83,8 @@ export function StorylinesPanel() {
           return (
             <li key={b.id}>
               <div className="row tight story-head">
-                <input type="color" value={s.colour ?? '#8a6a12'} aria-label={`Colour for ${b.name}`}
-                  onChange={(e) => void act('storyline:update', { storylineId: b.storylineId!, patch: { colour: e.target.value } })} />
+                <ColourInput value={s.colour ?? '#8a6a12'} label={`Colour for ${b.name}`}
+                  onCommit={(colour) => void act('storyline:update', { storylineId: b.storylineId!, patch: { colour } })} />
                 <button className="link-button story-title" onClick={() => void showBoard(b.id)} title="Open its board">{b.name}</button>
                 <button className="link-button" onClick={() => setEdit(b)}>Edit</button>
               </div>

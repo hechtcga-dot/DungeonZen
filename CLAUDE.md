@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.10.1 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.11.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -100,3 +100,8 @@ Building card type (tavern, shop, other): floors as tabs, keeper and patrons wit
 Owner's decisions: taverns and shops are kinds of Building; region chips show NPCs and monsters only; Fill with AI fills everything at once, all editable after; no sights/dangers/bio/what the players see on taverns and shops; history always says how the name came about; inventory/patrons first; keeper with the patrons; prices folded at the bottom; secrets with their own card purple, none marked "DM made"; every line labelled Rumour/Secret/Clue; layout has a Show layout tick; blueprint option in the Draw window.
 Defaults picked: "end layout" read as "send layout" (Use sketch as blueprint, on); All campaign secrets = the campaign's own list + Clue cards + other buildings' secrets; labels and start markers off on finished maps; Building colour slate; new buildings start as kind Building (change under Details › Kind).
 1.10.1 (2026-10-13): AI error messages with explanation and What to do (owner: no automatic retry); Draw windows: Send smaller copies of the examples (option, off by default); Model drop-down lists every fetched model; dialog title bars stay at the top; AI dialogs minimize to a corner chip while waiting and pop back when the answer arrives.
+
+## 1.11.0 (built 2026-10-13)
+Change this picture (words, coloured marks with meanings) under every AI picture; outline sketch or uploaded outline picture with labels in the card picture and world map Draw windows; speed pass (shared refresh objects, visible-only board, lazy screens, small picture copies, 1536 px uploads prepared once, Gemini picture-only, background backup copy). Details in `docs/STATE.md`.
+Owner's decisions: change box starts empty each time, the original prompt stays; sketch saved with the card / campaign; marks on the picture for Update in several colours; an uploaded outline is layout only, never style; labels never written on the picture unless ticked; speed plan items 1-8 approved, image generation first.
+Defaults picked: Stability updates with the picture only (no marks); Replicate, fal.ai, local SD cannot update; battle map keeps its grid blueprint (no outline panel); `synchronous = NORMAL` not used (data safety).

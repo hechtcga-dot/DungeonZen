@@ -1,27 +1,29 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useBoard } from './store'
 import { StartScreen } from './screens/StartScreen'
-import { BoardScreen } from './screens/BoardScreen'
-import { SheetScreen } from './screens/SheetScreen'
-import { LibraryScreen } from './screens/LibraryScreen'
-import { DeskScreen } from './screens/DeskScreen'
-import { MapScreen } from './screens/MapScreen'
-import { TimelineScreen } from './screens/TimelineScreen'
-import { LiveScreen } from './screens/LiveScreen'
-import { ReviewScreen } from './screens/ReviewScreen'
-import { PrepScreen } from './screens/PrepScreen'
-import { PlayersScreen } from './screens/PlayersScreen'
-import { EncountersScreen } from './screens/EncountersScreen'
-import { ImportScreen } from './screens/ImportScreen'
-import { CombatScreen } from './screens/CombatScreen'
-import { GuideScreen } from './screens/GuideScreen'
-import { GeneratorsScreen } from './screens/GeneratorsScreen'
-import { JournalWindow } from './screens/JournalWindow'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
 
+// Each screen loads the first time it opens (faster start).
+const BoardScreen = lazy(() => import('./screens/BoardScreen').then((m) => ({ default: m.BoardScreen })))
+const SheetScreen = lazy(() => import('./screens/SheetScreen').then((m) => ({ default: m.SheetScreen })))
+const LibraryScreen = lazy(() => import('./screens/LibraryScreen').then((m) => ({ default: m.LibraryScreen })))
+const DeskScreen = lazy(() => import('./screens/DeskScreen').then((m) => ({ default: m.DeskScreen })))
+const MapScreen = lazy(() => import('./screens/MapScreen').then((m) => ({ default: m.MapScreen })))
+const TimelineScreen = lazy(() => import('./screens/TimelineScreen').then((m) => ({ default: m.TimelineScreen })))
+const LiveScreen = lazy(() => import('./screens/LiveScreen').then((m) => ({ default: m.LiveScreen })))
+const ReviewScreen = lazy(() => import('./screens/ReviewScreen').then((m) => ({ default: m.ReviewScreen })))
+const PrepScreen = lazy(() => import('./screens/PrepScreen').then((m) => ({ default: m.PrepScreen })))
+const PlayersScreen = lazy(() => import('./screens/PlayersScreen').then((m) => ({ default: m.PlayersScreen })))
+const EncountersScreen = lazy(() => import('./screens/EncountersScreen').then((m) => ({ default: m.EncountersScreen })))
+const ImportScreen = lazy(() => import('./screens/ImportScreen').then((m) => ({ default: m.ImportScreen })))
+const CombatScreen = lazy(() => import('./screens/CombatScreen').then((m) => ({ default: m.CombatScreen })))
+const GuideScreen = lazy(() => import('./screens/GuideScreen').then((m) => ({ default: m.GuideScreen })))
+const GeneratorsScreen = lazy(() => import('./screens/GeneratorsScreen').then((m) => ({ default: m.GeneratorsScreen })))
+const JournalWindow = lazy(() => import('./screens/JournalWindow').then((m) => ({ default: m.JournalWindow })))
+
 export function App() {
-  return window.location.hash === '#journal' ? <JournalWindow /> : <MainApp />
+  return window.location.hash === '#journal' ? <Suspense fallback={null}><JournalWindow /></Suspense> : <MainApp />
 }
 
 function MainApp() {
@@ -42,6 +44,7 @@ function MainApp() {
 
   return (
     <>
+      <Suspense fallback={null}>
       {!info || !view ? <StartScreen />
         : screen === 'sheet' ? <SheetScreen />
           : screen === 'library' ? <LibraryScreen />
@@ -58,6 +61,7 @@ function MainApp() {
                 : screen === 'combat' ? <CombatScreen />
                 : screen === 'generators' ? <GeneratorsScreen />
                 : <BoardScreen />}
+      </Suspense>
       {info && view && <BattleMapDialog />}
       <AiSettingsDialog />
       {message && (

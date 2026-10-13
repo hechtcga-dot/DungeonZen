@@ -253,6 +253,7 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
   background-image: radial-gradient(ellipse at 50% 45%, rgba(255, 240, 200, 0.5), transparent 60%, rgba(110, 70, 20, 0.45) 100%), var(--tex-blotch), var(--tex-paper);
   background-size: auto, 600px 600px, 300px 300px;
   filter: url(#dz-rough) drop-shadow(0 10px 16px rgba(0, 0, 0, 0.6));
+  will-change: transform; /* own layer: the torn-edge filter runs once, not on every repaint inside the sheet (speed) */
 }
 .parchment-sheet > * { position: relative; }
 .map-cartouche { align-self: center; margin-bottom: -4px; }
@@ -1481,3 +1482,7 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .desk-theme button.outline-swatch[aria-pressed='true'] { outline: 3px solid #1f5f9a; outline-offset: 1px; }
 .outline-paper { max-height: 52vh; }
 .change-colour input { flex: 1; }
+
+/* Speed: long lists draw only the rows on screen (the browser skips the rest until scrolled to). */
+.removed > li, .pic-tile, .notes-items > .tree-item { content-visibility: auto; contain-intrinsic-size: auto 48px; }
+.pic-tile { contain-intrinsic-size: auto 180px; }

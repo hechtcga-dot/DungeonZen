@@ -1,5 +1,6 @@
 import { STYLE_TAGS_SYSTEM, parseStyleTags } from '../shared/styleTags'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -69,11 +70,17 @@ function shrink(refs: Array<{ bytes: Buffer; mime: string; key?: string }>, smal
     let out = { bytes: ref.bytes, mime: ref.mime }
     if (!img.isEmpty() && Math.max(width, height) > max) {
       const small = width >= height ? img.resize({ width: max, quality: 'best' }) : img.resize({ height: max, quality: 'best' })
-      out = { bytes: small.toJPEG(smaller ? 90 : 95), mime: 'image/jpeg' }
+      // Pictures with see-through parts stay PNG (JPEG would turn them black); the rest JPEG 95, which looks the same.
+      out = !smaller && ref.mime === 'image/png' && seeThrough(small.toBitmap()) ? { bytes: small.toPNG(), mime: 'image/png' } : { bytes: small.toJPEG(smaller ? 90 : 95), mime: 'image/jpeg' }
     }
     if (key) prepared.set(key, out)
     return out
   })
+}
+
+function seeThrough(bitmap: Buffer): boolean {
+  for (let i = 3; i < bitmap.length; i += 4) if (bitmap[i] < 255) return true
+  return false
 }
 
 /** The picture with the DM's marks laid over it (marks: transparent PNG, any size; stretched to the picture). */
@@ -128,8 +135,30 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const file = !campaign ? null : url.hostname === 'campaign' ? campaign.assetFile(path)
       : url.hostname === 'encounter' && rest.length === 1 ? (() => { try { return campaign.encounterFile(encId, rest[0]) } catch { return null } })() : null
     if (!file) return new Response('Not found', { status: 404 })
+    const w = Number(url.searchParams.get('w'))
+    if (w > 0) {
+      const small = thumbnail(file, Math.min(1024, Math.round(w)))
+      if (small) return net.fetch(pathToFileURL(small).toString())
+    }
     return net.fetch(pathToFileURL(file).toString())
   })
+  // ?w=<px>: a small copy for pictures shown small (cards, thumbnails), made once and kept in the
+  // app's cache folder (not the campaign). The original is never changed; big views use it.
+  const thumbnail = (file: string, w: number): string | null => {
+    try {
+      const st = statSync(file)
+      const out = join(app.getPath('userData'), 'thumbs', `${createHash('sha1').update(`${file}|${st.size}|${st.mtimeMs}|${w}`).digest('hex')}${extname(file).toLowerCase() === '.png' ? '.png' : '.jpg'}`)
+      if (existsSync(out)) return out
+      const img = nativeImage.createFromPath(file)
+      if (img.isEmpty()) return null
+      const { width, height } = img.getSize()
+      if (Math.max(width, height) <= w) return null
+      const small = width >= height ? img.resize({ width: w, quality: 'best' }) : img.resize({ height: w, quality: 'best' })
+      mkdirSync(dirname(out), { recursive: true })
+      writeFileSync(out, out.endsWith('.png') ? small.toPNG() : small.toJPEG(90))
+      return out
+    } catch { return null }
+  }
 
   handle('profile:recent', () => profile.recent())
 

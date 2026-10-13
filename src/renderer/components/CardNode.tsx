@@ -66,7 +66,7 @@ function CardNodeImpl({ id, data, selected, width, height }: NodeProps<CardNodeT
         </div>
       )}
       {size === 'full' && typeof entity.attributes.picture === 'string' && (
-        <img className="card-pic" src={`dz-asset://campaign/${entity.attributes.picture}`} alt="" draggable={false} />
+        <img className="card-pic" src={`dz-asset://campaign/${entity.attributes.picture}?w=256`} alt="" draggable={false} />
       )}
       <div className="card-name">{entity.name}</div>
       {size === 'full' && summary && <div className="card-sub">{summary}</div>}

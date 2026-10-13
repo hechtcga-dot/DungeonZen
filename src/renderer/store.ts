@@ -1,3 +1,4 @@
+import { share } from '../shared/share'
 import type { Sketch } from '../shared/sketch'
 import { create } from 'zustand'
 import { call } from './api'
@@ -243,7 +244,14 @@ export const useBoard = create<BoardState>((set, get) => ({
         await get().refresh()
         return
       }
-      set({ view, history, sheet, desk, timeline, live, review, mapScreen, prepScreen, prep, where, players, encounters, combat, info: info ?? get().info })
+      // Unchanged parts stay the same objects, so only what changed redraws (speed).
+      const st = get()
+      set({
+        view: share(st.view, view), history: share(st.history, history), sheet: share(st.sheet, sheet), desk: share(st.desk, desk),
+        timeline: share(st.timeline, timeline), live: share(st.live, live), review: share(st.review, review), mapScreen: share(st.mapScreen, mapScreen),
+        prepScreen: share(st.prepScreen, prepScreen), prep: share(st.prep, prep), where: share(st.where, where), players: share(st.players, players),
+        encounters: share(st.encounters, encounters), combat: share(st.combat, combat), info: share(st.info, info ?? st.info)
+      })
     } catch (err) {
       get().say((err as Error).message, true)
     }

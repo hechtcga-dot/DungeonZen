@@ -289,7 +289,7 @@ function PartyCard({ p, index }: { p: DeskPartyMember; index: number }) {
       title={p.name}
       subtitle={p.summary || 'Player character'}
       art={p.picture
-        ? <img className="tarot-portrait" src={`dz-asset://campaign/${p.picture}`} alt={`Portrait of ${p.name}`} />
+        ? <img className="tarot-portrait" src={`dz-asset://campaign/${p.picture}?w=400`} alt={`Portrait of ${p.name}`} />
         : <PartyEmblem index={index} />}
       tint={p.colour ?? ['#23395b', '#7a2230', '#24553a', '#4b2d6b'][index % 4]}
       footer={(

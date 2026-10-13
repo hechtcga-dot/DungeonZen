@@ -6,6 +6,9 @@ import { AI_PROVIDERS, providerById, type AiKind } from '../../shared/aiProvider
 import type { AiSettingsView } from '../../shared/types'
 
 /** Settings › AI services: pick a writing service and a battle-map service from a list, with key, model and a test. */
+/** Image models that answer faster for less detail (marked in the Model drop-down). */
+const FAST_MODEL = /flash-lite|mini|schnell|turbo/i
+
 export function AiSettingsDialog() {
   const open = useBoard((s) => s.aiSettingsOpen)
   const setOpen = useBoard((s) => s.setAiSettingsOpen)
@@ -149,7 +152,7 @@ function ServiceSection({ kind, title, what, view, reload }: {
               {models.length > 0 && (
                 <select aria-label="Choose a model from the list" value="" onChange={(e) => { if (e.target.value) { setModel(e.target.value); saveModel(e.target.value) } }}>
                   <option value="">{fetched ? `Pick one of ${models.length}…` : 'Suggestions…'}</option>
-                  {models.map((m) => <option key={m} value={m}>{m}{m === model ? ' (chosen)' : ''}</option>)}
+                  {models.map((m) => <option key={m} value={m}>{m}{kind === 'image' && FAST_MODEL.test(m) ? ' (faster, less detail)' : ''}{m === model ? ' (chosen)' : ''}</option>)}
                 </select>
               )}
               <button disabled={busy !== null || (info.needsKey && !setting?.hasKey)} onClick={() => void fetchModels()}>

@@ -1,5 +1,6 @@
 import type { StyleTags } from '../../shared/styleTags'
 import { randomUUID } from 'node:crypto'
+import { cp } from 'node:fs/promises'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
@@ -236,16 +237,29 @@ export class Campaign {
     for (let n = 2; existsSync(dest); n++) dest = join(folder, `${this.backupStem()} ${stamp} (${n})`)
     this.save()
     const skip = (src: string) => /campaign\.db-(wal|shm)$/.test(src) || src.startsWith(join(this.folder, ASSETS_DIR, 'pending')) || src.startsWith(folder)
-    // Entry by entry: a backups folder inside the campaign cannot be copied into itself.
+    // Entry by entry: a backups folder inside the campaign cannot be copied into itself. The campaign
+    // file is copied now; the pictures (often most of the folder) in the background, so opening a
+    // campaign or ending a session never waits for them (speed). `backupDone` settles when finished.
+    let pictures: string | null = null
     for (const entry of readdirSync(this.folder)) {
       const src = join(this.folder, entry)
       if (entry === 'backups' || skip(src)) continue
+      if (entry === ASSETS_DIR) { pictures = src; continue }
       cpSync(src, join(dest, entry), { recursive: true, filter: (x) => !skip(x) })
     }
-    // Old backups beyond `keep` are removed (copies, not campaign data).
-    for (const old of this.backups().slice(keep)) rmSync(join(folder, old.name), { recursive: true, force: true })
+    // Old backups beyond `keep` are removed (copies, not campaign data), once this one is whole.
+    const prune = () => { for (const old of this.backups().slice(keep)) rmSync(join(folder, old.name), { recursive: true, force: true }) }
+    const done = (pictures ? cp(pictures, join(dest, ASSETS_DIR), { recursive: true, filter: (x) => !skip(x) }) : Promise.resolve()).then(prune)
+    this.backupDone = done
+    Campaign.copying.add(done)
+    void done.catch(() => undefined).finally(() => Campaign.copying.delete(done))
     return dest
   }
+
+  /** The last backup's background copy of the pictures. */
+  backupDone: Promise<void> = Promise.resolve()
+  /** Every backup still copying (the app waits for them before it quits, so no backup is left half made). */
+  static copying = new Set<Promise<void>>()
 
   /** The daily backup: made when there is none from today yet. */
   backupIfDue(): string | null {
