@@ -487,6 +487,11 @@ built.
   drawing; Write the labels on the picture (off). Sent as the first image (strokes on white, labels never drawn in)
   with "layout and shapes only, not colours, art style or details"; labels go in the prompt with where they are
   (`outlineText`); Stability uses control/sketch at 0.6.
+  Add to picture (owner, 2026-10-13): card sheet picture panel, next to Draw with AI, when the card has a picture
+  (any picture, not only AI). `AddToPictureDialog` in `Pictures.tsx`: `image:pendingCopy` copies the kept picture to
+  `assets/pending`, then `ChangePicture add` (What to add box, sketch on the picture always open, one meaning per
+  colour); `image:update add` sends `changePrompt(..., add=true)` (add only, change nothing already there). Result is
+  an AI suggestion (add more on it, or Keep this picture: `entity:keepPicture`, Ctrl+Z puts the old one back).
   Speed: refresh results are structurally shared (`shared/share.ts`) and board nodes/strings reuse unchanged
   objects, so only changed cards redraw (500 cards, 1000 strings: an edit 344 → about 60-100 ms of screen work, a
   no-change refresh 300 → 0 ms); board draws only what is on screen; screens load the first time they open (start

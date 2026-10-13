@@ -56,14 +56,20 @@ export function outlineText(o: Outline): string {
 
 export interface MarkLabel { colour: string; label: string }
 
-/** The words sent to change a drawn picture: the change, what each mark colour means, keep the rest. */
-export function changePrompt(change: string, marks: MarkLabel[] | null): string {
+/**
+ * The words sent to change a drawn picture: the change, what each mark colour means, keep the rest.
+ * `add`: only new things go in (Add to picture); everything already there stays as it is.
+ */
+export function changePrompt(change: string, marks: MarkLabel[] | null, add = false): string {
   const named = (c: string) => OUTLINE_COLOURS.find((x) => x.colour === c)?.name ?? c
+  const what = change.trim().replace(/[.\s]+$/, '')
   return [
-    `Change the first attached picture: ${change.trim().replace(/[.\s]+$/, '')}.`,
-    marks ? 'The second attached picture is the same picture with coloured marks drawn on it by hand, showing where to change it.' : '',
+    add ? `Add to the first attached picture: ${what}.` : `Change the first attached picture: ${what}.`,
+    marks ? `The second attached picture is the same picture with coloured marks drawn on it by hand, showing where to ${add ? 'put the new things' : 'change it'}.` : '',
     ...(marks ?? []).filter((m) => m.label.trim()).map((m) => `The ${named(m.colour)} marks: ${m.label.trim().replace(/[.\s]+$/, '')}.`),
-    'Keep everything else exactly as it is: the layout, art style, colours, light and framing.',
+    add
+      ? 'Change nothing that is already there: keep every part of the picture, the layout, art style, colours, light and framing exactly the same. Only add the new things, drawn in the same style and light so they fit in.'
+      : 'Keep everything else exactly as it is: the layout, art style, colours, light and framing.',
     marks ? 'Do not draw the marks themselves. No text, no frame.' : 'No text, no frame.'
   ].filter(Boolean).join('\n')
 }

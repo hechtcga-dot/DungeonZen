@@ -182,14 +182,16 @@ export function OutlinePanel({ outline, onSave, on, onOn, ratio }: {
  * picture, each colour with its own meaning) go back to the service with the picture; the
  * answer replaces the suggestion. The box starts empty each time; the original prompt stays as it was.
  */
-export function ChangePicture({ drawn, ratio, onChanged, disabled }: {
+export function ChangePicture({ drawn, ratio, onChanged, disabled, add }: {
   drawn: { pendingId: string; url: string }
   ratio: number
   onChanged(next: IpcOutputs['image:update']): void
   disabled?: boolean
+  /** Add to picture: only new things, the sketch always open. */
+  add?: boolean
 }) {
   const [change, setChange] = useState('')
-  const [marking, setMarking] = useState(false)
+  const [marking, setMarking] = useState(!!add)
   const [marks, setMarks] = useState<Marks>(emptyOutline())
   const [meaning, setMeaning] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -203,31 +205,33 @@ export function ChangePicture({ drawn, ratio, onChanged, disabled }: {
   const update = async () => {
     setBusy(true); setError('')
     try {
-      const next = await call('image:update', { pendingId: drawn.pendingId, change, marks: withMarks ? { png: strokesPng(marks.strokes, ratio, true), labels } : undefined })
+      const next = await call('image:update', { pendingId: drawn.pendingId, change, add, marks: withMarks ? { png: strokesPng(marks.strokes, ratio, true), labels } : undefined })
       await call('battlemap:discard', { pendingId: drawn.pendingId })
       onChanged(next)
-      setChange(''); setMarks(emptyOutline()); setMeaning({}); setMarking(false)
+      setChange(''); setMarks(emptyOutline()); setMeaning({}); setMarking(!!add)
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
   return (
     <fieldset className="change-picture">
-      <legend>Change this picture</legend>
+      <legend>{add ? 'Add to this picture' : 'Change this picture'}</legend>
       {max === 0 ? (
         <p className="hint">{service?.name ?? 'This image service'} cannot change a picture it drew. Use Draw again, or choose OpenAI images, Google Gemini images or Stability AI in AI services.</p>
       ) : (
         <>
           <div className="field">
-            <label htmlFor="change-what">What to change</label>
-            <textarea id="change-what" rows={2} value={change} maxLength={2000} placeholder="e.g. remove the mountains, replace them with a forest" onChange={(e) => setChange(e.target.value)} />
+            <label htmlFor="change-what">{add ? 'What to add' : 'What to change'}</label>
+            <textarea id="change-what" rows={2} value={change} maxLength={2000} placeholder={add ? 'e.g. a windmill on the hill, sheep in the field' : 'e.g. remove the mountains, replace them with a forest'} onChange={(e) => setChange(e.target.value)} />
           </div>
-          <label className="field checkbox"><input type="checkbox" checked={marking} onChange={(e) => setMarking(e.target.checked)} /> Mark on the picture where to change it</label>
+          {add
+            ? <p className="hint">Sketch where each new thing goes (optional). One colour per thing, then say what it is.</p>
+            : <label className="field checkbox"><input type="checkbox" checked={marking} onChange={(e) => setMarking(e.target.checked)} /> Mark on the picture where to change it</label>}
           {marking && (
             <>
-              <OutlinePad label="Marks on the picture" ratio={ratio} value={marks} onChange={setMarks} background={drawn.url} labels={false} />
+              <OutlinePad label={add ? 'Sketch on the picture' : 'Marks on the picture'} ratio={ratio} value={marks} onChange={setMarks} background={drawn.url} labels={false} />
               {used.map((c) => (
                 <div key={c.colour} className="row tight change-colour">
                   <span className="outline-swatch" style={{ background: c.colour }} aria-hidden="true" />
-                  <input aria-label={`What the ${c.name} marks mean`} value={meaning[c.colour] ?? ''} maxLength={200} placeholder={`${c.name} marks: e.g. forest here`}
+                  <input aria-label={`What the ${c.name} marks mean`} value={meaning[c.colour] ?? ''} maxLength={200} placeholder={`${c.name} marks: e.g. ${add ? 'a windmill' : 'forest here'}`}
                     onChange={(e) => setMeaning({ ...meaning, [c.colour]: e.target.value })} />
                 </div>
               ))}
@@ -236,11 +240,11 @@ export function ChangePicture({ drawn, ratio, onChanged, disabled }: {
           )}
           <details className="draw-prompt">
             <summary>Words being sent <span className="muted">(with the picture{withMarks ? ' and the marked copy' : ''})</span></summary>
-            <pre className="blueprint-text">{changePrompt(change || '…', withMarks ? labels : null)}</pre>
+            <pre className="blueprint-text">{changePrompt(change || '…', withMarks ? labels : null, add)}</pre>
           </details>
           {error && <p className="field-error" role="alert">{error}</p>}
           <div className="row tight">
-            <button type="button" className="primary" disabled={busy || disabled || change.trim().length < 3} onClick={() => void update()}>{busy ? 'Updating…' : 'Update picture'}</button>
+            <button type="button" className="primary" disabled={busy || disabled || change.trim().length < 3} onClick={() => void update()}>{busy ? (add ? 'Adding…' : 'Updating…') : add ? 'Add to picture' : 'Update picture'}</button>
           </div>
         </>
       )}

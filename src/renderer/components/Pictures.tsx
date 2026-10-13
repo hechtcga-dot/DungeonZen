@@ -1,7 +1,7 @@
 import { STYLE_TAG_FIELDS, blendTags, styleLines, type StyleTags } from '../../shared/styleTags'
 import { COMPOSITIONS, DEFAULT_COMPOSITION_FOR, compositionById } from '../../shared/compositions'
 import { CompositionSketch } from '../art/compositions'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { Dialog } from './Dialog'
@@ -184,6 +184,48 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   )
 }
 
+/**
+ * Add to picture: the card's picture goes to the image AI with the DM's words and sketch; only the
+ * new things are added. The result waits as an AI suggestion until kept (Ctrl+Z puts the old one back).
+ */
+function AddToPictureDialog({ entity, picture, onClose }: { entity: SheetView['entity']; picture: string; onClose(): void }) {
+  const { act } = useBoard()
+  const [base, setBase] = useState<IpcOutputs['image:pendingCopy'] | null>(null)
+  const [drawn, setDrawn] = useState<IpcOutputs['image:update'] | null>(null)
+  const [error, setError] = useState('')
+  const waiting = useRef<string | null>(null)
+  useEffect(() => {
+    void call('image:pendingCopy', { path: picture }).then((b) => { waiting.current = b.pendingId; setBase(b) }).catch((err) => setError((err as Error).message))
+  }, [picture])
+  const shown = drawn ?? base
+  const ratio = shown?.width && shown.height ? shown.width / shown.height : 1
+  const close = () => { if (waiting.current) void call('battlemap:discard', { pendingId: waiting.current }); onClose() }
+  return (
+    <Dialog title={`Add to the picture of ${entity.name}`} open onClose={close} wide>
+      <div className="dz-form">
+        {error && <p className="field-error" role="alert">{error}</p>}
+        {!shown ? !error && <p className="hint">Loading…</p> : (
+          <>
+            <div className={drawn ? 'ai-suggestion' : undefined}>
+              {drawn && <span className="ai-badge">AI suggestion · {drawn.source} · add more, or keep it</span>}
+              <ChangePicture key={shown.pendingId} add drawn={shown} ratio={ratio}
+                onChanged={(next) => { waiting.current = next.pendingId; setDrawn(next) }} />
+            </div>
+          </>
+        )}
+        <div className="dz-actions">
+          <button type="button" onClick={close}>Cancel</button>
+          {drawn && <button className="primary" onClick={async () => {
+            waiting.current = null
+            await act('entity:keepPicture', { entityId: entity.id, pendingId: drawn.pendingId, source: drawn.source })
+            onClose()
+          }}>Keep this picture</button>}
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
 /** Picks a picture from Library › Pictures, opened at a folder. */
 export function PicturePicker({ folder, title, onPick, onClose }: { folder: string; title: string; onPick(p: LibraryPictureView): void; onClose(): void }) {
   const [view, setView] = useState<IpcOutputs['pictures:view'] | null>(null)
@@ -221,7 +263,7 @@ export const pictureFolderFor = (type: string) => FOLDER_FOR[type] ?? 'Art'
 export function PicturePanel({ sheet }: { sheet: SheetView }) {
   const { act, say } = useBoard()
   const e = sheet.entity
-  const [mode, setMode] = useState<'pick' | 'draw' | null>(null)
+  const [mode, setMode] = useState<'pick' | 'draw' | 'add' | null>(null)
   const picture = typeof e.attributes.picture === 'string' ? e.attributes.picture : null
   const source = typeof e.attributes.picture_source === 'string' ? e.attributes.picture_source : null
   const folder = useMemo(() => pictureFolderFor(e.type), [e.type])
@@ -233,10 +275,12 @@ export function PicturePanel({ sheet }: { sheet: SheetView }) {
         <button onClick={() => setMode('pick')}>Choose from Library…</button>
         <button onClick={() => void act('entity:pictureDialog', { entityId: e.id })} title={`Saved in Library › Pictures › ${folder}`}>Upload…</button>
         <button onClick={() => setMode('draw')}>Draw with AI…</button>
+        {picture && <button onClick={() => setMode('add')} title="Add things to this picture with AI; everything else stays the same">Add to picture…</button>}
         {picture && <button onClick={() => void act('entity:removePicture', { entityId: e.id })} title="Ctrl+Z puts it back">Remove picture</button>}
         <OpenFolder sub="pictures" label="Open pictures folder" />
       </div>
       {mode === 'draw' && <DrawPictureDialog entity={e} onClose={() => setMode(null)} />}
+      {mode === 'add' && picture && <AddToPictureDialog entity={e} picture={picture} onClose={() => setMode(null)} />}
       {mode === 'pick' && (
         <PicturePicker folder={folder} title={`Choose a picture for ${e.name}`} onClose={() => setMode(null)}
           onPick={(p) => { setMode(null); void act('entity:usePicture', { entityId: e.id, path: p.path }).then(() => say(`${p.name} is now the picture of ${e.name}.`)) }} />

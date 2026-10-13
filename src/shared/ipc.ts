@@ -151,9 +151,11 @@ export const ipcInputs = {
   'entity:drawPicture': z.object({ entityId: Id, prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16), smaller: z.boolean().optional(), outline: OutlineSend.optional() }),
   /** Update picture: the waiting picture changed by the DM's words, with the marks drawn on it (PNG, base64, transparent). */
   'image:update': z.object({
-    pendingId: z.string().max(80), change: z.string().trim().min(3).max(2000),
+    pendingId: z.string().max(80), change: z.string().trim().min(3).max(2000), add: z.boolean().optional(),
     marks: z.object({ png: z.string().max(8_000_000), labels: z.array(z.object({ colour: z.string().max(20), label: z.string().max(200) })).max(10) }).optional()
   }),
+  /** Add to picture: a copy of a kept picture put in the waiting area, so Update can work on it. */
+  'image:pendingCopy': z.object({ path: z.string().min(1).max(500) }),
   'outline:upload': z.void(),
   'entity:usePicture': z.object({ entityId: Id, path: z.string().min(1).max(500) }),
   'pictures:view': z.void(),
@@ -512,6 +514,7 @@ export interface IpcOutputs {
   'entity:picturePrompt': string
   'entity:drawPicture': PendingImageView & { source: string; prompt: string }
   'image:update': PendingImageView & { source: string; prompt: string }
+  'image:pendingCopy': PendingImageView
   'outline:upload': string | null
   'entity:usePicture': void
   'pictures:view': PicturesView

@@ -521,13 +521,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const image = await generateImage(r, { prompt, references, aspect: '1:1', outline: plan })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
   })
-  handle('image:update', async ({ pendingId, change, marks }) => {
+  handle('image:update', async ({ pendingId, change, marks, add }) => {
     const r = imageService()
     const c = current()
     const pic = c.pendingImage(pendingId)
     const size = imageSize(pic.bytes)
     const two = !!marks && maxReferences(r.info) > 1
-    const prompt = changePrompt(change, two ? marks.labels : null)
+    const prompt = changePrompt(change, two ? marks.labels : null, add)
     const image = await generateImage(r, {
       prompt, aspect: size ? aspectFor(size.width, size.height) : '1:1',
       edit: shrink([pic])[0], marked: two ? shrink([markedCopy(pic.bytes, Buffer.from(marks.png, 'base64'))])[0] : undefined
@@ -538,6 +538,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     if (world) pendingWorlds.set(next.pendingId, world)
     return { ...next, source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
   })
+  handle('image:pendingCopy', ({ path }) => current().pendingCopy(path))
   handle('outline:upload', async () => {
     const win = getWindow()
     const options = {

@@ -2295,6 +2295,13 @@ export class Campaign {
     return { pendingId, url: `${ASSET_URL_PREFIX}pending/${pendingId}`, width: size?.width ?? null, height: size?.height ?? null }
   }
 
+  /** A kept picture copied into assets/pending, for Add to picture (the kept file is not touched). */
+  pendingCopy(path: string): PendingImageView {
+    const file = this.assetFile(path)
+    if (!file) throw new Error('That picture is not in this campaign')
+    return this.savePendingImage(readFileSync(file), mimeOf(path))
+  }
+
   private pendingFile(pendingId: string): string {
     if (!PENDING_ID.test(pendingId)) throw new Error('Not a waiting image')
     const file = join(this.folder, ASSETS_DIR, 'pending', pendingId)

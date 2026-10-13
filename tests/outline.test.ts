@@ -32,6 +32,14 @@ describe('drawing outlines', () => {
     expect(marked).toMatch(/Do not draw the marks/)
   })
 
+  it('add words: only new things, nothing already there changes', () => {
+    const add = changePrompt('a windmill on the hill', [{ colour: '#1d4ed8', label: 'windmill' }], true)
+    expect(add).toMatch(/^Add to the first attached picture: a windmill on the hill\.\n/)
+    expect(add).toMatch(/where to put the new things/)
+    expect(add).toMatch(/Change nothing that is already there/)
+    expect(add).toMatch(/The blue marks: windmill\./)
+  })
+
   it('lays marks over the picture (premultiplied alpha)', () => {
     const base = new Uint8Array([10, 20, 30, 255, 10, 20, 30, 255])
     const marks = new Uint8Array([0, 0, 0, 0, 200, 0, 0, 255])
