@@ -12,6 +12,8 @@ import {
 } from '../../shared/battlemap'
 import type { PendingImageView, StyleExampleView } from '../../shared/types'
 import { fmtSquares } from '../../shared/units'
+import { blueprintText, isBlank } from '../../shared/sketch'
+import { SketchDrawing, sketchPng } from './SketchPad'
 
 type Drawn = PendingImageView & { source: string; prompt: string; cols: number }
 type Spec = Omit<BattleMapSpec, 'withExamples'>
@@ -47,6 +49,11 @@ function Choice<K extends keyof Spec>({ id, label, k, options, spec, set, auto }
 export function BattleMapDialog() {
   const units = useUnits()
   const open = useBoard((s) => s.battleMapOpen)
+  const req = typeof open === 'object' ? open : null
+  const sketch = req?.sketch && !isBlank(req.sketch) ? req.sketch : null
+  const [useBlueprint, setUseBlueprint] = useState(true)
+  const [labelsOn, setLabelsOn] = useState(false)
+  const [markersOn, setMarkersOn] = useState(false)
   const setOpen = useBoard((s) => s.setBattleMapOpen)
   const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
   const aiOpen = useBoard((s) => s.aiSettingsOpen)
@@ -80,15 +87,18 @@ export function BattleMapDialog() {
     void (async () => {
       try {
         const [ctx] = await Promise.all([call('battlemap:context', undefined), loadStyles()])
-        const terrain = guessTerrain(`${ctx.placeName ?? ''} ${ctx.description}`)
-        const setting = settingFor(terrain)
-        const filled = { description: ctx.description, timeOfDay: ctx.timeOfDay, terrain, setting }
+        const description = req?.description?.trim() || ctx.description
+        const terrain = guessTerrain(`${req?.name ?? ctx.placeName ?? ''} ${description}`)
+        const setting = req?.indoors ? 'indoors' : settingFor(terrain)
+        const filled = { description, timeOfDay: ctx.timeOfDay, terrain, setting }
+        setUseBlueprint(true)
         setAuto(filled)
         setSpec((cur) => ({
           ...cur, ...filled, features: defaultFeatures(setting),
-          weather: setting === 'indoors' || setting === 'underground' ? 'indoors (none)' : cur.weather === 'indoors (none)' ? 'clear' : cur.weather
+          weather: setting === 'indoors' || setting === 'underground' ? 'indoors (none)' : cur.weather === 'indoors (none)' ? 'clear' : cur.weather,
+          ...(sketch ? { cols: Math.max(GRID_MIN, sketch.cols), rows: Math.max(GRID_MIN, sketch.rows) } : {})
         }))
-        setName(ctx.placeName ? `${ctx.placeName} battle map` : 'Battle map')
+        setName(req?.name ?? (ctx.placeName ? `${ctx.placeName} battle map` : 'Battle map'))
         setPicked(new Set()) // none ticked until the DM picks (owner, 2026-10-12)
       } catch (e) { setError((e as Error).message) }
     })()
@@ -120,7 +130,8 @@ export function BattleMapDialog() {
     try {
       if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }).catch(() => undefined)
       const ids = withExamples ? [...picked].slice(0, maxRefs) : []
-      const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows) })
+      const blueprint = sketch && useBlueprint ? { png: sketchPng(sketch), text: blueprintText(sketch, { labels: labelsOn, markers: markersOn }) } : undefined
+      const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows), blueprint })
       setDrawn({ ...r, prompt, cols })
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
@@ -131,6 +142,7 @@ export function BattleMapDialog() {
     if (!m) return
     setDrawn(null)
     setOpen(false)
+    if (req?.onKept) { req.onKept(m.id); say(`Kept ${m.name}. It is also on the Map screen. Undo removes it.`); return }
     await act('map:setActive', { mapId: m.id })
     say(`Kept ${m.name}: it is on the Map screen. Undo removes it.`)
     goTo('map')
@@ -139,6 +151,7 @@ export function BattleMapDialog() {
     const m = await act('battlemap:importDialog', { cols: sizeOk ? cols : 20, gridShown })
     if (!m) return
     close()
+    if (req?.onKept) { req.onKept(m.id); say(`Imported ${m.name}. Undo removes it.`); return }
     await act('map:setActive', { mapId: m.id })
     say(`Imported ${m.name} with a ${m.gridCols}-square grid: change it under Scale and grid. Undo removes it.`)
     goTo('map')
@@ -158,7 +171,7 @@ export function BattleMapDialog() {
   })
 
   return (
-    <Dialog title="Draw a battle map" open={open} onClose={close} wide>
+    <Dialog title={req?.name ? `Draw a map: ${req.name}` : 'Draw a battle map'} open={!!open} onClose={close} wide>
       {service === undefined ? <p className="hint">Loading…</p> : service === null ? (
         <div className="dz-form">
           <p>Battle maps are drawn by an AI image service. None is chosen yet.</p>
@@ -257,6 +270,23 @@ export function BattleMapDialog() {
               </div>
             </div>
             <div className="dz-form">
+              {sketch && (
+                <div className="blueprint-box">
+                  <label className="field checkbox"><input type="checkbox" checked={useBlueprint} onChange={(e) => setUseBlueprint(e.target.checked)} />
+                    <span><strong>Use sketch as blueprint</strong><br /><span className="hint">The map service gets the sketch as a clean plan picture plus a square-by-square list, and is told to keep every wall, door, room and feature exactly where it is, at this size, top-down.{!service.info.references ? ` ${service.info.name} cannot see pictures: it gets the list only.` : ''}</span></span></label>
+                  {useBlueprint && (
+                    <>
+                      <label className="field checkbox"><input type="checkbox" checked={labelsOn} onChange={(e) => setLabelsOn(e.target.checked)} /> Show labels on the finished map</label>
+                      {/[xX]/.test(sketch.cells) && <label className="field checkbox"><input type="checkbox" checked={markersOn} onChange={(e) => setMarkersOn(e.target.checked)} /> Keep start markers on the finished map</label>}
+                      <details>
+                        <summary>Blueprint sent (what the AI sees)</summary>
+                        <svg className="blueprint-preview" viewBox={`0 0 ${sketch.cols * 20} ${sketch.rows * 20}`} aria-label="The sketch"><SketchDrawing s={sketch} /></svg>
+                        <pre className="blueprint-text">{blueprintText(sketch, { labels: labelsOn, markers: markersOn })}</pre>
+                      </details>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="field">
                 <span className="field-label">Style examples for battle maps (Library pictures) {maxRefs ? `(${service.info.name} takes up to ${maxRefs}; ${picked.size} ticked)` : `(${service.info.name} can't see examples: the style goes in words only)`}</span>
                 {!service.info.references && <span className="hint">{service.info.name} cannot take example maps; it goes by the words only. OpenAI images, Gemini images and Stability can.</span>}

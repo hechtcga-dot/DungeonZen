@@ -19,16 +19,17 @@ export const ROOM_LABELS: Record<RoomStatus, string> = { free: 'Free', taken: 'T
 /** Floor names offered by "+ Floor"; the DM can type any other. */
 export const FLOOR_NAMES = ['Basement', 'Cellar', 'Upper floor', 'Second floor', 'Attic', 'Tower', 'Roof'] as const
 
-export interface Floor { id: string; name: string; layout?: Sketch; mapId?: string }
+/** removed: in History (nothing is hard-deleted, rule 3); Bring back restores it. */
+export interface Floor { id: string; name: string; layout?: Sketch; mapId?: string; removed?: boolean }
 export interface Patron {
   id: string; name: string; role: string; desc: string; knows: string; floor: string
-  keeper?: boolean; entityId?: string
+  keeper?: boolean; entityId?: string; removed?: boolean
 }
 /** A rumour, secret or clue. Shown as revealed when the players' roll reaches its score. */
-export interface BSecret { id: string; kind: SecretKind; score: number; text: string; patronId?: string; cardId?: string }
-export interface Room { id: string; no: string; name: string; price: number; status: RoomStatus; who: string; floor: string }
+export interface BSecret { id: string; kind: SecretKind; score: number; text: string; patronId?: string; cardId?: string; removed?: boolean }
+export interface Room { id: string; no: string; name: string; price: number; status: RoomStatus; who: string; floor: string; removed?: boolean }
 /** price in copper pieces (base, before the campaign and building scales); qty null = always in stock. */
-export interface StockItem { id: string; name: string; notes: string; qty: number | null; price: number; floor: string }
+export interface StockItem { id: string; name: string; notes: string; qty: number | null; price: number; floor: string; removed?: boolean }
 
 export interface Building {
   kind: BuildingKind
@@ -60,7 +61,7 @@ export function readBuilding(a: Record<string, unknown>): Building {
   const floors = arr<Floor>(a.floors, (f) => isStr(f.id) && isStr(f.name))
   return {
     kind,
-    floors: floors.length ? floors : [{ id: MAIN_FLOOR, name: 'Main floor' }],
+    floors: floors.some((f) => f.id === MAIN_FLOOR) ? floors : [{ id: MAIN_FLOOR, name: 'Main floor' }, ...floors],
     patrons: arr<Partial<Patron>>(a.patrons, (p) => isStr(p.id) && isStr(p.name)).map((p) => ({ role: '', desc: '', knows: '', floor: MAIN_FLOOR, ...p }) as Patron),
     secrets: arr<BSecret>(a.secrets, (s) => isStr(s.id) && isStr(s.text) && isNum(s.score))
       .map((s) => ({ ...s, kind: SECRET_KINDS.includes(s.kind) ? s.kind : 'secret' })),

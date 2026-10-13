@@ -18,6 +18,8 @@ import { StatBlockView } from '../components/FightSummary'
 import type { IpcOutputs } from '../../shared/ipc'
 import { EncounterPictures } from '../components/EncounterPictures'
 import { BattlePlanner } from '../components/BattlePlanner'
+import { SketchPad } from '../components/SketchPad'
+import { BATTLE_TOOLS } from '../../shared/sketch'
 
 type Suggestion = NonNullable<Awaited<ReturnType<typeof call<'encounter:suggest'>>>>
 const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about right', hard: 'hard', nearly_deadly: 'nearly deadly' }
@@ -97,6 +99,8 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
   const [ratingBusy, setRatingBusy] = useState(false)
   const [ratingError, setRatingError] = useState<string | null>(null)
   const [roll20, setRoll20] = useState(false)
+  const [showSketch, setShowSketch] = useState(true)
+  const drawMap = () => setBattleMapOpen({ name: `${e.name} battle map`, description: e.scene, sketch: e.sketch, onKept: (mapId) => up({ battleMapId: mapId }) })
   const [pdf, setPdf] = useState(false)
   const d = e.difficulty
   // The scale stops at 1.5 × the high budget so the marks stay readable; more than that fills the bar.
@@ -134,7 +138,7 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
               <option value="">None</option>
               {v.battleMaps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
-            <button className="ink-button" onClick={() => setBattleMapOpen(true)}>Draw…</button>
+            <button className="ink-button" onClick={drawMap}>Draw…</button>
             <button className="ink-button" title="Use a battle map picture you already have" onClick={async () => {
               const m = await act('battlemap:importDialog', { cols: 20 })
               if (m) { up({ battleMapId: m.id }); say(`Imported ${m.name} with a 20-square grid (change it on the Map under Scale and grid).`) }
@@ -146,6 +150,16 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
       <CommitField id="enc-scene" label="Scene" multiline rows={3} value={e.scene}
         placeholder="A collapsed watchtower in the rain; smugglers unload crates by lantern light…"
         hint="What the place looks like and what is going on. Build with AI works from it." onCommit={(scene) => up({ scene })} />
+
+      <div className="enc-sketch">
+        <div className="row tight">
+          <strong>Battle map sketch</strong>
+          <label className="field checkbox"><input type="checkbox" checked={showSketch} onChange={(ev) => setShowSketch(ev.target.checked)} /> Show sketch</label>
+          <span className="spacer" />
+          <button className="ink-button" onClick={drawMap} title="Draw…: the sketch goes to the map service as a blueprint">✦ Draw battle map from sketch</button>
+        </div>
+        {showSketch && <SketchPad label={`Battle map sketch for ${e.name}`} sketch={e.sketch} tools={BATTLE_TOOLS} size={[20, 20]} onCommit={(sketch) => up({ sketch })} />}
+      </div>
 
       <EncounterPictures id={e.id} />
 

@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.9.1 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.10.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -49,7 +49,7 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 - Modes: Prep (everything), Live (table, from where the party is), Players (only what players know).
 - Session prep follows owner's one-page template (reference, use where it fits).
 - AI services: DM picks writing and map service from drop-downs, switch any time.
-- Card colours: Item `#9c4f1f`, Handout `#6b5a3a` (`entityStyle.ts`).
+- Card colours: Item `#9c4f1f`, Handout `#6b5a3a`, Building `#5c6b73` (`entityStyle.ts`).
 - Draw windows (card picture, battle map, world map): style examples start unticked (owner, 2026-10-12).
 - Style tags on Library pictures (artist, period, medium, palette, light, details, composition): AI reads them only on the DM's click, DM keeps/edits; prompts blend all ticked pictures' tags; card pictures get "Include in the picture" and a composition picker (16 forms with sketches, default by card type, DM picks per drawing; maps keep their own layout) (owner, 2026-10-12).
 - Release assets: only the .exe, no .zip copy (owner, 2026-10-12).
@@ -94,3 +94,8 @@ Defaults picked (owner may change): a type colour change also clears single-card
 Map regions on a board act as Location cards (pin, strings, select, double-click sheet, card menu); while a region shows, the place's card on that board steps aside and its strings reroute to the region, back when regions/map go. Card menu › Take off this board (History restores). Fixes: picture resize NaN, cards/strings vanishing after adding a map or a refresh, clicks not selecting (React Flow `measured` kept on rebuild). Details in `docs/STATE.md`.
 Owner's decisions: regions replace their cards automatically (render only, no data change). Defaults picked: Delete key ignores region names. Region names always show; Display › Region boundaries toggles outlines only (owner, 2026-10-12).
 1.9.1 (2026-10-12): region names always shown, Display › Region boundaries toggles smoothed outlines; Draw windows start with no style examples ticked; style tags on Library pictures (AI read on click) blended into prompts; card pictures: Include in the picture, composition picker. Release has only the .exe.
+
+## 1.10.0 (built 2026-10-13)
+Building card type (tavern, shop, other): floors as tabs, keeper and patrons with scored rumours/secrets/clues and the players' roll, Make NPC/PC card from a person, rooms per floor, stock with SRD prices and campaign/building price scales, Secrets & clues folders (In this building / All campaign secrets), backdrops per kind, Fill with AI in one go, layout sketch per floor and on encounters sent to the image AI as a blueprint, region chips showing who is there. Details in `docs/STATE.md`.
+Owner's decisions: taverns and shops are kinds of Building; region chips show NPCs and monsters only; Fill with AI fills everything at once, all editable after; no sights/dangers/bio/what the players see on taverns and shops; history always says how the name came about; inventory/patrons first; keeper with the patrons; prices folded at the bottom; secrets with their own card purple, none marked "DM made"; every line labelled Rumour/Secret/Clue; layout has a Show layout tick; blueprint option in the Draw window.
+Defaults picked: "end layout" read as "send layout" (Use sketch as blueprint, on); All campaign secrets = the campaign's own list + Clue cards + other buildings' secrets; labels and start markers off on finished maps; Building colour slate; new buildings start as kind Building (change under Details › Kind).

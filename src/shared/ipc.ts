@@ -43,7 +43,7 @@ const SketchInput = z.object({
 })
 const SecretInput = z.object({
   id: z.string().min(1).max(40), kind: z.enum(['rumour', 'secret', 'clue']), score: z.number().int().min(1).max(20), text: z.string().max(2000),
-  patronId: z.string().max(40).optional(), cardId: Id.optional()
+  patronId: z.string().max(40).optional(), cardId: Id.optional(), removed: z.boolean().optional()
 })
 const Minute = z.number().int().min(0).max(1_000_000_000)
 const Short = z.string().max(300)

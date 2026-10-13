@@ -151,7 +151,7 @@ describe('building AI', () => {
       secrets: [{ who: 'Old Maud', kind: 'clue', score: 17, text: 'Cargo in the cellar' }, { who: 'Hobb', kind: 'rumour', score: 40, text: 'Asleep since Tuesday' }],
       rooms: [{ no: '1', name: "Captain's Room", price: '2 gp', status: 'taken', who: 'Anselme', floor: 'Upper floor' }],
       stock: [{ name: 'Ale (mug)', notes: '', qty: null, price: '' }, { name: 'Grog', qty: 6, price: '5 sp' }],
-      layout: { main: [{ name: 'Taproom', x: 0, y: 0, w: 12, h: 8 }], 'Upper floor': [{ name: 'Room 1', x: 0, y: 0, w: 4, h: 4 }] }
+      layout: { main: [{ name: 'Taproom', x: 0, y: 0, w: 12, h: 8, doors: [[5, 7]] }], 'Upper floor': [{ name: 'Room 1', x: 0, y: 0, w: 4, h: 4 }] }
     })
     const p = parseBuilding(reply, 'tavern')
     const b = p.building
@@ -163,6 +163,7 @@ describe('building AI', () => {
     expect(b.rooms![0]).toMatchObject({ price: 200, status: 'taken', floor: b.floors![1].id })
     expect(b.stock!.map((s) => s.price)).toEqual([4, 50])
     expect(b.floors![0].layout!.labels[0].t).toBe('Taproom')
+    expect(b.floors![0].layout!.cells[7 * 20 + 5]).toBe('D')
     expect(b.floors![1].layout).toBeTruthy()
   })
 })

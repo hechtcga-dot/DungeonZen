@@ -17,7 +17,7 @@ entity              id, type, name, attributes(json), tags(json),
 relationship        id, source_id, target_id, type, is_secret
 ```
 - `entity.type`: NPC, PC, MONSTER, LOCATION, QUEST, ITEM, SCENE, CLUE,
-  FACTION, HANDOUT
+  FACTION, HANDOUT, BUILDING (1.10.0)
 - `entity.status`: active, resolved (greyed on board), defunct (History),
   stashed (generated and saved for later)
 - `relationship.type` examples: KNOWS, HOSTILE_TO, LOCATED_AT,
@@ -30,6 +30,16 @@ relationship        id, source_id, target_id, type, is_secret
   languages, CR), `current_hp`, bio, image paths, motivation, attitude
 - LOCATION: biome, `atmosphere` (how townsfolk behave; feeds scene
   descriptions), notes
+- BUILDING (`src/shared/building.ts`, read with `readBuilding`, written with `buildingAttrs`): `building_kind`
+  (tavern, shop, other), `floors` [{id, name, layout?: Sketch, mapId?, removed?}] (main floor id `main`),
+  `patrons` [{id, name, role, desc, knows, floor, keeper?, entityId?, removed?}], `secrets` [{id, kind
+  rumour|secret|clue, score 1-20, text, patronId?, cardId?, removed?}], `rooms` [{id, no, name, price cp, status
+  free|taken|closed, who, floor, removed?}], `stock` [{id, name, notes, qty|null, price cp, floor, removed?}],
+  `price_scale` (percent), `players_roll`, plus description, history, location (= Inside). `removed` = in History
+  inside the card (Bring back lists). Campaign settings: `price_scale` (percent), `campaign_secrets` (All campaign
+  secrets' own list).
+- Sketch (`src/shared/sketch.ts`): {cols, rows, cells: one char per square, labels [{x, y, t}]}; on building floors
+  and encounters (`attributes.sketch`).
 - All: template fields default location, motivation, tied quests
 
 ```

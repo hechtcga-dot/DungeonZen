@@ -42,7 +42,7 @@ export function buildingPrompt(ctx: BuildingContext, ask: string): string {
     '  Give each person two or three. Low scores (1-8) are harmless everyday gossip (rumour). Middle scores are personal secrets. High scores (14-20) are real secrets and clues that tie DIRECTLY to the campaign cards above by name.',
     tavern ? '- "rooms": the rooms to rent: {"no", "name", "price" (like "5 sp"), "status" ("free", "taken" or "closed" for not for rent), "who" (who stays there, or empty), "floor"}.' : '- "rooms": [] unless it has rooms to rent.',
     `- "stock": ${shop ? 'a long list (twelve or more) of what it sells' : tavern ? 'a short menu: drinks, meals, lodging' : 'anything for sale, often none'}: {"name", "notes" (short rules line or empty), "qty" (number, or null for always), "price" (5e standard prices like "15 gp")}.`,
-    '- "layout": per floor, a rough plan on a 20 x 12 grid of 5-foot squares: {"<floor name or main>": [{"name", "x", "y", "w", "h"}]} with rooms as rectangles that fit the grid and do not overlap.',
+    '- "layout": per floor, a rough plan on a 20 x 12 grid of 5-foot squares: {"<floor name or main>": [{"name", "x", "y", "w", "h", "doors": [[x, y]]}]} with rooms as rectangles that fit the grid; neighbouring rooms share a wall; doors are squares on a room\'s edge.',
     'Use "main" for the main floor in "floor" fields.'
   ]
   if (ask.trim()) lines.push(`The DM adds: ${ask.trim().slice(0, 600)}`)
@@ -100,6 +100,10 @@ export function parseBuilding(reply: string, kind: BuildingKind): BuildingPropos
       const x1 = Math.min(19, x + w - 1), y1 = Math.min(11, y + h - 1)
       if (x < 0 || y < 0 || x > 18 || y > 10) continue
       sk = paint(sk, roomCells(x, y, x1, y1))
+      for (const d of Array.isArray(r.doors) ? r.doors : []) {
+        const [dx, dy] = Array.isArray(d) ? d.map((n) => Math.round(Number(n))) : [NaN, NaN]
+        if (Number.isFinite(dx) && Number.isFinite(dy)) sk = paint(sk, [[dx, dy, 'D']])
+      }
       const name = str(r.name, 40)
       if (name) sk = { ...sk, labels: [...sk.labels, { x: x + 1, y: y + 1, t: name }] }
     }

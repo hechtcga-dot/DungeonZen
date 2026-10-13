@@ -23,9 +23,11 @@ import { FightSummary } from '../components/FightSummary'
 import { slotsFromText } from '../../shared/combat'
 import { PicturePanel } from '../components/Pictures'
 import { SheetFileMenu } from '../components/ImportCharSheet'
+import { BuildingFillDialog, BuildingTab } from '../components/BuildingSheet'
+import { KIND_LABELS, readBuilding } from '../../shared/building'
 import { ActionsTable, ClassStrip, Extras, HpAdjust, InspirationBox, LimitedUses, SpellsTable, VitalsCard } from '../components/SheetExtras'
 
-type Tab = 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
+type Tab = 'building' | 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
 
 const ABILITY_NAMES = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const
 const ABILITY_FULL = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' } as const
@@ -48,7 +50,9 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const side = useSidePanel('sheet-side', 'right', 340)
   const { act, showOnBoard, openSheet } = useBoard()
   const creature = HAS_STATBLOCK.has(sheet.entity.type)
-  const [tab, setTab] = useState<Tab>(['NPC', 'MONSTER'].includes(sheet.entity.type) ? 'fight' : creature ? 'sheet' : 'traits')
+  const building = sheet.entity.type === 'BUILDING'
+  const [tab, setTab] = useState<Tab>(building ? 'building' : ['NPC', 'MONSTER'].includes(sheet.entity.type) ? 'fight' : creature ? 'sheet' : 'traits')
+  const [buildingFill, setBuildingFill] = useState(false)
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
   /** Fill blanks with AI: null = closed; otherwise the fields to offer (empty list = every empty field). */
   const [filling, setFilling] = useState<string[] | null>(null)
@@ -61,9 +65,11 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const source = e.attributes.source as { name?: string } | undefined
   const p = `sheet-${e.id}`
 
-  const templateSide = (
-            <div className="sheet-side" style={{ flex: `0 1 ${side.width}px` }}>
-              {side.grip}
+  const wrapSide = (children: React.ReactNode) => (
+    <div className="sheet-side" style={{ flex: `0 1 ${side.width}px` }}>{side.grip}{children}</div>
+  )
+  const templateInner = (
+            <>
               <PicturePanel sheet={sheet} />
               <section className="panel">
                 <h2 className="panel-heading">Campaign template</h2>
@@ -77,8 +83,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                 <CommitField id={`${p}-summary`} label={lab('summary', 'One-line summary')} value={str('summary')}
                   hint={HAS_STATBLOCK.has(e.type) ? 'Leave empty to show the stat block line on the card.' : undefined}
                   onCommit={(summary) => update({ attributes: { summary } })} />
-                <CommitField id={`${p}-location`} label={lab('location', 'Default location')} value={str('location')}
-                  onCommit={(location) => update({ attributes: { location } })} />
+                {e.type !== 'BUILDING' && <CommitField id={`${p}-location`} label={lab('location', 'Default location')} value={str('location')}
+                  onCommit={(location) => update({ attributes: { location } })} />}
                 {e.type === 'LOCATION' && <CommitField id={`${p}-biome`} label="Biome" value={str('biome')} placeholder="Forest, city, swamp…"
                   onCommit={(biome) => update({ attributes: { biome } })} />}
                 <CommitField id={`${p}-tags`} label="Tags" value={e.tags.join(', ')} hint="Separate tags with commas."
@@ -99,8 +105,9 @@ function Sheet({ sheet }: { sheet: SheetView }) {
               <DetailsPanel sheet={sheet} lab={lab} />
               <CustomFields sheet={sheet} />
               <PartyKnows sheet={sheet} />
-            </div>
+            </>
   )
+  const templateSide = wrapSide(templateInner)
 
   return (
     <>
@@ -114,7 +121,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
           {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
         </div>
         <button onClick={() => void showOnBoard(e.id)}>Show on board</button>
-        <button onClick={() => setFilling([])}>Fill blanks with AI…</button>
+        {building ? <button className="ai-button" onClick={() => setBuildingFill(true)}>✦ Fill with AI…</button> : <button onClick={() => setFilling([])}>Fill blanks with AI…</button>}
         {(e.type === 'PC' || e.type === 'NPC') && <SheetFileMenu entityId={e.id} name={e.name} />}
         <button onClick={() => setExporting('print')}>{e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…'}</button>
         {['NPC', 'PC', 'MONSTER'].includes(e.type) && <button onClick={() => setExporting('roll20')}>Export to Roll20…</button>}
@@ -127,13 +134,15 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         }}>{e.status === 'defunct' ? 'Revive' : 'Move to History'}</button>
       </div>
 
+      {buildingFill && <BuildingFillDialog sheet={sheet} onClose={() => setBuildingFill(false)} />}
       {filling && <FillDialog sheet={sheet} only={filling} onClose={() => setFilling(null)} />}
       {exporting === 'roll20' && <Roll20Dialog entityIds={[e.id]} title={`Roll20: ${e.name}`} onClose={() => setExporting(null)} />}
       {exporting === 'print' && <ExportDialog kind={e.type === 'HANDOUT' ? 'letters' : 'sheets'} entityIds={[e.id]} title={e.name} onClose={() => setExporting(null)} />}
       <nav className="tabs" role="tablist" aria-label="Sheet sections">
         {([
+          ...(building ? [['building', KIND_LABELS[readBuilding(e.attributes).kind]]] as const : []),
           ...(creature ? [['fight', 'Fight summary'], ['sheet', 'Full sheet']] as const : []),
-          ['traits', tabTitle(e.type)], ['secrets', 'Secrets'],
+          ...(building ? [] : [['traits', tabTitle(e.type)], ['secrets', 'Secrets']] as const),
           ['notes', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Notes'],
           ['connections', `Connections (${sheet.connections.length})`]
         ] as const).map(([id, label]) => (
@@ -142,6 +151,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
       </nav>
 
       <div className="sheet-body">
+        {tab === 'building' && <BuildingTab sheet={sheet} side={templateInner} wrapSide={wrapSide} factions={<FactionsField sheet={sheet} />} lab={lab} />}
         {tab === 'fight' && <FightSummary sheet={sheet} onFullSheet={() => setTab('sheet')} />}
         {tab === 'sheet' && (
           <>

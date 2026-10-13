@@ -1,3 +1,4 @@
+import type { Sketch } from '../shared/sketch'
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
@@ -75,9 +76,9 @@ interface BoardState {
   notesOpenId: string | null
   /** Getting started: the step on show (kept so Back returns to it). */
   guideStep: 'map' | 'regions' | 'notes'
-  /** The battle map dialog is open. */
-  battleMapOpen: boolean
-  setBattleMapOpen(open: boolean): void
+  /** The battle map dialog is open; a request carries a sketch (blueprint), a name and where to keep the result. */
+  battleMapOpen: boolean | BattleMapRequest
+  setBattleMapOpen(open: boolean | BattleMapRequest): void
 
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
@@ -96,6 +97,15 @@ interface BoardState {
   select(selection: Selection): void
   setSearch(text: string): void
   say(text: string, isError?: boolean): void
+}
+
+export interface BattleMapRequest {
+  name?: string
+  description?: string
+  sketch?: Sketch | null
+  indoors?: boolean
+  /** Called with the kept map's id (e.g. to tie it to the encounter or the floor). */
+  onKept?(mapId: string): void
 }
 
 export const useBoard = create<BoardState>((set, get) => ({

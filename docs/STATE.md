@@ -432,6 +432,40 @@ built.
     borders stay one line), thin solid ink at 55%, lighter fill; clicks and drops still use the stored polygon.
     Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
     "Card: name", Restore puts it back; cards that left with a storyline are not listed).
+- Buildings (1.10.0, owner's list 2026-10-13): new card type BUILDING (slate `#5c6b73`), kind Tavern / Shop /
+  Building (Details › Kind; tab named after the kind). Sheet (`BuildingSheet.tsx`): backdrop drawn in code per kind
+  (`art/buildings.tsx`), floor tabs (main floor only at first; + Floor ▾ names or your own; right-click Rename, Move
+  left/right, Move to History; Bring back from the same menu), floor bar with Show layout and ✦ Draw floor map.
+  Taverns: Barkeeper & patrons, Layout, Rooms (one row each: number, name, base price, price here, Free / Taken /
+  Not for rent, who), Menu & stock. Shops: Inventory first, then Shopkeeper & customers, Layout. People: keeper first,
+  role/look/knows, secrets labelled Rumour / Secret / Clue with a score 1-20 sorted low to high; Players rolled (typed
+  in) opens every secret at or below it. Right-click a person: Make NPC card / Make PC card (`buildingPatronCard`:
+  card with location = the building, a LOCATED_AT string, patron keeps the card id; one undo step) or Open card,
+  Edit, Add secret, Make keeper, Move to floor, Move to History; drag onto a floor tab moves them. Stock: + Add item ▾
+  (SRD 5e prices bundled in `shared/prices.ts`, grouped) or + Own item; − / + quantity, ∞ = always, 0 = sold out;
+  base price typed ("15 gp"); Here = base × campaign scale (Setup › Campaign settings, `price_scale`) × building
+  scale (Price settings, folded at the bottom of the side column). Side: Secrets & clues with two folders, In this
+  building and All campaign secrets (campaign's own list, Clue cards, other buildings' secrets; `secretPool`);
+  right-click moves between them (`moveSecret`, one undo step; a Clue card is added with its card id); + Add ▾ new
+  secret / clue / rumour or from a Clue card; purple = has its own card. Description, History (says how it got its
+  name), Details (Kind, floors, Inside = location, Factions), template side. No sights/dangers/bio/what the players
+  see on buildings. Removing anything inside a building marks it removed (History inside the card, Bring back ▾).
+  Fill with AI (`ai:building`, `src/main/ai/building.ts`): one proposal for everything (description, history with
+  the name's story, floors, keeper, patrons, scored secrets tied to existing cards by name, rooms, stock, rough
+  layout per floor as rooms with doors); sections ticked; Keep selected adds them in one undo step; text marked (AI).
+- Layout sketch (`SketchPad.tsx`, `shared/sketch.ts`): pencil-look grid of 5 ft squares stored as one character
+  per square plus labels (tiny). Building tools: Room (walled rectangle), Wall, Door, Window, Stairs, Bed, Table,
+  Bar, Hearth, Pillar, Label, Eraser; battle tools: Wall, Door, Room, Water, Trees, Rock, Pillar, Stairs, Difficult,
+  Start: party, Start: foes, Label, Eraser. Each stroke one undo step; Undo button = app undo; size boxes resize.
+  Encounters › Battle map sketch (Show sketch tick, saved on the encounter) and Draw… / ✦ Draw battle map from
+  sketch open the battle map window with the sketch. Draw window: Use sketch as blueprint (on), Show labels on the
+  finished map, Keep start markers (off); Blueprint sent shows the plan and text. Sent as a flat-colour plan PNG
+  (`sketchPng`) first, before style examples (OpenAI edits, Gemini parts; Stability uses control/sketch) plus
+  `blueprintText` (follow exactly, size, colours, labels, square-by-square rows up to 1600 squares). Kept maps are
+  tied to the encounter or the floor (Open the floor map).
+- Who is in a region (1.10.0): every map region shows a blue chip with the NPCs and monsters there (location names
+  the place or a building inside it, a LOCATED_AT string to it, or any string to a building inside it;
+  `occupantsOf`), on the board's map pictures, Map screen, desk and Live maps; region panel Here now includes them.
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.

@@ -28,6 +28,7 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
   const [name, setName] = useState(info?.name ?? '')
   const [edition, setEdition] = useState<RulesEdition>(info?.rulesEdition ?? '2024')
   const [units, setUnits] = useState<Units>(info?.units ?? 'metric')
+  const [prices, setPrices] = useState(String(info?.priceScale ?? 100))
   const [day, setDay] = useState(String(clock.day))
   const [hour, setHour] = useState(String(clock.hour))
   const [minute, setMinute] = useState(String(clock.minute).padStart(2, '0'))
@@ -37,11 +38,12 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
   const d = Number(day), h = Number(hour), m = Number(minute), f = Number(fullDay)
   const timeValid = Number.isInteger(d) && d >= 1 && Number.isInteger(h) && h >= 0 && h < 24 && Number.isInteger(m) && m >= 0 && m < 60
   const moonValid = Number.isFinite(f) && f >= 1
-  const valid = name.trim() !== '' && timeValid && moonValid
+  const pct = Math.round(Number(prices))
+  const valid = name.trim() !== '' && timeValid && moonValid && pct >= 1 && pct <= 10000
 
   const save = async () => {
     if (!valid || !info) return
-    await act('campaign:update', { name: name.trim(), rulesEdition: edition, moonOffsetDays: -(f - 1), units })
+    await act('campaign:update', { name: name.trim(), rulesEdition: edition, moonOffsetDays: -(f - 1), units, priceScale: pct })
     const minutes = fromClockParts({ day: d, hour: h, minute: m })
     if (minutes !== info.clockMin) await act('clock:set', { minutes })
     onClose()
@@ -67,6 +69,11 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
           <option value="imperial">Imperial: feet, miles, mph</option>
         </select>
         <div className="hint">Only changes what the screens show; stat block text keeps its words, and feet or miles in it show converted.</div>
+      </div>
+      <div className="field">
+        <label htmlFor="cs-prices">Shop and tavern prices (%)</label>
+        <input id="cs-prices" className="short" type="number" min={1} max={10000} value={prices} onChange={(e) => setPrices(e.target.value)} />
+        <div className="hint">100 is the standard 5e price. Every shop and tavern uses this, times its own scale (its Price settings).</div>
       </div>
       <fieldset className="field">
         <legend>Campaign time</legend>

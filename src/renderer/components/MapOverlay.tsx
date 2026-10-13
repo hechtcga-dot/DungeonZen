@@ -39,6 +39,22 @@ export function PcTokenMark({ x, y, name, scale, onPointerDown, dragging }: {
 }
 
 const FILL = '#c9b07a'
+
+/** "Maud · Vey · Hobb +2": the NPCs and monsters in a region, as a small chip under its name. */
+function Occupants({ names, y, s }: { names: string[]; y: number; s: number }) {
+  if (!names?.length) return null
+  const text = `${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` +${names.length - 3}` : ''}`
+  const fs = 11 * s
+  const w = (text.length * 6 + 26) * s
+  return (
+    <g className="map-occupants" transform={`translate(0 ${y})`}>
+      <title>Here now: {names.join(', ')}</title>
+      <rect x={-w / 2} y={0} width={w} height={fs * 1.7} rx={fs * 0.85} fill="#2f5d8a" fillOpacity="0.9" stroke="#f1e6c6" strokeWidth={s} />
+      <circle cx={-w / 2 + 10 * s} cy={fs * 0.85} r={3.2 * s} fill="#f1e6c6" />
+      <text x={6 * s} y={fs * 1.2} textAnchor="middle" fontSize={fs} fill="#f1e6c6" fontFamily="system-ui, sans-serif">{text}</text>
+    </g>
+  )
+}
 /** Settlements and landmarks are drawn as a marker, land regions as a tinted area. */
 export const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' || r.kind === 'village' || r.kind === 'landmark' || r.kind === 'dungeon'
 
@@ -94,6 +110,7 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
                   <text y={(big + 3) * s + fs * 1.08} textAnchor="middle" fontSize={fs} fill="#f1e6c6" fontFamily="'IM Fell English', Georgia, serif">{r.name}</text>
                 </>
               )}
+              <Occupants names={r.occupants} y={(big + 5) * s + fs * 1.6} s={s} />
             </g>
           )
         }
@@ -103,6 +120,7 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
           <g key={`l-${r.id}`} className="map-label" transform={`translate(${cx} ${cy})`} pointerEvents="none">
             <text y={fs * 0.35} textAnchor="middle" fontSize={fs} fontStyle="italic" fill="#2a1f12" stroke="#f6ecd0" strokeWidth={4 * s}
               paintOrder="stroke" strokeLinejoin="round" fontFamily="'IM Fell English', Georgia, serif">{r.name}</text>
+            <Occupants names={r.occupants} y={fs * 0.7} s={s} />
           </g>
         )
       })}
