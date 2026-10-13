@@ -24,5 +24,5 @@ describe('fillable PDFs', () => {
     const [page] = await pdfPages(formPdf())
     expect(page).toContain('CharacterName: Flor Nightingale')
     expect(page).toContain('ClassLevel: Bard 5')
-  })
+  }, 30_000) // the first pdf.js load can take over 5 s on the Windows build runner
 })
