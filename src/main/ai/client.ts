@@ -24,6 +24,12 @@ export interface ImageRequest {
   aspect?: Aspect
   /** A layout plan to follow exactly (sketch blueprint); sent first, before the style examples. */
   blueprint?: { bytes: Buffer; mime: string }
+  /** A rough outline (sketch or the DM's picture): layout only, never style. Sent first, like a blueprint. */
+  outline?: { bytes: Buffer; mime: string }
+  /** Update picture: the drawn picture to change (no style examples go with it). */
+  edit?: { bytes: Buffer; mime: string }
+  /** With edit: the same picture with the DM's coloured marks (services that take two pictures). */
+  marked?: { bytes: Buffer; mime: string }
 }
 
 export interface ImageResult { bytes: Buffer; mime: string }
@@ -116,11 +122,14 @@ export async function generateText(r: Resolved, req: TextRequest, f: Fetch = fet
 // ---------------------------------------------------------------- images
 
 export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = fetch): Promise<ImageResult> {
+  if (req.edit) return changeImage(r, req, req.edit, f)
   const styleRefs = req.references ?? []
-  const refs = req.blueprint ? [req.blueprint, ...styleRefs] : styleRefs
+  const plan = req.blueprint ?? req.outline
+  const refs = plan ? [plan, ...styleRefs] : styleRefs
   const aspect = req.aspect ?? '1:1'
-  if (req.blueprint && r.info.protocol !== 'stability') {
-    req = { ...req, prompt: `${req.prompt}\nThe first attached image is the plan (blueprint)${styleRefs.length ? '; the others are style examples only' : ''}.` }
+  if (plan && r.info.protocol !== 'stability') {
+    const first = req.blueprint ? 'the plan (blueprint)' : 'the outline: use it for the layout and shapes only, not for its colours, art style or details'
+    req = { ...req, prompt: `${req.prompt}\nThe first attached image is ${first}${styleRefs.length ? '; the others are style examples only' : ''}.` }
   }
   switch (r.info.protocol) {
     case 'openai-image': {
@@ -143,11 +152,16 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
     case 'gemini-image': {
       const parts: unknown[] = [{ text: `${req.prompt}\nAspect ratio ${aspect}.` }]
       for (const ref of refs) parts.push({ inlineData: { mimeType: ref.mime, data: ref.bytes.toString('base64') } })
-      const ask = (p: unknown[]) => call(r, f, `${r.baseUrl}/models/${encodeURIComponent(r.model)}:generateContent`, {
+      // Picture-only replies (speed: no second trip for a words-only answer); a model that refuses that mode gets words and picture.
+      const post = (p: unknown[], modes: string[]) => call(r, f, `${r.baseUrl}/models/${encodeURIComponent(r.model)}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': r.key ?? '' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: p }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } })
+        body: JSON.stringify({ contents: [{ role: 'user', parts: p }], generationConfig: { responseModalities: modes } })
       }, IMAGE_TIMEOUT)
+      const ask = (p: unknown[]) => post(p, ['IMAGE']).catch((e: unknown) => {
+        if (e instanceof AiError && /modalit/i.test(e.message)) return post(p, ['TEXT', 'IMAGE'])
+        throw e
+      })
       let body = await ask(parts)
       let img = geminiParts(body).find((p) => p.inlineData?.data)
       // Gemini sometimes answers in words only; ask once more, plainly for the picture.
@@ -163,11 +177,11 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
       form.append('prompt', req.prompt)
       form.append('output_format', 'png')
       let path: string
-      if (req.blueprint) {
-        // Sketch control: keeps the plan's layout (style examples cannot be added here).
+      if (plan) {
+        // Sketch control: keeps the plan's layout (style examples cannot be added here); an outline more loosely.
         path = '/v2beta/stable-image/control/sketch'
-        form.append('image', new Blob([new Uint8Array(req.blueprint.bytes)], { type: req.blueprint.mime }), 'plan.png')
-        form.append('control_strength', '0.85')
+        form.append('image', new Blob([new Uint8Array(plan.bytes)], { type: plan.mime }), `plan.${ext(plan.mime)}`)
+        form.append('control_strength', req.blueprint ? '0.85' : '0.6')
       } else if (refs.length) {
         // Style guide: copies the look of the first example map.
         path = '/v2beta/stable-image/control/style'
@@ -218,6 +232,40 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
     }
     default:
       throw new AiError(`${r.info.name} writes text; choose an image service for battle maps.`)
+  }
+}
+
+/** Update picture: the service changes the drawn picture by the DM's words (and marks, where it takes two pictures). */
+async function changeImage(r: Resolved, req: ImageRequest, edit: { bytes: Buffer; mime: string }, f: Fetch): Promise<ImageResult> {
+  const pics = req.marked ? [edit, req.marked] : [edit]
+  const aspect = req.aspect ?? '1:1'
+  switch (r.info.protocol) {
+    case 'openai-image': {
+      const form = new FormData()
+      form.append('model', r.model)
+      form.append('prompt', req.prompt)
+      form.append('size', aspect === '1:1' ? '1024x1024' : landscape(aspect) ? '1536x1024' : '1024x1536')
+      pics.forEach((p, i) => form.append('image[]', new Blob([new Uint8Array(p.bytes)], { type: p.mime }), `${i ? 'marked' : 'picture'}.${ext(p.mime)}`))
+      const body = await call(r, f, `${r.baseUrl}/images/edits`, { method: 'POST', headers: bearer(r, {}), body: form }, IMAGE_TIMEOUT)
+      return b64Image((body.data as Array<{ b64_json?: string }> | undefined)?.[0]?.b64_json, r)
+    }
+    case 'gemini-image':
+      // Same request as a drawing: the pictures go where the examples would.
+      return generateImage(r, { prompt: req.prompt, references: pics, aspect }, f)
+    case 'stability': {
+      // Image to image: one picture only (the marks cannot go), the words say what to change.
+      const form = new FormData()
+      form.append('prompt', req.prompt)
+      form.append('output_format', 'png')
+      form.append('mode', 'image-to-image')
+      form.append('strength', '0.55')
+      form.append('image', new Blob([new Uint8Array(edit.bytes)], { type: edit.mime }), `picture.${ext(edit.mime)}`)
+      if (r.model.startsWith('sd3')) form.append('model', r.model)
+      const res = await send(r, f, `${r.baseUrl}/v2beta/stable-image/generate/sd3`, { method: 'POST', headers: bearer(r, { Accept: 'image/*' }), body: form }, IMAGE_TIMEOUT)
+      return { bytes: Buffer.from(await res.arrayBuffer()), mime: res.headers.get('content-type') ?? 'image/png' }
+    }
+    default:
+      throw new AiError(`${r.info.name} cannot change a picture it drew. Use Draw again, or choose OpenAI images, Google Gemini images or Stability AI in AI services.`)
   }
 }
 

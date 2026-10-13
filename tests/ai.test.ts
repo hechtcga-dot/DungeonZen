@@ -222,6 +222,46 @@ describe('battle map services', () => {
     expect(busy.sent).toHaveLength(1) // no automatic retry (owner, 2026-10-13)
   })
 
+  it('Gemini images: asks for a picture-only reply; a model that refuses that mode gets words and picture', async () => {
+    const pic = () => json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] } }] })
+    const a = fakeFetch(pic())
+    await generateImage(pick('gemini-image'), { prompt }, a.f)
+    expect(bodyOf(a.sent[0]).generationConfig.responseModalities).toEqual(['IMAGE'])
+    const b = fakeFetch(new Response('{"error":{"message":"Model does not support the requested response modalities: image"}}', { status: 400 }), pic())
+    expect((await generateImage(pick('gemini-image'), { prompt }, b.f)).bytes.equals(png)).toBe(true)
+    expect(bodyOf(b.sent[1]).generationConfig.responseModalities).toEqual(['TEXT', 'IMAGE'])
+  })
+
+  it('Update picture: the drawn picture (and the marked copy) go back without style examples', async () => {
+    const marked = Buffer.from('marked-png')
+    const o = fakeFetch(json({ data: [{ b64_json: png.toString('base64') }] }))
+    await generateImage(pick('openai-image'), { prompt: 'Change it', edit: { bytes: png, mime: 'image/png' }, marked: { bytes: marked, mime: 'image/png' }, references: [{ bytes: png, mime: 'image/png' }], aspect: '3:2' }, o.f)
+    expect(o.sent[0].url).toBe('https://api.openai.com/v1/images/edits')
+    const form = o.sent[0].init.body as FormData
+    expect(form.getAll('image[]')).toHaveLength(2)
+    expect(form.get('size')).toBe('1536x1024')
+    const g = fakeFetch(json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] } }] }))
+    await generateImage(pick('gemini-image'), { prompt: 'Change it', edit: { bytes: png, mime: 'image/png' } }, g.f)
+    expect(bodyOf(g.sent[0]).contents[0].parts).toHaveLength(2)
+    const st = fakeFetch(new Response(png, { status: 200, headers: { 'content-type': 'image/png' } }))
+    await generateImage(pick('stability'), { prompt: 'Change it', edit: { bytes: png, mime: 'image/png' }, marked: { bytes: marked, mime: 'image/png' } }, st.f)
+    expect(st.sent[0].url).toBe('https://api.stability.ai/v2beta/stable-image/generate/sd3')
+    expect((st.sent[0].init.body as FormData).get('mode')).toBe('image-to-image')
+    await expect(generateImage(pick('replicate'), { prompt: 'Change it', edit: { bytes: png, mime: 'image/png' } }, fakeFetch().f)).rejects.toThrow(/cannot change a picture/)
+  })
+
+  it('An outline goes first and is told to be layout only', async () => {
+    const g = fakeFetch(json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] } }] }))
+    await generateImage(pick('gemini-image'), { prompt, outline: { bytes: Buffer.from('outline'), mime: 'image/png' }, references: [{ bytes: png, mime: 'image/jpeg' }] }, g.f)
+    const parts = bodyOf(g.sent[0]).contents[0].parts
+    expect(parts[0].text).toMatch(/first attached image is the outline: use it for the layout and shapes only, not for its colours, art style/)
+    expect(Buffer.from(parts[1].inlineData.data, 'base64').toString()).toBe('outline')
+    const st = fakeFetch(new Response(png, { status: 200, headers: { 'content-type': 'image/png' } }))
+    await generateImage(pick('stability'), { prompt, outline: { bytes: Buffer.from('outline'), mime: 'image/png' } }, st.f)
+    expect(st.sent[0].url).toMatch(/control\/sketch$/)
+    expect((st.sent[0].init.body as FormData).get('control_strength')).toBe('0.6')
+  })
+
   it('Stability: image bytes back; the style endpoint when there is an example', async () => {
     const img = () => new Response(png, { status: 200, headers: { 'content-type': 'image/png' } })
     const { f, sent } = fakeFetch(img(), img())

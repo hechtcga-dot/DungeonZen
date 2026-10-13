@@ -1,3 +1,4 @@
+import type { Outline } from './outline'
 import type { CombatantInfo, CombatState } from './combat'
 import type { Units } from './units'
 import type { StatBlock } from './statblock'
@@ -23,6 +24,8 @@ export interface CampaignInfo {
   gettingStarted: boolean
   /** The art style in words, added to every AI drawing (works with services that cannot see examples). */
   artStyle: string
+  /** The world map Draw window's outline (sketch or picture, labels). */
+  worldOutline: Outline
   /** Percent for every shop and tavern price (Setup › Campaign settings). */
   priceScale: number
 }

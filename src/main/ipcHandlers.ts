@@ -36,7 +36,9 @@ import { prepBlocks } from '../shared/prepDoc'
 import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
 import type { ImportDraft } from '../shared/notesImport'
 import { AI_PROVIDERS, maxReferences, providerById, type AiChoice } from '../shared/aiProviders'
-import { timeOfDayFor } from '../shared/battlemap'
+import { aspectFor, timeOfDayFor } from '../shared/battlemap'
+import { blendMarks, changePrompt } from '../shared/outline'
+import { imageSize } from './imageSize'
 import { allSrdMonsters, searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
 import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } from './generators'
 import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
@@ -52,15 +54,35 @@ const SHARED_WRITES = new Set<IpcChannel>(['notes:set', 'notes:append', 'session
 
 
 /** "Send smaller copies" in a Draw window: examples wider or taller than 1024 px go as 1024 px JPEG copies (the files stay as they are). */
-function shrink(refs: Array<{ bytes: Buffer; mime: string }>, smaller?: boolean): Array<{ bytes: Buffer; mime: string }> {
-  if (!smaller) return refs
+// Pictures going to an image service, made once per file: at most 1536 px (the services shrink
+// bigger ones on arrival, so nothing is lost and the upload is far smaller), or 1024 px when the
+// DM ticks "Send smaller copies".
+const prepared = new Map<string, { bytes: Buffer; mime: string }>()
+function shrink(refs: Array<{ bytes: Buffer; mime: string; key?: string }>, smaller?: boolean): Array<{ bytes: Buffer; mime: string }> {
+  const max = smaller ? 1024 : 1536
   return refs.map((ref) => {
+    const key = ref.key ? `${ref.key}|${max}` : null
+    const hit = key ? prepared.get(key) : undefined
+    if (hit) return hit
     const img = nativeImage.createFromBuffer(ref.bytes)
     const { width, height } = img.getSize()
-    if (img.isEmpty() || Math.max(width, height) <= 1024) return ref
-    const small = width >= height ? img.resize({ width: 1024, quality: 'best' }) : img.resize({ height: 1024, quality: 'best' })
-    return { bytes: small.toJPEG(90), mime: 'image/jpeg' }
+    let out = { bytes: ref.bytes, mime: ref.mime }
+    if (!img.isEmpty() && Math.max(width, height) > max) {
+      const small = width >= height ? img.resize({ width: max, quality: 'best' }) : img.resize({ height: max, quality: 'best' })
+      out = { bytes: small.toJPEG(smaller ? 90 : 95), mime: 'image/jpeg' }
+    }
+    if (key) prepared.set(key, out)
+    return out
   })
+}
+
+/** The picture with the DM's marks laid over it (marks: transparent PNG, any size; stretched to the picture). */
+function markedCopy(bytes: Buffer, marksPng: Buffer): { bytes: Buffer; mime: string } {
+  const base = nativeImage.createFromBuffer(bytes)
+  const size = base.getSize()
+  const marks = nativeImage.createFromBuffer(marksPng).resize({ width: size.width, height: size.height, quality: 'best' })
+  const out = blendMarks(base.toBitmap(), marks.toBitmap())
+  return { bytes: nativeImage.createFromBitmap(Buffer.from(out), size).toPNG(), mime: 'image/png' }
 }
 
 export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void): void {
@@ -283,9 +305,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notes:set', ({ text }) => current().setDmNotes(text))
   handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
   handle('clock:set', ({ minutes }) => current().setClock(minutes))
-  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle, priceScale }) => {
+  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle, priceScale, worldOutline }) => {
     const c = current()
-    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units, art_style: artStyle, price_scale: priceScale }, artStyle !== undefined ? 'Changed the art style' : 'Changed campaign settings')
+    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units, art_style: artStyle, price_scale: priceScale, world_outline: worldOutline },
+      artStyle !== undefined ? 'Changed the art style' : worldOutline ? 'Changed the world map outline' : 'Changed campaign settings')
     if (name) profile.remember(c.folder, name)
   })
   handle('storyline:update', ({ storylineId, patch }) => current().updateStoryline(storylineId, patch))
@@ -455,12 +478,46 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       creature ? 'Full figure, set in a fitting place.' : ''
     ].filter(Boolean).join('\n') // the Draw window adds style, composition and "No text, no frame."
   })
-  handle('entity:drawPicture', async ({ entityId, prompt, styleIds, smaller }) => {
+  // The outline goes in the blueprint spot: one picture fewer for style examples.
+  const outlineOf = (o: { png?: string; path?: string } | undefined, smaller?: boolean) => {
+    const pic = o?.path ? current().outlinePicture(o.path) : o?.png ? { bytes: Buffer.from(o.png, 'base64'), mime: 'image/png' } : null
+    return pic ? shrink([pic], smaller)[0] : undefined
+  }
+  handle('entity:drawPicture', async ({ entityId, prompt, styleIds, smaller, outline }) => {
     const r = imageService()
     const c = current()
     c.sheet(entityId)
-    const image = await generateImage(r, { prompt, references: shrink(c.styleImages(styleIds, maxReferences(r.info)), smaller), aspect: '1:1' })
+    const plan = outlineOf(outline, smaller)
+    const references = shrink(c.styleImages(styleIds, Math.max(0, maxReferences(r.info) - (plan ? 1 : 0))), smaller)
+    const image = await generateImage(r, { prompt, references, aspect: '1:1', outline: plan })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
+  })
+  handle('image:update', async ({ pendingId, change, marks }) => {
+    const r = imageService()
+    const c = current()
+    const pic = c.pendingImage(pendingId)
+    const size = imageSize(pic.bytes)
+    const two = !!marks && maxReferences(r.info) > 1
+    const prompt = changePrompt(change, two ? marks.labels : null)
+    const image = await generateImage(r, {
+      prompt, aspect: size ? aspectFor(size.width, size.height) : '1:1',
+      edit: shrink([pic])[0], marked: two ? shrink([markedCopy(pic.bytes, Buffer.from(marks.png, 'base64'))])[0] : undefined
+    })
+    const next = c.savePendingImage(image.bytes, image.mime)
+    // A world map keeps its waiting details under the new picture.
+    const world = pendingWorlds.get(pendingId)
+    if (world) pendingWorlds.set(next.pendingId, world)
+    return { ...next, source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
+  })
+  handle('outline:upload', async () => {
+    const win = getWindow()
+    const options = {
+      title: 'Choose a picture to use as the outline', buttonLabel: 'Use as outline', properties: ['openFile'] as Array<'openFile'>,
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    return current().addOutlinePicture(result.filePaths[0])
   })
   handle('entity:usePicture', ({ entityId, path }) => current().setPicture(entityId, { path }))
   handle('pictures:view', () => current().pictures())
@@ -1039,9 +1096,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     pendingWorlds.set(pending.pendingId, { source, prompt: null, regions: world.regions })
     return { ...pending, regions: world.regions, source }
   })
-  handle('world:draw', async ({ prompt, styleIds, smaller }) => {
+  handle('world:draw', async ({ prompt, styleIds, smaller, outline }) => {
     const r = imageService()
-    const image = await generateImage(r, { prompt, references: shrink(current().styleImages(styleIds ?? [], maxReferences(r.info)), smaller), aspect: '3:2' })
+    const plan = outlineOf(outline, smaller)
+    const references = shrink(current().styleImages(styleIds ?? [], Math.max(0, maxReferences(r.info) - (plan ? 1 : 0))), smaller)
+    const image = await generateImage(r, { prompt, references, aspect: '3:2', outline: plan })
     const pending = current().savePendingImage(image.bytes, image.mime)
     const source = `${r.info.name} · ${r.model || 'default model'}`
     pendingWorlds.set(pending.pendingId, { source, prompt, regions: [] })

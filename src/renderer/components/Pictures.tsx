@@ -7,6 +7,8 @@ import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import type { IpcOutputs } from '../../shared/ipc'
 import { OpenFolder } from './OpenFolder'
+import { ChangePicture, OutlinePanel, outlineSend } from './OutlinePad'
+import { outlineBlank, outlineText, readOutline } from '../../shared/outline'
 import type { LibraryPictureView, SheetView, StyleExampleView, StyleUse } from '../../shared/types'
 
 const ASSET = 'dz-asset://campaign/'
@@ -123,25 +125,30 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   const [error, setError] = useState('')
   const [drawn, setDrawn] = useState<IpcOutputs['entity:drawPicture'] | null>(null)
   const use: StyleUse = 'portraits'
+  // The outline is kept on the card (undoable); "Use" is for this drawing only.
+  const outline = readOutline(entity.attributes.outline)
+  const [useOutline, setUseOutline] = useState(true)
+  const outlineOn = useOutline && !outlineBlank(outline)
   // Subject and wishes from the card, then style (ticked pictures' tags), composition and art style in words.
   const build = (wish: string) => call('entity:picturePrompt', { entityId: entity.id, ask: wish })
     .then((p) => setPrompt([
       p,
       ...styleLines({ ...blended, composition: comp === 'examples' ? blended.composition : undefined }, useBoard.getState().info?.artStyle ?? info?.artStyle ?? '',
         { composition: compositionById(comp).prompt, fallback: 'Style: classic fantasy book illustration.' }),
-      'No text, no frame.'
-    ].join('\n'))).catch(() => undefined)
+      outlineOn ? outlineText(outline) : '',
+      outlineOn && outline.writeLabels ? 'No frame.' : 'No text, no frame.'
+    ].filter(Boolean).join('\n'))).catch(() => undefined)
   // The prompt follows the wishes and ticked pictures until the DM edits it by hand.
   useEffect(() => {
     if (edited) return
     const t = setTimeout(() => void build(ask), 300)
     return () => clearTimeout(t)
-  }, [ask, edited, tags, comp])
+  }, [ask, edited, tags, comp, outlineOn, JSON.stringify(outline.labels), outline.writeLabels])
   const draw = async () => {
     setBusy(true); setError('')
     try {
       if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('entity:drawPicture', { entityId: entity.id, prompt, styleIds: [...picked], smaller }))
+      setDrawn(await call('entity:drawPicture', { entityId: entity.id, prompt, styleIds: [...picked], smaller, outline: outlineSend(outline, outlineOn, 1) }))
     } catch (err) { setError((err as Error).message) } finally { setBusy(false) }
   }
   const close = () => { if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }); onClose() }
@@ -154,6 +161,8 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
           <div className="hint">Things to show, separated by commas. The card's appearance, summary and description go with it. Uses the image service chosen in AI services.</div>
         </div>
         <CompositionPicker value={comp} onChange={setComp} fromExamples={blended.composition} />
+        <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
+          onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />
         <DrawExtras use={use} prompt={prompt} onPrompt={(p) => { setPrompt(p); setEdited(true) }}
           onReset={() => { setEdited(false); void build(ask) }} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
         {error && (
@@ -161,6 +170,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
             <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
         )}
         {drawn && <div className="ai-suggestion"><span className="ai-badge">AI suggestion · {drawn.source}</span><img className="pic-preview" src={drawn.url} alt="The AI's drawing" /></div>}
+        {drawn && <ChangePicture drawn={drawn} ratio={1} disabled={busy} onChanged={setDrawn} />}
         <div className="dz-actions">
           <button type="button" onClick={close}>Cancel</button>
           <button disabled={busy || prompt.trim().length < 10} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Draw again' : 'Draw'}</button>

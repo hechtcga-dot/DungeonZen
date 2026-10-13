@@ -12,6 +12,7 @@ import {
 } from '../../shared/battlemap'
 import type { PendingImageView, StyleExampleView } from '../../shared/types'
 import { fmtSquares } from '../../shared/units'
+import { ChangePicture } from './OutlinePad'
 import { blueprintText, isBlank } from '../../shared/sketch'
 import { SketchDrawing, sketchPng } from './SketchPad'
 
@@ -197,6 +198,8 @@ export function BattleMapDialog() {
             {drawn.width && drawn.height ? `${drawn.cols} × ${rowsFor(drawn.cols, drawn.width, drawn.height)} squares. ` : ''}
             The grid is drawn by the app on top; you can change it later under Scale and grid.
           </p>
+          <ChangePicture drawn={drawn} ratio={drawn.width && drawn.height ? drawn.width / drawn.height : 1} disabled={busy}
+            onChanged={(next) => setDrawn({ ...drawn, ...next, prompt: drawn.prompt, cols: drawn.cols })} />
           <div className="field">
             <label htmlFor="bm-keep-name">Name</label>
             <input id="bm-keep-name" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />

@@ -20,6 +20,7 @@ import { formatClock } from '../../shared/time'
 import { KNOWLEDGE_FIELDS, type PrepKind, type SceneType } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
+import { readOutline } from '../../shared/outline'
 import { ABILITY_KEYS, crToNumber, HAS_STATBLOCK, leadingNumber, passiveScore, readStatBlock, saveBonus, StatBlock, statLine } from '../../shared/statblock'
 import { battlePlan, spellRoles, type BattlePlan, type PlanFoe, type PlanPc } from '../../shared/battleplan'
 import { spellLevel } from '../../shared/attacks'
@@ -89,7 +90,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -267,7 +268,8 @@ export class Campaign {
       units: settings.get('units') === 'imperial' ? 'imperial' : 'metric',
       gettingStarted: settings.get('getting_started') === 'pending',
       artStyle: String(settings.get('art_style') ?? ''),
-      priceScale: typeof settings.get('price_scale') === 'number' ? settings.get('price_scale') as number : 100
+      priceScale: typeof settings.get('price_scale') === 'number' ? settings.get('price_scale') as number : 100,
+      worldOutline: readOutline(settings.get('world_outline'))
     }
   }
 
@@ -2236,7 +2238,28 @@ export class Campaign {
   /** The example images to send with a drawing (active ones only, at most `max`). */
   styleImages(ids: string[], max = 4): Array<{ bytes: Buffer; mime: string }> {
     const rows = this.db.select().from(styleExample).where(eq(styleExample.status, 'active')).all().filter((r) => ids.includes(r.id)).slice(0, max)
-    return rows.map((r) => ({ bytes: readFileSync(join(this.folder, ASSETS_DIR, r.imagePath)), mime: mimeOf(r.imagePath) }))
+    return rows.map((r) => ({ bytes: readFileSync(join(this.folder, ASSETS_DIR, r.imagePath)), mime: mimeOf(r.imagePath), key: r.imagePath }))
+  }
+
+  /** A picture waiting for the DM, to send back to the AI for Update picture. */
+  pendingImage(pendingId: string): { bytes: Buffer; mime: string } {
+    return { bytes: readFileSync(this.pendingFile(pendingId)), mime: mimeOf(pendingId) }
+  }
+
+  /** A picture the DM chose as a drawing's outline, copied into assets/outlines (the outline itself is saved by the caller, undoable). */
+  addOutlinePicture(sourceFile: string): string {
+    const ext = extname(sourceFile).toLowerCase()
+    if (!STYLE_EXTENSIONS.includes(ext)) throw new Error(`An outline picture must be PNG, JPEG or WebP (got ${ext || 'no extension'})`)
+    const rel = `outlines/${randomUUID()}${ext}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'outlines'), { recursive: true })
+    copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
+    return rel
+  }
+
+  /** The outline picture's bytes, or null when the file is gone. */
+  outlinePicture(rel: string): { bytes: Buffer; mime: string; key: string } | null {
+    const file = this.assetFile(rel)
+    return file ? { bytes: readFileSync(file), mime: mimeOf(rel), key: rel } : null
   }
 
   private styleRow(id: string) {

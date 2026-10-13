@@ -1,6 +1,8 @@
 import { DrawExtras, withArtStyle } from '../components/Pictures'
 import type { StyleTags } from '../../shared/styleTags'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChangePicture, OutlinePanel, outlineSend } from '../components/OutlinePad'
+import { emptyOutline, outlineBlank, outlineText } from '../../shared/outline'
 import { useBoard, useUnits } from '../store'
 import { kmToShown, shownToKm } from '../../shared/units'
 import { call } from '../api'
@@ -213,12 +215,17 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [smaller, setSmaller] = useState(false)
   const [tags, setTags] = useState<StyleTags[]>([])
-  const told = prompt ?? withArtStyle(worldMapPrompt({ description, climate, style }), artStyle, tags)
+  // The outline is kept with the campaign (undoable); "Use" is for this drawing only.
+  const outline = useBoard((st) => st.info?.worldOutline) ?? emptyOutline()
+  const [useOutline, setUseOutline] = useState(true)
+  const outlineOn = useOutline && !outlineBlank(outline)
+  const base = worldMapPrompt({ description, climate, style })
+  const told = prompt ?? withArtStyle(outlineOn ? [outline.writeLabels ? base.replace('No text, no labels, no names', 'No other text') : base, outlineText(outline)].join('\n') : base, artStyle, tags)
   const draw = async () => {
     setBusy(true); setError(null)
     try {
       if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('world:draw', { prompt: told, styleIds: [...picked], smaller }))
+      setDrawn(await call('world:draw', { prompt: told, styleIds: [...picked], smaller, outline: outlineSend(outline, outlineOn, 1.5) }))
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
   }
@@ -237,6 +244,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
           <>
             <img className="guide-picture" src={drawn.url} alt="The world map the AI drew" />
             <p className="ai-tag">Drawn by {drawn.source}</p>
+            <ChangePicture drawn={drawn} ratio={1.5} disabled={busy} onChanged={setDrawn} />
           </>
         ) : <div className="guide-wait">{busy ? 'Drawing… (this can take a minute)' : 'The map appears here.'}</div>}
       </section>
@@ -255,6 +263,8 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
               <option value="painted">Painted</option><option value="parchment">Inked parchment</option>
             </select></div>
         </div>
+        <OutlinePanel outline={outline} on={useOutline} onOn={(v) => { setUseOutline(v); setPrompt(null) }} ratio={1.5}
+          onSave={(next) => { setPrompt(null); void act('campaign:update', { worldOutline: next }) }} />
         <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
         {service === null ? (
           <p>Drawing needs an image service. <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>

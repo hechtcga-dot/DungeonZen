@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Outline } from './outline'
 import { StatBlock } from './statblock'
 import type { SrdAttacks } from './attacks'
 import type { BattlePlan } from './battleplan'
@@ -17,6 +18,9 @@ import type { BuiltCreature, CombatView, SrdMonsterRow,
   StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export, PicturesView
 } from './types'
 import { STYLE_USES } from './types'
+
+/** A drawing's outline as sent: the sketch as a picture (PNG, base64) or the DM's outline picture (asset path). */
+const OutlineSend = z.object({ png: z.string().max(4_000_000).optional(), path: z.string().max(500).optional() })
 import { StyleTagsSchema, type StyleTags } from './styleTags'
 import type { NotesScreenView } from './types'
 import type { RollTable } from './rolltables'
@@ -101,7 +105,7 @@ export const ipcInputs = {
   'backups:chooseFolder': z.void(),
   'backups:resetFolder': z.void(),
   'charsheet:importDialog': z.void(),
-  'campaign:openFolder': z.object({ sub: z.enum(['', 'assets', 'maps', 'styles', 'pictures', 'notes', 'board', 'encounters', 'exports']) }),
+  'campaign:openFolder': z.object({ sub: z.enum(['', 'assets', 'maps', 'styles', 'pictures', 'notes', 'board', 'encounters', 'exports', 'outlines']) }),
   'campaign:info': z.void(),
   'campaign:save': z.void(),
   'campaign:saveCopy': z.void(),
@@ -144,7 +148,13 @@ export const ipcInputs = {
   }),
   'entity:pictureDialog': z.object({ entityId: Id }),
   'entity:picturePrompt': z.object({ entityId: Id, ask: z.string().max(2000) }),
-  'entity:drawPicture': z.object({ entityId: Id, prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16), smaller: z.boolean().optional() }),
+  'entity:drawPicture': z.object({ entityId: Id, prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16), smaller: z.boolean().optional(), outline: OutlineSend.optional() }),
+  /** Update picture: the waiting picture changed by the DM's words, with the marks drawn on it (PNG, base64, transparent). */
+  'image:update': z.object({
+    pendingId: z.string().max(80), change: z.string().trim().min(3).max(2000),
+    marks: z.object({ png: z.string().max(8_000_000), labels: z.array(z.object({ colour: z.string().max(20), label: z.string().max(200) })).max(10) }).optional()
+  }),
+  'outline:upload': z.void(),
   'entity:usePicture': z.object({ entityId: Id, path: z.string().min(1).max(500) }),
   'pictures:view': z.void(),
   'pictures:upload': z.object({ folder: z.string().trim().min(1).max(80) }),
@@ -169,7 +179,8 @@ export const ipcInputs = {
     moonOffsetDays: z.number().finite().min(-10000).max(10000).optional(),
     units: z.enum(['metric', 'imperial']).optional(),
     artStyle: z.string().trim().max(500).optional(),
-    priceScale: z.number().int().min(1).max(10000).optional()
+    priceScale: z.number().int().min(1).max(10000).optional(),
+    worldOutline: Outline.optional()
   }),
   'storyline:update': z.object({
     storylineId: Id,
@@ -349,7 +360,7 @@ export const ipcInputs = {
     seed: z.number().int().min(0).max(2147483647), size: z.enum(WORLD_SIZES), land: z.number().min(0.3).max(0.75),
     climate: z.enum(WORLD_CLIMATES), settlements: z.number().int().min(0).max(30)
   }),
-  'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16).optional(), smaller: z.boolean().optional() }),
+  'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16).optional(), smaller: z.boolean().optional(), outline: OutlineSend.optional() }),
   'world:keep': z.object({ pendingId: z.string().max(80), name: Name, widthKm: z.number().positive().max(200000).nullable() }),
   'world:findRegions': z.object({ mapId: Id, ask: z.string().max(2000) }),
   'world:addRegions': z.object({ mapId: Id, regions: z.array(PlaceShapeInput).min(1).max(200), source: z.string().max(300) }),
@@ -500,6 +511,8 @@ export interface IpcOutputs {
   'entity:pictureDialog': boolean
   'entity:picturePrompt': string
   'entity:drawPicture': PendingImageView & { source: string; prompt: string }
+  'image:update': PendingImageView & { source: string; prompt: string }
+  'outline:upload': string | null
   'entity:usePicture': void
   'pictures:view': PicturesView
   'pictures:upload': number | null
