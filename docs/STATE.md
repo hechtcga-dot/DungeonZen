@@ -487,7 +487,7 @@ built.
   drawing; Write the labels on the picture (off). Sent as the first image (strokes on white, labels never drawn in)
   with "layout and shapes only, not colours, art style or details"; labels go in the prompt with where they are
   (`outlineText`); Stability uses control/sketch at 0.6.
-  Add to picture (owner, 2026-10-13): card sheet picture panel, next to Draw with AI, when the card has a picture
+- 1.12.0 (owner, 2026-10-13): Add to picture: card sheet picture panel, next to Draw with AI, when the card has a picture
   (any picture, not only AI). `AddToPictureDialog` in `Pictures.tsx`: `image:pendingCopy` copies the kept picture to
   `assets/pending`, then `ChangePicture add` (What to add box, sketch on the picture always open, one meaning per
   colour); `image:update add` sends `changePrompt(..., add=true)` (add only, change nothing already there). Result is

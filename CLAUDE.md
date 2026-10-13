@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.11.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 1.12.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -105,3 +105,7 @@ Defaults picked: "end layout" read as "send layout" (Use sketch as blueprint, on
 Change this picture (words, coloured marks with meanings) under every AI picture; outline sketch or uploaded outline picture with labels in the card picture and world map Draw windows; speed pass (shared refresh objects, visible-only board, lazy screens, small picture copies, 1536 px uploads prepared once, Gemini picture-only, background backup copy). Details in `docs/STATE.md`.
 Owner's decisions: change box starts empty each time, the original prompt stays; sketch saved with the card / campaign; marks on the picture for Update in several colours; an uploaded outline is layout only, never style; labels never written on the picture unless ticked; speed plan items 1-8 approved, image generation first.
 Defaults picked: Stability updates with the picture only (no marks); Replicate, fal.ai, local SD cannot update; battle map keeps its grid blueprint (no outline panel); `synchronous = NORMAL` not used (data safety).
+
+## 1.12.0 (built 2026-10-13)
+Add to picture (card sheet, next to Draw with AI: What to add box and sketch on the picture, add-only prompt, AI suggestion until kept); board Display › Card types (tick per type, view only, this computer). Details in `docs/STATE.md`.
+Defaults picked: Add to picture works on any card picture (uploaded too); a new card of a switched-off type switches that type back on; region names on maps still show when Location is off.
