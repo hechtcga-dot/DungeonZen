@@ -41,6 +41,8 @@ import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/p
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
 import { adaptation, RATING_LABELS, rateEncounter, xpForCr, type FightFeedback } from '../../shared/encounter'
 import type { RollTable } from '../../shared/rolltables'
+import { readSketch, type Sketch } from '../../shared/sketch'
+import { buildingAttrs, newId, occupantsOf, readBuilding, type BSecret } from '../../shared/building'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
 
 export const DB_FILE = 'campaign.db'
@@ -78,7 +80,7 @@ export function noteKind(ext: string): 'word' | 'pdf' | 'text' | 'picture' {
 /** Library › Pictures folders that always exist. */
 const DEFAULT_PICTURE_FOLDERS = ['Art', 'Portraits', 'Places', 'Items', 'Maps', 'Battle maps', 'Background pictures']
 /** The folder a card's picture shows in. */
-const PICTURE_FOLDER: Partial<Record<EntityType, string>> = { NPC: 'Portraits', PC: 'Portraits', MONSTER: 'Portraits', LOCATION: 'Places', ITEM: 'Items' }
+const PICTURE_FOLDER: Partial<Record<EntityType, string>> = { NPC: 'Portraits', PC: 'Portraits', MONSTER: 'Portraits', LOCATION: 'Places', BUILDING: 'Places', ITEM: 'Items' }
 
 const DEFAULT_RULES_EDITION: RulesEdition = '2024'
 const DEFAULT_CLOCK_MIN = 9 * 60 // Day 1, 09:00
@@ -87,7 +89,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -264,7 +266,8 @@ export class Campaign {
       globalBoardId: this.globalBoard().id,
       units: settings.get('units') === 'imperial' ? 'imperial' : 'metric',
       gettingStarted: settings.get('getting_started') === 'pending',
-      artStyle: String(settings.get('art_style') ?? '')
+      artStyle: String(settings.get('art_style') ?? ''),
+      priceScale: typeof settings.get('price_scale') === 'number' ? settings.get('price_scale') as number : 100
     }
   }
 
@@ -1926,7 +1929,9 @@ export class Campaign {
   }
 
   private regionViews(mapId: string): RegionView[] {
-    const ents = new Map(this.db.select().from(entity).all().map((e) => [e.id, e]))
+    const all = this.db.select().from(entity).all()
+    const ents = new Map(all.map((e) => [e.id, e]))
+    const rels = this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
     return this.regionRows(mapId).flatMap((r) => {
       const loc = ents.get(r.locationId)
       if (!loc || loc.status === 'defunct') return []
@@ -1934,7 +1939,8 @@ export class Campaign {
         id: r.id, locationId: r.locationId, name: loc.name, polygon: r.polygon, parentLocationId: loc.parentId,
         colour: typeof loc.attributes.colour === 'string' ? loc.attributes.colour : null,
         kind: isPlaceKind(loc.attributes.place_kind) ? loc.attributes.place_kind : null,
-        biome: isBiome(loc.attributes.biome) ? loc.attributes.biome : null
+        biome: isBiome(loc.attributes.biome) ? loc.attributes.biome : null,
+        occupants: occupantsOf(loc, all, rels).map((e) => e.name).sort((a, b) => a.localeCompare(b))
       }]
     })
   }
@@ -1992,7 +1998,8 @@ export class Campaign {
       .filter((x) => x.targetId === r.locationId && ['LOCATED_AT', 'TIED_TO_QUEST', 'IN_ENCOUNTER'].includes(x.type))
       .map((x) => x.sourceId))
     const byName = (e: typeof all[number]) => typeof e.attributes.location === 'string' && e.attributes.location.trim().toLowerCase() === loc.name.trim().toLowerCase()
-    const here = all.filter((e) => e.id !== r.locationId && (linked.has(e.id) || byName(e)))
+    const inside = new Set(occupantsOf(loc, all, this.db.select().from(relationship).all()).map((e) => e.id))
+    const here = all.filter((e) => e.id !== r.locationId && (linked.has(e.id) || byName(e) || inside.has(e.id)))
     const brief = (e: typeof all[number]) => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus })
     const party = this.partyAt(r.mapId, this.info().clockMin)
     // A player character split from the party counts as here in its own region.
@@ -2668,6 +2675,7 @@ export class Campaign {
       target, tactics: typeof a.tactics === 'string' ? a.tactics : '', notes: typeof a.summary === 'string' ? a.summary : '',
       scene: typeof a.scene === 'string' ? a.scene : '',
       battleMapId: typeof a.battle_map_id === 'string' ? a.battle_map_id : null,
+      sketch: readSketch(a.sketch),
       creatures, pcs, difficulty: rateEncounter(creatures, pcs.length ? (levels.length ? levels : [p.level]) : p.level, p.size, p.factor), runs
     }
   }
@@ -2684,7 +2692,7 @@ export class Campaign {
     return id
   }
 
-  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[] }): void {
+  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[]; sketch?: Sketch | null }): void {
     const e = this.entityRow(id)
     this.log.run(`Edited encounter ${patch.name ?? e.name}`, (w) => {
       const attrs: Record<string, unknown> = { encounter: true }
@@ -2694,6 +2702,7 @@ export class Campaign {
       if (patch.scene !== undefined) attrs.scene = patch.scene
       if (patch.battleMapId !== undefined) attrs.battle_map_id = patch.battleMapId
       if (patch.pcsOut !== undefined) attrs.pcs_out = patch.pcsOut
+      if (patch.sketch !== undefined) attrs.sketch = patch.sketch
       w.update('entity', id, { name: patch.name, attributes: { ...e.attributes, ...attrs } })
       if (patch.locationId !== undefined) {
         for (const r of this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).all()) {
@@ -3957,6 +3966,81 @@ export class Campaign {
   private moveLabel(itemId: string): string {
     const item = this.itemRow(itemId)
     return item.entityId ? `Moved ${this.nameOf(item.entityId)}` : item.kind === 'image' ? 'Moved a picture' : 'Moved a note'
+  }
+
+  // ---- buildings ----------------------------------------------------------------
+
+  /** A patron or keeper becomes an NPC or PC card tied to the building with a string; one undo step. */
+  buildingPatronCard(buildingId: string, patronId: string, type: 'NPC' | 'PC'): string {
+    const b = this.entityRow(buildingId)
+    const data = readBuilding(b.attributes)
+    const p = data.patrons.find((x) => x.id === patronId)
+    if (!p) throw new Error('That patron is no longer in the building')
+    if (p.entityId && this.db.select().from(entity).where(eq(entity.id, p.entityId)).get()?.status !== undefined && this.entityRow(p.entityId).status !== 'defunct') throw new Error(`${p.name} already has a card`)
+    const secrets = data.secrets.filter((x) => x.patronId === p.id).sort((a, c) => a.score - c.score).map((x) => `${x.score}: ${x.text}`)
+    let id = ''
+    this.log.run(`Made a card for ${p.name}`, (w) => {
+      id = this.insertEntity(w, {
+        boardId: this.globalBoard().id, type, name: p.name, position: this.freeGlobalSpot(),
+        attributes: {
+          summary: p.role, location: b.name, ...(type === 'NPC' ? { occupation: p.role, appearance: p.desc } : { appearance: p.desc }),
+          ...(p.knows ? { notes: `Knows: ${p.knows}` } : {}), ...(secrets.length ? { secret: secrets.join('\n') } : {})
+        }
+      })
+      w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: buildingId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
+      w.update('entity', buildingId, { attributes: { ...b.attributes, ...buildingAttrs({ patrons: data.patrons.map((x) => (x.id === p.id ? { ...x, entityId: id } : x)) }) } })
+    })
+    return id
+  }
+
+  private campaignSecrets(): BSecret[] {
+    const v = this.setting('campaign_secrets')
+    return readBuilding({ secrets: v }).secrets
+  }
+
+  /** "All campaign secrets": the campaign's own list, Clue cards, and every other building's secrets. */
+  secretPool(buildingId: string): { own: BSecret[]; clueCards: Array<{ id: string; name: string; text: string }>; elsewhere: Array<{ buildingId: string; buildingName: string; secret: BSecret }> } {
+    const live = this.db.select().from(entity).all().filter((e) => e.status === 'active' || e.status === 'resolved')
+    return {
+      own: this.campaignSecrets(),
+      clueCards: live.filter((e) => e.type === 'CLUE').map((e) => ({
+        id: e.id, name: e.name, text: [e.attributes.summary, e.attributes.description].find((x) => typeof x === 'string' && x.trim()) as string ?? ''
+      })).sort((a, c) => a.name.localeCompare(c.name)),
+      elsewhere: live.filter((e) => e.type === 'BUILDING' && e.id !== buildingId)
+        .flatMap((e) => readBuilding(e.attributes).secrets.map((secret) => ({ buildingId: e.id, buildingName: e.name, secret })))
+    }
+  }
+
+  /**
+   * Moves a secret between "In this building" and "All campaign secrets" (the campaign's own
+   * list or another building), one undo step. Its patron is dropped when it leaves a building.
+   */
+  moveSecret(input: { secretId: string; from: string | null; to: string | null }): void {
+    if (input.from === input.to) return
+    const read = (id: string | null) => (id ? readBuilding(this.entityRow(id).attributes).secrets : this.campaignSecrets())
+    const fromList = read(input.from)
+    const sec = fromList.find((x) => x.id === input.secretId)
+    if (!sec) throw new Error('That secret has moved or is in History')
+    const moved: BSecret = { ...sec, patronId: undefined }
+    const toName = input.to ? this.entityRow(input.to).name : 'All campaign secrets'
+    this.log.run(`Moved a ${sec.kind} to ${toName}`, (w) => {
+      const write = (id: string | null, list: BSecret[]) => {
+        if (!id) {
+          if (w.get('campaign_settings', 'campaign_secrets')) w.update('campaign_settings', 'campaign_secrets', { value: list })
+          else w.insert('campaign_settings', { key: 'campaign_secrets', value: list })
+        } else {
+          const row = this.entityRow(id)
+          w.update('entity', id, { attributes: { ...row.attributes, ...buildingAttrs({ secrets: list }) } })
+        }
+      }
+      write(input.from, fromList.filter((x) => x.id !== sec.id))
+      write(input.to, [...read(input.to).filter((x) => x.id !== sec.id), moved])
+    })
+  }
+
+  /** Adds or edits secrets on the campaign's own list (All campaign secrets). */
+  setCampaignSecrets(list: BSecret[], label: string): void {
+    this.setSetting('campaign_secrets', list.map((x) => ({ ...x, id: x.id || newId() })), label)
   }
 
   private nameOf(entityId: string): string {

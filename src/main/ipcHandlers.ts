@@ -13,6 +13,8 @@ import { ASK_SYSTEM, askPrompt } from './ai/ask'
 import { RECAP_SYSTEM, recapPrompt } from './ai/recap'
 import { BUILD_SYSTEM, buildPrompt, COMBAT_SYSTEM, combatPrompt, parseBuild, RATE_SYSTEM, ratePrompt } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
+import { BUILDING_SYSTEM, buildingPrompt, parseBuilding } from './ai/building'
+import { readBuilding } from '../shared/building'
 import { STATBLOCK_SYSTEM, parseStatBlock, statBlockPrompt } from './ai/statblock'
 import srdAttacksData from '../../resources/srd/srd-2024-attacks.json'
 import type { SrdAttacks } from '../shared/attacks'
@@ -268,9 +270,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notes:set', ({ text }) => current().setDmNotes(text))
   handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
   handle('clock:set', ({ minutes }) => current().setClock(minutes))
-  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle }) => {
+  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle, priceScale }) => {
     const c = current()
-    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units, art_style: artStyle }, artStyle !== undefined ? 'Changed the art style' : 'Changed campaign settings')
+    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units, art_style: artStyle, price_scale: priceScale }, artStyle !== undefined ? 'Changed the art style' : 'Changed campaign settings')
     if (name) profile.remember(c.folder, name)
   })
   handle('storyline:update', ({ storylineId, patch }) => current().updateStoryline(storylineId, patch))
@@ -329,6 +331,22 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   })
   handle('ai:test', async ({ provider, model, baseUrl }) => checkConnection(resolve(choiceFor(provider, { model, baseUrl }), keys.get(provider))))
   // ---- fill blanks with AI
+  handle('ai:building', async ({ buildingId, ask }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const sheet = c.sheet(buildingId)
+    const e = sheet.entity
+    const kind = readBuilding(e.attributes).kind
+    const knownText = ['summary', 'description', 'history', 'notes', 'secret']
+      .flatMap((k) => (typeof e.attributes[k] === 'string' && (e.attributes[k] as string).trim() ? [`${k}: ${(e.attributes[k] as string).trim().slice(0, 800)}`] : []))
+    const cards = c.search({ query: '' }).results
+      .filter((x) => ['NPC', 'MONSTER', 'FACTION', 'CLUE', 'LOCATION', 'QUEST', 'ITEM', 'BUILDING'].includes(x.entity.type) && x.entity.id !== buildingId && x.entity.status !== 'defunct')
+      .slice(0, 80).map((x) => `${x.entity.name} (${x.entity.type.toLowerCase()}): ${x.line || String(x.entity.attributes.summary ?? '')}`.slice(0, 200))
+    const prompt = buildingPrompt({ campaignName: c.info().name, name: e.name, kind, where: typeof e.attributes.location === 'string' ? e.attributes.location : '', known: knownText, cards }, ask)
+    const reply = await generateText(r, { system: BUILDING_SYSTEM, prompt, json: true, maxTokens: 6000 })
+    return { proposal: parseBuilding(reply, kind), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
   handle('ai:fill', async ({ entityId, keys: asked, ask, statblock }) => {
     const choice = profile.aiChoice('text')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
@@ -971,15 +989,20 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const description = s.current.trim() || (s.place ? [s.place.name, s.place.looks || s.place.notes].filter(Boolean).join(': ') : '')
     return { description, placeName: s.place?.name ?? null, timeOfDay: timeOfDayFor(s.light) }
   })
-  handle('battlemap:draw', async ({ prompt, styleIds, aspect }) => {
+  handle('battlemap:draw', async ({ prompt, styleIds, aspect, blueprint }) => {
     const choice = profile.aiChoice('image')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
     const c = current()
-    const references = c.styleImages(styleIds, maxReferences(r.info))
-    const image = await generateImage(r, { prompt, references, aspect })
+    const references = c.styleImages(styleIds, Math.max(0, maxReferences(r.info) - (blueprint ? 1 : 0)))
+    const plan = blueprint ? { bytes: Buffer.from(blueprint.png, 'base64'), mime: 'image/png' } : undefined
+    const image = await generateImage(r, { prompt: blueprint ? `${prompt}\n\n${blueprint.text}` : prompt, references, aspect, blueprint: plan })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('battlemap:keep', (input) => current().keepBattleMap(input))
+  handle('building:patronCard', ({ buildingId, patronId, type }) => current().buildingPatronCard(buildingId, patronId, type))
+  handle('building:secretPool', ({ buildingId }) => current().secretPool(buildingId))
+  handle('building:moveSecret', (input) => current().moveSecret(input))
+  handle('building:setCampaignSecrets', ({ list, label }) => current().setCampaignSecrets(list, label))
   handle('battlemap:importDialog', async ({ cols, gridShown }) => {
     const win = getWindow()
     const options = {

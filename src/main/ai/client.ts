@@ -22,6 +22,8 @@ export interface ImageRequest {
   references?: Array<{ bytes: Buffer; mime: string }>
   /** Shape of the image (from the grid size); square by default. */
   aspect?: Aspect
+  /** A layout plan to follow exactly (sketch blueprint); sent first, before the style examples. */
+  blueprint?: { bytes: Buffer; mime: string }
 }
 
 export interface ImageResult { bytes: Buffer; mime: string }
@@ -114,8 +116,12 @@ export async function generateText(r: Resolved, req: TextRequest, f: Fetch = fet
 // ---------------------------------------------------------------- images
 
 export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = fetch): Promise<ImageResult> {
-  const refs = req.references ?? []
+  const styleRefs = req.references ?? []
+  const refs = req.blueprint ? [req.blueprint, ...styleRefs] : styleRefs
   const aspect = req.aspect ?? '1:1'
+  if (req.blueprint && r.info.protocol !== 'stability') {
+    req = { ...req, prompt: `${req.prompt}\nThe first attached image is the plan (blueprint)${styleRefs.length ? '; the others are style examples only' : ''}.` }
+  }
   switch (r.info.protocol) {
     case 'openai-image': {
       const size = aspect === '1:1' ? '1024x1024' : landscape(aspect) ? '1536x1024' : '1024x1536'
@@ -157,7 +163,12 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
       form.append('prompt', req.prompt)
       form.append('output_format', 'png')
       let path: string
-      if (refs.length) {
+      if (req.blueprint) {
+        // Sketch control: keeps the plan's layout (style examples cannot be added here).
+        path = '/v2beta/stable-image/control/sketch'
+        form.append('image', new Blob([new Uint8Array(req.blueprint.bytes)], { type: req.blueprint.mime }), 'plan.png')
+        form.append('control_strength', '0.85')
+      } else if (refs.length) {
         // Style guide: copies the look of the first example map.
         path = '/v2beta/stable-image/control/style'
         form.append('image', new Blob([new Uint8Array(refs[0].bytes)], { type: refs[0].mime }), `example.${ext(refs[0].mime)}`)

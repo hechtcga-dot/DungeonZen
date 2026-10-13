@@ -27,7 +27,7 @@ describe('fields per card type', () => {
     for (const t of ENTITY_TYPES) {
       const keys = fillableFields(t).map((f) => f.key)
       expect(keys[0]).toBe('summary')
-      expect(keys.at(-1)).toBe('bio')
+      expect(keys.at(-1)).toBe(t === 'BUILDING' ? 'secret' : 'bio') // buildings: no bio (owner, 2026-10-13)
       expect(new Set(keys).size).toBe(keys.length)
       expect(keys.filter((k) => ['statblock', 'provenance', 'custom', 'notes'].includes(k))).toEqual([])
       for (const f of DETAIL_FIELDS[t]) expect(INTERNAL_KEYS.has(f.key)).toBe(false)

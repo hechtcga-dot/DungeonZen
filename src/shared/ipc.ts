@@ -21,6 +21,7 @@ import { StyleTagsSchema, type StyleTags } from './styleTags'
 import type { NotesScreenView } from './types'
 import type { RollTable } from './rolltables'
 import { Blocks, type Block } from './noteDoc'
+import type { BSecret, BuildingProposal } from './building'
 
 // The typed contract between the renderer (UI) and the main process.
 // Every input is checked with Zod in the main process before it is used.
@@ -36,6 +37,14 @@ const AbilityFields = z.object({
   showMacroBar: z.boolean()
 })
 const OptionalNumber = z.number().finite().optional()
+const SketchInput = z.object({
+  cols: z.number().int().min(4).max(60), rows: z.number().int().min(4).max(60), cells: z.string().max(3600),
+  labels: z.array(z.object({ x: z.number().int().min(0).max(60), y: z.number().int().min(0).max(60), t: z.string().max(80) })).max(300)
+})
+const SecretInput = z.object({
+  id: z.string().min(1).max(40), kind: z.enum(['rumour', 'secret', 'clue']), score: z.number().int().min(1).max(20), text: z.string().max(2000),
+  patronId: z.string().max(40).optional(), cardId: Id.optional()
+})
 const Minute = z.number().int().min(0).max(1_000_000_000)
 const Short = z.string().max(300)
 const Text = z.string().max(10000)
@@ -159,7 +168,8 @@ export const ipcInputs = {
     name: Name.optional(), rulesEdition: RulesEdition.optional(),
     moonOffsetDays: z.number().finite().min(-10000).max(10000).optional(),
     units: z.enum(['metric', 'imperial']).optional(),
-    artStyle: z.string().trim().max(500).optional()
+    artStyle: z.string().trim().max(500).optional(),
+    priceScale: z.number().int().min(1).max(10000).optional()
   }),
   'storyline:update': z.object({
     storylineId: Id,
@@ -253,7 +263,7 @@ export const ipcInputs = {
     id: Id,
     patch: z.object({
       name: Name, locationId: Id.nullable(), target: z.enum(['low', 'moderate', 'high']), tactics: z.string().max(5000),
-      notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable(), pcsOut: z.array(Id).max(100)
+      notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable(), pcsOut: z.array(Id).max(100), sketch: SketchInput.nullable()
     }).partial()
   }),
   'encounter:pictures': z.object({ id: Id }),
@@ -318,8 +328,15 @@ export const ipcInputs = {
   'battlemap:context': z.void(),
   'battlemap:draw': z.object({
     prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16),
-    aspect: z.enum(['1:1', '3:2', '2:3', '16:9', '9:16'])
+    aspect: z.enum(['1:1', '3:2', '2:3', '16:9', '9:16']),
+    /** The sketch as a plan picture (PNG, base64) and its blueprint text: the AI follows it as the layout. */
+    blueprint: z.object({ png: z.string().max(4_000_000), text: z.string().max(12000) }).optional()
   }),
+  'building:patronCard': z.object({ buildingId: Id, patronId: z.string().min(1).max(40), type: z.enum(['NPC', 'PC']) }),
+  'building:secretPool': z.object({ buildingId: Id }),
+  'building:moveSecret': z.object({ secretId: z.string().min(1).max(40), from: Id.nullable(), to: Id.nullable() }),
+  'building:setCampaignSecrets': z.object({ list: z.array(SecretInput).max(2000), label: z.string().max(120) }),
+  'ai:building': z.object({ buildingId: Id, ask: z.string().max(2000) }),
   'battlemap:keep': z.object({
     pendingId: z.string().max(80), name: Name, cols: z.number().int().min(GRID_MIN).max(GRID_MAX),
     prompt: z.string().max(4000), source: z.string().max(300), gridShown: z.boolean().default(false)
@@ -615,6 +632,11 @@ export interface IpcOutputs {
   'battlemap:context': BattleMapContext
   'battlemap:draw': PendingImageView & { source: string }
   'battlemap:keep': MapView
+  'building:patronCard': string
+  'building:secretPool': { own: BSecret[]; clueCards: Array<{ id: string; name: string; text: string }>; elsewhere: Array<{ buildingId: string; buildingName: string; secret: BSecret }> }
+  'building:moveSecret': void
+  'building:setCampaignSecrets': void
+  'ai:building': { proposal: BuildingProposal; source: string }
   'battlemap:discard': void
   'battlemap:importDialog': MapView | null
   'map:setGrid': void

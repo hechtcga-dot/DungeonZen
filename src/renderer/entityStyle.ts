@@ -13,12 +13,13 @@ export const ENTITY_COLOURS: Record<EntityType, string> = {
   FACTION: '#7a3a66',
   SCENE: '#4a4f57',
   ITEM: '#9c4f1f',
-  HANDOUT: '#6b5a3a'
+  HANDOUT: '#6b5a3a',
+  BUILDING: '#5c6b73'
 }
 
 export const ENTITY_LABELS: Record<EntityType, string> = {
   NPC: 'NPC', PC: 'PC', MONSTER: 'Monster', LOCATION: 'Location', QUEST: 'Quest', ITEM: 'Item',
-  SCENE: 'Scene', CLUE: 'Clue', FACTION: 'Faction', HANDOUT: 'Handout'
+  SCENE: 'Scene', CLUE: 'Clue', FACTION: 'Faction', HANDOUT: 'Handout', BUILDING: 'Building'
 }
 
 /** The colour of each card type in this campaign: the DM's choice (board › Card, right-click a type) or the standard one. */

@@ -58,7 +58,8 @@ export const DETAIL_FIELDS: Record<EntityType, CardField[]> = {
   ],
   CLUE: [{ key: 'description', label: 'Description', long: true }, { key: 'leads_to', label: 'Leads to' }, HISTORY],
   HANDOUT: [{ key: 'description', label: 'Description', long: true, hint: 'What it looks like: paper, seal, handwriting' }, HISTORY],
-  SCENE: [{ key: 'description', label: 'Description', long: true }, ...SENSES, { key: 'tactics', label: 'Tactics', long: true }]
+  SCENE: [{ key: 'description', label: 'Description', long: true }, ...SENSES, { key: 'tactics', label: 'Tactics', long: true }],
+  BUILDING: [{ key: 'description', label: 'Description', long: true }, { key: 'history', label: 'History', long: true, hint: 'Always says how the place got its name.' }]
 }
 
 /** The tab's name for this type. */
@@ -69,20 +70,20 @@ export function tabTitle(type: EntityType): string {
 /** Every field on the traits or descriptions tab, in order. */
 export function tabFields(type: EntityType): CardField[] {
   const withMotive = ['NPC', 'PC', 'MONSTER', 'FACTION'].includes(type)
-  return [...(withMotive ? [MOTIVATION] : []), ...DETAIL_FIELDS[type], BIO]
+  return [...(withMotive ? [MOTIVATION] : []), ...DETAIL_FIELDS[type], ...(type === 'BUILDING' ? [] : [BIO])]
 }
 
 /** Every text field the AI may fill for a type, in sheet order. */
 export function fillableFields(type: EntityType): CardField[] {
   const extra: CardField[] = []
-  if (['NPC', 'MONSTER', 'ITEM'].includes(type)) extra.push(LOCATION)
+  if (['NPC', 'MONSTER', 'ITEM', 'BUILDING'].includes(type)) extra.push(LOCATION)
   if (type === 'QUEST') extra.push({ key: 'reward', label: 'Reward' })
   if (type === 'HANDOUT') extra.push({ key: 'text', label: 'Handout text', long: true }, { key: 'from', label: 'Signed by' })
-  return [SUMMARY, ...extra, ...tabFields(type).filter((f) => f !== BIO), SECRET, BIO]
+  return [SUMMARY, ...extra, ...tabFields(type).filter((f) => f !== BIO), SECRET, ...(type === 'BUILDING' ? [] : [BIO])]
 }
 
 /** Card types whose "Factions" field links them to faction cards, and the kind of string it ties. */
-export const FACTION_LINK: Partial<Record<EntityType, string>> = { NPC: 'MEMBER_OF', PC: 'MEMBER_OF', LOCATION: 'CONTROLLED_BY' }
+export const FACTION_LINK: Partial<Record<EntityType, string>> = { NPC: 'MEMBER_OF', PC: 'MEMBER_OF', LOCATION: 'CONTROLLED_BY', BUILDING: 'CONTROLLED_BY' }
 
 /** Attributes that are not free text for the DM to read (never shown as "other details"). */
 export const INTERNAL_KEYS = new Set([
@@ -90,5 +91,6 @@ export const INTERNAL_KEYS = new Set([
   'ai_filled', 'picture', 'current_hp', 'notes', 'summary', 'bio', 'motivation', 'location', 'reward', 'text', 'from', 'secret',
   'temp_hp', 'conditions', 'picture_source', 'biome', 'place_kind', 'level', 'spell_slots', 'slots_used',
   'prof_bonus', 'initiative', 'spell_ability', 'prepared', 'proficiencies', 'folder',
+  'building_kind', 'floors', 'patrons', 'secrets', 'rooms', 'stock', 'price_scale', 'players_roll', 'sketch',
   'classes', 'inspiration', 'uses', 'hit_dice_used', 'death_saves', 'exhaustion', 'save_notes', 'skill_adv', 'attacks_per_action', 'xp'
 ])

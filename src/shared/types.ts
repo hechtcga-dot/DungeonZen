@@ -23,6 +23,8 @@ export interface CampaignInfo {
   gettingStarted: boolean
   /** The art style in words, added to every AI drawing (works with services that cannot see examples). */
   artStyle: string
+  /** Percent for every shop and tavern price (Setup › Campaign settings). */
+  priceScale: number
 }
 
 export interface RecentCampaign {
@@ -546,6 +548,8 @@ export interface RegionView {
   /** From the Location card: region, city, town… and the land's biome. */
   kind: PlaceKind | null
   biome: Biome | null
+  /** NPCs and monsters there now (their location, a string, or a building inside it). */
+  occupants: string[]
 }
 
 export interface PartyMarker {
@@ -759,6 +763,8 @@ export interface EncounterView {
   /** What the place looks like and what is going on; the AI builds from it. */
   scene: string
   battleMapId: string | null
+  /** The battle map sketch (Encounters › Sketch), sent to the image AI as a blueprint. */
+  sketch: import('./sketch').Sketch | null
   creatures: EncounterCreatureView[]
   /** The player characters: all take part unless the DM unticks them (budget and fight follow). */
   pcs: Array<{ id: string; name: string; level: number; hp: number; maxHp: number; in: boolean }>

@@ -55,6 +55,7 @@ const TYPE_ART: Record<EntityType, React.ReactNode> = {
   SCENE: <><path d="M14 80 L14 22 L86 22 L86 80 Z" fill="#4a4f57" /><path d="M14 22 Q30 40 26 80 M86 22 Q70 40 74 80" fill="#8f2a21" /><path d="M36 70 L50 46 L64 70 Z" fill="#efe3c4" /></>,
   CLUE: <><circle cx="42" cy="42" r="20" fill="#efe3c4" /><circle cx="42" cy="42" r="14" /><path d="M56 56 L82 82" strokeWidth="6" /><path d="M36 36 Q40 32 46 34" /></>,
   FACTION: <><path d="M30 12 L30 90" strokeWidth="3" /><path d="M30 16 L78 16 L70 34 L78 52 L30 52 Z" fill="#5a3f8a" /><circle cx="52" cy="34" r="7" fill="#f0c24a" /></>,
+  BUILDING: <><path d="M20 84 L20 44 L50 20 L80 44 L80 84 Z" fill="#5c6b73" /><path d="M14 48 L50 18 L86 48" strokeWidth="3" /><path d="M42 84 L42 62 L58 62 L58 84" fill="#efe3c4" /><path d="M28 50 L38 50 L38 60 L28 60 Z M62 50 L72 50 L72 60 L62 60 Z" fill="#f0c24a" /></>,
   HANDOUT: <><path d="M18 30 L82 30 L82 76 L18 76 Z" fill="#efe3c4" /><path d="M18 30 L50 56 L82 30" /><circle cx="50" cy="60" r="8" fill="#8f2a21" /></>
 }
 

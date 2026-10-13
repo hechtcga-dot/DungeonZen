@@ -44,7 +44,7 @@ export type CompositionId = (typeof COMPOSITIONS)[number]['id']
 /** The composition that suits a card type best (the DM can choose another per drawing). */
 export const DEFAULT_COMPOSITION_FOR: Record<EntityType, CompositionId> = {
   NPC: 'pyramid', PC: 'pyramid', MONSTER: 'diagonal', LOCATION: 'thirds', QUEST: 'scurve', ITEM: 'centre',
-  SCENE: 'diagonal', CLUE: 'centre', FACTION: 'groupmass', HANDOUT: 'centre'
+  SCENE: 'diagonal', CLUE: 'centre', FACTION: 'groupmass', HANDOUT: 'centre', BUILDING: 'thirds'
 }
 
 export const compositionById = (id: string) => COMPOSITIONS.find((c) => c.id === id) ?? COMPOSITIONS[0]

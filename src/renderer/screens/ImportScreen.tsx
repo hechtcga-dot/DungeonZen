@@ -17,7 +17,7 @@ import { NotesLibrary } from '../components/NotesLibrary'
 type Preview = Awaited<ReturnType<typeof call<'import:preview'>>>
 
 const GROUPS: Array<[string, EntityType[]]> = [
-  ['People and creatures', ['NPC', 'MONSTER']], ['Places', ['LOCATION']], ['Factions', ['FACTION']],
+  ['People and creatures', ['NPC', 'MONSTER']], ['Places', ['LOCATION', 'BUILDING']], ['Factions', ['FACTION']],
   ['Quests and clues', ['QUEST', 'CLUE']], ['Items and handouts', ['ITEM', 'HANDOUT']], ['Scenes', ['SCENE']]
 ]
 const LINK_WORDS: Record<string, string> = {
