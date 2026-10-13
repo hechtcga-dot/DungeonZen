@@ -149,10 +149,10 @@ describe('writing services', () => {
       new TypeError('fetch failed'),
       json({ choices: [{ message: { content: '' } }] })
     )
-    await expect(generateText(pick('anthropic'), req, f)).rejects.toThrow('Anthropic Claude refused the API key (invalid x-api-key)')
+    await expect(generateText(pick('anthropic'), req, f)).rejects.toThrow(/Anthropic Claude refused the API key \(invalid x-api-key\)\. .*What to do: in AI services, Replace the key/)
     await expect(generateText(pick('anthropic', 'k-123456789', 'nope'), req, f)).rejects.toThrow(/does not know model “nope”/)
-    await expect(generateText(pick('ollama', null), req, f)).rejects.toThrow('Could not reach Ollama (on this computer) at http://localhost:11434/v1. Is it running?')
-    await expect(generateText(pick('openai'), req, f)).rejects.toThrow(/Check the internet connection/)
+    await expect(generateText(pick('ollama', null), req, f)).rejects.toThrow('Could not reach Ollama (on this computer) at http://localhost:11434/v1. Is it running? What to do:')
+    await expect(generateText(pick('openai'), req, f)).rejects.toThrow(/check the internet connection/)
     await expect(generateText(pick('openai'), req, f)).rejects.toThrow(/empty answer/)
   })
 
@@ -216,6 +216,10 @@ describe('battle map services', () => {
     // Free keys have no image allowance.
     const e = fakeFetch(new Response('{"error":{"message":"Quota exceeded"}}', { status: 429 }))
     await expect(generateImage(pick('gemini-image'), { prompt }, e.f)).rejects.toThrow(/billing/)
+    // Busy servers: say it is their side, the key is fine, and what to try.
+    const busy = fakeFetch(new Response('{"error":{"message":"Deadline expired before operation could complete."}}', { status: 503 }))
+    await expect(generateImage(pick('gemini-image'), { prompt }, busy.f)).rejects.toThrow(/own side \(503\) \(Deadline expired.*key and settings are fine.*Send smaller copies/)
+    expect(busy.sent).toHaveLength(1) // no automatic retry (owner, 2026-10-13)
   })
 
   it('Stability: image bytes back; the style endpoint when there is an example', async () => {

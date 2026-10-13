@@ -211,13 +211,14 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   }, [aiSettingsOpen])
   const artStyle = useBoard((st) => st.info?.artStyle ?? '')
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [smaller, setSmaller] = useState(false)
   const [tags, setTags] = useState<StyleTags[]>([])
   const told = prompt ?? withArtStyle(worldMapPrompt({ description, climate, style }), artStyle, tags)
   const draw = async () => {
     setBusy(true); setError(null)
     try {
       if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('world:draw', { prompt: told, styleIds: [...picked] }))
+      setDrawn(await call('world:draw', { prompt: told, styleIds: [...picked], smaller }))
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
   }
@@ -254,7 +255,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
               <option value="painted">Painted</option><option value="parchment">Inked parchment</option>
             </select></div>
         </div>
-        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} />
+        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
         {service === null ? (
           <p>Drawing needs an image service. <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>
         ) : (

@@ -466,6 +466,14 @@ built.
 - Who is in a region (1.10.0): every map region shows a blue chip with the NPCs and monsters there (location names
   the place or a building inside it, a LOCATED_AT string to it, or any string to a building inside it;
   `occupantsOf`), on the board's map pictures, Map screen, desk and Live maps; region panel Here now includes them.
+- 1.10.1 (owner, 2026-10-13): AI error messages say what happened, the service's own words, and What to do
+  (`statusMessage` in `ai/client.ts`; 5xx says it is the service's side and the key is fine); no automatic retry
+  (owner). Draw windows (card picture, battle map, world map): "Send smaller copies of the examples" tick, off by
+  default (`shrink` in `ipcHandlers.ts`: over 1024 px sent as 1024 px JPEG, files untouched). AI services › Model:
+  a drop-down next to the box lists every fetched model (the old datalist hid names not matching the box). Every
+  dialog keeps its title bar at the top while the body scrolls; AI dialogs (Draw picture, Draw battle map, Fill
+  with AI, Fill blanks) get Minimize while waiting: a chip in the corner, the window pops back when the answer or
+  an error arrives (`Dialog busy`).
 - Every screen uses the desk style (`DeskFrame`, `theme.css`): wooden bars,
   parchment panels, a cork board in a wooden frame, candles in the top bar
   and board tools, day and night lighting everywhere.

@@ -291,6 +291,16 @@ input.big { min-height: 48px; font-size: 16px; background: var(--panel); border-
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), inset 0 0 0 4px #f1e6c6, inset 0 0 0 5px #a8884f;
 }
 .dz-dialog.wide { width: min(820px, calc(100vw - 32px)); }
+/* The title bar stays put; only the body scrolls. */
+.dz-dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
+.dz-dialog-head { flex: none; border-bottom: 1px solid rgba(122, 100, 64, 0.35); }
+.dz-dialog-body { flex: 1 1 auto; min-height: 0; }
+.dz-dialog-min { min-height: 36px; padding: 2px 12px; }
+.dz-dialog-chip { position: fixed; right: 18px; bottom: 18px; z-index: 1000; display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  color: #f6ecd0; background: #2a1f12; border: 2px solid #a8884f; border-radius: 999px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); font-size: 14px; }
+.dz-dialog-chip:hover { background: #3d2c18; }
+.dz-dialog-spin { display: inline-block; color: #8fc3f2; animation: dz-spin 1.6s linear infinite; }
+@keyframes dz-spin { to { transform: rotate(360deg); } }
 .dz-dialog::backdrop { background: rgba(8, 6, 4, 0.6); }
 .dz-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px 4px; }
 .dz-dialog-head h2 { margin: 0; font-family: 'IM Fell English', Georgia, serif; font-weight: 400; font-size: 26px; }

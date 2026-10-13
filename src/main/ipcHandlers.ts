@@ -50,6 +50,19 @@ type Handler<C extends IpcChannel> = (input: z.output<(typeof ipcInputs)[C]>) =>
 // Writes the popped-out DM notes window and the main window share: the other one refreshes.
 const SHARED_WRITES = new Set<IpcChannel>(['notes:set', 'notes:append', 'session:notes', 'history:undo', 'history:redo'])
 
+
+/** "Send smaller copies" in a Draw window: examples wider or taller than 1024 px go as 1024 px JPEG copies (the files stay as they are). */
+function shrink(refs: Array<{ bytes: Buffer; mime: string }>, smaller?: boolean): Array<{ bytes: Buffer; mime: string }> {
+  if (!smaller) return refs
+  return refs.map((ref) => {
+    const img = nativeImage.createFromBuffer(ref.bytes)
+    const { width, height } = img.getSize()
+    if (img.isEmpty() || Math.max(width, height) <= 1024) return ref
+    const small = width >= height ? img.resize({ width: 1024, quality: 'best' }) : img.resize({ height: 1024, quality: 'best' })
+    return { bytes: small.toJPEG(90), mime: 'image/jpeg' }
+  })
+}
+
 export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void): void {
   let campaign: Campaign | null = null
 
@@ -442,11 +455,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       creature ? 'Full figure, set in a fitting place.' : ''
     ].filter(Boolean).join('\n') // the Draw window adds style, composition and "No text, no frame."
   })
-  handle('entity:drawPicture', async ({ entityId, prompt, styleIds }) => {
+  handle('entity:drawPicture', async ({ entityId, prompt, styleIds, smaller }) => {
     const r = imageService()
     const c = current()
     c.sheet(entityId)
-    const image = await generateImage(r, { prompt, references: c.styleImages(styleIds, maxReferences(r.info)), aspect: '1:1' })
+    const image = await generateImage(r, { prompt, references: shrink(c.styleImages(styleIds, maxReferences(r.info)), smaller), aspect: '1:1' })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
   })
   handle('entity:usePicture', ({ entityId, path }) => current().setPicture(entityId, { path }))
@@ -989,11 +1002,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const description = s.current.trim() || (s.place ? [s.place.name, s.place.looks || s.place.notes].filter(Boolean).join(': ') : '')
     return { description, placeName: s.place?.name ?? null, timeOfDay: timeOfDayFor(s.light) }
   })
-  handle('battlemap:draw', async ({ prompt, styleIds, aspect, blueprint }) => {
+  handle('battlemap:draw', async ({ prompt, styleIds, aspect, blueprint, smaller }) => {
     const choice = profile.aiChoice('image')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
     const c = current()
-    const references = c.styleImages(styleIds, Math.max(0, maxReferences(r.info) - (blueprint ? 1 : 0)))
+    const references = shrink(c.styleImages(styleIds, Math.max(0, maxReferences(r.info) - (blueprint ? 1 : 0))), smaller)
     const plan = blueprint ? { bytes: Buffer.from(blueprint.png, 'base64'), mime: 'image/png' } : undefined
     const image = await generateImage(r, { prompt: blueprint ? `${prompt}\n\n${blueprint.text}` : prompt, references, aspect, blueprint: plan })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}` }
@@ -1026,9 +1039,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     pendingWorlds.set(pending.pendingId, { source, prompt: null, regions: world.regions })
     return { ...pending, regions: world.regions, source }
   })
-  handle('world:draw', async ({ prompt, styleIds }) => {
+  handle('world:draw', async ({ prompt, styleIds, smaller }) => {
     const r = imageService()
-    const image = await generateImage(r, { prompt, references: current().styleImages(styleIds ?? [], maxReferences(r.info)), aspect: '3:2' })
+    const image = await generateImage(r, { prompt, references: shrink(current().styleImages(styleIds ?? [], maxReferences(r.info)), smaller), aspect: '3:2' })
     const pending = current().savePendingImage(image.bytes, image.mime)
     const source = `${r.info.name} · ${r.model || 'default model'}`
     pendingWorlds.set(pending.pendingId, { source, prompt, regions: [] })

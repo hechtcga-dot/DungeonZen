@@ -80,7 +80,7 @@ function ServiceSection({ kind, title, what, view, reload }: {
     try {
       const list = await call('ai:models', { provider: info.id, baseUrl })
       setFetched(list)
-      setResult({ ok: true, text: list.length ? `${list.length} model${list.length === 1 ? '' : 's'} found: pick one from the Model list.` : 'The service listed no models.' })
+      setResult({ ok: true, text: list.length ? `${list.length} model${list.length === 1 ? '' : 's'} found: pick one from the drop-down next to Model.` : 'The service listed no models.' })
     } catch (e) { setResult({ ok: false, text: (e as Error).message }) }
     setBusy(null)
   }
@@ -143,10 +143,15 @@ function ServiceSection({ kind, title, what, view, reload }: {
           <div className="field">
             <label htmlFor={`${id}-model`}>Model</label>
             <div className="row tight">
-              <input id={`${id}-model`} list={`${id}-models`} value={model} spellCheck={false}
+              <input id={`${id}-model`} value={model} spellCheck={false}
                 placeholder={info.protocol === 'sd-webui' ? 'The model loaded in the web UI' : 'Model name'}
                 onChange={(e) => setModel(e.target.value)} onBlur={(e) => saveModel(e.target.value)} />
-              <datalist id={`${id}-models`}>{models.map((m) => <option key={m} value={m} />)}</datalist>
+              {models.length > 0 && (
+                <select aria-label="Choose a model from the list" value="" onChange={(e) => { if (e.target.value) { setModel(e.target.value); saveModel(e.target.value) } }}>
+                  <option value="">{fetched ? `Pick one of ${models.length}…` : 'Suggestions…'}</option>
+                  {models.map((m) => <option key={m} value={m}>{m}{m === model ? ' (chosen)' : ''}</option>)}
+                </select>
+              )}
               <button disabled={busy !== null || (info.needsKey && !setting?.hasKey)} onClick={() => void fetchModels()}>
                 {busy === 'models' ? 'Asking…' : 'Fetch list'}
               </button>

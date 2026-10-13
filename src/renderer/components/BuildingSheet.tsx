@@ -566,7 +566,7 @@ export function BuildingFillDialog({ sheet, onClose }: { sheet: SheetView; onClo
     </div>
   )
   return (
-    <Dialog title={`Fill with AI: ${e.name}`} open onClose={onClose} wide>
+    <Dialog title={`Fill with AI: ${e.name}`} open onClose={onClose} wide busy={busy}>
       {!p ? (
         <div className="dz-form">
           <p className="hint">The AI writes the whole {KIND_LABELS[readBuilding(e.attributes).kind].toLowerCase()} in one go: description, history (always how it got its name), floors, the keeper and patrons with scored rumours, secrets and clues tied to your cards, rooms, stock with 5e prices and a rough layout. Nothing changes until you keep it; everything stays editable.</p>

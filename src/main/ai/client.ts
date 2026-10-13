@@ -358,15 +358,18 @@ async function send(r: Resolved, f: Fetch, url: string, init: RequestInit, timeo
     res = await f(url, { ...init, signal: AbortSignal.timeout(timeout) })
   } catch (err) {
     const e = err as Error
-    if (e.name === 'TimeoutError' || e.name === 'AbortError') throw new AiError(`${r.info.name} did not answer in time.`)
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      throw new AiError(`${r.info.name} did not answer in time (the app waited ${Math.round(timeout / 1000)} seconds). Busy services and big requests can take that long. What to do: press Try again in a minute${r.info.kind === 'image' ? '; untick some style examples or tick "Send smaller copies of the examples"' : ''}; or pick another model or service in AI services.`)
+    }
     throw new AiError(r.info.local
-      ? `Could not reach ${r.info.name} at ${r.baseUrl}. Is it running?`
-      : `Could not reach ${r.info.name}. Check the internet connection.`)
+      ? `Could not reach ${r.info.name} at ${r.baseUrl}. Is it running? What to do: start it, check the Address in AI services, then press Test.`
+      : `Could not reach ${r.info.name}. The computer may be offline, or a firewall blocks it. What to do: check the internet connection, then press Try again.`)
   }
   if (!res.ok) {
     let detail = ''
     try { detail = errorText(await res.text()) } catch { /* no body */ }
-    throw new AiError(`${statusMessage(res.status, r)}${detail ? ` (${detail})` : ''}`)
+    const [what, help] = statusMessage(res.status, r)
+    throw new AiError(`${what}${detail ? ` (${detail})` : ''}. ${help}`)
   }
   return res
 }
@@ -380,15 +383,24 @@ async function call(r: Resolved, f: Fetch, url: string, init: RequestInit, timeo
   }
 }
 
-function statusMessage(status: number, r: Resolved): string {
-  if (status === 401 || status === 403) return `${r.info.name} refused the API key`
-  if (status === 404) return `${r.info.name} does not know model “${r.model}” or the address is wrong`
-  if (status === 429 && r.info.protocol === 'gemini-image') {
-    return `${r.info.name} says the key has no image allowance left. Free Gemini keys cannot make images: turn on billing for the key in Google AI Studio, or wait and try again`
+/** What went wrong (with the service's own words appended by the caller) and what the DM can do about it. */
+function statusMessage(status: number, r: Resolved): [string, string] {
+  const n = r.info.name
+  const pics = r.info.kind === 'image'
+  if (status === 401 || status === 403) {
+    return [`${n} refused the API key`, `The key is wrong, was deleted, or is not allowed to use model “${r.model}”. What to do: in AI services, Replace the key with a fresh one${r.info.keyUrl ? ` from ${r.info.keyUrl}` : ''}, then press Test.`]
   }
-  if (status === 402 || status === 429) return `${r.info.name} says the account is out of credit or busy`
-  if (status >= 500) return `${r.info.name} had a problem on its side (${status}); try again later`
-  return `${r.info.name} turned the request down (${status})`
+  if (status === 404) return [`${n} does not know model “${r.model}” or the address is wrong`, 'What to do: in AI services, press Fetch list and pick a model from the drop-down, then press Test.']
+  if (status === 429 && r.info.protocol === 'gemini-image') {
+    return [`${n} says the key has no image allowance left`, 'Free Gemini keys cannot make images. What to do: turn on billing for the key in Google AI Studio, or wait a while and press Try again.']
+  }
+  if (status === 402 || status === 429) {
+    return [`${n} says the account is out of credit or got too many requests at once (${status})`, `What to do: check the balance and limits on ${n}'s website, wait a minute, then press Try again.`]
+  }
+  if (status >= 500) {
+    return [`${n} had a problem on its own side (${status})`, `Its servers were busy or took too long to finish${pics ? ' the picture' : ''}; your key and settings are fine, and nothing was charged for a failed request on most services. What to do: wait a minute and press Try again${pics ? '; untick some style examples or tick "Send smaller copies of the examples" (big pictures take longer)' : ''}; or pick another model or service in AI services.`]
+  }
+  return [`${n} turned the request down (${status})`, 'What to do: read the service\'s note in brackets; often the prompt or the model needs changing. Press Try again after changing it.']
 }
 
 function errorText(body: string): string {

@@ -21,7 +21,16 @@ export const withArtStyle = (prompt: string, artStyle: string, tags: StyleTags[]
  * In every Draw window: "Prompt being sent" (open it to read or change every word), and the Library
  * pictures ticked as style examples for this kind of drawing (all on; untick any for this drawing only).
  */
-export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags }: {
+/** Draw windows: send the ticked examples as smaller copies (off unless the DM ticks it; the files stay as they are). */
+export function SmallerExamples({ value, onChange }: { value: boolean; onChange(v: boolean): void }) {
+  return (
+    <label className="field checkbox" title="Big pictures take the service longer to read; very large ones can make it time out.">
+      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} /> Send smaller copies of the examples (at most 1024 px; faster, fewer time-outs)
+    </label>
+  )
+}
+
+export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller }: {
   use: StyleUse
   prompt: string
   onPrompt(next: string): void
@@ -30,6 +39,8 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
   onPicked(next: Set<string>): void
   /** The ticked pictures' style tags, for the prompt. */
   onTags?(tags: StyleTags[]): void
+  smaller: boolean
+  onSmaller(v: boolean): void
 }) {
   const { act, info } = useBoard()
   const [styles, setStyles] = useState<StyleExampleView[] | null>(null)
@@ -88,6 +99,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
                 : `${service?.name} takes ${max === 1 ? 'one example' : `up to ${max} examples`}: ${sending ? `the first ${sending} ticked go with this drawing` : 'none ticked'}.`}
               {' '}Tick the examples to send with this drawing; their style tags (Library › Pictures) go into the prompt.
             </p>
+            {max > 0 && <SmallerExamples value={smaller} onChange={onSmaller} />}
           </>
         )}
       </fieldset>
@@ -102,6 +114,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   const [prompt, setPrompt] = useState('')
   const [edited, setEdited] = useState(false)
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [smaller, setSmaller] = useState(false)
   const [tags, setTags] = useState<StyleTags[]>([])
   // The card type picks the composition; 'examples' = the ticked pictures' own composition tag.
   const [comp, setComp] = useState<string>(DEFAULT_COMPOSITION_FOR[entity.type])
@@ -128,12 +141,12 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
     setBusy(true); setError('')
     try {
       if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('entity:drawPicture', { entityId: entity.id, prompt, styleIds: [...picked] }))
+      setDrawn(await call('entity:drawPicture', { entityId: entity.id, prompt, styleIds: [...picked], smaller }))
     } catch (err) { setError((err as Error).message) } finally { setBusy(false) }
   }
   const close = () => { if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }); onClose() }
   return (
-    <Dialog title={`Draw ${entity.name}`} open onClose={close} wide>
+    <Dialog title={`Draw ${entity.name}`} open onClose={close} wide busy={busy}>
       <div className="dz-form">
         <div className="field">
           <label htmlFor="pic-ask">Include in the picture (optional)</label>
@@ -142,7 +155,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
         </div>
         <CompositionPicker value={comp} onChange={setComp} fromExamples={blended.composition} />
         <DrawExtras use={use} prompt={prompt} onPrompt={(p) => { setPrompt(p); setEdited(true) }}
-          onReset={() => { setEdited(false); void build(ask) }} picked={picked} onPicked={setPicked} onTags={setTags} />
+          onReset={() => { setEdited(false); void build(ask) }} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
         {error && (
           <div className="field-error battle-error" role="alert"><span>{error}</span>
             <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>

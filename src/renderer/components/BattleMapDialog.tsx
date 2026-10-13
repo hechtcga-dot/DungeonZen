@@ -5,7 +5,7 @@ import { GridLines } from './MapOverlay'
 import { call } from '../api'
 import { useBoard, useUnits } from '../store'
 import { maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
-import { withArtStyle } from './Pictures'
+import { SmallerExamples, withArtStyle } from './Pictures'
 import {
   ART_STYLES, aspectFor, BATTLE_FEATURES, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
   rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
@@ -54,6 +54,7 @@ export function BattleMapDialog() {
   const [useBlueprint, setUseBlueprint] = useState(true)
   const [labelsOn, setLabelsOn] = useState(false)
   const [markersOn, setMarkersOn] = useState(false)
+  const [smaller, setSmaller] = useState(false)
   const setOpen = useBoard((s) => s.setBattleMapOpen)
   const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
   const aiOpen = useBoard((s) => s.aiSettingsOpen)
@@ -131,7 +132,7 @@ export function BattleMapDialog() {
       if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }).catch(() => undefined)
       const ids = withExamples ? [...picked].slice(0, maxRefs) : []
       const blueprint = sketch && useBlueprint ? { png: sketchPng(sketch), text: blueprintText(sketch, { labels: labelsOn, markers: markersOn }) } : undefined
-      const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows), blueprint })
+      const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows), blueprint, smaller })
       setDrawn({ ...r, prompt, cols })
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
@@ -171,7 +172,7 @@ export function BattleMapDialog() {
   })
 
   return (
-    <Dialog title={req?.name ? `Draw a map: ${req.name}` : 'Draw a battle map'} open={!!open} onClose={close} wide>
+    <Dialog title={req?.name ? `Draw a map: ${req.name}` : 'Draw a battle map'} open={!!open} onClose={close} wide busy={busy}>
       {service === undefined ? <p className="hint">Loading…</p> : service === null ? (
         <div className="dz-form">
           <p>Battle maps are drawn by an AI image service. None is chosen yet.</p>
@@ -306,6 +307,7 @@ export function BattleMapDialog() {
                     ))}
                   </ul>
                 )}
+                {service.info.references && styles.length > 0 && <SmallerExamples value={smaller} onChange={setSmaller} />}
                 <button onClick={() => void addExamples()}>Add pictures to the Library…</button>
               </div>
             </div>

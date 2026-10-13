@@ -144,7 +144,7 @@ export const ipcInputs = {
   }),
   'entity:pictureDialog': z.object({ entityId: Id }),
   'entity:picturePrompt': z.object({ entityId: Id, ask: z.string().max(2000) }),
-  'entity:drawPicture': z.object({ entityId: Id, prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16) }),
+  'entity:drawPicture': z.object({ entityId: Id, prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16), smaller: z.boolean().optional() }),
   'entity:usePicture': z.object({ entityId: Id, path: z.string().min(1).max(500) }),
   'pictures:view': z.void(),
   'pictures:upload': z.object({ folder: z.string().trim().min(1).max(80) }),
@@ -327,7 +327,7 @@ export const ipcInputs = {
   'style:setStatus': z.object({ id: Id, status: RowStatus }),
   'battlemap:context': z.void(),
   'battlemap:draw': z.object({
-    prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16),
+    prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16), smaller: z.boolean().optional(),
     aspect: z.enum(['1:1', '3:2', '2:3', '16:9', '9:16']),
     /** The sketch as a plan picture (PNG, base64) and its blueprint text: the AI follows it as the layout. */
     blueprint: z.object({ png: z.string().max(4_000_000), text: z.string().max(12000) }).optional()
@@ -349,7 +349,7 @@ export const ipcInputs = {
     seed: z.number().int().min(0).max(2147483647), size: z.enum(WORLD_SIZES), land: z.number().min(0.3).max(0.75),
     climate: z.enum(WORLD_CLIMATES), settlements: z.number().int().min(0).max(30)
   }),
-  'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16).optional() }),
+  'world:draw': z.object({ prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16).optional(), smaller: z.boolean().optional() }),
   'world:keep': z.object({ pendingId: z.string().max(80), name: Name, widthKm: z.number().positive().max(200000).nullable() }),
   'world:findRegions': z.object({ mapId: Id, ask: z.string().max(2000) }),
   'world:addRegions': z.object({ mapId: Id, regions: z.array(PlaceShapeInput).min(1).max(200), source: z.string().max(300) }),

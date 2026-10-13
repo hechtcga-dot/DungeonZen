@@ -383,7 +383,7 @@ function FillDialog({ sheet, only, onClose }: { sheet: SheetView; only: string[]
   }
   const label = (k: string) => fillableFields(e.type).find((f) => f.key === k)?.label ?? k
   return (
-    <Dialog title={`Fill blanks: ${e.name}`} open onClose={onClose} wide>
+    <Dialog title={`Fill blanks: ${e.name}`} open onClose={onClose} wide busy={busy}>
       {!answer ? (
         <div className="dz-form">
           {empty.length === 0 && !canBase ? <p>Every field on this card is filled. Empty a field to have the AI suggest it.</p> : (
