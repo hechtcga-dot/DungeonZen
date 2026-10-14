@@ -515,6 +515,13 @@ built.
   BrowserWindow of its own (`openPrepWindow` in main/index.ts; one per part; size/place per kind in
   userData/prep-windows.json; closed with the main window). `PrepWindow` loads the store itself; card sheets open in the
   main window (`main:openSheet`). Every undoable write (`CommandLog.writes` moved) tells the other windows to refresh.
+- Text keys in every text box (owner, 2026-10-14, `textKeys.ts`, any <textarea>): Enter = new line everywhere (one-line
+  CommitField/LinkField boxes too; Ctrl+Enter saves and leaves, Esc puts back); Tab / Shift+Tab indent / un-indent
+  (tab character, tab-size 4; Tab no longer moves to the next box); lists carry on ("- ", "• ", "*", "1." / "1)",
+  numbers count up; Enter on an empty item ends the list); Ctrl+D duplicates the line(s); Alt+↑ / ↓ moves lines.
+  Edits via insertText, so Ctrl+Z inside the box works. Spell check: main `context-menu` shows suggestions, Add to
+  dictionary, Cut/Copy/Paste/Select all (boxes with linked-word menus keep theirs). Plain <input>s (names, search,
+  numbers, Include in the picture) stay one line.
 - Growing text boxes (owner, 2026-10-14): `textarea.grow` (field-sizing: content) up to about ten lines, then scrolls;
   the corner handle still pulls it bigger. LinkField one-line boxes wrap and grow (Enter still finishes); CommitField
   one-line boxes are growing one-line textareas (not ones with a datalist); multi-line ones start at their rows.

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { app, BrowserWindow, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, Menu, protocol, safeStorage, shell } from 'electron'
 import { Campaign } from './campaign/campaign'
 import { registerIpc } from './ipcHandlers'
 import { ProfileStore } from './profile'
@@ -101,6 +101,22 @@ app.whenReady().then(() => {
   registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')), new KeyStore(app.getPath('userData'), safeStorage), openJournal, openPrepWindow)
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
+})
+
+// Right-click in a text box: spelling suggestions, Add to dictionary, Cut / Copy / Paste (owner, 2026-10-14).
+// Boxes with their own menu (linked words) cancel the event in the page, so this never shows over them.
+app.on('web-contents-created', (_e, wc) => {
+  wc.on('context-menu', (_ev, p) => {
+    if (!p.isEditable && !p.selectionText) return
+    const items: Electron.MenuItemConstructorOptions[] = p.dictionarySuggestions.map((w) => ({ label: w, click: () => wc.replaceMisspelling(w) }))
+    if (p.misspelledWord) {
+      if (!items.length) items.push({ label: 'No suggestions', enabled: false })
+      items.push({ label: 'Add to dictionary', click: () => wc.session.addWordToSpellCheckerDictionary(p.misspelledWord) }, { type: 'separator' })
+    }
+    if (p.isEditable) items.push({ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' }, { role: 'selectAll' })
+    else items.push({ role: 'copy' })
+    Menu.buildFromTemplate(items).popup()
+  })
 })
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })

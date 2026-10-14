@@ -1529,6 +1529,7 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 /* Prep sheet text boxes with words linked to cards (LinkField). */
 .lf-wrap { position: relative; }
 .lf-wrap textarea { position: relative; width: 100%; display: block; }
+textarea, .lf-back { tab-size: 4; }
 .lf-back { position: absolute; inset: 0; overflow: hidden; white-space: pre-wrap; overflow-wrap: break-word; color: transparent; pointer-events: none; }
 .lf-back mark { color: transparent; background: rgba(47, 93, 138, 0.22); border-bottom: 2px solid #2f5d8a; border-radius: 2px; }
 .card-picker { display: flex; flex-direction: column; gap: 10px; min-width: 420px; }

@@ -39,7 +39,7 @@ export function CommitField(props: {
     if (next !== props.value) props.onCommit(next)
   }
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && (!props.multiline || e.ctrlKey)) { e.preventDefault(); (e.target as HTMLElement).blur() }
+    if (e.key === 'Enter' && (e.ctrlKey || (!props.multiline && props.list))) { e.preventDefault(); (e.target as HTMLElement).blur() }
     if (e.key === 'Escape') { setDraft(props.value); (e.target as HTMLElement).blur() }
   }
   return (
@@ -50,9 +50,9 @@ export function CommitField(props: {
           className={props.mono ? 'mono' : 'grow'} style={{ '--rows': props.rows ?? 5 } as CSSProperties}
           onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
       ) : !props.list ? (
-        // One line that wraps and grows as you type (Enter still finishes).
+        // Starts as one line and grows as you type; Enter starts a new line (owner, 2026-10-14), Ctrl+Enter finishes.
         <textarea id={props.id} value={draft} rows={1} placeholder={props.placeholder} className="grow line"
-          onChange={(e) => setDraft(e.target.value.replace(/\n/g, ' '))} onBlur={commit} onKeyDown={onKey} />
+          onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
       ) : (
         <input id={props.id} value={draft} placeholder={props.placeholder} list={props.list}
           onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />

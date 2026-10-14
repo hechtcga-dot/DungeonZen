@@ -93,7 +93,7 @@ export function LinkField(props: {
   const check = () => ctx?.show(at()?.link.entityId ?? null)
   const commit = () => { const next = draft.trim(); if (next !== props.value) props.onCommit(next) }
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && (!props.multiline || e.ctrlKey)) { e.preventDefault(); area.current?.blur() }
+    if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); area.current?.blur() }
     if (e.key === 'Escape') { setDraft(props.value); area.current?.blur() }
   }
   const onMenu = (e: MouseEvent) => {
@@ -127,7 +127,7 @@ export function LinkField(props: {
         <div ref={back} className="lf-back" aria-hidden="true">{marked}</div>
         <textarea ref={area} id={props.id} value={draft} rows={props.multiline ? props.rows ?? 5 : 1} placeholder={props.placeholder}
           className={props.multiline ? 'grow' : 'grow line'} style={{ '--rows': props.multiline ? props.rows ?? 5 : 1, ...(props.minHeight ? { minHeight: props.minHeight } : {}) } as CSSProperties}
-          onChange={(e) => setDraft(props.multiline ? e.target.value : e.target.value.replace(/\n/g, ' '))}
+          onChange={(e) => setDraft(e.target.value)}
           onBlur={commit} onKeyDown={onKey} onSelect={check} onContextMenu={onMenu}
           onScroll={(e) => { if (back.current) { back.current.scrollTop = e.currentTarget.scrollTop; back.current.scrollLeft = e.currentTarget.scrollLeft } }} />
       </div>
