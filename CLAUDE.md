@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.1.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.2.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -118,3 +118,8 @@ Defaults picked: links per prep sheet by phrase (every place it appears, any cas
 ## 2.1.0 (built 2026-10-14)
 Prep NPCs tied to cards (Make a card; Name/Description/Motivation = card name/summary/motivation both ways; Links and other info fold); link picker makes new cards; ↑ ↓ on every titled box; secrets, clues and connections (one text + Card–kind–Card connections, each a string; prep section "Connections, secrets, clues" with three Add buttons; card sheet Secrets tab with Add and Use an existing one; red check, Update now / Do not save changes); removed secrets in History with Revive; Untie for old Clue-card ties. Details in `docs/STATE.md`.
 Owner's decisions: one secret = one text + connections; clue = same, labelled Clue; an existing secret on another card is the same secret (shared); box order on card sheets: pop-up asks this card only / every card of its type, Don't ask me again, changeable in Setup › Box order on card sheets; board view remembered only while the app is open (resets on restart).
+
+## 2.2.0 (built 2026-10-14)
+One-line text boxes scroll back to the start on click-out (all screens); NPC/PC sheets open on Features, traits, background with the picture there (Monsters too); Fight summary → Stat block, Full sheet → Character sheet; "string" and "connection" read "link" on screen everywhere (data unchanged); prep "Links, secrets, clues": one Add new drop-down (Link, Secret, Clue, Select existing… with search, grouped by kind), "+ New link type…" in the link kind drop-down, no Where box, no Use an existing one, no "Shared with the board" hint; a link's last string removed on the board takes its prep line to History (restore brings it back). Details in `docs/STATE.md`.
+Owner's decisions: "links" is the word (not strings, not connections); deleted on the board = prep row gone (History).
+Defaults picked: Monsters keep opening on Stat block; card sheet Secrets tab keeps Use an existing one; old Where values stay stored but no longer show on Live.

@@ -381,7 +381,7 @@ export function Extras({ sheet }: { sheet: SheetView }) {
   return (
     <>
       <h2 className="panel-heading spaced">Companions, familiars, mounts</h2>
-      {companions.length === 0 && <p className="hint">Creatures that go with {e.name}. Each is its own card (stat block, AI or SRD), tied by a Companion string on the board.</p>}
+      {companions.length === 0 && <p className="hint">Creatures that go with {e.name}. Each is its own card (stat block, AI or SRD), tied by a Companion link on the board.</p>}
       {companions.map((c) => <Companion key={c.relationship.id} id={c.other.id} name={c.other.name} onOpen={() => void openSheet(c.other.id)}
         onRemove={() => void act('relationship:setStatus', { id: c.relationship.id, status: 'defunct' })} />)}
       <div className="row tight wrap">

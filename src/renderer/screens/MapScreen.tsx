@@ -514,7 +514,7 @@ function RegionPanel({ detail, view, onMoveHere, onEditShape, onSelect }: {
         <button className="ink-button" onClick={onEditShape}>Edit shape</button>
         <button className="ink-button danger-ink" onClick={() => void act('region:setStatus', { id: detail.region.id, status: 'defunct' })}>Remove region</button>
       </div>
-      <p className="ink-muted">“Here now” lists cards tied to this place by a string (Located at, Tied to quest) or whose Location field says {detail.location.name}.</p>
+      <p className="ink-muted">“Here now” lists cards tied to this place by a link (Located at, Tied to quest) or whose Location field says {detail.location.name}.</p>
     </div>
   )
 }

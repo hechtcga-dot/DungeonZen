@@ -308,7 +308,7 @@ function PartyCard({ p, i }: { p: PartyHealth; i: number }) {
         <span style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
       {p.maxHp === 0 && <p className="pc-live-hint">Set hit points on the sheet.</p>}
-      {p.conditions && <p className="pc-live-hint" title="Conditions (change them on the desk card or the full sheet)">{p.conditions}</p>}
+      {p.conditions && <p className="pc-live-hint" title="Conditions (change them on the desk card or the character sheet)">{p.conditions}</p>}
       <div className="hp-buttons">
         {[-5, -1, 1, 5].map((d) => (
           <button key={d} aria-label={`${d > 0 ? 'Heal' : 'Damage'} ${p.name} by ${Math.abs(d)}`} onClick={() => set(p.hp + d)}>{d > 0 ? `+${d}` : `−${-d}`}</button>

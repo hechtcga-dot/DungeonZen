@@ -11,7 +11,7 @@ import { ENTITY_LABELS } from '../entityStyle'
 import type { EntityBrief, PrepItemView, PrepScreenView, PrepView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { LinkContext, LinkField } from '../components/LinkField'
-import { SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
+import { AddSecretMenu, SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
 import { TypeEmblem } from '../art/emblems'
 
 /** "1:15" for 75 minutes at the table. */
@@ -149,10 +149,8 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           )}
         </PrepSection>
 
-        <PrepSection p={p} kind="discovery" n={3} title="Connections, secrets, clues" hint="Things that are true about the world, each tied to the cards it is about (a string on the board per connection). Don’t decide in advance where or how the players will discover them. Revealed ones show in Player preview."
-          add={null} extra={(['connection', 'secret', 'clue'] as const).map((kind) => (
-            <button key={kind} className="ink-button primary-ink" onClick={() => void act('prepItem:addSecret', { prepId: p.id, kind })}>Add {SECRET_LABEL[kind].toLowerCase()}</button>
-          ))}>
+        <PrepSection p={p} kind="discovery" n={3} title="Links, secrets, clues" hint="Things that are true about the world, each tied to the cards it is about (a link on the board for each). Don’t decide in advance where or how the players will discover them. Revealed ones show in Player preview."
+          add={null} extra={<AddSecretMenu prepId={p.id} secrets={s.secrets} />}>
           {(i, k) => {
             const sec = i.secretId ? s.secrets.find((x) => x.id === i.secretId) ?? null : null
             const label = `${SECRET_LABEL[sec?.kind ?? 'secret']} ${k + 1}`
@@ -160,16 +158,8 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
               <>
                 <div className="prep-row-fields">
                   <LinkField id={`d-b-${i.id}`} label={label} value={i.body} className="wide" placeholder="The harbormaster was paid to keep quiet."
-                    hint={sec ? 'Shared with the board: its strings, Links and the cards’ sheets show this text.' : undefined} onCommit={(v) => upItem(act, i, { body: v })} />
+                    onCommit={(v) => upItem(act, i, { body: v })} />
                   <LinkField id={`d-t-${i.id}`} label="Short name (optional)" value={i.title} onCommit={(v) => upItem(act, i, { title: v })} />
-                  <CardPick id={`d-loc-${i.id}`} label="Where (optional, shows on Live)" value={i.locationId} cards={s.locations} onPick={(v) => upItem(act, i, { locationId: v })} />
-                  <div className="field">
-                    <label htmlFor={`d-s-${i.id}`}>Use an existing one</label>
-                    <select id={`d-s-${i.id}`} value="" onChange={(e) => { if (e.target.value) upItem(act, i, { secretId: e.target.value }) }}>
-                      <option value="">Pick…</option>
-                      {s.secrets.filter((x) => x.id !== i.secretId).map((x) => <option key={x.id} value={x.id}>{SECRET_LABEL[x.kind]}: {x.label}</option>)}
-                    </select>
-                  </div>
                 </div>
                 {!sec && i.entityId && (
                   <p className="ink-muted">Shares its text with the Clue card <button className="link-button" onClick={() => void openSheet(i.entityId!)}>{s.cards.find((c) => c.id === i.entityId)?.name ?? 'a card'}</button>
@@ -312,7 +302,7 @@ function NpcRow({ i, s }: { i: PrepItemView; s: PrepScreenView }) {
         <div className="npc-more-body">
           <div className="field">
             <span className="field-label">Links</span>
-            {!card ? <p className="ink-muted">Tie or make a card to see its links.</p> : ties.length === 0 ? <p className="ink-muted">No strings on this card yet.</p> : (
+            {!card ? <p className="ink-muted">Tie or make a card to see its links.</p> : ties.length === 0 ? <p className="ink-muted">No links on this card yet.</p> : (
               <ul className="ties">
                 {ties.map((r) => {
                   const other = r.sourceId === card.id ? r.targetId : r.sourceId

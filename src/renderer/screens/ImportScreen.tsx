@@ -185,7 +185,7 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
         )}
         <h3 className="side-h">How it works</h3>
         <ul className="ink-list">
-          <li>The AI proposes people, places, factions, quests, clues, items, storylines, strings and questions, each with the words it read.</li>
+          <li>The AI proposes people, places, factions, quests, clues, items, storylines, links and questions, each with the words it read.</li>
           <li><span className="basis-badge is-guess">AI guess</span> marks anything the notes did not say outright.</li>
           <li>Cards that look like ones you already have can be merged: empty fields are filled, and you tick Replace to change what a card already says.</li>
           <li>Nothing changes until you press Create selected, and one Ctrl+Z takes it all back.</li>
@@ -303,16 +303,16 @@ function Review({ initial, onDone }: { initial: ImportDraft; onDone(): void }) {
       )}
 
       {d.links.length > 0 && (
-        <Section title="Strings between cards" count={d.links.length}>
+        <Section title="Links between cards" count={d.links.length}>
           {d.links.map((l) => {
             const off = skipped(l.fromId) || skipped(l.toId)
             return (
               <article key={l.id} className={`proposal link-row decision-${off ? 'skip' : l.decision}${l.basis === 'inferred' ? ' is-guess' : ''}`}>
                 <div className="proposal-head">
-                  <input type="checkbox" aria-label="Create this string" checked={l.decision === 'create' && !off} disabled={readOnly || off}
+                  <input type="checkbox" aria-label="Create this link" checked={l.decision === 'create' && !off} disabled={readOnly || off}
                     onChange={(e) => change({ ...d, links: d.links.map((x) => (x.id === l.id ? { ...x, decision: e.target.checked ? 'create' : 'skip' } : x)) })} />
                   <strong>{nameOf(l.fromId)}</strong>
-                  <select aria-label="String type" value={l.type} disabled={readOnly} onChange={(e) => change({ ...d, links: d.links.map((x) => (x.id === l.id ? { ...x, type: e.target.value } : x)) })}>
+                  <select aria-label="Link type" value={l.type} disabled={readOnly} onChange={(e) => change({ ...d, links: d.links.map((x) => (x.id === l.id ? { ...x, type: e.target.value } : x)) })}>
                     {RELATIONSHIP_TYPES.filter((t) => t !== 'BOARD_LINK').map((t) => <option key={t} value={t}>{LINK_WORDS[t] ?? t}</option>)}
                   </select>
                   <strong>{nameOf(l.toId)}</strong>

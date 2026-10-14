@@ -55,7 +55,7 @@ function CardNodeImpl({ id, data, selected, width, height }: NodeProps<CardNodeT
       title="Double-click to open the sheet; right-click for more" style={resolved ? undefined : { '--type': colour, background: tintBackground(tints) } as CSSProperties}>
       <NodeResizer isVisible={selected} minWidth={110} minHeight={44} onResizeEnd={onResized(id)} color="#6cb6d9" />
       {/* The pin: drag from one pin to another to tie a string. */}
-      <Handle type="source" position={Position.Top} id="pin" className="pin" title="Drag to another card's pin to tie a string" />
+      <Handle type="source" position={Position.Top} id="pin" className="pin" title="Drag to another card's pin to tie a link" />
       {size !== 'name' && (
         <div className="card-head">
           <span className="badge" style={{ background: resolved ? '#3d434b' : colour }}>

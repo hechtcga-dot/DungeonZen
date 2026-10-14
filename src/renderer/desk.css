@@ -874,7 +874,8 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .srd-detail td { font-size: 13px; color: #4a3b24; background: rgba(255, 252, 240, 0.6); }
 .srd-browser .cell-action .short { width: 56px; }
 @media (max-width: 1000px) { .srd-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.fight-summary { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 20px; align-items: start; width: 100%; }
+.fight-summary { width: 100%; }
+.sheet-main.pic-beside { max-width: 1200px; display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .fight-picture { position: sticky; top: 0; }
 .fight-picture img { width: 100%; border-radius: 4px; border: 1px solid rgba(42, 31, 18, 0.35); }
 .fight-nopic { display: grid; place-items: center; aspect-ratio: 1; border: 1px dashed rgba(42, 31, 18, 0.4); border-radius: 4px; color: #7a6a4c; font-style: italic; }
@@ -897,7 +898,7 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .cr-changes { margin: 0; padding-left: 20px; }
 .ai-sb-opts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .pic-preview { max-width: 100%; max-height: 50vh; border-radius: 4px; }
-@media (max-width: 1000px) { .fight-summary { grid-template-columns: minmax(0, 1fr); } .ai-sb-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1000px) { .sheet-main.pic-beside { grid-template-columns: minmax(0, 1fr); } .ai-sb-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .enc-build { margin-top: 6px; }
 .enc-build .row input { flex: 1; }
 .enc-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -1055,7 +1056,7 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .card-pic { float: right; width: 46px; height: 46px; object-fit: cover; margin: 0 0 4px 6px; border: 1px solid rgba(42, 31, 18, 0.4); border-radius: 3px; }
 .card-picture img { width: 100%; border-radius: 4px; border: 1px solid rgba(42, 31, 18, 0.35); display: block; }
 .card-picture { display: flex; flex-direction: column; gap: 8px; }
-.fight-summary > .card-picture { position: sticky; top: 0; }
+.pic-beside > .card-picture { position: sticky; top: 0; }
 .draw-prompt { border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; padding: 6px 10px; background: rgba(255, 252, 240, 0.5); }
 .draw-prompt summary { cursor: pointer; font-weight: 600; }
 .draw-prompt textarea { width: 100%; margin: 8px 0; font-family: var(--mono); font-size: 12.5px; }

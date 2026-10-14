@@ -315,7 +315,7 @@ function CombatantRow({ c, info, s, i, last, current, ended, selected, inGroup, 
           {blood && <span className="cb-blood">Bloodied</span>}
           {c.mirror ? <span className="cb-tag">{c.mirror} images</span> : null}
           {c.displacement === 'on' && <span className="cb-tag">Displaced</span>}
-          <span className="cb-cr" title={c.side === 'party' ? 'Level from the full sheet (else the party level)' : 'Challenge rating'}
+          <span className="cb-cr" title={c.side === 'party' ? 'Level from the character sheet (else the party level)' : 'Challenge rating'}
             onClick={() => { if (c.side === 'party' && !info?.level) onOpen() }}>{rank}</span>
           <span className="cb-ac">AC {c.ac || '?'}</span>
           {c.out && <span className="cb-out">{OUT[c.out]}</span>}

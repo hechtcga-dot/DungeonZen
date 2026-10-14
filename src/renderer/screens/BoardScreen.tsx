@@ -538,7 +538,7 @@ function BoardLayout() {
             )}
           </div>
           <button className="tool" onClick={() => void addNote()}>Note</button>
-          <button className="tool" aria-pressed={panel === 'connections'} title="Every string: kinds, colours, hide, remove"
+          <button className="tool" aria-pressed={panel === 'connections'} title="Every link: kinds, colours, hide, remove"
             onClick={() => { setLinksAll(true); setPanel(panel === 'connections' && linksAll ? 'inspector' : 'connections') }}>Links</button>
           <button className="tool" aria-pressed={panel === 'storylines'} title="Storylines: colours, acts and display"
             onClick={() => setPanel(panel === 'storylines' ? 'inspector' : 'storylines')}>Story</button>
@@ -556,7 +556,7 @@ function BoardLayout() {
           }}>Map view</button>
           <div className="tool-layer" role="group" aria-label="What a drag moves">
             <span className="eyebrow">MOVE</span>
-            <button className="tool" aria-pressed={!background} title="Drag cards, notes and strings; the background stays put"
+            <button className="tool" aria-pressed={!background} title="Drag cards, notes and links; the background stays put"
               onClick={() => prefs.set({ layer: 'cards' })}>Cards</button>
             <button className="tool" aria-pressed={background} title="Drag and resize background pictures; the cards stay put"
               onClick={() => prefs.set({ layer: 'background', pictures: true })}>Background</button>
@@ -611,7 +611,7 @@ function BoardLayout() {
           {view.items.length === 0 && (
             <div className="empty-board">
               <p><strong>This board is empty.</strong></p>
-              <p>Add a card with <em>New NPC</em> or the <em>Card</em> tool, then drag between the red pins to tie strings. Right-click the board for more.</p>
+              <p>Add a card with <em>New NPC</em> or the <em>Card</em> tool, then drag between the red pins to tie links. Right-click the board for more.</p>
             </div>
           )}
           {linking && mouse && (() => {

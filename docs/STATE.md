@@ -261,7 +261,8 @@ built.
     `joined`); a split PC moves without the clock and counts as here in its region; Merge with party.
   - SRD monster browser (`SrdBrowser.tsx`, `srd:monsters`): filter by type, size, CR, alignment,
     movement, legendary; sort any column; add any number (Encounters, Library).
-  - Monster/NPC sheet opens on Fight summary (`FightSummary.tsx`): stat block to run the fight;
+  - Monster sheet opens on Stat block (was Fight summary, `FightSummary.tsx`); NPC/PC open on Features, traits, background
+    (picture beside it, creatures; 2.2.0): stat block to run the fight;
     Raise/Lower CR by the DMG table (`src/shared/crscale.ts`, previewed, one undo step); AI stat block
     from a description and options (`src/main/ai/statblock.ts`, proposal); picture upload or AI drawing
     (`attributes.picture` in `assets/pictures/`, `picture_source`).
@@ -290,7 +291,7 @@ built.
     mouse; the next card clicked asks "Link these two?" with the link type, Secret and "+ New link type…" with a
     colour (`LinkTypeFields`, also on the sheet's Connections; `relationship:create` `colour` adds the type in the
     same undo step). Strings attach to the nearest of six card points (`stringEnds` in `src/shared/layout.ts`).
-  - Sheets: tabs Fight summary, Full sheet (creatures), "Features, traits, background" (creatures) or
+  - Sheets: tabs Stat block, Character sheet (creatures; were Fight summary, Full sheet), "Features, traits, background" (creatures) or
     "Descriptions & history" (others; first tab), Secrets, Notes, Connections. Fields per type in
     `cardFields.ts` (`tabFields`), each tab with Fill blanks with AI (only that tab's empty fields; PCs too).
     Factions field on NPC/PC (MEMBER_OF) and Location (CONTROLLED_BY): strings to faction cards, New faction.
@@ -453,7 +454,11 @@ built.
   secret; unticking Secret on a one-string secret makes it a connection. `SecretEditor`: Card – kind – Card chips (card
   picker with search and Make a new card), Add connection, kind; saved once every connection is whole (and, on a card
   sheet, one is that card); until then a red line says what is missing and clicking elsewhere asks Update now / Do not
-  save changes. Prep section 3 "Connections, secrets, clues": Add connection / Add secret / Add clue, Use an existing one.
+  save changes. Prep section 3 "Links, secrets, clues" (2.2.0): one Add new drop-down (Link, Secret, Clue, Select existing…
+  = searchable pop-up grouped by kind, `AddSecretMenu`); rows have text, Short name, the editor (kind drop-down has
+  "+ New link type…", `stringTypes:set`); no Where box (Live no longer lists prep lines by place) and no Use an existing one.
+  Removing a secret's last link (board or anywhere, `setRelationshipStatus`) takes the secret and its prep lines to
+  History; restoring the link brings them back.
   Card sheet › Secrets: Add secret / clue / connection, Use an existing one (the same secret, shared; must get a
   connection with this card), Remove (History, undo). Migration 2.1 turns every secret string and every string a prep
   secret was tied to into a secret. Old prep ties to Clue cards still share text but are no longer offered.
@@ -566,3 +571,7 @@ built.
 Not yet: the Guard Captain's SRD 2024 stat block has no ally boost (add a Leadership trait and the tracker shows it); rivers and roads on made maps; re-reading a draft with your answers; tokens on battle maps; Player preview in a second window (for a TV); AI help on the prep sheet; drawing a planned route (the route shown is where the party went); weather and NPC routines; outcome effects on cards (deltas from outcomes, e.g. move an NPC; the engine supports them, no editor yet); editing not yet possible: custom entity types, the date a fact became known, reordering abilities; images on the board, PC sheet PDF
 import, code signing, auto-update; Phase 4 left: PDF of a whole session prep sheet, Roll20 maps
 with tokens. Phases 1 to 5, the Windows installer (1.0.0), the getting started guide (1.1.0) and the 1.2.0 to 1.8.0 lists are built. Notes imported before 1.3.0 were not kept as files.
+
+2.2.0 (2026-10-14, owner's list): every one-line text box scrolls back to its start on click-out (`main.tsx` focusout);
+on-screen "string" and "connection" read "link" everywhere (data, code names and AI prompts unchanged; card sheet tab
+Connections → Links); card sheet tab names Stat block / Character sheet.

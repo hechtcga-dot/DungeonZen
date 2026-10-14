@@ -52,7 +52,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const { act, showOnBoard, openSheet } = useBoard()
   const creature = HAS_STATBLOCK.has(sheet.entity.type)
   const building = sheet.entity.type === 'BUILDING'
-  const [tab, setTab] = useState<Tab>(building ? 'building' : ['NPC', 'MONSTER'].includes(sheet.entity.type) ? 'fight' : creature ? 'sheet' : 'traits')
+  const [tab, setTab] = useState<Tab>(building ? 'building' : sheet.entity.type === 'MONSTER' ? 'fight' : 'traits')
   const [buildingFill, setBuildingFill] = useState(false)
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
   /** Fill blanks with AI: null = closed; otherwise the fields to offer (empty list = every empty field). */
@@ -148,10 +148,10 @@ function Sheet({ sheet }: { sheet: SheetView }) {
       <nav className="tabs" role="tablist" aria-label="Sheet sections">
         {([
           ...(building ? [['building', KIND_LABELS[readBuilding(e.attributes).kind]]] as const : []),
-          ...(creature ? [['fight', 'Fight summary'], ['sheet', 'Full sheet']] as const : []),
+          ...(creature ? [['fight', 'Stat block'], ['sheet', 'Character sheet']] as const : []),
           ...(building ? [] : [['traits', tabTitle(e.type)], ['secrets', 'Secrets']] as const),
           ['notes', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Notes'],
-          ['connections', `Connections (${sheet.connections.length})`]
+          ['connections', `Links (${sheet.connections.length})`]
         ] as const).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
         ))}
@@ -168,7 +168,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         )}
         {tab === 'traits' && (
           <>
-            <div className={creature ? 'sheet-main wide' : 'sheet-main'}>
+            <div className={creature ? 'sheet-main wide pic-beside' : 'sheet-main'}>
+              {creature && <PicturePanel sheet={sheet} />}
               <TraitsPanel sheet={sheet} lab={lab} onFill={(keys) => setFilling(keys)} />
             </div>
             {!creature && templateSide}
@@ -297,7 +298,7 @@ function FactionsField({ sheet }: { sheet: SheetView }) {
           <span key={c.relationship.id} className="chip">
             <button className="link-button" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button>
             <span className="muted"> · {c.relationship.type.replace(/_/g, ' ').toLowerCase()}{c.relationship.isSecret ? ', secret' : ''}</span>
-            <button className="chip-x" aria-label={`Remove ${c.other.name} (the string goes to History)`}
+            <button className="chip-x" aria-label={`Remove ${c.other.name} (the link goes to History)`}
               onClick={() => void act('relationship:setStatus', { id: c.relationship.id, status: 'defunct' })}>×</button>
           </span>
         ))}
@@ -318,7 +319,7 @@ function FactionsField({ sheet }: { sheet: SheetView }) {
           </form>
         )}
       </div>
-      <div className="hint">Each faction is a string on the board ({kind.replace(/_/g, ' ').toLowerCase()}).</div>
+      <div className="hint">Each faction is a link on the board ({kind.replace(/_/g, ' ').toLowerCase()}).</div>
     </div>
   )
 }
@@ -355,7 +356,7 @@ function CardSecrets({ sheet }: { sheet: SheetView }) {
   return (
     <section className="panel">
       <div className="panel-head-row">
-        <h2 className="panel-heading">Secrets, clues and connections</h2>
+        <h2 className="panel-heading">Secrets, clues and links</h2>
         <div className="row tight">
           {(['secret', 'clue', 'connection'] as const).map((kind) => (
             <button key={kind} onClick={() => setAdding((list) => [...list, { key: crypto.randomUUID(), kind, secret: null }])}>Add {SECRET_LABEL[kind].toLowerCase()}</button>
@@ -369,7 +370,7 @@ function CardSecrets({ sheet }: { sheet: SheetView }) {
           </select>
         </div>
       </div>
-      <p className="hint">Each is one text with its connections (a string on the board per connection). An existing one stays one secret: changing it here changes it everywhere.</p>
+      <p className="hint">Each is one text with its links (each a link on the board). An existing one stays one secret: changing it here changes it everywhere.</p>
       {mine.length === 0 && adding.length === 0 && <p className="hint">None on this card yet.</p>}
       <ul className="secret-list">
         {adding.map((a) => (
@@ -426,7 +427,7 @@ function FillDialog({ sheet, only, onClose }: { sheet: SheetView; only: string[]
         <div className="dz-form">
           {empty.length === 0 && !canBase ? <p>Every field on this card is filled. Empty a field to have the AI suggest it.</p> : (
             <>
-              <p className="hint">The AI sees the card, its strings, storylines and your notes, and suggests text for the empty fields you tick. Nothing changes until you choose what to keep.</p>
+              <p className="hint">The AI sees the card, its links, storylines and your notes, and suggests text for the empty fields you tick. Nothing changes until you choose what to keep.</p>
               <fieldset className="field fill-pick">
                 <legend>Empty fields</legend>
                 {empty.map((f) => (
@@ -500,7 +501,7 @@ function CustomFields({ sheet }: { sheet: SheetView }) {
   )
 }
 
-/** Full sheet: a character-sheet layout (ability boxes, the numbers a DM checks, saves, senses, skills, tabs). */
+/** Character sheet: a character-sheet layout (ability boxes, the numbers a DM checks, saves, senses, skills, tabs). */
 function StatBlockPanel({ sheet }: { sheet: SheetView }) {
   const act = useBoard((s) => s.act)
   const e = sheet.entity
@@ -788,8 +789,8 @@ function Connections({ sheet }: { sheet: SheetView }) {
   return (
     <div className="sheet-main wide">
       <section className="panel">
-        <h2 className="panel-heading">Strings to other cards</h2>
-        {sheet.connections.length === 0 && <p className="hint">No strings yet. Add one below or drag between pins on the board.</p>}
+        <h2 className="panel-heading">Links to other cards</h2>
+        {sheet.connections.length === 0 && <p className="hint">No links yet. Add one below or drag between pins on the board.</p>}
         <ul className="connections">
           {sheet.connections.map((c) => (
             <li key={c.relationship.id}>
@@ -812,7 +813,7 @@ function Connections({ sheet }: { sheet: SheetView }) {
         </ul>
       </section>
       <section className="panel">
-        <h2 className="panel-heading">Add a string</h2>
+        <h2 className="panel-heading">Add a link</h2>
         <form className="add-connection" onSubmit={add}>
           <div className="field">
             <label htmlFor="conn-other">Link {e.name} to</label>
@@ -822,7 +823,7 @@ function Connections({ sheet }: { sheet: SheetView }) {
             </select>
           </div>
           <LinkTypeFields id="conn" value={link} onChange={setLink} />
-          <button type="submit" className="primary" disabled={!otherId || !linkReady(link)}>Add string</button>
+          <button type="submit" className="primary" disabled={!otherId || !linkReady(link)}>Add link</button>
         </form>
       </section>
     </div>

@@ -124,7 +124,7 @@ function Desk({ desk }: { desk: DeskView }) {
           <h2 className="panel-title">On the board</h2>
           <ul className="ledger">
             <li><span>Cards</span><span className="mono">{desk.counts.cards}</span></li>
-            <li><span>Strings</span><span className="mono">{desk.counts.strings}</span></li>
+            <li><span>Links</span><span className="mono">{desk.counts.strings}</span></li>
             <li><span>Storylines</span><span className="mono">{desk.storylines.length}</span></li>
             <li><span>In History</span><span className="mono">{desk.counts.removed}</span></li>
           </ul>

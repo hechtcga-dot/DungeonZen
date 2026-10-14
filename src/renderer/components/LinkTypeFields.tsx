@@ -41,7 +41,7 @@ export function LinkTypeFields({ id, value, onChange }: { id: string; value: Lin
             <input id={`${id}-new`} autoFocus value={value.newName} maxLength={40} placeholder="e.g. owes money to"
               onChange={(e) => onChange({ ...value, newName: e.target.value })} />
           </div>
-          <p className="hint">Every string of this type gets this colour. Change it later in Board › Links.</p>
+          <p className="hint">Every link of this type gets this colour. Change it later in Board › Links.</p>
         </div>
       )}
       <div className="field checkbox">

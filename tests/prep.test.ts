@@ -101,7 +101,6 @@ describe('live: where they are, and the player preview', () => {
     const prep = c.prepFor()!.id
     const disc = c.addPrepItem(prep, 'discovery', { title: 'The bell is a summons', body: 'The drowned answer it.' })
     c.addPrepItem(prep, 'discovery', { title: 'Brine leads the cult' })
-    c.addPrepItem(prep, 'discovery', { body: 'A wet hymn book on the pier', locationId: loc(harbour) })
     c.addPrepItem(prep, 'scene', { title: 'Dockside ambush', locationId: loc(harbour), sceneType: 'combat' })
     c.addPrepItem(prep, 'npc', { entityId: tom.id })
     return { mapId, loc, harbour, tower, ciaf, tom, secret, disc, ford }
@@ -118,13 +117,12 @@ describe('live: where they are, and the player preview', () => {
     expect(where.cameFrom?.name).toBe("Miller's Ford")
     expect(where.headingTo).toMatchObject({ name: 'Bell Tower', travel: 'about 1 h 40 min' })
     expect(where.people.map((p) => [p.name, p.met, p.keyNpc])).toEqual([['Old Tom', false, true], ['Ciaf Crol', true, false]])
-    expect(where.secrets.map((x) => x.source)).toEqual(['string', 'clue'])
+    expect(where.secrets.map((x) => x.source)).toEqual(['string'])
     expect(where.secrets[0].text).toBe('Ciaf Crol ally Father Brine')
-    expect(where.secrets[1].text).toBe('A wet hymn book on the pier')
-    expect(where.tips.join(' ')).toMatch(/came from Miller's Ford.*heading to Bell Tower.*met Ciaf Crol.*Not met yet: Old Tom.*2 secrets.*Planned here: Dockside ambush/)
+    expect(where.tips.join(' ')).toMatch(/came from Miller's Ford.*heading to Bell Tower.*met Ciaf Crol.*Not met yet: Old Tom.*1 secret.*Planned here: Dockside ambush/)
     // Once the party knows the secret string, it is no longer a secret here.
     c.setStringKnown(w.secret.id, true)
-    expect(c.liveWhere().secrets.map((x) => x.source)).toEqual(['clue'])
+    expect(c.liveWhere().secrets.map((x) => x.source)).toEqual([])
   })
 
   it('shows players only what they know', () => {
@@ -266,6 +264,22 @@ describe('prep secrets tied to the board', () => {
     expect(c.history().removedStrings).toHaveLength(0)
     c.reviveSecret(id)
     expect(c.boardView(g).relationships[0]).toMatchObject({ secretKind: 'clue', description: 'Footprints' })
+  })
+
+  it('deleting its last link on the board takes the prep line with it; restoring brings it back', () => {
+    const a = c.createEntity({ boardId: g, type: 'NPC', name: 'Hodge', position: at })
+    const b = c.createEntity({ boardId: g, type: 'NPC', name: 'Luna', position: at })
+    const p = c.createPrep(1)
+    c.addPrepSecret(p, 'secret')
+    const sid = c.prepView(p).items[0].secretId!
+    c.saveSecret({ id: sid, kind: 'secret', text: 'Hodge owes Luna', connections: [{ sourceId: a.id, targetId: b.id, type: 'KNOWS' }] })
+    c.updatePrepItem(c.prepView(p).items[0].id, { title: 'Debt' })
+    const r = c.boardView(g).relationships[0]
+    c.setRelationshipStatus(r.id, 'defunct')
+    expect(c.prepView(p).items).toHaveLength(0)
+    expect(c.history().removedSecrets).toMatchObject([{ id: sid }])
+    c.setRelationshipStatus(r.id, 'active')
+    expect(c.prepView(p).items[0]).toMatchObject({ title: 'Debt', body: 'Hodge owes Luna' })
   })
 
   it('a secret string tied on the board is a secret too', () => {

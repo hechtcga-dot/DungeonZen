@@ -14,8 +14,8 @@ export function Inspector() {
   if (!selection) {
     return (
       <div className="inspector-empty">
-        <p>Select a card, string or note to edit it.</p>
-        <p className="hint">Tie a string by dragging from one card's red pin to another card's pin.
+        <p>Select a card, link or note to edit it.</p>
+        <p className="hint">Tie a link by dragging from one card's red pin to another card's pin.
           Shift-drag on the board to select several. Delete moves the selection to History.</p>
       </div>
     )
@@ -83,7 +83,7 @@ function EntityInspector({ entity }: { entity: EntityView }) {
 
       <fieldset className="field">
         <legend>Direct ties</legend>
-        {ties.length === 0 && encounters.length === 0 && <div className="hint">No strings yet: drag from this card's red pin to another card.</div>}
+        {ties.length === 0 && encounters.length === 0 && <div className="hint">No links yet: drag from this card's red pin to another card.</div>}
         <ul className="ties">
           {ties.map(({ r, other }) => (
             <li key={r.id}>
@@ -162,7 +162,7 @@ function EntityInspector({ entity }: { entity: EntityView }) {
             Move to History
           </button>
         </div>
-        <p className="hint">Nothing is deleted: History keeps it, and Revive brings it back with its strings.</p>
+        <p className="hint">Nothing is deleted: History keeps it, and Revive brings it back with its links.</p>
       </details>
     </div>
   )
@@ -176,7 +176,7 @@ function StringInspector({ id }: { id: string }) {
   const name = (eid: string) => view.entities[eid]?.name ?? '?'
   return (
     <div className="inspector">
-      <h2 className="panel-heading">String</h2>
+      <h2 className="panel-heading">Link</h2>
       <p className="string-ends">{name(rel.sourceId)} <span aria-hidden="true">—</span><span className="visually-hidden">to</span> {name(rel.targetId)}</p>
       <CommitField id={`rel-${id}-type`} label="Link type" value={rel.type.replace(/_/g, ' ')} list="relationship-types" required
         hint="Pick a suggestion or type your own." onCommit={(type) => void act('relationship:update', { id, patch: { type } })} />
@@ -184,7 +184,7 @@ function StringInspector({ id }: { id: string }) {
         {[...new Set([...RELATIONSHIP_TYPES, ...view.settings.stringTypes.map((t) => t.type)])].map((t) => <option key={t} value={t.replace(/_/g, ' ')} />)}
       </datalist>
       <CommitField id={`rel-${id}-desc`} label="Description" value={rel.description} multiline rows={3}
-        hint="Prep secrets tied to this string share this text." onCommit={(description) => void act('relationship:update', { id, patch: { description } })} />
+        hint="Prep secrets tied to this link share this text." onCommit={(description) => void act('relationship:update', { id, patch: { description } })} />
       <div className="field checkbox">
         <input id={`rel-${id}-secret`} type="checkbox" checked={rel.isSecret}
           onChange={(e) => void act('relationship:update', { id, patch: { isSecret: e.target.checked } })} />
@@ -193,7 +193,7 @@ function StringInspector({ id }: { id: string }) {
       <div className="actions">
         <button onClick={() => void act('board:setHidden', { kind: 'string', id, hidden: !rel.hidden })}>{rel.hidden ? 'Unhide' : 'Hide'}</button>
         <button className="danger" onClick={async () => { await act('relationship:setStatus', { id, status: 'defunct' }); select(null) }}>
-          Remove string
+          Remove link
         </button>
       </div>
     </div>

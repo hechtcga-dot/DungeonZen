@@ -439,7 +439,7 @@ function NotesStep({ onChoose }: { onChoose(to: 'import' | 'board' | 'desk'): vo
         </section>
         <section className="parchment-sheet guide-choice">
           <h2 className="panel-title">Start on the board</h2>
-          <p>An empty detective board (with your places already pinned up). Add people, places and clues by hand, and string them together.</p>
+          <p>An empty detective board (with your places already pinned up). Add people, places and clues by hand, and link them together.</p>
           <button className="ink-button primary-ink" onClick={() => onChoose('board')}>Open the board</button>
         </section>
         <section className="parchment-sheet guide-choice">

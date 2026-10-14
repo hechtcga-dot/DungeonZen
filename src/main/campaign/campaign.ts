@@ -538,7 +538,7 @@ export class Campaign {
 
   /** Ties a string. While strings are kept per board, it belongs to `boardId` (the board it was tied on). */
   createRelationship(input: { sourceId: string; targetId: string; type: string; isSecret: boolean; boardId?: string; colour?: string }): RelationshipView {
-    if (input.sourceId === input.targetId) throw new Error('A string needs two different cards')
+    if (input.sourceId === input.targetId) throw new Error('A link needs two different cards')
     const a = this.entityRow(input.sourceId)
     const b = this.entityRow(input.targetId)
     const id = randomUUID()
@@ -564,7 +564,7 @@ export class Campaign {
     const r = this.relationshipRow(id)
     const group = r.secretId ? this.db.select().from(secret).where(eq(secret.id, r.secretId)).get() : undefined
     const { description, ...rest } = patch
-    this.log.run(`Edited string ${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`, (w) => {
+    this.log.run(`Edited link ${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`, (w) => {
       if (Object.keys(rest).length) w.update('relationship', id, rest)
       // A string that is one of a secret's connections shows (and edits) the secret's text.
       if (description !== undefined) {
@@ -614,7 +614,7 @@ export class Campaign {
    */
   saveSecret(input: { id: string | null; kind: SecretKind; text: string; connections: Array<{ id?: string; sourceId: string; targetId: string; type: string }>; prepItemId?: string }): string {
     for (const c of input.connections) {
-      if (c.sourceId === c.targetId) throw new Error('A connection needs two different cards')
+      if (c.sourceId === c.targetId) throw new Error('A link needs two different cards')
       this.entityRow(c.sourceId); this.entityRow(c.targetId)
     }
     const id = input.id ?? randomUUID()
@@ -622,7 +622,7 @@ export class Campaign {
     const settings = this.boardSettings()
     const owner = settings.sharedStrings ? null : this.globalBoard().id
     const isSecret = input.kind !== 'connection'
-    this.log.run(`Saved the ${input.kind}${input.text ? ` ${input.text.slice(0, 40)}` : ''}`, (w) => {
+    this.log.run(`Saved the ${input.kind === 'connection' ? 'link' : input.kind}${input.text ? ` ${input.text.slice(0, 40)}` : ''}`, (w) => {
       if (input.id) w.update('secret', id, { kind: input.kind, text: input.text })
       else w.insert('secret', { id, kind: input.kind, text: input.text, status: 'active' })
       for (const c of input.connections) {
@@ -659,6 +659,7 @@ export class Campaign {
     const live = new Set(this.db.select({ id: entity.id, status: entity.status }).from(entity).all().filter((e) => e.status !== 'defunct').map((e) => e.id))
     this.log.run('Brought a secret back from History', (w) => {
       w.update('secret', id, { status: 'active' })
+      for (const i of this.db.select().from(prepItem).where(and(eq(prepItem.secretId, id), eq(prepItem.status, 'defunct'))).all()) w.update('prep_item', i.id, { status: 'active' })
       for (const r of this.db.select().from(relationship).where(and(eq(relationship.secretId, id), eq(relationship.status, 'defunct'))).all())
         if (live.has(r.sourceId) && live.has(r.targetId)) w.update('relationship', r.id, { status: 'active' })
     })
@@ -669,7 +670,7 @@ export class Campaign {
     const p = this.prepRow(prepId)
     const siblings = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'discovery'))).all()
     const id = randomUUID(), sid = randomUUID()
-    this.log.run(`Added a ${kind} to the prep for session ${p.number}`, (w) => {
+    this.log.run(`Added a ${kind === 'connection' ? 'link' : kind} to the prep for session ${p.number}`, (w) => {
       w.insert('secret', { id: sid, kind, text: '', status: 'active' })
       w.insert('prep_item', {
         id, prepId, kind: 'discovery', sort: siblings.reduce((n, x) => Math.max(n, x.sort), 0) + 1, title: '', body: '', sceneType: null,
@@ -682,9 +683,16 @@ export class Campaign {
 
   setRelationshipStatus(id: string, status: RowStatus): void {
     const r = this.relationshipRow(id)
-    const verb = status === 'defunct' ? 'Removed string' : 'Restored string'
+    const verb = status === 'defunct' ? 'Removed link' : 'Restored link'
+    // The last link of a secret, clue or link line takes it (and its prep lines) to History; restoring brings them back.
+    const others = r.secretId ? this.db.select().from(relationship).where(and(eq(relationship.secretId, r.secretId), eq(relationship.status, 'active'))).all().filter((x) => x.id !== id) : []
+    const sec = r.secretId && others.length === 0 ? this.db.select().from(secret).where(eq(secret.id, r.secretId)).get() : undefined
     this.log.run(`${verb} ${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`, (w) => {
       w.update('relationship', id, { status })
+      if (sec && sec.status !== status) {
+        w.update('secret', sec.id, { status })
+        for (const i of this.db.select().from(prepItem).where(eq(prepItem.secretId, sec.id)).all()) if (i.status !== status) w.update('prep_item', i.id, { status })
+      }
     })
   }
 
@@ -789,7 +797,7 @@ export class Campaign {
       this.log.run(`${verb} ${e.name}`, (w) => { w.update('entity', id, { hidden }) })
     } else if (kind === 'string') {
       const r = this.relationshipRow(id)
-      this.log.run(`${verb} string ${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`, (w) => { w.update('relationship', id, { hidden }) })
+      this.log.run(`${verb} link ${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`, (w) => { w.update('relationship', id, { hidden }) })
     } else {
       const item = this.itemRow(id)
       if (item.kind === 'card' && item.entityId) return this.setHidden('entity', item.entityId, hidden)
@@ -853,14 +861,14 @@ export class Campaign {
 
   /** The DM's own kinds of string (with an optional colour). */
   setStringTypes(types: StringType[]): void {
-    this.setSetting('string_types', types, 'Changed the kinds of string')
+    this.setSetting('string_types', types, 'Changed the kinds of link')
   }
 
   /** Renames a kind of string everywhere: every string of that kind and the list (one undo step). */
   renameStringType(from: string, to: string): number {
     const rows = this.db.select().from(relationship).where(eq(relationship.type, from)).all()
     const types = this.boardSettings().stringTypes.map((t) => (t.type === from ? { ...t, type: to } : t))
-    this.log.run(`Renamed string kind ${from} to ${to}`, (w) => {
+    this.log.run(`Renamed link kind ${from} to ${to}`, (w) => {
       for (const r of rows) w.update('relationship', r.id, { type: to })
       if (w.get('campaign_settings', 'string_types')) w.update('campaign_settings', 'string_types', { value: types })
       else w.insert('campaign_settings', { key: 'string_types', value: types })
@@ -906,7 +914,7 @@ export class Campaign {
     const onBoard = new Map<string, Set<string>>()
     for (const i of items) if (i.entityId) onBoard.set(i.boardId, (onBoard.get(i.boardId) ?? new Set()).add(i.entityId))
     const boardsWith = (a: string, b: string) => [...onBoard.entries()].filter(([, set]) => set.has(a) && set.has(b)).map(([id]) => id)
-    this.log.run(on ? `Strings shared by every board again (${winner} strings kept)` : 'Strings kept per board', (w) => {
+    this.log.run(on ? `Links shared by every board again (${winner} links kept)` : 'Links kept per board', (w) => {
       if (w.get('campaign_settings', 'shared_strings')) w.update('campaign_settings', 'shared_strings', { value: on })
       else w.insert('campaign_settings', { key: 'shared_strings', value: on })
       if (!on) {
@@ -3400,9 +3408,7 @@ export class Campaign {
         secrets.push({ id: r.id, source: 'string', text: `${names.get(r.sourceId) ?? '?'} ${r.type.toLowerCase().replace(/_/g, ' ')} ${names.get(r.targetId) ?? '?'}` })
       }
       for (const c of detail?.plotPoints ?? []) if (c.type === 'CLUE') secrets.push({ id: c.id, source: 'card', text: c.name })
-      for (const c of (prep?.items ?? []).filter((i) => i.kind === 'discovery' && i.locationId === loc.id)) {
-        secrets.push({ id: c.id, source: 'clue', done: c.done, text: [c.title, c.body].filter(Boolean).join(': ') })
-      }
+      // Prep lines no longer pick a place (owner, 2026-10-14): their links to cards here bring them in as strings above.
     }
 
     // Where they came from: the last position somewhere else.
@@ -4300,7 +4306,7 @@ export class Campaign {
 
   private relationshipRow(id: string): RelationshipRow {
     const row = this.db.select().from(relationship).where(eq(relationship.id, id)).get()
-    if (!row) throw new Error(`No string with id ${id}`)
+    if (!row) throw new Error(`No link with id ${id}`)
     return row
   }
 

@@ -39,7 +39,7 @@ export function HistoryPanel() {
             <li key={x.id}>
               <div className="removed-text">
                 <strong>{x.text.slice(0, 60) || `Untitled ${x.kind}`}</strong>
-                <span className="muted">{x.kind[0].toUpperCase() + x.kind.slice(1)}, with its strings</span>
+                <span className="muted">{x.kind[0].toUpperCase() + x.kind.slice(1)}, with its links</span>
               </div>
               <button onClick={() => void act('secret:revive', { id: x.id })}>Revive</button>
             </li>
@@ -48,7 +48,7 @@ export function HistoryPanel() {
             <li key={r.id}>
               <div className="removed-text">
                 <strong>{r.sourceName} – {r.targetName}</strong>
-                <span className="muted">String · {r.type.replace(/_/g, ' ')}</span>
+                <span className="muted">Link · {r.type.replace(/_/g, ' ')}</span>
               </div>
               <button onClick={() => void act('relationship:setStatus', { id: r.id, status: 'active' })}>Restore</button>
             </li>

@@ -113,7 +113,7 @@ function Players({ p }: { p: PlayersView }) {
         )}
         {p.connections.length > 0 && (
           <section className="parchment-note">
-            <h2 className="panel-title">Connections you know</h2>
+            <h2 className="panel-title">Links you know</h2>
             <ul className="ink-list">{p.connections.map((c, i) => <li key={i}>{c}</li>)}</ul>
           </section>
         )}

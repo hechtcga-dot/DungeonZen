@@ -17,7 +17,7 @@ export function BattlePlanner({ encounterId, stamp }: { encounterId: string; sta
   return (
     <section className="battle-plan" aria-label="Battle planner">
       <h2 className="panel-title">Battle planner</h2>
-      {empty && <p className="ink-muted">Nothing to plan around yet: give the characters their spells (full sheet › Spells) and add foes.</p>}
+      {empty && <p className="ink-muted">Nothing to plan around yet: give the characters their spells (character sheet › Spells) and add foes.</p>}
       {plan.party.length > 0 && (
         <>
           <h3 className="side-h">What the party can do</h3>

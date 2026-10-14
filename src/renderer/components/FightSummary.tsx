@@ -1,4 +1,3 @@
-import { PicturePanel } from './Pictures'
 import { useState } from 'react'
 import { useBoard, useUnits } from '../store'
 import { call } from '../api'
@@ -55,7 +54,7 @@ export function StatBlockView({ name, sb, actions }: { name: string; sb: StatBlo
   )
 }
 
-/** Sheet › Fight summary: picture, the stat block to run, CR up or down, AI stat block. */
+/** Sheet › Stat block: the stat block to run, CR up or down, AI stat block. */
 export function FightSummary({ sheet, onFullSheet }: { sheet: SheetView; onFullSheet(): void }) {
   const e = sheet.entity
   const sb = readStatBlock(e.attributes.statblock)
@@ -66,7 +65,6 @@ export function FightSummary({ sheet, onFullSheet }: { sheet: SheetView; onFullS
 
   return (
     <div className="fight-summary">
-      <PicturePanel sheet={sheet} />
       <section className="panel fight-main">
         <div className="row tight wrap fight-tools">
           <button disabled={step == null || step === 0} title={step == null ? 'Set the challenge rating first' : undefined}
@@ -75,11 +73,11 @@ export function FightSummary({ sheet, onFullSheet }: { sheet: SheetView; onFullS
             onClick={() => setCrTarget(CR_STEPS[step! + 1])}>Raise CR</button>
           <button onClick={() => setAiOpen(true)}>AI stat block…</button>
           <span className="spacer" />
-          <button className="link-button" onClick={onFullSheet}>Edit on the full sheet</button>
+          <button className="link-button" onClick={onFullSheet}>Edit on the character sheet</button>
         </div>
         {aiStat && <span className="ai-badge">Stat block by AI · {aiStat}</span>}
         {sb ? <StatBlockView name={e.name} sb={sb} actions={sheet.abilities} />
-          : <p className="hint">No stat block yet. Let an AI write one from a description, copy one from the SRD on the full sheet, or type it in there.</p>}
+          : <p className="hint">No stat block yet. Let an AI write one from a description, copy one from the SRD on the character sheet, or type it in there.</p>}
       </section>
       {crTarget && sb && <CrDialog sheet={sheet} sb={sb} target={crTarget} onClose={() => setCrTarget(null)} />}
       {aiOpen && <AiStatBlockDialog sheet={sheet} onClose={() => setAiOpen(false)} />}

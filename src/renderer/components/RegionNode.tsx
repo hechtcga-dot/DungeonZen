@@ -10,7 +10,7 @@ function RegionNodeImpl({ data, selected }: NodeProps<RegionNodeType>) {
   return (
     <div className={`board-region${selected ? ' is-selected' : ''}${data.dimmed ? ' is-dimmed' : ''}`} style={{ '--type': data.colour } as CSSProperties}
       title={`${data.entity.name}: double-click to open the sheet, drag from the pin to tie a string, right-click for more`}>
-      <Handle type="source" position={Position.Top} id="pin" className="pin" title="Drag to another card's pin to tie a string" />
+      <Handle type="source" position={Position.Top} id="pin" className="pin" title="Drag to another card's pin to tie a link" />
       <span className="board-region-name">{data.entity.name}</span>
       {data.occupants.length > 0 && (
         <span className="board-region-here" title={`Here now: ${data.occupants.join(', ')}`}>

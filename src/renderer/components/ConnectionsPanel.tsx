@@ -56,13 +56,13 @@ export function ConnectionsPanel({ cardId }: { cardId?: string | null }) {
 
   const all = (
     <>
-      <p className="hint">Strings stand out while this panel is open. Right-click a string on the board for the same actions.</p>
+      <p className="hint">Links stand out while this panel is open. Right-click a link on the board for the same actions.</p>
       <div className="field checkbox"><input id="lk-grey-cards" type="checkbox" checked={prefs.greyCards} onChange={(e) => prefs.set({ greyCards: e.target.checked })} />
         <label htmlFor="lk-grey-cards">Grey out cards</label></div>
       <div className="field checkbox"><input id="lk-grey-notes" type="checkbox" checked={prefs.greyNotes} onChange={(e) => prefs.set({ greyNotes: e.target.checked })} />
         <label htmlFor="lk-grey-notes">Grey out notes</label></div>
       <div className="field checkbox"><input id="lk-hidden" type="checkbox" checked={prefs.showHidden} onChange={(e) => prefs.set({ showHidden: e.target.checked })} />
-        <label htmlFor="lk-hidden">Show hidden strings (greyed)</label></div>
+        <label htmlFor="lk-hidden">Show hidden links (greyed)</label></div>
 
       <div className="field">
         <label htmlFor="lk-filter">Kind</label>
@@ -71,13 +71,13 @@ export function ConnectionsPanel({ cardId }: { cardId?: string | null }) {
           {kinds.filter((k) => used.has(k)).map((k) => <option key={k} value={k}>{words(k)} ({used.get(k)})</option>)}
         </select>
       </div>
-      {list.length === 0 ? <p className="hint">No strings{kind ? ' of this kind' : ''} here yet. Drag from one card's red pin to another's.</p> : (
+      {list.length === 0 ? <p className="hint">No links{kind ? ' of this kind' : ''} here yet. Drag from one card's red pin to another's.</p> : (
         <>
           {known.length > 0 && <><h3 className="panel-subheading">Known ({known.length})</h3><ul className="links-list">{known.map(row)}</ul></>}
           {secret.length > 0 && <><h3 className="panel-subheading">Secret ({secret.length})</h3><ul className="links-list">{secret.map(row)}</ul></>}
         </>
       )}
-      <h3 className="panel-subheading">Kinds of string</h3>
+      <h3 className="panel-subheading">Kinds of link</h3>
       <ul className="links-kinds">
         {kinds.map((k) => (
           <li key={k}>
@@ -89,10 +89,10 @@ export function ConnectionsPanel({ cardId }: { cardId?: string | null }) {
               </form>
             ) : <span className="links-kind-name">{words(k)}{used.get(k) ? ` (${used.get(k)})` : ''}</span>}
             <span className="row tight">
-              <button className="link-button" title="Renames every string of this kind" onClick={() => setRenaming({ from: k, to: words(k) })}>Rename</button>
+              <button className="link-button" title="Renames every link of this kind" onClick={() => setRenaming({ from: k, to: words(k) })}>Rename</button>
               {own(k)?.colour && <button className="link-button" onClick={() => setColour(k, null)}>Default colour</button>}
               {own(k) && !BUILT_IN.includes(k as never) && (
-                <button className="link-button danger-link" title="Takes it off the list; strings of this kind stay"
+                <button className="link-button danger-link" title="Takes it off the list; links of this kind stay"
                   onClick={() => saveTypes(types.filter((x) => x.type !== k))}>Delete</button>
               )}
             </span>
@@ -101,7 +101,7 @@ export function ConnectionsPanel({ cardId }: { cardId?: string | null }) {
       </ul>
       <form className="row tight" onSubmit={(e) => { e.preventDefault(); addKind() }}>
         <input type="color" value={newColour} aria-label="Colour for the new kind" onChange={(e) => setNewColour(e.target.value)} />
-        <input value={newKind} maxLength={40} placeholder="New kind, e.g. owes money to" aria-label="New kind of string" onChange={(e) => setNewKind(e.target.value)} />
+        <input value={newKind} maxLength={40} placeholder="New kind, e.g. owes money to" aria-label="New kind of link" onChange={(e) => setNewKind(e.target.value)} />
         <button type="submit" disabled={!newKind.trim()}>Add kind</button>
       </form>
 
@@ -110,10 +110,10 @@ export function ConnectionsPanel({ cardId }: { cardId?: string | null }) {
         <div className="field checkbox">
           <input id="lk-shared" type="checkbox" checked={view.settings.sharedStrings}
             onChange={(e) => (e.target.checked ? setAskShare(true) : void act('board:sharedStrings', { on: false, winner: 'global' }))} />
-          <label htmlFor="lk-shared">Strings are the same on every board</label>
+          <label htmlFor="lk-shared">Links are the same on every board</label>
         </div>
-        <p className="hint">Untick to let each storyline board keep its own strings (each board gets a copy to change).
-          Ticking it again asks which board's strings to keep.</p>
+        <p className="hint">Untick to let each storyline board keep its own links (each board gets a copy to change).
+          Ticking it again asks which board's links to keep.</p>
       </details>
     </>
   )
@@ -123,7 +123,7 @@ export function ConnectionsPanel({ cardId }: { cardId?: string | null }) {
       {card ? (
         <>
           <h2 className="panel-heading">Links of {card.name}</h2>
-          {mine.length === 0 ? <p className="hint">No strings on this card yet. Drag from its red pin to another card's.</p> : <ul className="links-list">{mine.map(row)}</ul>}
+          {mine.length === 0 ? <p className="hint">No links on this card yet. Drag from its red pin to another card's.</p> : <ul className="links-list">{mine.map(row)}</ul>}
           <details className="links-all">
             <summary>Show all links ▾</summary>
             {all}
@@ -136,8 +136,8 @@ export function ConnectionsPanel({ cardId }: { cardId?: string | null }) {
         </>
       )}
       {askShare && (
-        <WinnerDialog title="Same strings on every board"
-          text="The boards have their own strings now. Which strings should every board share: the global board's, or the storyline boards'?"
+        <WinnerDialog title="Same links on every board"
+          text="The boards have their own links now. Which links should every board share: the global board's, or the storyline boards'?"
           onChoose={(winner) => { setAskShare(false); void act('board:sharedStrings', { on: true, winner }) }} onClose={() => setAskShare(false)} />
       )}
     </div>
@@ -153,7 +153,7 @@ function LinkRow({ r, name, colour, selected, onSelect, onCard }: {
     <li className={`link-row${selected ? ' is-selected' : ''}${r.hidden ? ' is-hidden' : ''}`}>
       <div className="link-ends">
         <button className="link-button" onClick={() => onCard(r.sourceId)}>{name(r.sourceId)}</button>
-        <button className="link-button links-kind" style={{ color: colour }} onClick={onSelect} title="Select this string">
+        <button className="link-button links-kind" style={{ color: colour }} onClick={onSelect} title="Select this link">
           {words(r.type)} →
         </button>
         <button className="link-button" onClick={() => onCard(r.targetId)}>{name(r.targetId)}</button>
