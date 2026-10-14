@@ -428,6 +428,9 @@ built.
     the region name; the card comes back when the map picture is hidden or removed
     (render only, nothing stored, 1.9.0). Show on board goes to the region first. Region names always show;
     Display › Region boundaries on maps (board pref `regions`) turns only the outlines on/off (`MapOverlay outlines`).
+    Region names (owner, 2026-10-14): every region name, area or settlement, is cream writing on a dark brown tag
+    (`MapOverlay` `NameTag`) on every map. On a board the tag is the region node itself, drawn like a card (19 px
+    display font, 7 px Location-colour band, shadow; who is there under it); the picture draws only markers (`names={false}`).
     Outlines (board and Map screen) are drawn smoothed (`smooth` in `MapOverlay`, 2 rounds of corner cutting, shared
     borders stay one line), thin solid ink at 55%, lighter fill; clicks and drops still use the stored polygon.
     Card menu › Take off this board (`note:setStatus` on the card item; History lists it as

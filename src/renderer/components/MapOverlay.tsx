@@ -55,13 +55,25 @@ function Occupants({ names, y, s }: { names: string[]; y: number; s: number }) {
     </g>
   )
 }
+const TAG = 12 // name tag font size, screen pixels
+/** A place name: cream writing on a dark brown tag, top edge at `y`. */
+function NameTag({ name, y, s }: { name: string; y: number; s: number }) {
+  const fs = TAG * s
+  const w = (name.length * 6.8 + 16) * s
+  return (
+    <>
+      <rect x={-w / 2} y={y} width={w} height={fs * 1.5} rx={2 * s} fill="#2a1f12" fillOpacity="0.85" />
+      <text y={y + fs * 1.08} textAnchor="middle" fontSize={fs} fill="#f1e6c6" fontFamily="'IM Fell English', Georgia, serif">{name}</text>
+    </>
+  )
+}
 /** Settlements and landmarks are drawn as a marker, land regions as a tinted area. */
 export const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' || r.kind === 'village' || r.kind === 'landmark' || r.kind === 'dungeon'
 
 /** Regions (dashed ink outlines with labels), the route and the party, drawn over a map image. */
 // Clicks are handled by the map (MapView onMapClick + regionAt), because the map
 // captures the pointer for panning.
-export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = true, outlines = true }: {
+export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = true, outlines = true, names = true }: {
   view: MapScreenView
   ctx: MapLayerContext
   selectedRegionId?: string | null
@@ -69,6 +81,8 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
   labels?: boolean
   /** False: names only, no region shapes. */
   outlines?: boolean
+  /** False: markers only; the board draws the names (and who is there) as region cards. */
+  names?: boolean
 }) {
   const s = 1 / ctx.scale
   const sorted = [...view.regions].sort((a, b) => area(b) - area(a)) // big regions first, sub-regions on top
@@ -95,32 +109,24 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
         // The party banner stands on the centroid of its region: lift the name above it.
         const partyHere = view.party?.locationId === r.locationId
         if (isSpot(r)) {
-          // Settlements and landmarks: a marker and a small name tag under it.
-          const fs = 12 * s
-          const w = (r.name.length * 6.8 + 16) * s
+          // Settlements and landmarks: a marker and the name tag under it.
           const big = r.kind === 'city' ? 9 : r.kind === 'town' ? 7 : 5.5
           return (
             <g key={`l-${r.id}`} className="map-label" transform={`translate(${c0} ${c1})`} pointerEvents="none">
               {r.kind === 'dungeon' || r.kind === 'landmark'
                 ? <path d={`M0 ${-big * s}L${big * s} 0L0 ${big * s}L${-big * s} 0Z`} fill={placeColour(r) ?? '#5a3f8a'} stroke="#f1e6c6" strokeWidth={1.5 * s} />
                 : <circle r={big * s} fill={placeColour(r) ?? '#8f2a21'} stroke="#f1e6c6" strokeWidth={2 * s} />}
-              {!partyHere && (
-                <>
-                  <rect x={-w / 2} y={(big + 3) * s} width={w} height={fs * 1.5} rx={2 * s} fill="#2a1f12" fillOpacity="0.85" />
-                  <text y={(big + 3) * s + fs * 1.08} textAnchor="middle" fontSize={fs} fill="#f1e6c6" fontFamily="'IM Fell English', Georgia, serif">{r.name}</text>
-                </>
-              )}
-              <Occupants names={r.occupants} y={(big + 5) * s + fs * 1.6} s={s} />
+              {names && !partyHere && <NameTag name={r.name} y={(big + 3) * s} s={s} />}
+              {names && <Occupants names={r.occupants} y={(big + 5) * s + TAG * 1.6 * s} s={s} />}
             </g>
           )
         }
-        const fs = 17 * s
-        const [cx, cy] = [c0, partyHere ? c1 - 44 * s : c1]
+        // Areas: the same name tag, centred (lifted when the party stands on it).
+        if (!names) return null
         return (
-          <g key={`l-${r.id}`} className="map-label" transform={`translate(${cx} ${cy})`} pointerEvents="none">
-            <text y={fs * 0.35} textAnchor="middle" fontSize={fs} fontStyle="italic" fill="#2a1f12" stroke="#f6ecd0" strokeWidth={4 * s}
-              paintOrder="stroke" strokeLinejoin="round" fontFamily="'IM Fell English', Georgia, serif">{r.name}</text>
-            <Occupants names={r.occupants} y={fs * 0.7} s={s} />
+          <g key={`l-${r.id}`} className="map-label" transform={`translate(${c0} ${partyHere ? c1 - 44 * s : c1})`} pointerEvents="none">
+            <NameTag name={r.name} y={-TAG * 0.75 * s} s={s} />
+            <Occupants names={r.occupants} y={(TAG * 0.75 + 2) * s} s={s} />
           </g>
         )
       })}

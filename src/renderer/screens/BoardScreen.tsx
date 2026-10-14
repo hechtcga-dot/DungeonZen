@@ -115,17 +115,16 @@ function BoardLayout() {
       if (!rv?.map.width || !item.w) return []
       const scale = item.w / rv.map.width
       const sorted = [...rv.regions].sort((a, b) => Math.abs(polygonArea(b.polygon)) - Math.abs(polygonArea(a.polygon)))
-      const at = placeLabels(sorted.map((r) => ({ polygon: r.polygon, name: r.name, spot: isSpot(r) })), 1 / scale)
+      const at = placeLabels(sorted.map((r) => ({ polygon: r.polygon, name: r.name, spot: isSpot(r) })), 1 / scale, 24, 19) // card-sized tags
       return sorted.flatMap((r, i) => {
         const entity = view.entities[r.locationId]
         if (!entity || (entity.hidden && !prefs.showHidden)) return []
         const x = item.x + at[i][0] * scale
         const y = item.y + at[i][1] * scale
-        // Settlements: marker and the tag under it; areas: the italic name (lifted when the party stands on it).
-        if (isSpot(r)) { const w = r.name.length * 6.8 + 16; return [{ id: `region:${item.id}:${r.id}`, entity, x: x - w / 2, y: y - 9, w, h: 40 }] }
-        const w = r.name.length * 8.5 + 8
-        const cy = rv.party?.locationId === r.locationId ? y - 44 : y
-        return [{ id: `region:${item.id}:${r.id}`, entity, x: x - w / 2, y: cy - 11, w, h: 22 }]
+        // A card-sized name tag: under a settlement's marker, centred on an area (lifted when the party stands on it).
+        const w = r.name.length * 9.5 + 34
+        const top = isSpot(r) ? y + 12 : (rv.party?.locationId === r.locationId ? y - 44 : y) - 22
+        return [{ id: `region:${item.id}:${r.id}`, entity, occupants: r.occupants ?? [], x: x - w / 2, y: top, w, h: 44 }]
       })
     })
   }, [view.items, view.entities, regionViews, mapOf, prefs.pictures, prefs.showHidden])
@@ -149,7 +148,7 @@ function BoardLayout() {
       const regions: BoardNode[] = regionSpots.map((r) => ({
         id: r.id, type: 'region', position: { x: r.x, y: r.y }, width: r.w, height: r.h, measured: measured.get(r.id) ?? { width: r.w, height: r.h }, draggable: false,
         ...(background ? { selectable: false, className: 'is-passive' } : { className: 'nopan' }), // nopan: double-click opens the sheet instead of zooming
-        selected: selected.has(r.id), data: { entity: r.entity, dimmed: q !== '' && !matches(r.entity, q) }
+        selected: selected.has(r.id), data: { entity: r.entity, occupants: r.occupants, colour: cardColour(r.entity, typeColour), dimmed: q !== '' && !matches(r.entity, q) }
       }))
       // Nodes equal to the last ones stay the same objects: those cards do not redraw (speed).
       return share(prev, [...regions, ...view.items.flatMap((item): BoardNode[] => {
