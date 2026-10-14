@@ -183,6 +183,8 @@ function StringInspector({ id }: { id: string }) {
       <datalist id="relationship-types">
         {[...new Set([...RELATIONSHIP_TYPES, ...view.settings.stringTypes.map((t) => t.type)])].map((t) => <option key={t} value={t.replace(/_/g, ' ')} />)}
       </datalist>
+      <CommitField id={`rel-${id}-desc`} label="Description" value={rel.description} multiline rows={3}
+        hint="Prep secrets tied to this string share this text." onCommit={(description) => void act('relationship:update', { id, patch: { description } })} />
       <div className="field checkbox">
         <input id={`rel-${id}-secret`} type="checkbox" checked={rel.isSecret}
           onChange={(e) => void act('relationship:update', { id, patch: { isSecret: e.target.checked } })} />

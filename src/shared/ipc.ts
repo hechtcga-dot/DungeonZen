@@ -55,7 +55,7 @@ const Text = z.string().max(10000)
 const PrepItemFields = z.object({
   title: z.string().trim().max(300), body: Text, sceneType: SceneType.nullable(),
   targetStart: z.number().int().min(0).max(1440).nullable(), targetEnd: z.number().int().min(0).max(1440).nullable(),
-  entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(),
+  entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(), relationshipId: Id.nullable(),
   role: z.string().max(300), stats: z.string().max(1000), tactics: z.string().max(2000)
 }).partial()
 const Polygon = z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(500)
@@ -320,7 +320,8 @@ export const ipcInputs = {
     id: Id,
     patch: z.object({
       number: z.number().int().min(1).max(100000), title: z.string().trim().max(300), premise: Text,
-      pacingMinutes: z.number().int().min(15).max(1440), backupNames: Text, notes: Text, wantNext: Text
+      pacingMinutes: z.number().int().min(15).max(1440), backupNames: Text, notes: Text, wantNext: Text,
+      links: z.array(z.object({ text: z.string().trim().min(1).max(300), entityId: Id })).max(500)
     }).partial()
   }),
   'prep:setStatus': z.object({ id: Id, status: RowStatus }),
@@ -428,7 +429,7 @@ export const ipcInputs = {
     colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional()
   }),
   'relationship:update': z.object({
-    id: Id, patch: z.object({ type: RelationshipType.optional(), isSecret: z.boolean().optional() })
+    id: Id, patch: z.object({ type: RelationshipType.optional(), isSecret: z.boolean().optional(), description: Text.optional() })
   }),
   'relationship:setStatus': z.object({ id: Id, status: RowStatus }),
   'note:create': z.object({ boardId: Id, position: Position, text: z.string().max(5000) }),

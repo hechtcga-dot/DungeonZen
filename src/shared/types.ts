@@ -76,6 +76,8 @@ export interface RelationshipView {
   hidden: boolean
   /** Null: on every board; else the board that keeps it (strings kept per board). */
   boardId: string | null
+  /** The DM's words about it (shared with prep secrets tied to it). */
+  description: string
 }
 
 export interface BoardItemView {
@@ -650,6 +652,8 @@ export interface PrepItemView {
   locationId: string | null
   locationName: string | null
   discoveryId: string | null
+  /** A secret tied to a secret string (its text is the string's description); a Clue card is `entityId`. */
+  relationshipId: string | null
   role: string
   stats: string
   tactics: string
@@ -672,6 +676,8 @@ export interface PrepView {
   /** The notes file "Save as notes file" writes to, while it is not in History. */
   noteDocId: string | null
   items: PrepItemView[]
+  /** Words on the sheet linked to cards: every place the words appear, in any box, shows the card. */
+  links: Array<{ text: string; entityId: string }>
 }
 
 export interface PrepScreenView {
@@ -685,6 +691,10 @@ export interface PrepScreenView {
   locations: EntityBrief[]
   /** Planned encounters (the Encounters box links to them). */
   encounters: Array<{ id: string; name: string; placeName: string | null }>
+  /** Every card, for linking words on the sheet and the card summary beside it. */
+  cards: Array<EntityBrief & { summary: string; picture: string; location: string; notes: string }>
+  /** Secret strings and Clue cards a prep secret can be tied to. */
+  boardSecrets: Array<{ kind: 'string' | 'clue'; id: string; label: string }>
 }
 
 /** Live desk: everything about where the party is, for the DM at the table. */

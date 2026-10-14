@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { CommitField } from '../components/fields'
@@ -10,6 +10,8 @@ import { ENTITY_TYPES, type EntityType, type PrepKind, type SceneType } from '..
 import { ENTITY_LABELS } from '../entityStyle'
 import type { EntityBrief, PrepItemView, PrepScreenView, PrepView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
+import { LinkContext, LinkField } from '../components/LinkField'
+import { TypeEmblem } from '../art/emblems'
 
 /** "1:15" for 75 minutes at the table. */
 export const hm = (min: number | null) => (min == null ? '' : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`)
@@ -84,9 +86,18 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
     if (id) useBoard.setState({ message: { text: `Saved to Notes as “Session ${p.number}${p.title.trim() ? ` - ${p.title.trim()}` : ''}”.`, isError: false } })
   }
 
+  // Words linked to cards: the card shows in the side panel while the cursor is in them; a click elsewhere drops it.
+  const [shown, setShown] = useState<string | null>(null)
+  const links = useMemo(() => ({
+    links: p.links, cards: s.cards, show: setShown,
+    setLinks: (next: typeof p.links) => void act('prep:update', { id: p.id, patch: { links: next } })
+  }), [p.links, p.id, s.cards, act])
+  const card = shown ? s.cards.find((c) => c.id === shown) : undefined
+
   return (
+    <LinkContext.Provider value={links}>
     <div className="prep-layout" style={side.style}>
-      <div className="prep-main">
+      <div className="prep-main" onMouseDown={() => setShown(null)}>
         <section className="parchment-sheet prep-head" aria-label="Session">
           <div className="prep-head-grid">
             <CommitField id="prep-title" label="Session title" value={p.title} placeholder="The Drowned Bell" onCommit={(v) => up({ title: v })} />
@@ -113,7 +124,7 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
         <section className="parchment-sheet prep-section" aria-labelledby="prep-opening">
           <h2 id="prep-opening" className="panel-title"><span className="prep-n">1</span> Session opening</h2>
           <p className="ink-muted prep-hint">One sentence describing how the session begins. Start with something happening rather than asking the players what they want to do.</p>
-          <CommitField id="prep-premise" label="Opening" className="label-hidden" multiline rows={2} value={p.premise}
+          <LinkField id="prep-premise" label="Opening" className="label-hidden" multiline rows={2} value={p.premise}
             placeholder="Someone is pounding on the door at 2 a.m." onCommit={(v) => up({ premise: v })} />
         </section>
 
@@ -122,7 +133,7 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           {(i, k) => (
             <>
               <div className="prep-row-fields">
-                <CommitField id={`s-t-${i.id}`} label={`Scene ${k + 1}: location`} value={i.title} placeholder="Dock at night" onCommit={(v) => upItem(act, i, { title: v })} />
+                <LinkField id={`s-t-${i.id}`} label={`Scene ${k + 1}: location`} value={i.title} placeholder="Dock at night" onCommit={(v) => upItem(act, i, { title: v })} />
                 <CardPick id={`s-loc-${i.id}`} label="Location card" value={i.locationId} cards={s.locations} onPick={(v) => upItem(act, i, { locationId: v })} />
                 <div className="field">
                   <label htmlFor={`s-type-${i.id}`}>Type</label>
@@ -132,7 +143,7 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
                 </div>
                 <TimeRange i={i} />
               </div>
-              <CommitField id={`s-b-${i.id}`} label="Tension" value={i.body} placeholder="The harbormaster knows what happened and won’t say." onCommit={(v) => upItem(act, i, { body: v })} />
+              <LinkField id={`s-b-${i.id}`} label="Tension" value={i.body} placeholder="The harbormaster knows what happened and won’t say." onCommit={(v) => upItem(act, i, { body: v })} />
             </>
           )}
         </PrepSection>
@@ -141,8 +152,20 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           add="Add a secret or clue">
           {(i, k) => (
             <div className="prep-row-fields">
-              <CommitField id={`d-b-${i.id}`} label={`Secret ${k + 1}`} value={i.body} className="wide" placeholder="The harbormaster was paid to keep quiet." onCommit={(v) => upItem(act, i, { body: v })} />
-              <CommitField id={`d-t-${i.id}`} label="Short name (optional)" value={i.title} onCommit={(v) => upItem(act, i, { title: v })} />
+              <LinkField id={`d-b-${i.id}`} label={`Secret ${k + 1}`} value={i.body} className="wide" placeholder="The harbormaster was paid to keep quiet."
+                hint={i.relationshipId || i.entityId ? 'Shared with the board: editing it here changes it there too.' : undefined} onCommit={(v) => upItem(act, i, { body: v })} />
+              <div className="field">
+                <label htmlFor={`d-s-${i.id}`}>Secret on the board</label>
+                <select id={`d-s-${i.id}`} value={i.relationshipId ? `string:${i.relationshipId}` : i.entityId ? `clue:${i.entityId}` : ''}
+                  onChange={(e) => {
+                    const [kind, id] = e.target.value.split(':')
+                    upItem(act, i, { relationshipId: kind === 'string' ? id : null, entityId: kind === 'clue' ? id : null })
+                  }}>
+                  <option value="">None</option>
+                  {s.boardSecrets.map((b) => <option key={b.id} value={`${b.kind}:${b.id}`}>{b.label}</option>)}
+                </select>
+              </div>
+              <LinkField id={`d-t-${i.id}`} label="Short name (optional)" value={i.title} onCommit={(v) => upItem(act, i, { title: v })} />
               <CardPick id={`d-loc-${i.id}`} label="Where (optional, shows on Live)" value={i.locationId} cards={s.locations} onPick={(v) => upItem(act, i, { locationId: v })} />
             </div>
           )}
@@ -153,9 +176,9 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           {(i) => (
             <div className="prep-row-fields">
               <CardPick id={`n-card-${i.id}`} label="Card" value={i.entityId} cards={s.people} onPick={(v) => upItem(act, i, { entityId: v, ...(v ? { title: s.people.find((c) => c.id === v)?.name ?? i.title } : {}) })} />
-              <CommitField id={`n-t-${i.id}`} label="Name" value={i.title} placeholder="Mara Venn" onCommit={(v) => upItem(act, i, { title: v })} />
-              <CommitField id={`n-r-${i.id}`} label="Wants" value={i.role} placeholder="the party to leave town" onCommit={(v) => upItem(act, i, { role: v })} />
-              <CommitField id={`n-b-${i.id}`} label="How to play them" value={i.body} className="wide" placeholder="Talks too quickly when lying." onCommit={(v) => upItem(act, i, { body: v })} />
+              <LinkField id={`n-t-${i.id}`} label="Name" value={i.title} placeholder="Mara Venn" onCommit={(v) => upItem(act, i, { title: v })} />
+              <LinkField id={`n-r-${i.id}`} label="Wants" value={i.role} placeholder="the party to leave town" onCommit={(v) => upItem(act, i, { role: v })} />
+              <LinkField id={`n-b-${i.id}`} label="How to play them" value={i.body} className="wide" placeholder="Talks too quickly when lying." onCommit={(v) => upItem(act, i, { body: v })} />
             </div>
           )}
         </PrepSection>
@@ -163,17 +186,17 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
         <PrepSection p={p} kind="thread" n={5} title="Loose threads" hint="Three unresolved things from the previous session. Possibilities to keep in mind, not objectives to force onto the players."
           add="Add a thread" extra={p.number > 1 && <button className="ink-button" title="Copies last session’s “what the players seem to want next” and its threads not ticked off"
             onClick={async () => { const n = await act('prep:bringThreads', { prepId: p.id }); if (n === 0) say('Nothing new to bring in from last session.') }}>Bring in from last session</button>}>
-          {(i, k) => <CommitField id={`l-b-${i.id}`} label={`Thread ${k + 1}`} value={i.body} placeholder="The party promised to investigate the abandoned mine." onCommit={(v) => upItem(act, i, { body: v })} />}
+          {(i, k) => <LinkField id={`l-b-${i.id}`} label={`Thread ${k + 1}`} value={i.body} placeholder="The party promised to investigate the abandoned mine." onCommit={(v) => upItem(act, i, { body: v })} />}
         </PrepSection>
 
         <section className="parchment-sheet prep-section" aria-labelledby="prep-recap">
           <h2 id="prep-recap" className="panel-title"><span className="prep-n">6</span> Session recap</h2>
           <p className="ink-muted prep-hint">Write this after the session. “What happened” is the session’s recap (the same text as in Review).</p>
           {p.session
-            ? <CommitField id="prep-happened" label="What happened" multiline rows={3} value={p.session.recap}
+            ? <LinkField id="prep-happened" label="What happened" multiline rows={3} value={p.session.recap}
                 onCommit={(v) => void act('session:update', { id: p.session!.id, patch: { recap: v } })} />
             : <p className="ink-muted">What happened: write it here once session {p.number} has started.</p>}
-          <CommitField id="prep-want" label="What the players seem to want next" multiline rows={2} value={p.wantNext}
+          <LinkField id="prep-want" label="What the players seem to want next" multiline rows={2} value={p.wantNext}
             placeholder="They want to track the escaped smuggler and find out who hired him." onCommit={(v) => up({ wantNext: v })} />
         </section>
 
@@ -187,7 +210,7 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           )}>
           {(i) => (
             <div className="prep-row-fields">
-              <CommitField id={`b-b-${i.id}`} label="Established at the table" value={i.body} className="wide" placeholder="The dockworker invented on the spot is now named Pell." onCommit={(v) => upItem(act, i, { body: v })} />
+              <LinkField id={`b-b-${i.id}`} label="Established at the table" value={i.body} className="wide" placeholder="The dockworker invented on the spot is now named Pell." onCommit={(v) => upItem(act, i, { body: v })} />
               {i.entityId
                 ? <button className="link-button" onClick={() => void openSheet(i.entityId!)}>Open card{i.entityName ? `: ${i.entityName}` : ''}</button>
                 : <button className="ink-button" disabled={!i.body.trim()} title="A new card named from this line, with the line as its bio (Ctrl+Z undoes)"
@@ -199,6 +222,21 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
 
       <aside className="prep-side">
         {side.grip}
+        {card ? (
+          <section className="parchment-note prep-card" aria-label={`Card: ${card.name}`}>
+            <div className="row spread">
+              <h2 className="panel-title">{card.name}</h2>
+              <button className="ink-button" onClick={() => void openSheet(card.id)}>Open full sheet</button>
+            </div>
+            <span className="ink-muted">{ENTITY_LABELS[card.type]}{card.location ? ` · ${card.location}` : ''}</span>
+            <div className="inspector-picture">
+              {card.picture ? <img src={`dz-asset://campaign/${card.picture}?w=512`} alt={card.name} draggable={false} /> : <TypeEmblem type={card.type} />}
+            </div>
+            {card.summary && <p>{card.summary}</p>}
+            {card.notes && <><h3 className="panel-subheading">DM notes</h3><p className="prep-card-notes">{card.notes}</p></>}
+            <button className="link-button" onClick={() => setShown(null)}>Back to the prep notes</button>
+          </section>
+        ) : <>
         <section className="parchment-note cheat-sheet">
           <h2 className="panel-title">The one-page test</h2>
           <p>Before bringing anything to the table, ask: <strong>can I use this in the three seconds between a player asking me something and me answering?</strong></p>
@@ -222,7 +260,7 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
         <section className="parchment-note">
           <h2 className="panel-title">Backup names</h2>
           <p className="ink-muted">For people the party meets unexpectedly. One per line.</p>
-          <CommitField id="prep-names" label="Names" multiline rows={4} value={p.backupNames} className="label-hidden" onCommit={(v) => up({ backupNames: v })} />
+          <LinkField id="prep-names" label="Names" multiline rows={4} value={p.backupNames} className="label-hidden" onCommit={(v) => up({ backupNames: v })} />
           <button className="ink-button" onClick={async () => {
             const names = await act('prep:rollNames', { count: 4 })
             if (names) up({ backupNames: [p.backupNames.trim(), ...names].filter(Boolean).join('\n') })
@@ -230,10 +268,12 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
         </section>
         <section className="parchment-note">
           <h2 className="panel-title">Notes</h2>
-          <CommitField id="prep-notes" label="Notes" multiline rows={4} value={p.notes} className="label-hidden" placeholder="Anything else for this session…" onCommit={(v) => up({ notes: v })} />
+          <LinkField id="prep-notes" label="Notes" multiline rows={4} value={p.notes} className="label-hidden" placeholder="Anything else for this session…" onCommit={(v) => up({ notes: v })} />
         </section>
+        </>}
       </aside>
     </div>
+    </LinkContext.Provider>
   )
 }
 

@@ -427,7 +427,7 @@ built.
     strings. While a place's region shows on a board, its card there steps aside (not drawn) and its strings end on
     the region name; the card comes back when the map picture is hidden or removed
     (render only, nothing stored, 1.9.0). Show on board goes to the region first. Region names always show;
-    Display › Region boundaries on maps (board pref `regions`) turns only the outlines on/off (`MapOverlay outlines`).
+    Display › Region boundaries on maps (board pref `regionLines`, off by default since 2026-10-14) turns only the outlines on/off (`MapOverlay outlines`).
     Region names (owner, 2026-10-14): every region name, area or settlement, is cream writing on a dark brown tag
     (`MapOverlay` `NameTag`) on every map. On a board the tag is the region node itself, drawn like a card (19 px
     display font, 7 px Location-colour band, shadow; who is there under it); the picture draws only markers (`names={false}`).
@@ -441,6 +441,19 @@ built.
   BoardScreen); back from a sheet or another screen shows the same view; first visit fits all.
 - JFIF pictures (2026-10-14): .jfif is taken wherever pictures are (maps, board pictures, card pictures, Library,
   outlines, notes files, encounter pictures); the copy is saved as .jpg (`storedExt`).
+- Prep sheet word links (owner, 2026-10-14): every prep text box is a `LinkField` (textarea with marks drawn behind it):
+  select words, right-click › Link to a card… (`CardPicker`: every card by type, search). Links are per sheet
+  (`session_prep.links`: phrase + card, every place the phrase appears, any case). Cursor in linked words shows the card
+  (name, type, place, picture, summary, DM notes, Open full sheet) in the side panel; a click elsewhere on the sheet
+  brings the usual panel back. Right-click linked words: Show, Remove the link.
+- Prep secrets on the board (2026-10-14): each secret has "Secret on the board": secret strings ("A knows B") and Clue
+  cards. Tied, the secret's text and the string's description (or the Clue card's description) are one text: edits on
+  either side write both in one undo step (`syncSecretText`); tying takes the board's text, or gives it the secret's
+  when the board's is empty.
+- String descriptions (2026-10-14): `relationship.description`, editable in the string panel and in Links.
+- Links panel (2026-10-14): rows spelled out (both cards clickable, kind, Known/Secret, description, Hide, Remove),
+  grouped Known then Secret, by kind. The left Links tool shows every link; the Links tab with a card selected shows
+  that card's links, the rest under Show all links.
     Outlines (board and Map screen) are drawn smoothed (`smooth` in `MapOverlay`, 2 rounds of corner cutting, shared
     borders stay one line), thin solid ink at 55%, lighter fill; clicks and drops still use the stored polygon.
     Card menu › Take off this board (`note:setStatus` on the card item; History lists it as

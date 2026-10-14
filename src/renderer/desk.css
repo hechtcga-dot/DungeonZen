@@ -836,6 +836,14 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .links-kind { font-style: italic; color: #8f2a21; }
 .links-kinds input[type='color'], .story-head input[type='color'], .links-panel form input[type='color'] { width: 30px; height: 26px; min-height: 0; padding: 0; border: 1px solid #6b5636; flex: none; }
 .links-kind-name { flex: 1; min-width: 80px; }
+.links-list li.link-row { flex-direction: column; align-items: stretch; gap: 4px; padding: 6px 8px; }
+.link-ends { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; }
+.link-ends .link-button { padding: 0; }
+.link-state { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #3e6b3a; }
+.link-state.is-secret { color: #8f2a21; }
+.link-row .field { margin: 0; }
+.links-all > summary { cursor: pointer; font-weight: 600; margin: 10px 0 6px; }
+.links-all[open] { display: flex; flex-direction: column; gap: 12px; }
 .danger-link { color: #8f2a21; }
 .links-advanced { margin-top: 12px; }
 .story-list > li { padding: 8px; border: 1px solid rgba(42, 31, 18, 0.2); border-radius: 3px; background: rgba(255, 252, 240, 0.35); display: flex; flex-direction: column; gap: 4px; }
@@ -1486,3 +1494,17 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 /* Speed: long lists draw only the rows on screen (the browser skips the rest until scrolled to). */
 .removed > li, .pic-tile, .notes-items > .tree-item { content-visibility: auto; contain-intrinsic-size: auto 48px; }
 .pic-tile { contain-intrinsic-size: auto 180px; }
+
+/* Prep sheet text boxes with words linked to cards (LinkField). */
+.lf-wrap { position: relative; }
+.lf-wrap textarea { position: relative; width: 100%; display: block; }
+.link-field.is-line textarea { resize: none; overflow: hidden; white-space: pre; }
+.lf-back { position: absolute; inset: 0; overflow: hidden; white-space: pre-wrap; overflow-wrap: break-word; color: transparent; pointer-events: none; }
+.link-field.is-line .lf-back { white-space: pre; }
+.lf-back mark { color: transparent; background: rgba(47, 93, 138, 0.22); border-bottom: 2px solid #2f5d8a; border-radius: 2px; }
+.card-picker { display: flex; flex-direction: column; gap: 10px; min-width: 420px; }
+.card-picker-list { max-height: 55vh; overflow: auto; }
+.card-picker-list ul { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.prep-card { display: flex; flex-direction: column; gap: 8px; }
+.prep-card .inspector-picture { cursor: default; }
+.prep-card-notes { white-space: pre-wrap; }

@@ -33,7 +33,8 @@ export const relationship = sqliteTable('relationship', {
   isSecret: integer('is_secret', { mode: 'boolean' }).notNull(),
   status: text('status').notNull(),
   hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
-  boardId: text('board_id') // null = on every board; set while strings are kept per board
+  boardId: text('board_id'), // null = on every board; set while strings are kept per board
+  description: text('description').notNull().default('') // the DM's words about it; shared with prep secrets tied to it
 })
 
 export const storyline = sqliteTable('storyline', {
@@ -311,6 +312,7 @@ export const sessionPrep = sqliteTable('session_prep', {
   notes: text('notes').notNull(),
   wantNext: text('want_next').notNull().default(''), // recap: what the players seem to want next
   noteDocId: text('note_doc_id'), // the notes file "Save as notes file" writes to
+  links: text('links', { mode: 'json' }).$type<Array<{ text: string; entityId: string }>>().notNull().default([]), // words on the sheet linked to cards
   status: text('status').notNull()
 })
 
@@ -329,6 +331,7 @@ export const prepItem = sqliteTable('prep_item', {
   entityId: text('entity_id'), // npc or threat: its card
   locationId: text('location_id'), // scene or clue: where (a Location card)
   discoveryId: text('discovery_id'), // clue: the discovery it leads to
+  relationshipId: text('relationship_id'), // discovery: the secret string it is (its text is the string's description)
   role: text('role').notNull().default(''), // npc: role or faction
   stats: text('stats').notNull().default(''), // threat: level, CR, AC, HP, initiative
   tactics: text('tactics').notNull().default(''), // threat: how it fights

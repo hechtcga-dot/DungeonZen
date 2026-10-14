@@ -67,7 +67,9 @@ type Menu = { x: number; y: number; items: MenuItem[] }
 
 function BoardLayout() {
   const view = useView()
-  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, goTo } = useBoard()
+  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, goTo, selection } = useBoard()
+  // Links: the tool button shows every link; the panel tab shows the selected card's (the rest folded).
+  const [linksAll, setLinksAll] = useState(false)
   const prefs = useBoardPrefs()
   const { screenToFlowPosition, flowToScreenPosition, fitView, setCenter, getViewport, setViewport } = useReactFlow()
   const paneRef = useRef<HTMLDivElement>(null)
@@ -164,7 +166,7 @@ function BoardLayout() {
             className: background ? undefined : 'is-passive',
             data: {
               src: ASSET + item.content.image, name: item.content.name ?? 'Picture', opacity: item.content.opacity ?? 0.6, locked, hidden: item.hidden,
-              map: regionViews[mapOf(item.content)?.id ?? ''], outlines: prefs.regions
+              map: regionViews[mapOf(item.content)?.id ?? ''], outlines: prefs.regionLines
             }
           }]
         }
@@ -443,7 +445,7 @@ function BoardLayout() {
         : [{ label: 'No maps yet: import one on the Map screen', disabled: true }] },
       { label: 'Add a picture…', onClick: () => void addPicture(null, at) },
       'separator',
-      { label: 'Region boundaries', hint: 'Names always show', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
+      { label: 'Region boundaries', hint: 'Names always show', checked: prefs.regionLines, onClick: () => prefs.set({ regionLines: !prefs.regionLines }) },
       { label: 'Show background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
       { label: 'Open background pictures folder', onClick: () => void act('campaign:openFolder', { sub: 'board' }) }
     ]
@@ -460,7 +462,7 @@ function BoardLayout() {
       ] },
       { label: 'Show hidden things (greyed)', checked: prefs.showHidden, onClick: () => prefs.set({ showHidden: !prefs.showHidden }) },
       { label: 'Background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
-      { label: 'Region boundaries on maps', hint: 'Names always show', checked: prefs.regions, onClick: () => prefs.set({ regions: !prefs.regions }) },
+      { label: 'Region boundaries on maps', hint: 'Names always show', checked: prefs.regionLines, onClick: () => prefs.set({ regionLines: !prefs.regionLines }) },
       { label: 'Storyline colours on cards', checked: prefs.tint, onClick: () => prefs.set({ tint: !prefs.tint }) },
       { label: 'Act marks on cards', checked: prefs.actMarks, onClick: () => prefs.set({ actMarks: !prefs.actMarks }) },
       { label: 'Moving a card moves it on every board', checked: view.settings.linkPositions,
@@ -537,7 +539,7 @@ function BoardLayout() {
           </div>
           <button className="tool" onClick={() => void addNote()}>Note</button>
           <button className="tool" aria-pressed={panel === 'connections'} title="Every string: kinds, colours, hide, remove"
-            onClick={() => setPanel(panel === 'connections' ? 'inspector' : 'connections')}>Links</button>
+            onClick={() => { setLinksAll(true); setPanel(panel === 'connections' && linksAll ? 'inspector' : 'connections') }}>Links</button>
           <button className="tool" aria-pressed={panel === 'storylines'} title="Storylines: colours, acts and display"
             onClick={() => setPanel(panel === 'storylines' ? 'inspector' : 'storylines')}>Story</button>
           <button className="tool" title="Put a map or a picture behind the cards" onClick={(e) => openMenu(e, backgroundItems())}>Background</button>
@@ -639,12 +641,12 @@ function BoardLayout() {
         <aside className="side" style={mapView ? { display: 'none' } : { flexBasis: sideWidth }}>
           <div className="segmented full" role="tablist" aria-label="Side panel">
             <button role="tab" aria-selected={panel === 'inspector'} aria-pressed={panel === 'inspector'} onClick={() => setPanel('inspector')}>Inspector</button>
-            <button role="tab" aria-selected={panel === 'connections'} aria-pressed={panel === 'connections'} onClick={() => setPanel('connections')}>Links</button>
+            <button role="tab" aria-selected={panel === 'connections'} aria-pressed={panel === 'connections'} onClick={() => { setLinksAll(false); setPanel('connections') }}>Links</button>
             <button role="tab" aria-selected={panel === 'storylines'} aria-pressed={panel === 'storylines'} onClick={() => setPanel('storylines')}>Story</button>
             <button role="tab" aria-selected={panel === 'history'} aria-pressed={panel === 'history'} onClick={() => setPanel('history')}>History</button>
           </div>
           <div className="side-body">
-            {panel === 'inspector' ? <Inspector /> : panel === 'connections' ? <ConnectionsPanel /> : panel === 'storylines' ? <StorylinesPanel /> : <HistoryPanel />}
+            {panel === 'inspector' ? <Inspector /> : panel === 'connections' ? <ConnectionsPanel cardId={!linksAll && selection?.kind === 'entity' ? selection.id : null} /> : panel === 'storylines' ? <StorylinesPanel /> : <HistoryPanel />}
           </div>
         </aside>
       </div>

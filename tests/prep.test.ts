@@ -225,3 +225,36 @@ describe('one-page DM tool (1.7.0)', () => {
     expect(c.prepView(p).session).toEqual({ id: s.id, recap: 'They let the smuggler escape.' })
   })
 })
+
+describe('prep secrets tied to the board', () => {
+  it('shares one text with a secret string, both ways, one undo step each', () => {
+    const a = c.createEntity({ boardId: g, type: 'NPC', name: 'Golden Chantrelle', position: at })
+    const b = c.createEntity({ boardId: g, type: 'FACTION', name: 'VanGuard', position: at })
+    const r = c.createRelationship({ sourceId: a.id, targetId: b.id, type: 'KNOWS', isSecret: true })
+    const p = c.createPrep(1)
+    expect(c.prepScreen().boardSecrets).toEqual([{ kind: 'string', id: r.id, label: 'Golden Chantrelle knows VanGuard' }])
+    const d = c.addPrepItem(p, 'discovery', { body: 'She sold them the gate codes.' })
+    c.updatePrepItem(d, { relationshipId: r.id }) // the board's text is empty: it takes this one
+    expect(c.boardView(g).relationships[0].description).toBe('She sold them the gate codes.')
+    c.updateRelationship(r.id, { description: 'She sold them the keys.' })
+    expect(c.prepView(p).items[0].body).toBe('She sold them the keys.')
+    c.updatePrepItem(d, { body: 'Only the west gate key.' })
+    expect(c.boardView(g).relationships[0].description).toBe('Only the west gate key.')
+    c.undo()
+    expect(c.prepView(p).items[0].body).toBe('She sold them the keys.')
+    expect(c.boardView(g).relationships[0].description).toBe('She sold them the keys.')
+  })
+
+  it('shares one text with a Clue card description, and keeps words linked to cards', () => {
+    const clue = c.createEntity({ boardId: g, type: 'CLUE', name: 'Torn ledger', position: at })
+    c.updateEntity(clue.id, { attributes: { description: 'Pages about the tithe are missing.' } })
+    const p = c.createPrep(1)
+    const d = c.addPrepItem(p, 'discovery', {})
+    c.updatePrepItem(d, { entityId: clue.id }) // the board has text: the secret takes it
+    expect(c.prepView(p).items[0].body).toBe('Pages about the tithe are missing.')
+    c.updatePrepItem(d, { body: 'Two pages are missing.' })
+    expect(c.boardView(g).entities[clue.id].attributes.description).toBe('Two pages are missing.')
+    c.updatePrep(p, { links: [{ text: 'ledger', entityId: clue.id }] })
+    expect(c.prepView(p).links).toEqual([{ text: 'ledger', entityId: clue.id }])
+  })
+})

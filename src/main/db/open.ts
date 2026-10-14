@@ -225,6 +225,12 @@ export const MIGRATIONS: string[] = [
   // 1.9.x: style tags on Library pictures (artist, medium, palette…) for cleaner image prompts.
   `
   ALTER TABLE style_example ADD COLUMN tags TEXT NOT NULL DEFAULT '{}';
+  `,
+  // 1.13: string descriptions, prep secrets tied to a secret string or Clue card, words on a prep sheet linked to cards.
+  `
+  ALTER TABLE relationship ADD COLUMN description TEXT NOT NULL DEFAULT '';
+  ALTER TABLE prep_item ADD COLUMN relationship_id TEXT;
+  ALTER TABLE session_prep ADD COLUMN links TEXT NOT NULL DEFAULT '[]';
   `
 ]
 
