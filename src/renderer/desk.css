@@ -1057,6 +1057,8 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .card-pic { float: right; width: 46px; height: 46px; object-fit: cover; margin: 0 0 4px 6px; border: 1px solid rgba(42, 31, 18, 0.4); border-radius: 3px; }
 .card-picture img { width: 100%; border-radius: 4px; border: 1px solid rgba(42, 31, 18, 0.35); display: block; }
 .card-picture { display: flex; flex-direction: column; gap: 8px; }
+.pic-tools .ink-button { min-height: 34px; padding: 0 12px; }
+.pic-tools .ink-button.icon { min-width: 36px; padding: 0 8px; font-size: 16px; }
 .pic-beside > .card-picture { position: sticky; top: 0; }
 .draw-prompt { border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; padding: 6px 10px; background: rgba(255, 252, 240, 0.5); }
 .draw-prompt summary { cursor: pointer; font-weight: 600; }

@@ -437,19 +437,17 @@ export function PicturePanel({ sheet }: { sheet: SheetView }) {
   const e = sheet.entity
   const [mode, setMode] = useState<'pick' | 'draw' | 'add' | null>(null)
   const picture = typeof e.attributes.picture === 'string' ? e.attributes.picture : null
-  const source = typeof e.attributes.picture_source === 'string' ? e.attributes.picture_source : null
   const folder = useMemo(() => pictureFolderFor(e.type), [e.type])
   return (
     <section className="panel card-picture">
       {picture ? <img src={ASSET + picture} alt={`Picture of ${e.name}`} /> : <div className="fight-nopic">No picture yet</div>}
-      {source && <span className="ai-badge">Drawn by AI · {source}</span>}
-      <div className="row tight wrap">
-        <button onClick={() => setMode('pick')}>Choose from Library…</button>
-        <button onClick={() => void act('entity:pictureDialog', { entityId: e.id })} title={`Saved in Library › Pictures › ${folder}`}>Upload…</button>
-        <button onClick={() => setMode('draw')}>Draw with AI…</button>
-        {picture && <button onClick={() => setMode('add')} title="Add things to this picture with AI; everything else stays the same">Add to picture…</button>}
-        {picture && <button onClick={() => void act('entity:removePicture', { entityId: e.id })} title="Ctrl+Z puts it back">Remove picture</button>}
-        <OpenFolder sub="pictures" label="Open pictures folder" />
+      <div className="row tight wrap pic-tools">
+        <button className="ink-button" onClick={() => setMode('draw')}>Draw with AI…</button>
+        {picture && <button className="ink-button icon" title="Add to picture: add things with AI, everything else stays the same" aria-label="Add to picture" onClick={() => setMode('add')}>✚</button>}
+        <button className="ink-button icon" title="Choose from Library" aria-label="Choose from Library" onClick={() => setMode('pick')}>🖼</button>
+        <button className="ink-button icon" title={`Upload (saved in Library › Pictures › ${folder})`} aria-label="Upload" onClick={() => void act('entity:pictureDialog', { entityId: e.id })}>⬆</button>
+        <OpenFolder sub="pictures" label="📁" className="ink-button icon" />
+        {picture && <button className="ink-button icon danger-ink" title="Remove picture (Ctrl+Z puts it back)" aria-label="Remove picture" onClick={() => void act('entity:removePicture', { entityId: e.id })}>🗑</button>}
       </div>
       {mode === 'draw' && <DrawPictureDialog entity={e} onClose={() => setMode(null)} />}
       {mode === 'add' && picture && <AddToPictureDialog entity={e} picture={picture} onClose={() => setMode(null)} />}

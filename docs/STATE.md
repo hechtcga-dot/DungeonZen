@@ -300,7 +300,7 @@ built.
     Features & traits / Defenses / Details).
   - Desk party cards: portrait (card picture), AC, HP now (editable) / max + temp, PP, size, resistances,
     conditions (editable); Live party cards show temp HP and conditions.
-  - Pictures: every card has a picture panel (Choose from Library, Upload, Draw with AI, Remove); board cards
+  - Pictures: every card has a picture panel (Draw with AI… button, then icons: ✚ Add to picture, 🖼 Library, ⬆ Upload, 📁 folder, 🗑 Remove; no "Drawn by AI" badge, owner 2026-10-14); board cards
     show it. Library › Pictures (`PicturesTab`): folders (Art, Portraits, Places, Items, Maps, Battle maps,
     Background pictures, the DM's own), upload several, rename, drag to a folder, Remove to History, style
     example ticks (portraits, maps, battle maps). Draw windows (card picture, battle map, world map): "Prompt
