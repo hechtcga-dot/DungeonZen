@@ -1071,7 +1071,9 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .draw-new-pics { display: grid; gap: 10px; margin: 8px 0; padding: 8px; border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; background: rgba(255, 252, 240, 0.5); }
 .draw-new-pic { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: start; }
 .draw-new-pic img { width: 96px; height: 96px; object-fit: cover; border-radius: 4px; }
-.send-examples { margin-right: auto; }
+.send-examples, .dz-dialog .send-examples { font-size: 12.5px; color: #6b5a42; }
+.field.checkbox.send-examples { gap: 6px; }
+.field.checkbox.send-examples input { width: 14px; height: 14px; min-height: 14px; opacity: 0.85; }
 /* Card picture Draw window, option A: settings left, picture and prompt right (stays in view while the left scrolls). */
 .dz-dialog.wide:has(.draw-two) { width: min(1320px, calc(100vw - 32px)); }
 .draw-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: 20px; align-items: start; }

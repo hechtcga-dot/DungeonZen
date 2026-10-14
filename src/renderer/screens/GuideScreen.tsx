@@ -1,4 +1,4 @@
-import { DrawExtras, SendExamples, withArtStyle } from '../components/Pictures'
+import { DrawExtras, withArtStyle } from '../components/Pictures'
 import type { StyleTags } from '../../shared/styleTags'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChangePicture, OutlinePanel, outlineSend } from '../components/OutlinePad'
@@ -266,14 +266,13 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
         </div>
         <OutlinePanel outline={outline} on={useOutline} onOn={(v) => { setUseOutline(v); setPrompt(null) }} ratio={1.5}
           onSave={(next) => { setPrompt(null); void act('campaign:update', { worldOutline: next }) }} />
-        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} send={send} />
+        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} send={send} onSend={setSend} />
         {service === null ? (
           <p>Drawing needs an image service. <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>
         ) : (
           <p className="ink-muted">{service ?? '…'} draws it.</p>
         )}
         <div className="row tight wrap">
-          <SendExamples value={send} onChange={setSend} />
           <button className="ink-button" disabled={busy || !service} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Try again' : 'Draw the map'}</button>
         </div>
         {error && <p className="field-error" role="alert">{error}</p>}

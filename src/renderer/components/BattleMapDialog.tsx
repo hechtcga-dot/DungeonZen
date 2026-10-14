@@ -311,6 +311,7 @@ export function BattleMapDialog() {
                     ))}
                   </ul>
                 )}
+                {service.info.references && styles.length > 0 && <SendExamples value={send} onChange={setSend} />}
                 {send && service.info.references && styles.length > 0 && <SmallerExamples value={smaller} onChange={setSmaller} />}
                 <button onClick={() => void addExamples()}>Add pictures to the Library…</button>
               </div>
@@ -332,7 +333,6 @@ export function BattleMapDialog() {
           )}
           <div className="dz-actions">
             <span className="hint">Drawing can take up to a minute. Online services charge per image.</span>
-            {maxRefs > 0 && <SendExamples value={send} onChange={setSend} />}
             <button onClick={close}>Cancel</button>
             <button className="primary" disabled={busy || !sizeOk || prompt.trim().length < 10} onClick={() => void draw()}>{busy ? 'Drawing…' : 'Draw it'}</button>
           </div>

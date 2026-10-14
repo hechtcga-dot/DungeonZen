@@ -325,7 +325,7 @@ built.
     the default per box, Reset clears all), this drawing only; prompt built from them (`advancedLines`; other details
     follow the composition line). Templates: Save style as a template (Style … Other details, named; same name
     replaces), Template drop-down, Remove template (campaign setting `prompt_templates`, status defunct, Ctrl+Z).
-    Every Draw window: "Send the ticked pictures for reference" tick by the Draw button, off by default; ticking
+    Every Draw window: "Send the ticked pictures for reference" tick right under the style example pictures (small, muted), off by default; ticking
     examples changes the wording only, the pictures go only with this tick (battle map's "match the example maps"
     line too); smaller copies option shows only when sending. Style examples end with a + tile: Library upload
     (Art folder), ticked for this drawing, then uses ticks and style tags with Read style with AI (on click).

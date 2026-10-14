@@ -33,7 +33,7 @@ export function SmallerExamples({ value, onChange }: { value: boolean; onChange(
 }
 
 /**
- * Draw windows, by the Draw button: send the ticked examples themselves (off by default). Ticking an example
+ * Draw windows, under the style examples: send the ticked examples themselves (off by default). Ticking an example
  * always puts its style words in the prompt; the picture goes only with this tick (owner, 2026-10-14).
  */
 export function SendExamples({ value, onChange }: { value: boolean; onChange(v: boolean): void }) {
@@ -44,12 +44,13 @@ export function SendExamples({ value, onChange }: { value: boolean; onChange(v: 
   )
 }
 
-export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller, send, only }: {
+export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller, send, onSend, only }: {
   use: StyleUse
   /** Just one part (the card picture window puts them in different columns); the 'styles' part owns the ticks. */
   only?: 'prompt' | 'styles'
-  /** The ticked pictures go with the drawing (SendExamples by the Draw button). */
+  /** The ticked pictures go with the drawing (SendExamples under the examples). */
   send: boolean
+  onSend(v: boolean): void
   prompt: string
   onPrompt(next: string): void
   onReset(): void
@@ -121,11 +122,12 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
               ))}
               <button type="button" className="draw-thumb draw-add" title="Add pictures from your computer to the Library" aria-label="Add pictures to the Library" onClick={() => void addPictures()}>+</button>
             </div>
+            <SendExamples value={send} onChange={onSend} />
             {fresh.length > 0 && <NewPictures ids={fresh} onChanged={() => void loadStyles()} onDone={() => setFresh([])} />}
             <p className="hint">
               Ticked examples put their style tags (Library › Pictures) into the prompt.{' '}
               {!send
-                ? 'The pictures themselves go only with "Send the ticked pictures for reference" by the Draw button.'
+                ? 'The pictures themselves go only with "Send the ticked pictures for reference".'
                 : !service?.name
                 ? 'No image service is chosen yet (AI services).'
                 : max === 0
@@ -233,7 +235,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
               <div className="hint">Things to show, separated by commas. Uses the image service chosen in AI services.</div>
             </div>
             {rows(['description'])}
-            <DrawExtras only="styles" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send}
+            <DrawExtras only="styles" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
               onReset={() => undefined} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
             <section className="draw-box">
               <div className="row tight wrap"><strong>Style</strong><TemplateBar value={adv} changed={over} onChange={setOver} /></div>
@@ -255,12 +257,11 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
               <div className="field-error battle-error" role="alert"><span>{error}</span>
                 <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
             )}
-            <DrawExtras only="prompt" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send}
+            <DrawExtras only="prompt" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
               onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} />
           </div>
         </div>
         <div className="dz-actions">
-          <SendExamples value={send} onChange={setSend} />
           <button type="button" onClick={close}>Cancel</button>
           <button disabled={busy || prompt.trim().length < 10} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Draw again' : 'Draw'}</button>
           {drawn && <button className="primary" onClick={async () => {
