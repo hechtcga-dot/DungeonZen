@@ -210,7 +210,7 @@ function BoardLayout() {
           id: r.id, source, target, sourceHandle: 'pin', targetHandle: 'pin', type: 'string',
           selected: selected.has(r.id), selectable: !background, className: background ? 'is-passive' : undefined,
           data: {
-            type: r.type, isSecret: r.isSecret, resolved: a.status === 'resolved' || b.status === 'resolved', dimmed,
+            type: r.type, isSecret: r.isSecret, clue: r.secretKind === 'clue', resolved: a.status === 'resolved' || b.status === 'resolved', dimmed,
             colour: typeColours.get(r.type) ?? null, hidden: r.hidden || ends, highlight: linkMode
           }
         }]

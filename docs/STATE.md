@@ -446,10 +446,17 @@ built.
   (`session_prep.links`: phrase + card, every place the phrase appears, any case). Cursor in linked words shows the card
   (name, type, place, picture, summary, DM notes, Open full sheet) in the side panel; a click elsewhere on the sheet
   brings the usual panel back. Right-click linked words: Show, Remove the link.
-- Prep secrets on the board (2026-10-14): each secret has "Secret on the board": secret strings ("A knows B") and Clue
-  cards. Tied, the secret's text and the string's description (or the Clue card's description) are one text: edits on
-  either side write both in one undo step (`syncSecretText`); tying takes the board's text, or gives it the secret's
-  when the board's is empty.
+- Secrets, clues and connections (owner, 2026-10-14; replaces "Secret on the board"): table `secret` (kind secret | clue |
+  connection, one text); each connection is a string with `relationship.secret_id` (dashed for secret/clue, clue strings
+  blue with "CLUE ·", connection solid). The text is shared everywhere: prep line, card sheets, Links/string panel
+  (a grouped string's description is the secret's text). A secret string tied on the board becomes a one-connection
+  secret; unticking Secret on a one-string secret makes it a connection. `SecretEditor`: Card – kind – Card chips (card
+  picker with search and Make a new card), Add connection, kind; saved once every connection is whole (and, on a card
+  sheet, one is that card); until then a red line says what is missing and clicking elsewhere asks Update now / Do not
+  save changes. Prep section 3 "Connections, secrets, clues": Add connection / Add secret / Add clue, Use an existing one.
+  Card sheet › Secrets: Add secret / clue / connection, Use an existing one (the same secret, shared; must get a
+  connection with this card), Remove (History, undo). Migration 2.1 turns every secret string and every string a prep
+  secret was tied to into a secret. Old prep ties to Clue cards still share text but are no longer offered.
 - String descriptions (2026-10-14): `relationship.description`, editable in the string panel and in Links.
 - Links panel (2026-10-14): rows spelled out (both cards clickable, kind, Known/Secret, description, Hide, Remove),
   grouped Known then Secret, by kind. The left Links tool shows every link; the Links tab with a card selected shows

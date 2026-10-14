@@ -1536,3 +1536,17 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
   font: inherit; color: inherit; letter-spacing: inherit; text-shadow: inherit; background: transparent; border: 0; border-radius: 0;
   padding: 0; margin: 0; min-height: 0; max-width: 100%; box-shadow: none; outline: none; cursor: text;
 }
+
+/* Secrets, clues and connections (SecretEditor). */
+.secret-editor { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.secret-conns { display: flex; flex-direction: column; gap: 6px; }
+.secret-conn { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.secret-conn select { width: auto; }
+.card-chip { min-height: 30px; padding: 2px 10px; border: 1px solid #8a7350; border-radius: 999px; background: rgba(255, 252, 240, 0.85); color: var(--ink, #2a1f12); font-weight: 600; }
+.card-chip.is-empty { border-style: dashed; color: #8f2a21; font-weight: 400; }
+.secret-problem { color: #b3261e; font-weight: 600; margin: 0; }
+.secret-editor.is-held { outline: 2px solid #b3261e; outline-offset: 4px; border-radius: 3px; }
+.secret-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.secret-list > li { border: 1px solid rgba(42, 31, 18, 0.2); border-radius: 4px; padding: 8px 10px; background: rgba(255, 252, 240, 0.35); }
+.secret-conns .row select, .secret-conns .row button { width: auto; flex: 0 0 auto; white-space: nowrap; }
+.panel-head-row .row button, .panel-head-row .row select { white-space: nowrap; width: auto; }

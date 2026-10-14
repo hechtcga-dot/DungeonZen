@@ -11,6 +11,7 @@ import { ENTITY_LABELS } from '../entityStyle'
 import type { EntityBrief, PrepItemView, PrepScreenView, PrepView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { LinkContext, LinkField } from '../components/LinkField'
+import { SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
 import { TypeEmblem } from '../art/emblems'
 
 /** "1:15" for 75 minutes at the table. */
@@ -148,27 +149,32 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           )}
         </PrepSection>
 
-        <PrepSection p={p} kind="discovery" n={3} title="Secrets & clues" hint="10 things that are true about the world. Don’t decide in advance where or how the players will discover them. Move clues to wherever the players are looking. Revealed ones show in Player preview."
-          add="Add a secret or clue">
-          {(i, k) => (
-            <div className="prep-row-fields">
-              <LinkField id={`d-b-${i.id}`} label={`Secret ${k + 1}`} value={i.body} className="wide" placeholder="The harbormaster was paid to keep quiet."
-                hint={i.relationshipId || i.entityId ? 'Shared with the board: editing it here changes it there too.' : undefined} onCommit={(v) => upItem(act, i, { body: v })} />
-              <div className="field">
-                <label htmlFor={`d-s-${i.id}`}>Secret on the board</label>
-                <select id={`d-s-${i.id}`} value={i.relationshipId ? `string:${i.relationshipId}` : i.entityId ? `clue:${i.entityId}` : ''}
-                  onChange={(e) => {
-                    const [kind, id] = e.target.value.split(':')
-                    upItem(act, i, { relationshipId: kind === 'string' ? id : null, entityId: kind === 'clue' ? id : null })
-                  }}>
-                  <option value="">None</option>
-                  {s.boardSecrets.map((b) => <option key={b.id} value={`${b.kind}:${b.id}`}>{b.label}</option>)}
-                </select>
-              </div>
-              <LinkField id={`d-t-${i.id}`} label="Short name (optional)" value={i.title} onCommit={(v) => upItem(act, i, { title: v })} />
-              <CardPick id={`d-loc-${i.id}`} label="Where (optional, shows on Live)" value={i.locationId} cards={s.locations} onPick={(v) => upItem(act, i, { locationId: v })} />
-            </div>
-          )}
+        <PrepSection p={p} kind="discovery" n={3} title="Connections, secrets, clues" hint="Things that are true about the world, each tied to the cards it is about (a string on the board per connection). Don’t decide in advance where or how the players will discover them. Revealed ones show in Player preview."
+          add={null} extra={(['connection', 'secret', 'clue'] as const).map((kind) => (
+            <button key={kind} className="ink-button primary-ink" onClick={() => void act('prepItem:addSecret', { prepId: p.id, kind })}>Add {SECRET_LABEL[kind].toLowerCase()}</button>
+          ))}>
+          {(i, k) => {
+            const sec = i.secretId ? s.secrets.find((x) => x.id === i.secretId) ?? null : null
+            const label = `${SECRET_LABEL[sec?.kind ?? 'secret']} ${k + 1}`
+            return (
+              <>
+                <div className="prep-row-fields">
+                  <LinkField id={`d-b-${i.id}`} label={label} value={i.body} className="wide" placeholder="The harbormaster was paid to keep quiet."
+                    hint={sec ? 'Shared with the board: its strings, Links and the cards’ sheets show this text.' : undefined} onCommit={(v) => upItem(act, i, { body: v })} />
+                  <LinkField id={`d-t-${i.id}`} label="Short name (optional)" value={i.title} onCommit={(v) => upItem(act, i, { title: v })} />
+                  <CardPick id={`d-loc-${i.id}`} label="Where (optional, shows on Live)" value={i.locationId} cards={s.locations} onPick={(v) => upItem(act, i, { locationId: v })} />
+                  <div className="field">
+                    <label htmlFor={`d-s-${i.id}`}>Use an existing one</label>
+                    <select id={`d-s-${i.id}`} value="" onChange={(e) => { if (e.target.value) upItem(act, i, { secretId: e.target.value }) }}>
+                      <option value="">Pick…</option>
+                      {s.secrets.filter((x) => x.id !== i.secretId).map((x) => <option key={x.id} value={x.id}>{SECRET_LABEL[x.kind]}: {x.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <SecretEditor key={sec?.id ?? i.id} secret={sec} kind={sec?.kind ?? 'secret'} cards={s.cards} text={i.body} prepItemId={i.id} />
+              </>
+            )
+          }}
         </PrepSection>
 
         <PrepSection p={p} kind="npc" n={4} title="NPCs" hint="Name, who they are, what they want. Tied to a card, these are the card's name, one-line summary and motivation: change them here or on the card."
@@ -334,7 +340,7 @@ function upItem(act: ReturnType<typeof useBoard.getState>['act'], i: PrepItemVie
 }
 
 function PrepSection({ p, kind, n, title, hint, add, extra, children }: {
-  p: PrepView; kind: PrepKind; n: number; title: string; hint: string; add: string; extra?: ReactNode
+  p: PrepView; kind: PrepKind; n: number; title: string; hint: string; add: string | null; extra?: ReactNode
   children(i: PrepItemView, index: number): ReactNode
 }) {
   const act = useBoard((s) => s.act)
@@ -345,7 +351,7 @@ function PrepSection({ p, kind, n, title, hint, add, extra, children }: {
         <h2 id={`prep-${kind}`} className="panel-title"><span className="prep-n">{n}</span> {title}</h2>
         <div className="row tight wrap">
           {extra}
-          <button className="ink-button primary-ink" onClick={() => void act('prepItem:add', { prepId: p.id, kind })}>{add}</button>
+          {add && <button className="ink-button primary-ink" onClick={() => void act('prepItem:add', { prepId: p.id, kind })}>{add}</button>}
         </div>
       </div>
       <p className="ink-muted prep-hint">{hint}</p>

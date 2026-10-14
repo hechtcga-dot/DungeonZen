@@ -227,22 +227,40 @@ describe('one-page DM tool (1.7.0)', () => {
 })
 
 describe('prep secrets tied to the board', () => {
-  it('shares one text with a secret string, both ways, one undo step each', () => {
+  it('a secret is one text and its connections, shared by prep sheet, strings and Links', () => {
     const a = c.createEntity({ boardId: g, type: 'NPC', name: 'Golden Chantrelle', position: at })
     const b = c.createEntity({ boardId: g, type: 'FACTION', name: 'VanGuard', position: at })
-    const r = c.createRelationship({ sourceId: a.id, targetId: b.id, type: 'KNOWS', isSecret: true })
+    const m = c.createEntity({ boardId: g, type: 'MONSTER', name: 'Oceanus', position: at })
     const p = c.createPrep(1)
-    expect(c.prepScreen().boardSecrets).toEqual([{ kind: 'string', id: r.id, label: 'Golden Chantrelle knows VanGuard' }])
-    const d = c.addPrepItem(p, 'discovery', { body: 'She sold them the gate codes.' })
-    c.updatePrepItem(d, { relationshipId: r.id }) // the board's text is empty: it takes this one
-    expect(c.boardView(g).relationships[0].description).toBe('She sold them the gate codes.')
-    c.updateRelationship(r.id, { description: 'She sold them the keys.' })
+    const d = c.addPrepSecret(p, 'secret')
+    const sid = c.prepView(p).items[0].secretId!
+    c.saveSecret({ id: sid, kind: 'secret', text: 'She sold them the gate codes.', connections: [
+      { sourceId: a.id, targetId: b.id, type: 'KNOWS' }, { sourceId: b.id, targetId: m.id, type: 'KNOWS' }] })
+    const rels = c.boardView(g).relationships
+    expect(rels).toHaveLength(2)
+    expect(rels.every((r) => r.isSecret && r.secretKind === 'secret' && r.description === 'She sold them the gate codes.')).toBe(true)
+    expect(c.prepView(p).items[0].body).toBe('She sold them the gate codes.')
+    // Edit on a string (Links): the secret and the prep line follow.
+    c.updateRelationship(rels[0].id, { description: 'She sold them the keys.' })
     expect(c.prepView(p).items[0].body).toBe('She sold them the keys.')
+    expect(c.boardView(g).relationships.map((r) => r.description)).toEqual(['She sold them the keys.', 'She sold them the keys.'])
+    // Edit on the prep line: the secret follows.
     c.updatePrepItem(d, { body: 'Only the west gate key.' })
-    expect(c.boardView(g).relationships[0].description).toBe('Only the west gate key.')
+    expect(c.secretViews()[0].text).toBe('Only the west gate key.')
     c.undo()
-    expect(c.prepView(p).items[0].body).toBe('She sold them the keys.')
-    expect(c.boardView(g).relationships[0].description).toBe('She sold them the keys.')
+    expect(c.secretViews()[0].text).toBe('She sold them the keys.')
+    // Dropping a connection sends its string to History.
+    const v = c.secretViews()[0]
+    c.saveSecret({ id: v.id, kind: 'clue', text: v.text, connections: [v.connections[0]] })
+    expect(c.boardView(g).relationships).toHaveLength(1)
+    expect(c.boardView(g).relationships[0].secretKind).toBe('clue')
+  })
+
+  it('a secret string tied on the board is a secret too', () => {
+    const a = c.createEntity({ boardId: g, type: 'NPC', name: 'Hodge', position: at })
+    const b = c.createEntity({ boardId: g, type: 'NPC', name: 'Luna', position: at })
+    c.createRelationship({ sourceId: a.id, targetId: b.id, type: 'KNOWS', isSecret: true })
+    expect(c.secretViews()).toMatchObject([{ kind: 'secret', label: 'Hodge knows Luna' }])
   })
 
   it('shares one text with a Clue card description, and keeps words linked to cards', () => {

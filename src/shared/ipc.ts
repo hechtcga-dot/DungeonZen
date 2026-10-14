@@ -55,7 +55,7 @@ const Text = z.string().max(10000)
 const PrepItemFields = z.object({
   title: z.string().trim().max(300), body: Text, sceneType: SceneType.nullable(),
   targetStart: z.number().int().min(0).max(1440).nullable(), targetEnd: z.number().int().min(0).max(1440).nullable(),
-  entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(), relationshipId: Id.nullable(), description: Text,
+  entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(), relationshipId: Id.nullable(), secretId: Id.nullable(), description: Text,
   role: z.string().max(300), stats: z.string().max(1000), tactics: z.string().max(2000)
 }).partial()
 const Polygon = z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(500)
@@ -333,6 +333,14 @@ export const ipcInputs = {
   'prepItem:add': z.object({ prepId: Id, kind: PrepKind, fields: PrepItemFields.optional() }),
   'prepItem:update': z.object({ id: Id, patch: PrepItemFields }),
   'prepItem:done': z.object({ id: Id, done: z.boolean() }),
+  'prepItem:addSecret': z.object({ prepId: Id, kind: z.enum(['secret', 'clue', 'connection']) }),
+  'secret:save': z.object({
+    id: Id.nullable(), kind: z.enum(['secret', 'clue', 'connection']), text: Text,
+    connections: z.array(z.object({ id: Id.optional(), sourceId: Id, targetId: Id, type: RelationshipType })).max(50),
+    prepItemId: Id.optional()
+  }),
+  'secret:setText': z.object({ id: Id, text: Text }),
+  'secret:remove': z.object({ id: Id }),
   'prepItem:setStatus': z.object({ id: Id, status: RowStatus }),
   'prepItem:move': z.object({ id: Id, direction: z.union([z.literal(-1), z.literal(1)]) }),
   'style:list': z.object({ use: z.enum(STYLE_USES).optional() }),
@@ -640,6 +648,10 @@ export interface IpcOutputs {
   'prepItem:add': string
   'prepItem:update': void
   'prepItem:done': void
+  'prepItem:addSecret': string
+  'secret:save': string
+  'secret:setText': void
+  'secret:remove': void
   'prepItem:setStatus': void
   'prepItem:move': void
   'style:list': StyleExampleView[]

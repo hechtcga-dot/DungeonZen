@@ -34,7 +34,16 @@ export const relationship = sqliteTable('relationship', {
   status: text('status').notNull(),
   hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
   boardId: text('board_id'), // null = on every board; set while strings are kept per board
-  description: text('description').notNull().default('') // the DM's words about it; shared with prep secrets tied to it
+  description: text('description').notNull().default(''), // the DM's words about it (a grouped string shows its secret's text)
+  secretId: text('secret_id') // the secret, clue or connection this string is one connection of
+})
+
+// A secret, clue or connection: one text, drawn on the board as one or more strings (relationship.secret_id).
+export const secret = sqliteTable('secret', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(), // secret | clue | connection
+  text: text('text').notNull(),
+  status: text('status').notNull()
 })
 
 export const storyline = sqliteTable('storyline', {
@@ -332,7 +341,8 @@ export const prepItem = sqliteTable('prep_item', {
   locationId: text('location_id'), // scene or clue: where (a Location card)
   discoveryId: text('discovery_id'), // clue: the discovery it leads to
   description: text('description').notNull().default(''), // npc: who they are (shared with the card's one-line summary)
-  relationshipId: text('relationship_id'), // discovery: the secret string it is (its text is the string's description)
+  secretId: text('secret_id'), // discovery: the secret, clue or connection it is (its text is the secret's)
+  relationshipId: text('relationship_id'), // old (2.0): discovery: the secret string it is (its text is the string's description)
   role: text('role').notNull().default(''), // npc: role or faction
   stats: text('stats').notNull().default(''), // threat: level, CR, AC, HP, initiative
   tactics: text('tactics').notNull().default(''), // threat: how it fights
@@ -380,7 +390,8 @@ export const tracked = {
   prep_item: { table: prepItem, pk: prepItem.id },
   encounter_creature: { table: encounterCreature, pk: encounterCreature.id },
   act_entity: { table: actEntity, pk: actEntity.id },
-  note_doc: { table: noteDoc, pk: noteDoc.id }
+  note_doc: { table: noteDoc, pk: noteDoc.id },
+  secret: { table: secret, pk: secret.id }
 } as const
 export type TableName = keyof typeof tracked
 

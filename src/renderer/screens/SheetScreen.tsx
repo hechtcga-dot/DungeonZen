@@ -17,13 +17,14 @@ import {
 } from '../../shared/statblock'
 import { ENTITY_TYPES, type EntityType, type KnowledgeField } from '../../shared/schemas'
 import type { IpcInput } from '../../shared/ipc'
-import type { SheetView } from '../../shared/types'
+import type { SecretKind, SecretView, SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
 import { slotsFromText } from '../../shared/combat'
 import { PicturePanel } from '../components/Pictures'
 import { SheetFileMenu } from '../components/ImportCharSheet'
 import { BuildingFillDialog, BuildingTab } from '../components/BuildingSheet'
+import { SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
 import { KIND_LABELS, readBuilding } from '../../shared/building'
 import { ActionsTable, ClassStrip, Extras, HpAdjust, InspirationBox, LimitedUses, SpellsTable, VitalsCard } from '../components/SheetExtras'
 
@@ -322,11 +323,10 @@ function FactionsField({ sheet }: { sheet: SheetView }) {
   )
 }
 
-/** Sheet › Secrets: the card's secrets and every secret string that touches it. */
+/** Sheet › Secrets: what only the DM knows, and the secrets, clues and connections the card is in. */
 function SecretsPanel({ sheet, lab, onFill }: { sheet: SheetView; lab(key: string, label: string): string; onFill(): void }) {
-  const { act, openSheet } = useBoard()
+  const { act } = useBoard()
   const e = sheet.entity
-  const secrets = sheet.connections.filter((c) => c.relationship.isSecret)
   return (
     <div className="sheet-main wide">
       <section className="panel">
@@ -337,24 +337,56 @@ function SecretsPanel({ sheet, lab, onFill }: { sheet: SheetView; lab(key: strin
         <CommitField id={`secret-${e.id}`} label={lab('secret', 'What only you know')} value={typeof e.attributes.secret === 'string' ? e.attributes.secret : ''}
           multiline rows={8} hint={SECRET.hint} onCommit={(secret) => void act('entity:update', { id: e.id, patch: { attributes: { secret } } })} />
       </section>
-      <section className="panel">
-        <h2 className="panel-heading">Secret strings</h2>
-        {secrets.length === 0 ? <p className="hint">No secret strings touch this card. Tick Secret link when you tie one.</p> : (
-          <ul className="connections">
-            {secrets.map((c) => (
-              <li key={c.relationship.id}>
-                <span className="conn-text">
-                  {c.outgoing ? e.name : <button className="link" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button>}
-                  <span className="mono conn-type">{c.relationship.type.replace(/_/g, ' ')} →</span>
-                  {c.outgoing ? <button className="link" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button> : e.name}
-                </span>
-                {c.partyKnows && <span className="tag-known">Party knows</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <CardSecrets sheet={sheet} />
     </div>
+  )
+}
+
+/** Card sheet › Secrets: the secrets, clues and connections this card is in; make new ones or bring in an existing one. */
+function CardSecrets({ sheet }: { sheet: SheetView }) {
+  const act = useBoard((s) => s.act)
+  const e = sheet.entity
+  const [adding, setAdding] = useState<Array<{ key: string; kind: SecretKind; secret: SecretView | null }>>([])
+  const cards = [{ id: e.id, type: e.type, name: e.name, status: e.status }, ...sheet.others]
+  const touches = (x: SecretView) => x.connections.some((c) => c.sourceId === e.id || c.targetId === e.id)
+  const mine = sheet.secrets.filter((x) => touches(x) && !adding.some((a) => a.secret?.id === x.id))
+  const drop = (key: string) => setAdding((list) => list.filter((a) => a.key !== key))
+  const me = { id: e.id, name: e.name }
+  return (
+    <section className="panel">
+      <div className="panel-head-row">
+        <h2 className="panel-heading">Secrets, clues and connections</h2>
+        <div className="row tight">
+          {(['secret', 'clue', 'connection'] as const).map((kind) => (
+            <button key={kind} onClick={() => setAdding((list) => [...list, { key: crypto.randomUUID(), kind, secret: null }])}>Add {SECRET_LABEL[kind].toLowerCase()}</button>
+          ))}
+          <select value="" aria-label="Bring in an existing one" onChange={(ev) => {
+            const x = sheet.secrets.find((s) => s.id === ev.target.value)
+            if (x) setAdding((list) => [...list, { key: crypto.randomUUID(), kind: x.kind, secret: x }])
+          }}>
+            <option value="">Use an existing one…</option>
+            {sheet.secrets.filter((x) => !touches(x)).map((x) => <option key={x.id} value={x.id}>{SECRET_LABEL[x.kind]}: {x.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <p className="hint">Each is one text with its connections (a string on the board per connection). An existing one stays one secret: changing it here changes it everywhere.</p>
+      {mine.length === 0 && adding.length === 0 && <p className="hint">None on this card yet.</p>}
+      <ul className="secret-list">
+        {adding.map((a) => (
+          <li key={a.key}>
+            <SecretEditor secret={a.secret} kind={a.kind} cards={cards} showText mustInclude={me} pending
+              start={a.secret ? undefined : [{ sourceId: e.id, targetId: '', type: 'KNOWS' }]}
+              onSaved={() => drop(a.key)} onDiscard={() => drop(a.key)} />
+          </li>
+        ))}
+        {mine.map((x) => (
+          <li key={x.id}>
+            <SecretEditor secret={x} kind={x.kind} cards={cards} showText mustInclude={me} />
+            <button className="link-button danger-link" onClick={() => void act('secret:remove', { id: x.id })}>Remove (to History; Ctrl+Z undoes)</button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

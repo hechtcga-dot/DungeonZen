@@ -235,6 +235,18 @@ export const MIGRATIONS: string[] = [
   // 2.1: prep NPCs get a description (shared with their card's one-line summary).
   `
   ALTER TABLE prep_item ADD COLUMN description TEXT NOT NULL DEFAULT '';
+  `,
+  // 2.1: secrets, clues and connections: one text, one or more strings. Every secret string and every string a prep
+  // secret was tied to becomes one, with its description as the text.
+  `
+  CREATE TABLE secret (id TEXT PRIMARY KEY NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL, status TEXT NOT NULL);
+  ALTER TABLE relationship ADD COLUMN secret_id TEXT;
+  ALTER TABLE prep_item ADD COLUMN secret_id TEXT;
+  INSERT INTO secret (id, kind, text, status)
+    SELECT 'sg-' || id, CASE WHEN is_secret THEN 'secret' ELSE 'connection' END, description, status FROM relationship
+    WHERE is_secret = 1 OR id IN (SELECT relationship_id FROM prep_item WHERE relationship_id IS NOT NULL);
+  UPDATE relationship SET secret_id = 'sg-' || id WHERE id IN (SELECT substr(id, 4) FROM secret);
+  UPDATE prep_item SET secret_id = 'sg-' || relationship_id WHERE relationship_id IS NOT NULL;
   `
 ]
 

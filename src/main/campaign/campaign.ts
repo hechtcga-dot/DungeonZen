@@ -6,7 +6,7 @@ import { basename, extname, join } from 'node:path'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import { classesOf, hitDice, usesOf } from '../../shared/charsheet'
-import { combat, noteDoc,
+import { combat, noteDoc, secret,
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
   actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
@@ -25,7 +25,7 @@ import { readOutline } from '../../shared/outline'
 import { ABILITY_KEYS, crToNumber, HAS_STATBLOCK, leadingNumber, passiveScore, readStatBlock, saveBonus, StatBlock, statLine } from '../../shared/statblock'
 import { battlePlan, spellRoles, type BattlePlan, type PlanFoe, type PlanPc } from '../../shared/battleplan'
 import { spellLevel } from '../../shared/attacks'
-import type { CombatView, PcToken,
+import type { CombatView, PcToken, SecretKind, SecretView,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
@@ -64,7 +64,7 @@ export interface NewRegion {
 export type SrdCopy = { type: 'MONSTER' | 'ITEM'; name: string; attributes: EntityAttributes; abilities: NewAbility[] }
 const PREP_LABELS: Record<PrepKind, string> = { discovery: 'secret', scene: 'scene', clue: 'clue', npc: 'NPC', threat: 'threat', thread: 'loose thread', bible: 'world bible line' }
 export type PrepItemPatch = Partial<Pick<PrepItemRow,
-  'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'relationshipId' | 'description' | 'role' | 'stats' | 'tactics'>>
+  'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'relationshipId' | 'secretId' | 'description' | 'role' | 'stats' | 'tactics'>>
 const STYLE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.jfif', '.webp']
 const PENDING_ID = /^[0-9a-f-]{36}\.(png|jpg|webp)$/
 function mimeOf(path: string): string {
@@ -342,7 +342,7 @@ export class Campaign {
       boards,
       items: visibleItems.map(toItemView),
       entities: Object.fromEntries(entities.map((e) => [e.id, e])),
-      relationships: relationships.map(toRelationshipView),
+      relationships: relationships.map((r) => toRelationshipView(r, this.secretMap())),
       undo: this.log.state(),
       settings,
       acts: this.numberedActs()
@@ -542,7 +542,10 @@ export class Campaign {
     const settings = this.boardSettings()
     const owner = settings.sharedStrings ? null : boardId ?? this.globalBoard().id
     this.log.run(`Linked ${a.name} to ${b.name}`, (w) => {
-      w.insert('relationship', { id, ...rest, boardId: owner, status: 'active' })
+      // A secret string is a secret (one text, its connections), like those made on the prep sheet and card sheets.
+      const sid = rest.isSecret ? randomUUID() : null
+      if (sid) w.insert('secret', { id: sid, kind: 'secret', text: '', status: 'active' })
+      w.insert('relationship', { id, ...rest, boardId: owner, status: 'active', secretId: sid })
       // A new kind of link (with its colour) joins the list in the same undo step.
       if (colour !== undefined) {
         const types = [...settings.stringTypes.filter((t) => t.type !== input.type), { type: input.type, colour }]
@@ -555,17 +558,112 @@ export class Campaign {
 
   updateRelationship(id: string, patch: { type?: string; isSecret?: boolean; description?: string }): void {
     const r = this.relationshipRow(id)
+    const group = r.secretId ? this.db.select().from(secret).where(eq(secret.id, r.secretId)).get() : undefined
+    const { description, ...rest } = patch
     this.log.run(`Edited string ${this.nameOf(r.sourceId)} – ${this.nameOf(r.targetId)}`, (w) => {
-      w.update('relationship', id, patch)
-      if (patch.description !== undefined) this.syncSecretText(w, { relationshipId: id }, patch.description)
+      if (Object.keys(rest).length) w.update('relationship', id, rest)
+      // A string that is one of a secret's connections shows (and edits) the secret's text.
+      if (description !== undefined) {
+        if (group) { w.update('secret', group.id, { text: description }); this.syncSecretText(w, { secretId: group.id }, description) }
+        else w.update('relationship', id, { description })
+      }
+      // Ticking Secret makes a lone string a secret; unticking makes a one-string secret a plain connection.
+      if (patch.isSecret !== undefined && patch.isSecret !== r.isSecret) {
+        if (!group && patch.isSecret) {
+          const sid = randomUUID()
+          w.insert('secret', { id: sid, kind: 'secret', text: r.description, status: 'active' })
+          w.update('relationship', id, { secretId: sid })
+        } else if (group && this.db.select().from(relationship).where(and(eq(relationship.secretId, group.id), eq(relationship.status, 'active'))).all().length === 1) {
+          w.update('secret', group.id, { kind: patch.isSecret ? (group.kind === 'connection' ? 'secret' : group.kind) : 'connection' })
+        }
+      }
     })
   }
 
   /** Prep secrets tied to a string or Clue card share its text: write it into each of them (same undo step). */
-  private syncSecretText(w: { update(table: 'prep_item', id: string, patch: { body: string }): void }, by: { relationshipId: string } | { entityId: string }, text: string): void {
+  private syncSecretText(w: { update(table: 'prep_item', id: string, patch: { body: string }): void }, by: { secretId: string } | { entityId: string }, text: string): void {
     const tied = this.db.select().from(prepItem).where(and(eq(prepItem.kind, 'discovery'), eq(prepItem.status, 'active'),
-      'relationshipId' in by ? eq(prepItem.relationshipId, by.relationshipId) : eq(prepItem.entityId, by.entityId))).all()
+      'secretId' in by ? eq(prepItem.secretId, by.secretId) : eq(prepItem.entityId, by.entityId))).all()
     for (const i of tied) if (i.body !== text) w.update('prep_item', i.id, { body: text })
+  }
+
+  private secretMap(): Map<string, { kind: string; text: string }> {
+    return new Map(this.db.select().from(secret).where(eq(secret.status, 'active')).all().map((s) => [s.id, s]))
+  }
+
+  /** Every secret, clue and connection with its live connections. */
+  secretViews(): SecretView[] {
+    const names = new Map(this.db.select({ id: entity.id, name: entity.name, status: entity.status }).from(entity).all()
+      .filter((e) => e.status !== 'defunct').map((e) => [e.id, e.name]))
+    const rels = this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
+    return this.db.select().from(secret).where(eq(secret.status, 'active')).all().map((s) => {
+      const connections = rels.filter((r) => r.secretId === s.id && names.has(r.sourceId) && names.has(r.targetId))
+        .map((r) => ({ id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type }))
+      const label = connections.map((c) => `${names.get(c.sourceId)} ${c.type.toLowerCase().replace(/_/g, ' ')} ${names.get(c.targetId)}`).join('; ')
+      return { id: s.id, kind: s.kind as SecretKind, text: s.text, connections, label: label || s.text.slice(0, 60) || `New ${s.kind}` }
+    }).sort((a, b) => a.label.localeCompare(b.label))
+  }
+
+  /**
+   * Saves a secret, clue or connection: its text and its connections (each a string on the board; known for a
+   * connection, dashed for a secret or clue). Removed connections go to History. One undo step.
+   */
+  saveSecret(input: { id: string | null; kind: SecretKind; text: string; connections: Array<{ id?: string; sourceId: string; targetId: string; type: string }>; prepItemId?: string }): string {
+    for (const c of input.connections) {
+      if (c.sourceId === c.targetId) throw new Error('A connection needs two different cards')
+      this.entityRow(c.sourceId); this.entityRow(c.targetId)
+    }
+    const id = input.id ?? randomUUID()
+    const old = input.id ? this.db.select().from(relationship).where(and(eq(relationship.secretId, input.id), eq(relationship.status, 'active'))).all() : []
+    const settings = this.boardSettings()
+    const owner = settings.sharedStrings ? null : this.globalBoard().id
+    const isSecret = input.kind !== 'connection'
+    this.log.run(`Saved the ${input.kind}${input.text ? ` ${input.text.slice(0, 40)}` : ''}`, (w) => {
+      if (input.id) w.update('secret', id, { kind: input.kind, text: input.text })
+      else w.insert('secret', { id, kind: input.kind, text: input.text, status: 'active' })
+      for (const c of input.connections) {
+        const was = c.id ? old.find((r) => r.id === c.id) : undefined
+        if (was) {
+          if (was.sourceId !== c.sourceId || was.targetId !== c.targetId || was.type !== c.type || was.isSecret !== isSecret)
+            w.update('relationship', was.id, { sourceId: c.sourceId, targetId: c.targetId, type: c.type, isSecret })
+        } else {
+          w.insert('relationship', { id: randomUUID(), sourceId: c.sourceId, targetId: c.targetId, type: c.type, isSecret, boardId: owner, status: 'active', secretId: id })
+        }
+      }
+      for (const r of old) if (!input.connections.some((c) => c.id === r.id)) w.update('relationship', r.id, { status: 'defunct' })
+      this.syncSecretText(w, { secretId: id }, input.text)
+      if (input.prepItemId) w.update('prep_item', input.prepItemId, { secretId: id, entityId: null, body: input.text })
+    })
+    return id
+  }
+
+  /** A secret's text, everywhere it shows (prep sheets, card sheets, Links). */
+  setSecretText(id: string, text: string): void {
+    this.log.run('Edited a secret', (w) => { w.update('secret', id, { text }); this.syncSecretText(w, { secretId: id }, text) })
+  }
+
+  /** Moves a secret and its strings to History (undo brings them back). */
+  removeSecret(id: string): void {
+    this.log.run('Moved a secret to History', (w) => {
+      w.update('secret', id, { status: 'defunct' })
+      for (const r of this.db.select().from(relationship).where(and(eq(relationship.secretId, id), eq(relationship.status, 'active'))).all()) w.update('relationship', r.id, { status: 'defunct' })
+    })
+  }
+
+  /** Prep sheet › Add connection / secret / clue: a new line tied to a new (empty) secret. */
+  addPrepSecret(prepId: string, kind: SecretKind): string {
+    const p = this.prepRow(prepId)
+    const siblings = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'discovery'))).all()
+    const id = randomUUID(), sid = randomUUID()
+    this.log.run(`Added a ${kind} to the prep for session ${p.number}`, (w) => {
+      w.insert('secret', { id: sid, kind, text: '', status: 'active' })
+      w.insert('prep_item', {
+        id, prepId, kind: 'discovery', sort: siblings.reduce((n, x) => Math.max(n, x.sort), 0) + 1, title: '', body: '', sceneType: null,
+        targetStart: null, targetEnd: null, entityId: null, locationId: null, discoveryId: null, role: '', stats: '', tactics: '',
+        done: false, doneAtMin: null, status: 'active', secretId: sid
+      })
+    })
+    return id
   }
 
   setRelationshipStatus(id: string, status: RowStatus): void {
@@ -924,7 +1022,7 @@ export class Campaign {
       const outgoing = r.sourceId === entityId
       const other = briefs.get(outgoing ? r.targetId : r.sourceId)
       if (!other || other.status === 'defunct') return []
-      return [{ relationship: toRelationshipView(r), other, outgoing, partyKnows: knownRels.has(r.id) }]
+      return [{ relationship: toRelationshipView(r, this.secretMap()), other, outgoing, partyKnows: knownRels.has(r.id) }]
     }).sort((a, b) => a.other.name.localeCompare(b.other.name))
     const known = new Set(this.db.select().from(knowledge)
       .where(and(eq(knowledge.entityId, entityId), eq(knowledge.status, 'active'))).all().map((k) => k.field))
@@ -932,7 +1030,7 @@ export class Campaign {
     const others = [...briefs.values()]
       .filter((e) => e.id !== entityId && e.status !== 'defunct')
       .sort((a, b) => a.name.localeCompare(b.name))
-    return { entity: view, abilities, connections, partyKnows, others, undo: this.log.state() }
+    return { entity: view, abilities, connections, partyKnows, others, secrets: this.secretViews(), undo: this.log.state() }
   }
 
   addAbility(entityId: string, a: NewAbility): AbilityView {
@@ -3654,6 +3752,7 @@ export class Campaign {
         const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
         return { ...brief(e), summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes') }
       }),
+      secrets: this.secretViews(),
       strings: this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
         .map((r) => ({ id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type, isSecret: r.isSecret })),
       boardSecrets: [
@@ -3686,7 +3785,7 @@ export class Campaign {
         targetStart: i.targetStart, targetEnd: i.targetEnd,
         entityId: i.entityId, entityName: i.entityId ? names.get(i.entityId) ?? null : null,
         locationId: i.locationId, locationName: i.locationId ? names.get(i.locationId) ?? null : null,
-        discoveryId: i.discoveryId, relationshipId: i.relationshipId, description: i.description, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin
+        discoveryId: i.discoveryId, relationshipId: i.relationshipId, secretId: i.secretId, description: i.description, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin
       }))
     const sess = this.db.select().from(session).where(and(eq(session.number, p.number), eq(session.status, 'active'))).get()
     const doc = p.noteDocId ? this.db.select().from(noteDoc).where(eq(noteDoc.id, p.noteDocId)).get() : undefined
@@ -3789,18 +3888,18 @@ export class Campaign {
     if (patch.entityId) Object.assign(patch, { ...this.prepFromCard(i.kind as PrepKind, this.entityRow(patch.entityId)), ...patch })
     // A secret tied to a secret string or Clue card shares its text: tying takes the board's text (or gives it this one
     // when the board's is empty); later edits here write it back to the board.
-    const string = i.kind === 'discovery' ? ('relationshipId' in patch ? patch.relationshipId : i.relationshipId) : null
-    const clue = i.kind === 'discovery' && !string ? ('entityId' in patch ? patch.entityId : i.entityId) : null
-    const board = string ? this.relationshipRow(string) : null
+    const group = i.kind === 'discovery' ? ('secretId' in patch ? patch.secretId : i.secretId) : null
+    const clue = i.kind === 'discovery' && !group ? ('entityId' in patch ? patch.entityId : i.entityId) : null
+    const board = group ? this.db.select().from(secret).where(eq(secret.id, group)).get() ?? null : null
     const card = clue ? this.entityRow(clue) : null
-    const boardText = board ? board.description : card ? String((card.attributes as Record<string, unknown>).description ?? '') : null
-    const tying = (!!string && string !== i.relationshipId) || (!!clue && clue !== i.entityId)
+    const boardText = board ? board.text : card ? String((card.attributes as Record<string, unknown>).description ?? '') : null
+    const tying = (!!group && group !== i.secretId) || (!!clue && clue !== i.entityId)
     const text = patch.body ?? i.body
     if (tying && boardText) patch = { ...patch, body: boardText }
     this.log.run(`Edited ${PREP_LABELS[i.kind as PrepKind]} ${i.title || ''}`.trim(), (w) => {
       w.update('prep_item', id, patch)
       const write = tying ? !boardText && text : patch.body !== undefined
-      if (write && board) { w.update('relationship', board.id, { description: text }); this.syncSecretText(w, { relationshipId: board.id }, text) }
+      if (write && board) { w.update('secret', board.id, { text }); this.syncSecretText(w, { secretId: board.id }, text) }
       if (write && card) { w.update('entity', card.id, { attributes: { ...card.attributes, description: text } }); this.syncSecretText(w, { entityId: card.id }, text) }
     })
   }
@@ -4211,10 +4310,12 @@ function toEntityView(r: EntityRow, storylineIds: string[], acts: CardActMark[])
   }
 }
 
-function toRelationshipView(r: RelationshipRow): RelationshipView {
+function toRelationshipView(r: RelationshipRow, secrets?: Map<string, { kind: string; text: string }>): RelationshipView {
+  const s = r.secretId ? secrets?.get(r.secretId) : undefined
   return {
+    secretId: s ? r.secretId : null, secretKind: (s?.kind as SecretKind | undefined) ?? null,
     id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type, isSecret: r.isSecret,
-    status: r.status as RowStatus, hidden: r.hidden, boardId: r.boardId, description: r.description
+    status: r.status as RowStatus, hidden: r.hidden, boardId: r.boardId, description: s ? s.text : r.description
   }
 }
 

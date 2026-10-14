@@ -120,7 +120,7 @@ export function LinkField(props: {
 }
 
 /** Every card, by type, with a search box. */
-export function CardPicker({ words, cards, onPick, onClose }: { words: string; cards: EntityBrief[]; onPick(id: string, made?: boolean): void; onClose(): void }) {
+export function CardPicker({ words, cards, onPick, onClose, title }: { words: string; cards: EntityBrief[]; onPick(id: string, made?: boolean): void; onClose(): void; title?: string }) {
   const [q, setQ] = useState('')
   // Or a new card named from the words: the link is made and its sheet opens.
   const [type, setType] = useState<EntityType>('NPC')
@@ -134,7 +134,7 @@ export function CardPicker({ words, cards, onPick, onClose }: { words: string; c
   const t = q.trim().toLowerCase()
   const shown = cards.filter((c) => !t || c.name.toLowerCase().includes(t))
   return (
-    <Dialog title={`Link “${words}” to a card`} open onClose={onClose}>
+    <Dialog title={title ?? `Link “${words}” to a card`} open onClose={onClose}>
       <div className="card-picker">
         <input autoFocus type="search" placeholder="Search cards…" value={q} aria-label="Search cards" onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && shown.length === 1) onPick(shown[0].id) }} />

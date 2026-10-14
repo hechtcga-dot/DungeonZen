@@ -66,8 +66,23 @@ export interface BoardSettings {
   typeColours: Partial<Record<EntityType, string>>
 }
 
+export type SecretKind = 'secret' | 'clue' | 'connection'
+
+/** A secret, clue or connection: one text, drawn on the board as one string per connection. */
+export interface SecretView {
+  id: string
+  kind: SecretKind
+  text: string
+  connections: Array<{ id: string; sourceId: string; targetId: string; type: string }>
+  /** "Mara knows the Guild; …" for pickers. */
+  label: string
+}
+
 export interface RelationshipView {
   id: string
+  /** The secret, clue or connection this string is one connection of. */
+  secretId: string | null
+  secretKind: SecretKind | null
   sourceId: string
   targetId: string
   type: string
@@ -181,6 +196,8 @@ export interface SheetView {
   partyKnows: Record<KnowledgeField, boolean>
   /** Other entities that can be linked to, for pickers. */
   others: EntityBrief[]
+  /** Every secret, clue and connection (this card's, and the others to bring in). */
+  secrets: SecretView[]
   undo: UndoState
 }
 
@@ -654,6 +671,8 @@ export interface PrepItemView {
   discoveryId: string | null
   /** A secret tied to a secret string (its text is the string's description); a Clue card is `entityId`. */
   relationshipId: string | null
+  /** discovery: the secret, clue or connection it is (its text is this line's text). */
+  secretId: string | null
   /** npc: who they are (the card's one-line summary when tied). */
   description: string
   role: string
@@ -697,6 +716,8 @@ export interface PrepScreenView {
   cards: Array<EntityBrief & { summary: string; picture: string; location: string; notes: string }>
   /** Secret strings and Clue cards a prep secret can be tied to. */
   boardSecrets: Array<{ kind: 'string' | 'clue'; id: string; label: string }>
+  /** Every secret, clue and connection. */
+  secrets: SecretView[]
   /** Every live string, for a card's Links on the sheet. */
   strings: Array<{ id: string; sourceId: string; targetId: string; type: string; isSecret: boolean }>
 }
