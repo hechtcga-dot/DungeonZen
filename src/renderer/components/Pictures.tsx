@@ -1,4 +1,4 @@
-import { ADVANCED_FIELDS, STYLE_TAG_FIELDS, TEMPLATE_FIELDS, advancedFromTags, advancedLines, blendTags, styleLines, type Advanced, type PromptTemplate, type StyleTags } from '../../shared/styleTags'
+import { ADVANCED_FIELDS, STYLE_TAG_FIELDS, TEMPLATE_FIELDS, advancedFromTags, advancedLines, blendTags, styleLines, type Advanced, type AdvancedKey, type PromptTemplate, type StyleTags } from '../../shared/styleTags'
 import { COMPOSITIONS, DEFAULT_COMPOSITION_FOR, compositionById } from '../../shared/compositions'
 import { CompositionSketch } from '../art/compositions'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -44,8 +44,10 @@ export function SendExamples({ value, onChange }: { value: boolean; onChange(v: 
   )
 }
 
-export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller, send }: {
+export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller, send, only }: {
   use: StyleUse
+  /** Just one part (the card picture window puts them in different columns); the 'styles' part owns the ticks. */
+  only?: 'prompt' | 'styles'
   /** The ticked pictures go with the drawing (SendExamples by the Draw button). */
   send: boolean
   prompt: string
@@ -73,17 +75,18 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
     setFresh(added.map((x) => x.id))
   }
   useEffect(() => {
+    void call('ai:imageInfo', undefined).then(setService).catch(() => setService(null))
+    if (only === 'prompt') return
     // None ticked until the DM picks (owner, 2026-10-12).
     setFresh([])
     void call('style:list', { use }).then((s) => { setStyles(s); onPicked(new Set()) }).catch(() => setStyles([]))
-    void call('ai:imageInfo', undefined).then(setService).catch(() => setService(null))
   }, [use])
-  useEffect(() => { onTags?.((styles ?? []).filter((s) => picked.has(s.id)).map((s) => s.tags)) }, [styles, picked]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (styles) onTags?.(styles.filter((s) => picked.has(s.id)).map((s) => s.tags)) }, [styles, picked]) // eslint-disable-line react-hooks/exhaustive-deps
   const max = service?.maxReferences ?? 0
   const sending = Math.min(max, picked.size)
   return (
     <>
-      <details className="draw-prompt">
+      {only !== 'styles' && <details className="draw-prompt">
         <summary>Prompt being sent to the AI <span className="muted">(open to read and change it)</span></summary>
         <textarea aria-label="Prompt being sent to the AI" rows={11} value={prompt} maxLength={4000} onChange={(e) => onPrompt(e.target.value)} />
         <div className="row tight">
@@ -99,8 +102,8 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
               onClick={() => void act('campaign:update', { artStyle: artStyle.trim() }).then(onReset)}>Save style</button>
           </div>
         </div>
-      </details>
-      <fieldset className="draw-styles">
+      </details>}
+      {only !== 'prompt' && <fieldset className="draw-styles">
         <legend>Style examples ({STYLE_USE_LABELS[use].toLowerCase()})</legend>
         {styles === null ? <p className="hint">Loading…</p> : (
           <>
@@ -132,7 +135,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
             {send && max > 0 && <SmallerExamples value={smaller} onChange={onSmaller} />}
           </>
         )}
-      </fieldset>
+      </fieldset>}
     </>
   )
 }
@@ -169,7 +172,7 @@ function NewPictures({ ids, onChanged, onDone }: { ids: string[]; onChanged(): v
   )
 }
 
-/** Draw a card's picture with AI: optional wishes, composition, Advanced composition, the prompt, style examples; Keep, Draw again or Cancel. */
+/** Draw a card's picture with AI (owner's option A, 2026-10-14): wishes, examples, style, composition and outline on the left; the picture and prompt on the right. */
 export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['entity']; onClose(): void }) {
   const { act, setAiSettingsOpen, info } = useBoard()
   const [ask, setAsk] = useState('')
@@ -218,26 +221,44 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
     } catch (err) { setError((err as Error).message) } finally { setBusy(false) }
   }
   const close = () => { if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }); onClose() }
+  const rows = (keys: AdvancedKey[]) => <AdvancedRows keys={keys} value={adv} changed={over} onChange={setOver} />
   return (
     <Dialog title={`Draw ${entity.name}`} open onClose={close} wide busy={busy}>
       <div className="dz-form">
-        <div className="field">
-          <label htmlFor="pic-ask">Include in the picture (optional)</label>
-          <input id="pic-ask" value={ask} maxLength={2000} placeholder="ducks, a boat, a fisherman in the boat" onChange={(ev) => setAsk(ev.target.value)} />
-          <div className="hint">Things to show, separated by commas. The card's appearance, summary and description go with it. Uses the image service chosen in AI services.</div>
+        <div className="draw-two">
+          <div className="draw-left">
+            <div className="field">
+              <label htmlFor="pic-ask">Include in the picture (optional)</label>
+              <input id="pic-ask" value={ask} maxLength={2000} placeholder="ducks, a boat, a fisherman in the boat" onChange={(ev) => setAsk(ev.target.value)} />
+              <div className="hint">Things to show, separated by commas. Uses the image service chosen in AI services.</div>
+            </div>
+            {rows(['description'])}
+            <DrawExtras only="styles" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send}
+              onReset={() => undefined} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
+            <section className="draw-box">
+              <div className="row tight wrap"><strong>Style</strong><TemplateBar value={adv} changed={over} onChange={setOver} /></div>
+              {rows(['style', 'medium', 'palette', 'light', 'detail'])}
+            </section>
+            <section className="draw-box">
+              <CompositionPicker value={comp} onChange={(id) => { setComp(id); setOver(({ composition: _, ...rest }) => rest) }} fromExamples={blended.composition} />
+              {rows(['composition', 'other'])}
+            </section>
+            <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
+              onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />
+          </div>
+          <div className="draw-right">
+            {drawn ? (
+              <div className="ai-suggestion"><span className="ai-badge">AI suggestion · {drawn.source}</span><img className="pic-preview" src={drawn.url} alt="The AI's drawing" /></div>
+            ) : <div className="draw-placeholder">{busy ? 'Drawing… (this can take a minute)' : 'The drawing appears here'}</div>}
+            {drawn && <ChangePicture drawn={drawn} ratio={1} disabled={busy} onChanged={setDrawn} />}
+            {error && (
+              <div className="field-error battle-error" role="alert"><span>{error}</span>
+                <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
+            )}
+            <DrawExtras only="prompt" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send}
+              onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} />
+          </div>
         </div>
-        <CompositionPicker value={comp} onChange={(id) => { setComp(id); setOver(({ composition: _, ...rest }) => rest) }} fromExamples={blended.composition} />
-        <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
-          onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />
-        <AdvancedComposition value={adv} changed={over} onChange={setOver} />
-        <DrawExtras use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send}
-          onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
-        {error && (
-          <div className="field-error battle-error" role="alert"><span>{error}</span>
-            <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
-        )}
-        {drawn && <div className="ai-suggestion"><span className="ai-badge">AI suggestion · {drawn.source}</span><img className="pic-preview" src={drawn.url} alt="The AI's drawing" /></div>}
-        {drawn && <ChangePicture drawn={drawn} ratio={1} disabled={busy} onChanged={setDrawn} />}
         <div className="dz-actions">
           <SendExamples value={send} onChange={setSend} />
           <button type="button" onClick={close}>Cancel</button>
@@ -252,11 +273,27 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   )
 }
 
-/**
- * Advanced composition: every line of the prompt in its own box (this drawing only), and named templates
- * of the style lines (campaign setting; Remove is undoable).
- */
-function AdvancedComposition({ value, changed, onChange }: { value: Advanced; changed: Advanced; onChange(next: Advanced): void }) {
+/** Prompt lines as boxes, label on the left (this drawing only; "back" puts a changed box back to its default). */
+function AdvancedRows({ keys, value, changed, onChange }: { keys: AdvancedKey[]; value: Advanced; changed: Advanced; onChange(next: Advanced): void }) {
+  return (
+    <div className="draw-rows">
+      {ADVANCED_FIELDS.filter((f) => keys.includes(f.key)).map((f) => (
+        <label key={f.key} className="draw-row">
+          <span className="field-label">{f.label}{changed[f.key] !== undefined && <button type="button" className="link-button" title="Back to the default" onClick={(e) => {
+            e.preventDefault()
+            const { [f.key]: _, ...rest } = changed
+            onChange(rest)
+          }}> ↺</button>}</span>
+          <textarea rows={f.key === 'description' || f.key === 'other' || f.key === 'composition' ? 2 : 1} value={value[f.key] ?? ''} maxLength={1000} placeholder={`e.g. ${f.example}`}
+            onChange={(e) => onChange({ ...changed, [f.key]: e.target.value })} />
+        </label>
+      ))}
+    </div>
+  )
+}
+
+/** Named templates of the style lines (campaign setting; the same name replaces; Remove is undoable). */
+function TemplateBar({ value, changed, onChange }: { value: Advanced; changed: Advanced; onChange(next: Advanced): void }) {
   const { act } = useBoard()
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
   const [chosen, setChosen] = useState('')
@@ -268,45 +305,29 @@ function AdvancedComposition({ value, changed, onChange }: { value: Advanced; ch
     await act('promptTemplates:save', { name, fields })
     setSaving(null); setChosen(name); load()
   }
+  if (saving !== null) return (
+    <form className="row tight wrap template-bar" onSubmit={(e) => { e.preventDefault(); if (saving.trim()) void save(saving.trim()) }}>
+      <input autoFocus value={saving} maxLength={80} placeholder="Template name" aria-label="Template name" title="Saves Style to Other details (not the description). The same name replaces that template."
+        onChange={(e) => setSaving(e.target.value)} />
+      <button type="submit" disabled={!saving.trim()}>Save</button>
+      <button type="button" onClick={() => setSaving(null)}>Cancel</button>
+    </form>
+  )
   return (
-    <details className="draw-advanced">
-      <summary>Advanced composition <span className="muted">(each line of the prompt; templates)</span></summary>
-      <div className="row tight wrap">
-        <label className="field-label" htmlFor="adv-template">Template</label>
-        <select id="adv-template" value={chosen} onChange={(e) => {
-          setChosen(e.target.value)
-          const t = templates.find((x) => x.name === e.target.value)
-          if (t) onChange({ ...changed, ...t.fields })
-        }}>
-          <option value="">{templates.length ? 'Choose a template…' : 'No templates yet'}</option>
-          {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
-        </select>
-        {chosen && <button type="button" className="link-button danger-link" title="Ctrl+Z brings it back"
-          onClick={() => void act('promptTemplates:remove', { name: chosen }).then(() => { setChosen(''); load() })}>Remove template</button>}
-      </div>
-      {ADVANCED_FIELDS.map((f) => (
-        <label key={f.key} className="field">
-          <span className="field-label">{f.label}{changed[f.key] !== undefined && <button type="button" className="link-button" onClick={(e) => {
-            e.preventDefault()
-            const { [f.key]: _, ...rest } = changed
-            onChange(rest)
-          }}> (back to the default)</button>}</span>
-          <textarea rows={f.key === 'description' || f.key === 'other' ? 3 : f.key === 'composition' ? 2 : 1} value={value[f.key] ?? ''} maxLength={1000} placeholder={`e.g. ${f.example}`}
-            onChange={(e) => onChange({ ...changed, [f.key]: e.target.value })} />
-        </label>
-      ))}
-      <p className="hint">Changes here are for this drawing only. Ticked style examples and the composition above fill the boxes you have not changed.</p>
-      {saving === null ? (
-        <button type="button" onClick={() => setSaving(chosen)}>Save style as a template…</button>
-      ) : (
-        <form className="row tight wrap" onSubmit={(e) => { e.preventDefault(); if (saving.trim()) void save(saving.trim()) }}>
-          <input autoFocus value={saving} maxLength={80} placeholder="Template name" aria-label="Template name" onChange={(e) => setSaving(e.target.value)} />
-          <button type="submit" disabled={!saving.trim()}>Save</button>
-          <button type="button" onClick={() => setSaving(null)}>Cancel</button>
-          <span className="hint">Saves Style to Other details (not the description). The same name replaces that template.</span>
-        </form>
-      )}
-    </details>
+    <span className="row tight wrap template-bar">
+      <label className="hint" htmlFor="adv-template">Template</label>
+      <select id="adv-template" value={chosen} onChange={(e) => {
+        setChosen(e.target.value)
+        const t = templates.find((x) => x.name === e.target.value)
+        if (t) onChange({ ...changed, ...t.fields })
+      }}>
+        <option value="">{templates.length ? 'Choose a template…' : 'No templates yet'}</option>
+        {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+      </select>
+      <button type="button" className="link-button" onClick={() => setSaving(chosen)}>Save as template…</button>
+      {chosen && <button type="button" className="link-button danger-link" title="Ctrl+Z brings it back"
+        onClick={() => void act('promptTemplates:remove', { name: chosen }).then(() => { setChosen(''); load() })}>Remove</button>}
+    </span>
   )
 }
 

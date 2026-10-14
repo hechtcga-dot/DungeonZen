@@ -330,6 +330,11 @@ built.
     line too); smaller copies option shows only when sending. Style examples end with a + tile: Library upload
     (Art folder), ticked for this drawing, then uses ticks and style tags with Read style with AI (on click).
     Dialogs: scrollbar thin and inside the frame; a form's last button row is pinned at the bottom while scrolling.
+    Card picture Draw window layout (owner's option A, next build after 2.2.1): two columns (`.draw-two`, one column under
+    1000 px). Left: Include, What it is like, style examples (+), Style box (Template drop-down, Save as template…,
+    Remove; Style/Medium/Palette/Light/Textures rows, label left, ↺ per changed box), Composition box (picker, Composition
+    and Other details rows), Outline. Right (sticky): the drawing or a placeholder, Change this picture, errors, Prompt
+    being sent. `DrawExtras only="prompt" | "styles"` splits the shared part; the world map window keeps both together.
   - Notes (rail, was Import notes): Your notes (`NotesLibrary.tsx`) and Import notes. Imported files are kept
     (`note_doc`); Word/text/PDF open with formatting in `NoteEditor` (bold, italic, underline, headings,
     lists, tables; `src/main/importers/docx.ts` reads and writes .docx); Save writes a Word version (earlier

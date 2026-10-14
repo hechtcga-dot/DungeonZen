@@ -93,7 +93,7 @@ export const STYLE_TAGS_SYSTEM = [
 // box, prefilled from the card and the ticked examples; edits are for this drawing only. The style lines
 // (all but the description) can be saved as a named template.
 export const ADVANCED_FIELDS = [
-  { key: 'description', label: 'Description (what is it like)', example: 'an orange tabby in a feathered hat and boots' },
+  { key: 'description', label: 'What it is like', example: 'an orange tabby in a feathered hat and boots' },
   { key: 'style', label: 'Style', example: 'in the manner of Arthur Rackham, 1900s' },
   { key: 'medium', label: 'Medium', example: 'watercolour washes with fine ink line work' },
   { key: 'palette', label: 'Palette', example: 'golden ochre, soft mauve, earthy browns' },

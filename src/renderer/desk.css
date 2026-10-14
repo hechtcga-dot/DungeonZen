@@ -1071,11 +1071,22 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .draw-new-pics { display: grid; gap: 10px; margin: 8px 0; padding: 8px; border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; background: rgba(255, 252, 240, 0.5); }
 .draw-new-pic { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: start; }
 .draw-new-pic img { width: 96px; height: 96px; object-fit: cover; border-radius: 4px; }
-.draw-advanced { border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; padding: 6px 10px; background: rgba(255, 252, 240, 0.5); }
-.draw-advanced summary { cursor: pointer; font-weight: 600; }
-.draw-advanced[open] { display: grid; gap: 6px; }
-.draw-advanced textarea { width: 100%; resize: vertical; }
 .send-examples { margin-right: auto; }
+/* Card picture Draw window, option A: settings left, picture and prompt right (stays in view while the left scrolls). */
+.dz-dialog.wide:has(.draw-two) { width: min(1320px, calc(100vw - 32px)); }
+.draw-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: 20px; align-items: start; }
+.draw-left, .draw-right { display: grid; gap: 12px; min-width: 0; }
+.draw-right { position: sticky; top: 0; }
+.draw-placeholder { aspect-ratio: 1; display: grid; place-items: center; border: 1px solid #8a7350; border-radius: 6px; color: #7a6440; font-style: italic;
+  background: repeating-linear-gradient(45deg, #e6d8b0 0 10px, #ecdfba 10px 20px); }
+.draw-right .pic-preview { width: 100%; height: auto; }
+.draw-box { display: grid; gap: 8px; border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; padding: 8px 12px; background: rgba(255, 252, 240, 0.5); }
+.draw-box > .row { justify-content: space-between; }
+.template-bar select { width: auto; }
+.draw-rows { display: grid; gap: 6px; }
+.draw-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: center; }
+.draw-row textarea { width: 100%; resize: vertical; }
+@media (max-width: 1000px) { .draw-two { grid-template-columns: 1fr; } .draw-right { position: static; } }
 .draw-new-pics > .link-button { justify-self: start; }
 .pic-picker { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; min-height: 360px; }
 .pic-folders { display: flex; flex-direction: column; gap: 4px; }
