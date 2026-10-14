@@ -642,3 +642,9 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   The box takes any words (`matchMonsters`: every word starts a word on the stat block: name, size, type, speed,
   senses, languages, traits, actions; "hills" finds Hill Giant; a creature type word means that type). No match, or
   only matches over the budget, says so (names, CR, XP). Live › On the fly keeps its exact creature type drop-down.
+- 2.2.4 (owner, 2026-10-14): battle map Draw window › Advanced style and composition fold (left, under Anything else):
+  Style, Medium, Palette, Light, Textures and details, Composition, Other details (`AdvancedRows`), filled from the
+  ticked examples' style tags (`blendTags`, no book-illustration fallback), ↺ per box; `advancedLines` replace
+  `withArtStyle` in the prompt. Templates (`TemplateBar use="battle"`) kept apart from card picture templates
+  (`PromptTemplate.use`, old ones = portraits; same name allowed in each). Each ticked example's Style tags editor
+  (Read style with AI, Keep/Discard) is in the fold too; tags save to the Library picture (`pictures:update`).

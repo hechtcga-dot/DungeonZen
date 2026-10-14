@@ -107,8 +107,13 @@ export type AdvancedKey = (typeof ADVANCED_FIELDS)[number]['key']
 export type Advanced = Partial<Record<AdvancedKey, string>>
 export const TEMPLATE_FIELDS = ADVANCED_FIELDS.filter((f) => f.key !== 'description')
 
+/** Which Draw window a template belongs to: card pictures, or battle maps (kept apart; old ones are card pictures). */
+export const TEMPLATE_USES = ['portraits', 'battle'] as const
+export type TemplateUse = (typeof TEMPLATE_USES)[number]
+
 export const PromptTemplateSchema = z.object({
   name: z.string().trim().min(1).max(80),
+  use: z.enum(TEMPLATE_USES).optional(),
   fields: z.object(Object.fromEntries(TEMPLATE_FIELDS.map((f) => [f.key, z.string().max(1000).optional()])) as Record<Exclude<AdvancedKey, 'description'>, z.ZodOptional<z.ZodString>>)
 })
 export type PromptTemplate = z.infer<typeof PromptTemplateSchema> & { status?: string }

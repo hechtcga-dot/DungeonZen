@@ -1,4 +1,4 @@
-import { ADVANCED_FIELDS, STYLE_TAG_FIELDS, TEMPLATE_FIELDS, advancedFromTags, advancedLines, blendTags, styleLines, type Advanced, type AdvancedKey, type PromptTemplate, type StyleTags } from '../../shared/styleTags'
+import { ADVANCED_FIELDS, STYLE_TAG_FIELDS, TEMPLATE_FIELDS, advancedFromTags, advancedLines, blendTags, styleLines, type Advanced, type AdvancedKey, type PromptTemplate, type StyleTags, type TemplateUse } from '../../shared/styleTags'
 import { COMPOSITIONS, DEFAULT_COMPOSITION_FOR, compositionById } from '../../shared/compositions'
 import { CompositionSketch } from '../art/compositions'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
@@ -288,7 +288,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
 }
 
 /** Prompt lines as boxes, label on the left (this drawing only; "back" puts a changed box back to its default). */
-function AdvancedRows({ keys, value, changed, onChange }: { keys: AdvancedKey[]; value: Advanced; changed: Advanced; onChange(next: Advanced): void }) {
+export function AdvancedRows({ keys, value, changed, onChange }: { keys: AdvancedKey[]; value: Advanced; changed: Advanced; onChange(next: Advanced): void }) {
   return (
     <div className="draw-rows">
       {ADVANCED_FIELDS.filter((f) => keys.includes(f.key)).map((f) => (
@@ -307,17 +307,17 @@ function AdvancedRows({ keys, value, changed, onChange }: { keys: AdvancedKey[];
 }
 
 /** Named templates of the style lines (campaign setting; the same name replaces; Remove is undoable). */
-function TemplateBar({ value, changed, onChange }: { value: Advanced; changed: Advanced; onChange(next: Advanced): void }) {
+export function TemplateBar({ value, changed, onChange, use = 'portraits' }: { value: Advanced; changed: Advanced; onChange(next: Advanced): void; use?: TemplateUse }) {
   const { act } = useBoard()
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
   const [chosen, setChosen] = useState('')
   const [saving, setSaving] = useState<string | null>(null)
   const [managing, setManaging] = useState(false)
-  const load = () => void call('promptTemplates:list', undefined).then(setTemplates).catch(() => setTemplates([]))
+  const load = () => void call('promptTemplates:list', use).then(setTemplates).catch(() => setTemplates([]))
   useEffect(load, [])
   const save = async (name: string) => {
     const fields = Object.fromEntries(TEMPLATE_FIELDS.map((f) => [f.key, value[f.key] ?? '']))
-    await act('promptTemplates:save', { name, fields })
+    await act('promptTemplates:save', { name, fields, use })
     setSaving(null); setChosen(name); load()
   }
   if (saving !== null) return (
@@ -345,9 +345,9 @@ function TemplateBar({ value, changed, onChange }: { value: Advanced; changed: A
         <span className="template-manage">
           {templates.map((t) => (
             <span key={t.name} className="row tight">
-              <CommitName value={t.name} label={`Name of the template ${t.name}`} onCommit={(next) => void act('promptTemplates:rename', { name: t.name, next }).then(() => { if (chosen === t.name) setChosen(next); load() })} />
+              <CommitName value={t.name} label={`Name of the template ${t.name}`} onCommit={(next) => void act('promptTemplates:rename', { name: t.name, next, use }).then(() => { if (chosen === t.name) setChosen(next); load() })} />
               <button type="button" className="link-button danger-link" title="Ctrl+Z brings it back"
-                onClick={() => void act('promptTemplates:remove', { name: t.name }).then(() => { if (chosen === t.name) setChosen(''); load() })}>Remove</button>
+                onClick={() => void act('promptTemplates:remove', { name: t.name, use }).then(() => { if (chosen === t.name) setChosen(''); load() })}>Remove</button>
             </span>
           ))}
         </span>
@@ -575,7 +575,7 @@ function CompositionPicker({ value, onChange, fromExamples }: { value: string; o
 }
 
 /** A picture's art style in words: typed by the DM, or read by AI as a suggestion to keep (rule 2). */
-function StyleTagsEditor({ picture, onSave, open }: { picture: LibraryPictureView; onSave(tags: StyleTags): void; open?: boolean }) {
+export function StyleTagsEditor({ picture, onSave, open }: { picture: Pick<LibraryPictureView, 'key' | 'name' | 'tags'>; onSave(tags: StyleTags): void; open?: boolean }) {
   const { setAiSettingsOpen } = useBoard()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

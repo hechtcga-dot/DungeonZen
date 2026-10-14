@@ -1,4 +1,4 @@
-import type { PromptTemplate, StyleTags } from '../../shared/styleTags'
+import type { PromptTemplate, StyleTags, TemplateUse } from '../../shared/styleTags'
 import { randomUUID } from 'node:crypto'
 import { cp } from 'node:fs/promises'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -1180,29 +1180,31 @@ export class Campaign {
   }
 
   /** Draw window prompt templates (style lines saved under a name); removed ones stay stored, Ctrl+Z brings them back. */
-  promptTemplates(): PromptTemplate[] {
+  promptTemplates(use: TemplateUse = 'portraits'): PromptTemplate[] {
     const v = this.setting('prompt_templates')
-    return (Array.isArray(v) ? v as PromptTemplate[] : []).filter((t) => t.status !== 'defunct')
+    return (Array.isArray(v) ? v as PromptTemplate[] : []).filter((t) => t.status !== 'defunct' && (t.use ?? 'portraits') === use)
   }
 
-  /** Saves a template; the same name replaces the old one (one undo step). */
+  /** Saves a template; the same name (in the same Draw window) replaces the old one (one undo step). */
   savePromptTemplate(t: PromptTemplate): void {
     const v = this.setting('prompt_templates')
-    const all = (Array.isArray(v) ? v as PromptTemplate[] : []).filter((x) => x.name.toLowerCase() !== t.name.toLowerCase())
-    this.setSetting('prompt_templates', [...all, { name: t.name, fields: t.fields }], `Saved the prompt template ${t.name}`)
+    const use = t.use ?? 'portraits'
+    const all = (Array.isArray(v) ? v as PromptTemplate[] : []).filter((x) => (x.use ?? 'portraits') !== use || x.name.toLowerCase() !== t.name.toLowerCase())
+    this.setSetting('prompt_templates', [...all, { name: t.name, fields: t.fields, ...(use === 'portraits' ? {} : { use }) }], `Saved the prompt template ${t.name}`)
   }
 
-  renamePromptTemplate(name: string, next: string): void {
+  renamePromptTemplate(name: string, next: string, use: TemplateUse = 'portraits'): void {
     const v = this.setting('prompt_templates')
     const all = Array.isArray(v) ? v as PromptTemplate[] : []
-    if (all.some((x) => x.status !== 'defunct' && x.name !== name && x.name.toLowerCase() === next.toLowerCase())) throw new Error(`There is already a template called ${next}`)
-    this.setSetting('prompt_templates', all.map((x) => (x.name === name && x.status !== 'defunct' ? { ...x, name: next } : x)), `Renamed the prompt template ${name} to ${next}`)
+    const mine = (x: PromptTemplate) => x.status !== 'defunct' && (x.use ?? 'portraits') === use
+    if (all.some((x) => mine(x) && x.name !== name && x.name.toLowerCase() === next.toLowerCase())) throw new Error(`There is already a template called ${next}`)
+    this.setSetting('prompt_templates', all.map((x) => (x.name === name && mine(x) ? { ...x, name: next } : x)), `Renamed the prompt template ${name} to ${next}`)
   }
 
-  removePromptTemplate(name: string): void {
+  removePromptTemplate(name: string, use: TemplateUse = 'portraits'): void {
     const v = this.setting('prompt_templates')
     const all = Array.isArray(v) ? v as PromptTemplate[] : []
-    this.setSetting('prompt_templates', all.map((x) => (x.name === name ? { ...x, status: 'defunct' } : x)), `Removed the prompt template ${name}`)
+    this.setSetting('prompt_templates', all.map((x) => (x.name === name && (x.use ?? 'portraits') === use ? { ...x, status: 'defunct' } : x)), `Removed the prompt template ${name}`)
   }
 
   /** Changes several campaign settings as one undoable step. */

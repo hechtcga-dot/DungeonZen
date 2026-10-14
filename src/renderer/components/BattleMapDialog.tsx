@@ -5,7 +5,8 @@ import { GridLines } from './MapOverlay'
 import { call } from '../api'
 import { useBoard, useUnits } from '../store'
 import { maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
-import { SendExamples, SmallerExamples, withArtStyle } from './Pictures'
+import { AdvancedRows, SendExamples, SmallerExamples, StyleTagsEditor, TemplateBar } from './Pictures'
+import { advancedFromTags, advancedLines, blendTags, type Advanced, type AdvancedKey } from '../../shared/styleTags'
 import {
   ART_STYLES, aspectFor, BATTLE_FEATURES, BUILDINGS, type FollowSource, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
   rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
@@ -19,6 +20,8 @@ import { FollowPicture } from './FollowPicture'
 
 type Drawn = PendingImageView & { source: string; prompt: string; cols: number }
 type Spec = Omit<BattleMapSpec, 'withExamples' | 'follow'>
+// Advanced style boxes for maps: no description (that is the setting box above).
+const STYLE_KEYS: AdvancedKey[] = ['style', 'medium', 'palette', 'light', 'detail', 'composition', 'other']
 
 const START: Spec = {
   description: '', setting: 'outdoors', terrain: 'any', cols: 20, rows: 20, timeOfDay: 'day', weather: 'clear',
@@ -74,6 +77,9 @@ export function BattleMapDialog() {
   // What the app filled in, so the DM can see it and go back to it after a change.
   const [auto, setAuto] = useState<Pick<Spec, 'description' | 'timeOfDay' | 'terrain' | 'setting'>>(START)
   const [ownPrompt, setOwnPrompt] = useState<string | null>(null)
+  // Advanced style boxes the DM changed (the rest follow the ticked examples' style tags).
+  const [over, setOverState] = useState<Advanced>({})
+  const setOver = (next: Advanced) => { setOverState(next); setOwnPrompt(null) }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [drawn, setDrawn] = useState<Drawn | null>(null)
@@ -89,7 +95,7 @@ export function BattleMapDialog() {
   // Start from the scene: what is written for it, where the party is and the light now.
   useEffect(() => {
     if (!open) return
-    setError(null); setDrawn(null); setOwnPrompt(null)
+    setError(null); setDrawn(null); setOwnPrompt(null); setOverState({})
     void (async () => {
       try {
         const [ctx] = await Promise.all([call('battlemap:context', undefined), loadStyles()])
@@ -126,7 +132,12 @@ export function BattleMapDialog() {
   const maxRefs = maxReferences(service?.info)
   const [send, setSend] = useState(false)
   const withExamples = send && maxRefs > 0 && picked.size > 0
-  const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples, follow: !!follow }), artStyle, styles.filter((st) => picked.has(st.id)).map((st) => st.tags))
+  const ticked = styles.filter((st) => picked.has(st.id))
+  const blended = blendTags(ticked.map((st) => st.tags))
+  const fromTags = advancedFromTags(blended, '', artStyle)
+  if (!blended.artist && !blended.period) fromTags.style = '' // maps: no book-illustration fallback, the Art style choice covers it
+  const adv: Advanced = { ...fromTags, ...over }
+  const generated = [battleMapPrompt({ ...spec, withExamples, follow: !!follow }), ...advancedLines(adv, artStyle)].join('\n')
   const prompt = ownPrompt ?? generated
   const [gridShown, setGridShown] = useState(false)
   const sizeOk = [cols, rows].every((n) => Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX)
@@ -287,6 +298,26 @@ export function BattleMapDialog() {
                 <input id="bm-extra" value={spec.extra} maxLength={600} placeholder="A broken statue in the middle, the north wall half collapsed…"
                   onChange={(e) => set({ extra: e.target.value })} />
               </div>
+              <details className="draw-box battle-advanced" open={Object.keys(over).length > 0}>
+                <summary><strong>Advanced style and composition</strong> <span className="hint">(style, colours, light, details)</span></summary>
+                <span className="hint">{ticked.length
+                  ? `Filled from the style tags of the ticked example${ticked.length > 1 ? 's' : ''} (${ticked.map((st) => st.name).join(', ')}). Change any box for this drawing (↺ goes back), or save them as a template.`
+                  : 'Tick style examples to fill these from their style tags, or type your own. Save them as a template to use again.'}</span>
+                <div className="row tight wrap"><strong>Style</strong><TemplateBar use="battle" value={adv} changed={over} onChange={setOver} /></div>
+                <AdvancedRows keys={STYLE_KEYS} value={adv} changed={over} onChange={setOver} />
+                {ticked.length > 0 && (
+                  <div className="battle-tags">
+                    <span className="field-label">Style tags of the ticked examples (kept in Library › Pictures)</span>
+                    {ticked.map((st) => (
+                      <div key={st.id}>
+                        <strong>{st.name}</strong>
+                        <StyleTagsEditor picture={{ key: `lib:${st.id}`, name: st.name, tags: st.tags }}
+                          onSave={(tags) => void act('pictures:update', { key: `lib:${st.id}`, patch: { tags } }).then(loadStyles)} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </details>
             </div>
             <div className="dz-form">
               <FollowPicture value={follow} onChange={setFollow} cols={cols} onSize={(c, r) => set({ cols: c, rows: r })} />

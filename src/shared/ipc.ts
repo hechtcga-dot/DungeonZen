@@ -21,7 +21,7 @@ import { STYLE_USES } from './types'
 
 /** A drawing's outline as sent: the sketch as a picture (PNG, base64) or the DM's outline picture (asset path). */
 const OutlineSend = z.object({ png: z.string().max(4_000_000).optional(), path: z.string().max(500).optional() })
-import { PromptTemplateSchema, StyleTagsSchema, type PromptTemplate, type StyleTags } from './styleTags'
+import { PromptTemplateSchema, StyleTagsSchema, TEMPLATE_USES, type PromptTemplate, type StyleTags } from './styleTags'
 import type { NotesScreenView } from './types'
 import type { RollTable } from './rolltables'
 import { Blocks, type Block } from './noteDoc'
@@ -176,10 +176,10 @@ export const ipcInputs = {
   }),
   'pictures:readStyle': z.object({ key: z.string().min(3).max(120) }),
   'pictures:addFolder': z.object({ name: z.string().trim().min(1).max(80) }),
-  'promptTemplates:list': z.void(),
+  'promptTemplates:list': z.enum(TEMPLATE_USES).optional(),
   'promptTemplates:save': PromptTemplateSchema,
-  'promptTemplates:remove': z.object({ name: z.string().min(1).max(80) }),
-  'promptTemplates:rename': z.object({ name: z.string().min(1).max(80), next: z.string().trim().min(1).max(80) }),
+  'promptTemplates:remove': z.object({ name: z.string().min(1).max(80), use: z.enum(TEMPLATE_USES).optional() }),
+  'promptTemplates:rename': z.object({ name: z.string().min(1).max(80), next: z.string().trim().min(1).max(80), use: z.enum(TEMPLATE_USES).optional() }),
   'ai:imageInfo': z.void(),
   'entity:keepPicture': z.object({ entityId: Id, pendingId: z.string().max(80), source: z.string().max(200) }),
   'entity:removePicture': z.object({ entityId: Id }),

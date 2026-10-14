@@ -599,10 +599,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { tags: parseStyleTags(reply), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('pictures:addFolder', ({ name }) => current().addPictureFolder(name))
-  handle('promptTemplates:list', () => current().promptTemplates())
+  handle('promptTemplates:list', (use) => current().promptTemplates(use))
   handle('promptTemplates:save', (t) => current().savePromptTemplate(t))
-  handle('promptTemplates:remove', ({ name }) => current().removePromptTemplate(name))
-  handle('promptTemplates:rename', ({ name, next }) => current().renamePromptTemplate(name, next))
+  handle('promptTemplates:remove', ({ name, use }) => current().removePromptTemplate(name, use))
+  handle('promptTemplates:rename', ({ name, next, use }) => current().renamePromptTemplate(name, next, use))
   handle('entity:keepPicture', ({ entityId, pendingId, source }) => current().setPicture(entityId, { pendingId, source }))
   handle('entity:removePicture', ({ entityId }) => current().setPicture(entityId, null))
   handle('card:applyFill', ({ entityId, fields, source, srdKey }) => current().applyFill(entityId, fields, source, srdKey ? srdCopy(srdKey) : null))

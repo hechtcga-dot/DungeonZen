@@ -81,6 +81,17 @@ describe('Library pictures', () => {
     expect(c.promptTemplates().map((t) => t.name)).toEqual(['Lee'])
   })
 
+  it('keeps battle map templates apart from card picture templates', () => {
+    c.savePromptTemplate({ name: 'Inked', fields: { style: 'pen and ink' } })
+    c.savePromptTemplate({ name: 'Inked', use: 'battle', fields: { palette: 'greens and browns' } })
+    expect(c.promptTemplates().map((t) => t.fields)).toEqual([{ style: 'pen and ink' }])
+    expect(c.promptTemplates('battle')).toEqual([{ name: 'Inked', use: 'battle', fields: { palette: 'greens and browns' } }])
+    c.renamePromptTemplate('Inked', 'Forest', 'battle')
+    c.removePromptTemplate('Inked')
+    expect(c.promptTemplates()).toEqual([])
+    expect(c.promptTemplates('battle').map((t) => t.name)).toEqual(['Forest'])
+  })
+
   it('keeps empty folders the DM made', () => {
     c.addPictureFolder('Villains')
     expect(c.pictures().folders).toContain('Villains')
