@@ -504,7 +504,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const looks = ['appearance', 'summary', 'description', 'bio'].map((k) => e.attributes[k]).find((v) => typeof v === 'string' && v.trim()) as string | undefined
     const kind = PICTURE_KIND[e.type] ?? e.type.toLowerCase()
     return {
-      subject: `An illustration of ${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind} named ${e.name}, for a tabletop role-playing game.`,
+      subject: `An illustration of ${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind} named ${e.name}.`,
       description: looks?.trim().slice(0, 600) ?? '',
       figure: ['NPC', 'PC', 'MONSTER'].includes(e.type) ? 'Full figure, set in a fitting place.' : ''
     }

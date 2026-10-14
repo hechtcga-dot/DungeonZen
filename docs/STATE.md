@@ -317,8 +317,8 @@ built.
     mass, silhouette, centred, pattern) with sketches drawn in code (`art/compositions.tsx`); default by card type
     (`DEFAULT_COMPOSITION_FOR`: people pyramid, monsters/scenes diagonal, places thirds, quests S-curve, items/clues/
     handouts centred, factions group mass); "As in the style examples" when ticked pictures have a composition tag. `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
-    Card picture Draw window (2.2.x, owner 2026-10-14): prompt starts "An illustration of a <kind> named <name>, for a
-    tabletop role-playing game." (kind: character for NPC/PC, else the card type in lower case; `entity:picturePrompt`
+    Card picture Draw window (2.2.x, owner 2026-10-14): prompt starts "An illustration of a <kind> named <name>." (no
+    role-playing-game line; maps keep it) (kind: character for NPC/PC, else the card type in lower case; `entity:picturePrompt`
     returns subject/description/figure). Advanced composition fold (`AdvancedComposition`, `ADVANCED_FIELDS` in
     styleTags.ts): Description, Style, Medium, Palette, Light, Textures and details, Composition, Other details, each a
     box prefilled from the card, ticked examples' tags and the composition picker; changed boxes stay changed (back to

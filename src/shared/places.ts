@@ -68,7 +68,7 @@ export interface WorldSettings {
 /** What the image service is told when it draws a world map (shown and editable before drawing). */
 export function worldMapPrompt(o: { description: string; climate: WorldSettings['climate']; style: 'painted' | 'parchment' }): string {
   return [
-    'A fantasy world map seen from directly above, as in an atlas.',
+    'A fantasy world map for a tabletop role-playing game, seen from directly above, as in an atlas.',
     o.description.trim() ? `The world: ${o.description.trim()}` : 'A large continent with smaller islands, surrounded by sea.',
     `Climate: mostly ${o.climate}.`,
     'Show clearly different lands: forests, mountains, hills, grassland, farmland, desert, swamp, snow where it fits, rivers and lakes, coastlines.',
