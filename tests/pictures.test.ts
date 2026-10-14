@@ -53,6 +53,22 @@ describe('Library pictures', () => {
     expect(() => c.setPicture(loc.id, { path: '../campaign.db' })).toThrow()
   })
 
+  it('names card picture files after the card type and number', () => {
+    const g = c.info().globalBoardId
+    const a = c.createEntity({ boardId: g, type: 'NPC', name: 'A', position: { x: 0, y: 0 } })
+    const b = c.createEntity({ boardId: g, type: 'NPC', name: 'B', position: { x: 0, y: 0 } })
+    const loc = c.createEntity({ boardId: g, type: 'LOCATION', name: 'Mill', position: { x: 0, y: 0 } })
+    const pic = (id: string) => c.sheet(id).entity.attributes.picture
+    c.setPicture(b.id, { file: png })
+    expect(pic(b.id)).toBe('pictures/NPC2_1.png')
+    c.setPicture(b.id, { file: png })
+    expect(pic(b.id)).toBe('pictures/NPC2_2.png')
+    c.setPicture(a.id, { file: png })
+    expect(pic(a.id)).toBe('pictures/NPC1_1.png')
+    c.setPicture(loc.id, { file: png })
+    expect(pic(loc.id)).toBe('pictures/Location1_1.png')
+  })
+
   it('keeps empty folders the DM made', () => {
     c.addPictureFolder('Villains')
     expect(c.pictures().folders).toContain('Villains')

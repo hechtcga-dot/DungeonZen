@@ -2611,13 +2611,24 @@ export class Campaign {
     const src = 'file' in from ? from.file : this.pendingFile(from.pendingId)
     const ext = extname(src).toLowerCase()
     if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Pictures must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
-    const rel = `pictures/${randomUUID()}${storedExt(ext)}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'pictures'), { recursive: true })
+    const rel = this.pictureName(e, storedExt(ext))
     if ('file' in from) copyFileSync(src, join(this.folder, ASSETS_DIR, rel))
     else renameSync(src, join(this.folder, ASSETS_DIR, rel))
     this.log.run(`New picture for ${e.name}`, (w) => {
       w.update('entity', entityId, { attributes: { ...e.attributes, picture: rel, picture_source: 'source' in from ? from.source : null } })
     })
+  }
+
+  /** Card picture file name: type, the card's number among its type, picture number (Location1_1.png, NPC3_2.jpg). */
+  private pictureName(e: { id: string; type: string }, ext: string): string {
+    const type = e.type.length <= 3 ? e.type : e.type[0] + e.type.slice(1).toLowerCase()
+    const same = this.db.select().from(entity).where(eq(entity.type, e.type)).all().sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    const stem = `${type}${same.findIndex((x) => x.id === e.id) + 1}_`
+    const taken = new Set(readdirSync(join(this.folder, ASSETS_DIR, 'pictures')).map((f) => basename(f, extname(f)).toLowerCase()))
+    let n = 1
+    while (taken.has(`${stem}${n}`.toLowerCase())) n++
+    return `pictures/${stem}${n}${ext}`
   }
 
   applyFill(entityId: string, fields: Record<string, string>, source: string, srd?: SrdCopy | null): string[] {
