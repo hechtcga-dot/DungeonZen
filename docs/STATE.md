@@ -565,7 +565,7 @@ built.
   per square plus labels (tiny). Building tools: Room (walled rectangle), Wall, Door, Window, Stairs, Bed, Table,
   Bar, Hearth, Pillar, Label, Eraser; battle tools: Wall, Door, Room, Water, Trees, Rock, Pillar, Stairs, Difficult,
   Start: party, Start: foes, Label, Eraser. Each stroke one undo step; Undo button = app undo; size boxes resize.
-  Encounters › Battle map sketch (Show sketch tick, saved on the encounter) and Draw… / ✦ Draw battle map from
+  Encounters › Battle map sketch (a − / + fold at the bottom of the encounter since 2.2.4; the old Show sketch tick is gone) and Draw… / ✦ Draw battle map from
   sketch open the battle map window with the sketch. Draw window: Use sketch as blueprint (on), Show labels on the
   finished map, Keep start markers (off); Blueprint sent shows the plan and text. Sent as a flat-colour plan PNG
   (`sketchPng`) first, before style examples (OpenAI edits, Gemini parts; Stability uses control/sketch) plus
@@ -625,3 +625,12 @@ with tokens. Phases 1 to 5, the Windows installer (1.0.0), the getting started g
 2.2.0 (2026-10-14, owner's list): every one-line text box scrolls back to its start on click-out (`main.tsx` focusout);
 on-screen "string" and "connection" read "link" everywhere (data, code names and AI prompts unchanged; card sheet tab
 Connections → Links); card sheet tab names Stat block / Character sheet.
+- 2.2.4 (owner, 2026-10-14): battle map Draw window › Follow a picture (`FollowPicture.tsx`): pick a campaign map or
+  Upload a picture… (copied to `assets/outlines`, `outline:upload` 'follow'), drag a box round the part to use (Whole
+  picture link). Rows follow the box's shape; a map with a scale shows the part's real size and Use the map's scale
+  (when 5–60 squares). Buildings show: Inside (default) / Roofs. Main crops with nativeImage and enlarges to 1536 px
+  (`cropSource`), sent first as `follow` (Gemini/OpenAI: "the source picture to redraw"; Stability control/structure
+  0.8); the sketch blueprint is not sent while following. Prompt `followPrompt` (shared/battlemap.ts): keep every road,
+  river, building footprint, tree line in place, read blurry shapes by colour, 5 ft scale sizes (person 1 square,
+  cottage 4×6, road 2–3), fine detail, no text/symbols/compass/grid/watermark/logo. The boxed part is kept while the
+  app runs. Encounters: Battle map sketch moved to the bottom, foldable.

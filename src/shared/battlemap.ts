@@ -71,7 +71,14 @@ export interface BattleMapSpec {
   extra: string
   /** True when example maps go with the request. */
   withExamples: boolean
+  /** A source picture (part of a map, or any picture) is sent first and followed closely. */
+  follow?: boolean
+  /** When following a picture: buildings shown by their roofs or opened up to show inside. */
+  buildings?: Buildings
 }
+
+export const BUILDINGS = ['inside', 'roofs'] as const
+export type Buildings = (typeof BUILDINGS)[number]
 
 export const GRID_MIN = 5
 export const GRID_MAX = 60
@@ -134,7 +141,35 @@ const LIGHT_WORDS: Record<TimeOfDay, string> = {
   night: 'night: dark, lit only by moonlight and any light sources'
 }
 
+/** The request for "Follow a picture": the source's layout kept exactly, redrawn at battle-map scale and detail. */
+function followPrompt(spec: BattleMapSpec): string {
+  const sky = spec.setting === 'indoors' || spec.setting === 'underground' || spec.weather === 'indoors (none)'
+    ? '' : ` Weather: ${spec.weather}.${spec.season !== 'any' ? ` Season: ${spec.season}.` : ''}`
+  const lines = [
+    'Redraw the attached source picture (a small part of a larger map) as a detailed top-down battle map for a tabletop role-playing game.',
+    'Seen from directly above (orthographic, 90 degrees, no perspective or horizon).',
+    'Follow the source closely: keep every road, path, river, shoreline, wall, building footprint, field edge, tree line and open space in the same place, with the same shape and proportions. Do not add, move or remove buildings, roads or water.',
+    'The source is small-scale and blurry: read what each shape is from its colour and shape (red or brown blocks are roofs, blue is water, pale grey or tan lines are roads and paths, dark green dots are trees and bushes, yellow and brown patches are fields) and paint each one in full battle-map detail.',
+    `Scale: the map is ${spec.cols} squares wide and ${spec.rows} squares deep, each square 5 feet (1.5 metres). A person fills one square, a door is one square wide, a cottage is about 4 by 6 squares, a road 2 to 3 squares wide, a tree crown 2 to 4 squares across. Draw buildings, roads, trees and the gaps between them at these sizes.`,
+    spec.buildings === 'roofs'
+      ? 'Buildings: show their roofs (tiles, thatch or slate), with doors and steps visible at the walls.'
+      : 'Buildings: roofs removed so the inside shows: walls, doors, windows, floor, furniture, hearth.',
+    'Add fine detail that fits the source: ground texture (grass tufts, dirt, mud, cobbles), single bushes, rocks and stumps, fences and hedges, crates, barrels and carts, worn paths and wheel ruts.',
+    `Lighting: ${LIGHT_WORDS[spec.timeOfDay]}.${sky}`
+  ]
+  if (spec.description.trim()) lines.push(`Notes on the place: ${spec.description.trim().replace(/\s+/g, ' ')}`)
+  const feats = spec.features.filter((f) => f in BATTLE_FEATURES).map((f) => BATTLE_FEATURES[f].phrase)
+  if (feats.length) lines.push(`Where the source leaves room, add: ${feats.join('; ')}.`)
+  if (spec.extra.trim()) lines.push(`Also: ${spec.extra.trim().replace(/\s+/g, ' ')}`)
+  if (spec.mood !== 'neutral') lines.push(`Mood: ${spec.mood}.`)
+  lines.push(`Art style: ${spec.style}, rich detail, crisp clear edges; open ground you can walk on reads clearly against walls, water and obstacles.`)
+  lines.push('Leave out everything in the source that is not terrain: no text, names, labels, letters, numbers, symbols, icons, compass, scale bar, grid lines, frame, border, watermark, signature or logo. No people, creatures or tokens. No grid lines (the app draws them).')
+  if (spec.withExamples) lines.push('Match the art style, colours and line work of the example maps provided; take the layout only from the source picture.')
+  return lines.join('\n')
+}
+
 export function battleMapPrompt(spec: BattleMapSpec): string {
+  if (spec.follow) return followPrompt(spec)
   const where = [spec.setting, spec.terrain !== 'any' ? spec.terrain : ''].filter(Boolean).join(', ')
   const sky = spec.setting === 'indoors' || spec.setting === 'underground' || spec.weather === 'indoors (none)'
     ? '' : ` Weather: ${spec.weather}.${spec.season !== 'any' ? ` Season: ${spec.season}.` : ''}`

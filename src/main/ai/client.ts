@@ -24,6 +24,8 @@ export interface ImageRequest {
   aspect?: Aspect
   /** A layout plan to follow exactly (sketch blueprint); sent first, before the style examples. */
   blueprint?: { bytes: Buffer; mime: string }
+  /** A source picture (part of a map) to redraw as a battle map, layout kept exactly. Sent first, like a blueprint. */
+  follow?: { bytes: Buffer; mime: string }
   /** A rough outline (sketch or the DM's picture): layout only, never style. Sent first, like a blueprint. */
   outline?: { bytes: Buffer; mime: string }
   /** Update picture: the drawn picture to change (no style examples go with it). */
@@ -124,11 +126,12 @@ export async function generateText(r: Resolved, req: TextRequest, f: Fetch = fet
 export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = fetch): Promise<ImageResult> {
   if (req.edit) return changeImage(r, req, req.edit, f)
   const styleRefs = req.references ?? []
-  const plan = req.blueprint ?? req.outline
+  const plan = req.follow ?? req.blueprint ?? req.outline
   const refs = plan ? [plan, ...styleRefs] : styleRefs
   const aspect = req.aspect ?? '1:1'
   if (plan && r.info.protocol !== 'stability') {
-    const first = req.blueprint ? 'the plan (blueprint)' : 'the outline: use it for the layout and shapes only, not for its colours, art style or details'
+    const first = req.follow ? 'the source picture to redraw: keep its layout exactly, but not its blur, text, symbols or art style'
+      : req.blueprint ? 'the plan (blueprint)' : 'the outline: use it for the layout and shapes only, not for its colours, art style or details'
     req = { ...req, prompt: `${req.prompt}\nThe first attached image is ${first}${styleRefs.length ? '; the others are style examples only' : ''}.` }
   }
   switch (r.info.protocol) {
@@ -179,9 +182,10 @@ export async function generateImage(r: Resolved, req: ImageRequest, f: Fetch = f
       let path: string
       if (plan) {
         // Sketch control: keeps the plan's layout (style examples cannot be added here); an outline more loosely.
-        path = '/v2beta/stable-image/control/sketch'
+        // A source picture: structure control (keeps the shapes of a full picture, not just its lines).
+        path = req.follow ? '/v2beta/stable-image/control/structure' : '/v2beta/stable-image/control/sketch'
         form.append('image', new Blob([new Uint8Array(plan.bytes)], { type: plan.mime }), `plan.${ext(plan.mime)}`)
-        form.append('control_strength', req.blueprint ? '0.85' : '0.6')
+        form.append('control_strength', req.follow ? '0.8' : req.blueprint ? '0.85' : '0.6')
       } else if (refs.length) {
         // Style guide: copies the look of the first example map.
         path = '/v2beta/stable-image/control/style'

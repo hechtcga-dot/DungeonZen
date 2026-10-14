@@ -189,6 +189,15 @@ describe('battle map services', () => {
     expect(form.getAll('image[]')).toHaveLength(1)
   })
 
+  it('a followed picture goes first, named as the source to redraw', async () => {
+    const { f, sent } = fakeFetch(json({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] } }] }))
+    await generateImage(pick('gemini-image'), { prompt, follow: { bytes: png, mime: 'image/png' }, references: [{ bytes: png, mime: 'image/jpeg' }] }, f)
+    const parts = bodyOf(sent[0]).contents[0].parts
+    expect(parts[0].text).toContain('first attached image is the source picture to redraw')
+    expect(parts[1].inlineData.mimeType).toBe('image/png')
+    expect(parts[2].inlineData.mimeType).toBe('image/jpeg')
+  })
+
   it('Gemini images: example maps go in as inline images', async () => {
     const { f, sent } = fakeFetch(json({ candidates: [{ content: { parts: [{ text: 'Here' }, { inlineData: { mimeType: 'image/png', data: png.toString('base64') } }] } }] }))
     const out = await generateImage(pick('gemini-image'), { prompt, references: [{ bytes: png, mime: 'image/png' }, { bytes: png, mime: 'image/jpeg' }] }, f)

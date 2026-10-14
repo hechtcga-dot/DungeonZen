@@ -159,7 +159,7 @@ export const ipcInputs = {
   }),
   /** Add to picture: a copy of a kept picture put in the waiting area, so Update can work on it. */
   'image:pendingCopy': z.object({ path: z.string().min(1).max(500) }),
-  'outline:upload': z.void(),
+  'outline:upload': z.enum(['follow']).optional(),
   'entity:usePicture': z.object({ entityId: Id, path: z.string().min(1).max(500) }),
   'pictures:view': z.void(),
   'pictures:upload': z.object({ folder: z.string().trim().min(1).max(80) }),
@@ -360,7 +360,12 @@ export const ipcInputs = {
     prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16), smaller: z.boolean().optional(),
     aspect: z.enum(['1:1', '3:2', '2:3', '16:9', '9:16']),
     /** The sketch as a plan picture (PNG, base64) and its blueprint text: the AI follows it as the layout. */
-    blueprint: z.object({ png: z.string().max(4_000_000), text: z.string().max(12000) }).optional()
+    blueprint: z.object({ png: z.string().max(4_000_000), text: z.string().max(12000) }).optional(),
+    /** Follow a picture: a campaign map or an uploaded picture (assets path), and the part of it to use (fractions 0–1). */
+    follow: z.object({
+      mapId: Id.optional(), path: z.string().min(1).max(500).optional(),
+      crop: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: z.number().min(0.001).max(1), h: z.number().min(0.001).max(1) })
+    }).optional()
   }),
   'building:patronCard': z.object({ buildingId: Id, patronId: z.string().min(1).max(40), type: z.enum(['NPC', 'PC']) }),
   'building:secretPool': z.object({ buildingId: Id }),

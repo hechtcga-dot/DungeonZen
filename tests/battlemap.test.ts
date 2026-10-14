@@ -58,6 +58,18 @@ describe('battle map rules', () => {
     expect(outside).toContain('art style, colours')
   })
 
+  it('follows a picture: layout kept, battle-map scale, nothing that is not terrain', () => {
+    const p = battleMapPrompt({ ...base, setting: 'outdoors', follow: true, buildings: 'inside' })
+    expect(p).toContain('Redraw the attached source picture')
+    expect(p).toContain('same place, with the same shape and proportions')
+    expect(p).toContain('24 squares wide and 16 squares deep, each square 5 feet')
+    expect(p).toContain('a cottage is about 4 by 6 squares')
+    expect(p).toContain('roofs removed so the inside shows')
+    expect(p).toContain('Where the source leaves room, add: scattered cover')
+    expect(p).toMatch(/no text, names, labels.*watermark, signature or logo/)
+    expect(battleMapPrompt({ ...base, follow: true, buildings: 'roofs', withExamples: true })).toMatch(/show their roofs[\s\S]*layout only from the source picture/)
+  })
+
   it('fills in first guesses the DM can change', () => {
     expect(guessTerrain('Old Harbour: rotting piers')).toBe('coast')
     expect(guessTerrain('The crypt beneath the chapel')).toBe('crypt')

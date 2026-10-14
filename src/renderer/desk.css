@@ -1511,6 +1511,9 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .blueprint-text { white-space: pre-wrap; font-size: 11px; max-height: 180px; overflow: auto; background: rgba(255, 250, 236, 0.7); border: 1px solid #a8916a; border-radius: 4px; padding: 6px; }
 .ai-proposal .fill-body p, .ai-proposal .fill-body ul { margin: 0; font-size: 13px; }
 .enc-sketch { display: flex; flex-direction: column; gap: 6px; }
+.follow-frame { position: relative; overflow: hidden; border: 1px solid #333; border-radius: 4px; cursor: crosshair; touch-action: none; user-select: none; line-height: 0; }
+.follow-frame img { width: 100%; height: auto; display: block; pointer-events: none; }
+.follow-crop { position: absolute; border: 2px solid #ffd76a; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45); pointer-events: none; }
 
 /* Outline sketch and Update picture (Draw windows) */
 .draw-outline, .change-picture { border: 1px solid #b8a27a; border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }

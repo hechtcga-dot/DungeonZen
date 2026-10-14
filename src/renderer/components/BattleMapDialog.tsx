@@ -7,7 +7,7 @@ import { useBoard, useUnits } from '../store'
 import { maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
 import { SendExamples, SmallerExamples, withArtStyle } from './Pictures'
 import {
-  ART_STYLES, aspectFor, BATTLE_FEATURES, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
+  ART_STYLES, aspectFor, BATTLE_FEATURES, BUILDINGS, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
   rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
 } from '../../shared/battlemap'
 import type { PendingImageView, StyleExampleView } from '../../shared/types'
@@ -15,13 +15,14 @@ import { fmtSquares } from '../../shared/units'
 import { ChangePicture } from './OutlinePad'
 import { blueprintText, isBlank } from '../../shared/sketch'
 import { SketchDrawing, sketchPng } from './SketchPad'
+import { FollowPicture, type Follow } from './FollowPicture'
 
 type Drawn = PendingImageView & { source: string; prompt: string; cols: number }
-type Spec = Omit<BattleMapSpec, 'withExamples'>
+type Spec = Omit<BattleMapSpec, 'withExamples' | 'follow'>
 
 const START: Spec = {
   description: '', setting: 'outdoors', terrain: 'any', cols: 20, rows: 20, timeOfDay: 'day', weather: 'clear',
-  season: 'any', mood: 'neutral', style: 'painted', features: defaultFeatures('outdoors'), extra: ''
+  season: 'any', mood: 'neutral', style: 'painted', features: defaultFeatures('outdoors'), extra: '', buildings: 'inside'
 }
 const cap = (x: string) => x[0].toUpperCase() + x.slice(1)
 
@@ -56,6 +57,8 @@ export function BattleMapDialog() {
   const [labelsOn, setLabelsOn] = useState(false)
   const [markersOn, setMarkersOn] = useState(false)
   const [smaller, setSmaller] = useState(false)
+  // Kept between openings while the app runs, so Try again or a second drawing keeps the boxed part.
+  const [follow, setFollow] = useState<Follow | null>(null)
   const setOpen = useBoard((s) => s.setBattleMapOpen)
   const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
   const aiOpen = useBoard((s) => s.aiSettingsOpen)
@@ -118,7 +121,7 @@ export function BattleMapDialog() {
   const maxRefs = maxReferences(service?.info)
   const [send, setSend] = useState(false)
   const withExamples = send && maxRefs > 0 && picked.size > 0
-  const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples }), artStyle, styles.filter((st) => picked.has(st.id)).map((st) => st.tags))
+  const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples, follow: !!follow }), artStyle, styles.filter((st) => picked.has(st.id)).map((st) => st.tags))
   const prompt = ownPrompt ?? generated
   const [gridShown, setGridShown] = useState(false)
   const sizeOk = [cols, rows].every((n) => Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX)
@@ -133,8 +136,9 @@ export function BattleMapDialog() {
     try {
       if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }).catch(() => undefined)
       const ids = withExamples ? [...picked].slice(0, maxRefs) : []
-      const blueprint = sketch && useBlueprint ? { png: sketchPng(sketch), text: blueprintText(sketch, { labels: labelsOn, markers: markersOn }) } : undefined
-      const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows), blueprint, smaller })
+      const blueprint = sketch && useBlueprint && !follow ? { png: sketchPng(sketch), text: blueprintText(sketch, { labels: labelsOn, markers: markersOn }) } : undefined
+      const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows), blueprint, smaller,
+        follow: follow ? { mapId: follow.mapId, path: follow.path, crop: follow.crop } : undefined })
       setDrawn({ ...r, prompt, cols })
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
@@ -275,7 +279,11 @@ export function BattleMapDialog() {
               </div>
             </div>
             <div className="dz-form">
-              {sketch && (
+              <FollowPicture value={follow} onChange={(f) => { setFollow(f); setOwnPrompt(null) }} cols={cols} onSize={(c, r) => set({ cols: c, rows: r })} />
+              {follow && (
+                <Choice id="bm-buildings" label="Buildings show" k="buildings" options={BUILDINGS} spec={spec} set={set} />
+              )}
+              {sketch && !follow && (
                 <div className="blueprint-box">
                   <label className="field checkbox"><input type="checkbox" checked={useBlueprint} onChange={(e) => setUseBlueprint(e.target.checked)} />
                     <span><strong>Use sketch as blueprint</strong><br /><span className="hint">The map service gets the sketch as a clean plan picture plus a square-by-square list, and is told to keep every wall, door, room and feature exactly where it is, at this size, top-down.{!service.info.references ? ` ${service.info.name} cannot see pictures: it gets the list only.` : ''}</span></span></label>

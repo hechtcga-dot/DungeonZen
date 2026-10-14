@@ -99,7 +99,6 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
   const [ratingBusy, setRatingBusy] = useState(false)
   const [ratingError, setRatingError] = useState<string | null>(null)
   const [roll20, setRoll20] = useState(false)
-  const [showSketch, setShowSketch] = useState(true)
   const drawMap = () => setBattleMapOpen({ name: `${e.name} battle map`, description: e.scene, sketch: e.sketch, onKept: (mapId) => up({ battleMapId: mapId }) })
   const [pdf, setPdf] = useState(false)
   const d = e.difficulty
@@ -150,16 +149,6 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
       <CommitField id="enc-scene" label="Scene" multiline rows={3} value={e.scene}
         placeholder="A collapsed watchtower in the rain; smugglers unload crates by lantern light…"
         hint="What the place looks like and what is going on. Build with AI works from it." onCommit={(scene) => up({ scene })} />
-
-      <div className="enc-sketch">
-        <div className="row tight">
-          <strong>Battle map sketch</strong>
-          <label className="field checkbox"><input type="checkbox" checked={showSketch} onChange={(ev) => setShowSketch(ev.target.checked)} /> Show sketch</label>
-          <span className="spacer" />
-          <button className="ink-button" onClick={drawMap} title="Draw…: the sketch goes to the map service as a blueprint">✦ Draw battle map from sketch</button>
-        </div>
-        {showSketch && <SketchPad label={`Battle map sketch for ${e.name}`} sketch={e.sketch} tools={BATTLE_TOOLS} size={[20, 20]} onCommit={(sketch) => up({ sketch })} />}
-      </div>
 
       <EncounterPictures id={e.id} />
 
@@ -282,6 +271,15 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
         <button className="ink-button" onClick={() => void openSheet(e.id)}>Open card</button>
         <button className="ink-button danger-ink" onClick={() => void act('entity:setStatus', { id: e.id, status: 'defunct' })}>Remove encounter</button>
       </div>
+      <section className="enc-sketch" aria-label="Battle map sketch">
+        <h3 className="panel-title side-h">Battle map sketch</h3>
+        <div className="row tight">
+          <span className="ink-muted">Draw the layout square by square; the map service follows it as a blueprint.</span>
+          <span className="spacer" />
+          <button className="ink-button" onClick={drawMap} title="Draw…: the sketch goes to the map service as a blueprint">✦ Draw battle map from sketch</button>
+        </div>
+        <SketchPad label={`Battle map sketch for ${e.name}`} sketch={e.sketch} tools={BATTLE_TOOLS} size={[20, 20]} onCommit={(sketch) => up({ sketch })} />
+      </section>
       {roll20 && <Roll20Dialog entityIds={e.creatures.map((c) => c.entityId)} title={`Roll20: ${e.name}`} mapId={e.battleMapId} onClose={() => setRoll20(false)} />}
       {pdf && <ExportDialog kind="sheets" entityIds={e.creatures.map((c) => c.entityId)} title={e.name} onClose={() => setPdf(false)} />}
     </section>

@@ -62,6 +62,20 @@ const SHARED_WRITES = new Set<IpcChannel>(['notes:set', 'notes:append', 'session
 // bigger ones on arrival, so nothing is lost and the upload is far smaller), or 1024 px when the
 // DM ticks "Send smaller copies".
 const prepared = new Map<string, { bytes: Buffer; mime: string }>()
+/** The chosen part of a map or picture, enlarged to 1536 px on its long side (smoothly) so the AI sees its shapes clearly. */
+function cropSource(c: Campaign, f: { mapId?: string; path?: string; crop: { x: number; y: number; w: number; h: number } }): { bytes: Buffer; mime: string } {
+  const file = f.mapId ? c.mapImage(f.mapId).file : f.path ? c.assetFile(f.path) : null
+  if (!file) throw new Error('The picture to follow is missing from the campaign folder. Choose it again.')
+  const img = nativeImage.createFromPath(file)
+  if (img.isEmpty()) throw new Error('This picture could not be read for cutting out a part. Use a PNG or JPEG picture.')
+  const { width, height } = img.getSize()
+  const x = Math.min(width - 1, Math.round(f.crop.x * width)), y = Math.min(height - 1, Math.round(f.crop.y * height))
+  const part = img.crop({ x, y, width: Math.max(1, Math.min(width - x, Math.round(f.crop.w * width))), height: Math.max(1, Math.min(height - y, Math.round(f.crop.h * height))) })
+  const s = part.getSize()
+  const big = s.width >= s.height ? part.resize({ width: 1536, quality: 'best' }) : part.resize({ height: 1536, quality: 'best' })
+  return { bytes: big.toPNG(), mime: 'image/png' }
+}
+
 function shrink(refs: Array<{ bytes: Buffer; mime: string; key?: string }>, smaller?: boolean): Array<{ bytes: Buffer; mime: string }> {
   const max = smaller ? 1024 : 1536
   return refs.map((ref) => {
@@ -543,10 +557,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { ...next, source: `${r.info.name} · ${r.model || 'default model'}`, prompt }
   })
   handle('image:pendingCopy', ({ path }) => current().pendingCopy(path))
-  handle('outline:upload', async () => {
+  handle('outline:upload', async (purpose) => {
     const win = getWindow()
     const options = {
-      title: 'Choose a picture to use as the outline', buttonLabel: 'Use as outline', properties: ['openFile'] as Array<'openFile'>,
+      ...(purpose === 'follow' ? { title: 'Choose a picture to turn into a battle map', buttonLabel: 'Use this picture' } : { title: 'Choose a picture to use as the outline', buttonLabel: 'Use as outline' }), properties: ['openFile'] as Array<'openFile'>,
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'jfif', 'webp'] }]
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
@@ -1106,13 +1120,16 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const description = s.current.trim() || (s.place ? [s.place.name, s.place.looks || s.place.notes].filter(Boolean).join(': ') : '')
     return { description, placeName: s.place?.name ?? null, timeOfDay: timeOfDayFor(s.light) }
   })
-  handle('battlemap:draw', async ({ prompt, styleIds, aspect, blueprint, smaller }) => {
+  handle('battlemap:draw', async ({ prompt, styleIds, aspect, blueprint, smaller, follow }) => {
     const choice = profile.aiChoice('image')
     const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
     const c = current()
-    const references = shrink(c.styleImages(styleIds, Math.max(0, maxReferences(r.info) - (blueprint ? 1 : 0))), smaller)
+    // A followed picture takes the plan's place (the sketch is not sent with it).
+    const source = follow ? cropSource(c, follow) : undefined
+    if (source) blueprint = undefined
+    const references = shrink(c.styleImages(styleIds, Math.max(0, maxReferences(r.info) - (blueprint || source ? 1 : 0))), smaller)
     const plan = blueprint ? { bytes: Buffer.from(blueprint.png, 'base64'), mime: 'image/png' } : undefined
-    const image = await generateImage(r, { prompt: blueprint ? `${prompt}\n\n${blueprint.text}` : prompt, references, aspect, blueprint: plan })
+    const image = await generateImage(r, { prompt: blueprint ? `${prompt}\n\n${blueprint.text}` : prompt, references, aspect, blueprint: plan, follow: source })
     return { ...c.savePendingImage(image.bytes, image.mime), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('battlemap:keep', (input) => current().keepBattleMap(input))
