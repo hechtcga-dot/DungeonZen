@@ -84,7 +84,7 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
   )
   const rooms = (kind === 'tavern' || live(b.rooms).length > 0) && <RoomsPanel key="rooms" b={b} floor={cur} save={save} price={price} onPick={setHighlight} />
   const stock = <StockPanel key="stock" b={b} kind={kind} floor={cur.id} save={save} price={price} factor={factor} />
-  const order = kind === 'shop' ? [stock, people, layout, rooms] : [people, layout, rooms, stock]
+  const order = kind === 'shop' ? [stock, people, rooms, layout] : [people, rooms, stock, layout] // layout always last (owner, 2026-10-14)
 
   return (
     <>

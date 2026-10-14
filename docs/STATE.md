@@ -462,7 +462,7 @@ built.
   (Enter or click away saves, Escape puts it back, undoable).
 - Building sheet side panel (2026-10-14): same order as other cards: picture and Campaign template (name, type, one-line
   summary, tags, colour) first, then Details (kind, inside, factions), description and history, Secrets & clues folders,
-  the other details, price settings.
+  the other details, price settings. Main column: layout sketch always last.
     Outlines (board and Map screen) are drawn smoothed (`smooth` in `MapOverlay`, 2 rounds of corner cutting, shared
     borders stay one line), thin solid ink at 55%, lighter fill; clicks and drops still use the stored polygon.
     Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
