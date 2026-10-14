@@ -1508,3 +1508,13 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .prep-card { display: flex; flex-direction: column; gap: 8px; }
 .prep-card .inspector-picture { cursor: default; }
 .prep-card-notes { white-space: pre-wrap; }
+
+/* Fold any titled panel to its title (fold.ts). */
+[data-fold] { cursor: pointer; }
+[data-fold]::after {
+  content: '−'; display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 10px; vertical-align: middle;
+  font: 700 14px/1 system-ui, sans-serif; color: #5a4a32; border: 1px solid rgba(42, 31, 18, 0.45); border-radius: 3px; background: rgba(255, 252, 240, 0.6);
+}
+[data-folded] [data-fold]::after { content: '+'; }
+[data-folded] > :not([data-fold]):not(:has([data-fold])) { display: none !important; }
+[data-folded] :has(> [data-fold]) > :not([data-fold]):not(.prep-n) { display: none !important; }

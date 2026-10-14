@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useBoard } from './store'
+import { useFolding } from './fold'
 import { StartScreen } from './screens/StartScreen'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
@@ -23,6 +24,7 @@ const GeneratorsScreen = lazy(() => import('./screens/GeneratorsScreen').then((m
 const JournalWindow = lazy(() => import('./screens/JournalWindow').then((m) => ({ default: m.JournalWindow })))
 
 export function App() {
+  useFolding()
   return window.location.hash === '#journal' ? <Suspense fallback={null}><JournalWindow /></Suspense> : <MainApp />
 }
 

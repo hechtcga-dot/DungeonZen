@@ -454,6 +454,9 @@ built.
 - Links panel (2026-10-14): rows spelled out (both cards clickable, kind, Known/Secret, description, Hide, Remove),
   grouped Known then Secret, by kind. The left Links tool shows every link; the Links tab with a card selected shows
   that card's links, the rest under Show all links.
+- Fold any panel (owner, 2026-10-14, `fold.ts`): every titled panel on every screen (`.panel-title`, `.panel-heading`,
+  `.mat-heading` inside a section/parchment/panel) gets a − / + after its title; clicking the title folds the panel to it.
+  Folded panels are remembered per screen and title on this computer (localStorage `dz-folded`).
     Outlines (board and Map screen) are drawn smoothed (`smooth` in `MapOverlay`, 2 rounds of corner cutting, shared
     borders stay one line), thin solid ink at 55%, lighter fill; clicks and drops still use the stored polygon.
     Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
