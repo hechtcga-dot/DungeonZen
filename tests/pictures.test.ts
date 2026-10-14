@@ -53,20 +53,20 @@ describe('Library pictures', () => {
     expect(() => c.setPicture(loc.id, { path: '../campaign.db' })).toThrow()
   })
 
-  it('names card picture files after the card type and number', () => {
+  it('names card picture files after the card name', () => {
     const g = c.info().globalBoardId
     const a = c.createEntity({ boardId: g, type: 'NPC', name: 'A', position: { x: 0, y: 0 } })
     const b = c.createEntity({ boardId: g, type: 'NPC', name: 'B', position: { x: 0, y: 0 } })
-    const loc = c.createEntity({ boardId: g, type: 'LOCATION', name: 'Mill', position: { x: 0, y: 0 } })
+    const loc = c.createEntity({ boardId: g, type: 'LOCATION', name: 'Old Mill: ruins?', position: { x: 0, y: 0 } })
     const pic = (id: string) => c.sheet(id).entity.attributes.picture
     c.setPicture(b.id, { file: png })
-    expect(pic(b.id)).toBe('pictures/NPC2_1.png')
+    expect(pic(b.id)).toBe('pictures/B_1.png')
     c.setPicture(b.id, { file: png })
-    expect(pic(b.id)).toBe('pictures/NPC2_2.png')
+    expect(pic(b.id)).toBe('pictures/B_2.png')
     c.setPicture(a.id, { file: png })
-    expect(pic(a.id)).toBe('pictures/NPC1_1.png')
+    expect(pic(a.id)).toBe('pictures/A_1.png')
     c.setPicture(loc.id, { file: png })
-    expect(pic(loc.id)).toBe('pictures/Location1_1.png')
+    expect(pic(loc.id)).toBe('pictures/Old_Mill_ruins_1.png')
   })
 
   it('saves, replaces and removes prompt templates (undoable)', () => {

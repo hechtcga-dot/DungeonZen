@@ -2646,11 +2646,10 @@ export class Campaign {
     })
   }
 
-  /** Card picture file name: type, the card's number among its type, picture number (Location1_1.png, NPC3_2.jpg). */
-  private pictureName(e: { id: string; type: string }, ext: string): string {
-    const type = e.type.length <= 3 ? e.type : e.type[0] + e.type.slice(1).toLowerCase()
-    const same = this.db.select().from(entity).where(eq(entity.type, e.type)).all().sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    const stem = `${type}${same.findIndex((x) => x.id === e.id) + 1}_`
+  /** Card picture file name: the card's name and a picture number (Ottoman_1.png, Old_Mill_2.jpg; owner, 2026-10-14). */
+  private pictureName(e: { name: string; type: string }, ext: string): string {
+    const safe = e.name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').trim().replace(/\s+/g, '_').replace(/[.\s]+$/, '').slice(0, 60)
+    const stem = `${safe || e.type[0] + e.type.slice(1).toLowerCase()}_`
     const taken = new Set(readdirSync(join(this.folder, ASSETS_DIR, 'pictures')).map((f) => basename(f, extname(f)).toLowerCase()))
     let n = 1
     while (taken.has(`${stem}${n}`.toLowerCase())) n++

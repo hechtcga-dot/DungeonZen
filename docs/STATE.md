@@ -265,7 +265,7 @@ built.
     (picture beside it, creatures; 2.2.0): stat block to run the fight;
     Raise/Lower CR by the DMG table (`src/shared/crscale.ts`, previewed, one undo step); AI stat block
     from a description and options (`src/main/ai/statblock.ts`, proposal); picture upload or AI drawing
-    (`attributes.picture` in `assets/pictures/` named `<Type><card number in its type>_<picture number>`, e.g. `Location1_1.png`, `NPC3_2.jpg`; existing files keep their names; `picture_source`).
+    (`attributes.picture` in `assets/pictures/` named `<card name>_<picture number>` (spaces to _, characters Windows forbids dropped), e.g. `Ottoman_1.png`, `Old_Mill_2.jpg`; existing files keep their names; `picture_source`).
   - Encounters: Save encounter, Scene box (`attributes.scene`), Build with AI (`BUILD_SYSTEM`; SRD or new
     monsters ticked and added; added cards are stashed, i.e. only in the encounter, until Put on board).
   - Run encounter (`CombatScreen.tsx`, `combat` table with one JSON state, `src/shared/combat.ts`): no
