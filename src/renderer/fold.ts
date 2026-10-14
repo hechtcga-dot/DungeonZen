@@ -16,8 +16,11 @@ function load<T>(key: string, empty: T): T {
 function keep(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* not kept */ }
 }
-const folded = new Set(load<string[]>(FOLD_KEY, []))
+// Prep section titles held their number as text until 2.2.3 ("2 Likely scenes"); kept folds and orders drop it.
+const unnumber = (t: string) => t.replace(/^(\d+) (?=\D)/, '')
+const folded = new Set(load<string[]>(FOLD_KEY, []).map((k) => k.startsWith('prep|') ? `prep|${unnumber(k.slice(5))}` : k))
 const orders = load<Record<string, string[]>>(ORDER_KEY, {})
+for (const k of Object.keys(orders)) if (k.startsWith('prep|')) orders[k] = orders[k].map(unnumber)
 
 const screen = () => useBoard.getState().screen
 const titleOf = (h: Element) => (h.firstChild?.nodeType === Node.TEXT_NODE ? h.textContent ?? '' : h.textContent ?? '').replace(/[−+↑↓]/g, '').trim()
@@ -76,6 +79,16 @@ function arrange(parent: Element) {
   if (getComputedStyle(parent).display === 'block') parent.setAttribute('data-box-column', '')
 }
 
+/** Numbered titles (prep sections' round numbers) follow the boxes' shown order. */
+function renumber(parent: Element) {
+  const kids = [...parent.children] as HTMLElement[]
+  const nums = kids.filter((k) => k.hasAttribute('data-box'))
+    .map((b) => ({ at: b.style.order === '' ? kids.indexOf(b) : Number(b.style.order), n: headOf(b)?.querySelector<HTMLElement>(':scope > .prep-n') }))
+    .filter((x) => x.n).sort((a, b) => a.at - b.at)
+  if (nums.length < 2) return // a pop-out window keeps the section's own number
+  nums.forEach((x, i) => { if (x.n!.dataset.n !== String(i + 1)) x.n!.dataset.n = String(i + 1) })
+}
+
 function mark() {
   const parents = new Set<Element>()
   for (const h of document.querySelectorAll(TITLES)) {
@@ -90,7 +103,7 @@ function mark() {
     if (fold && fold.textContent !== (isFolded ? '+' : '−')) fold.textContent = isFolded ? '+' : '−'
     if (box.parentElement) parents.add(box.parentElement)
   }
-  parents.forEach(arrange)
+  parents.forEach((p) => { arrange(p); renumber(p) })
 }
 
 async function move(box: HTMLElement, dir: -1 | 1) {
@@ -112,6 +125,7 @@ async function move(box: HTMLElement, dir: -1 | 1) {
   } else orders[parentKey(parent)] = order
   keep(ORDER_KEY, orders)
   arrange(parent)
+  renumber(parent)
 }
 
 export function useFolding() {

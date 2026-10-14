@@ -146,7 +146,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
         </section>}
 
         {show('opening') && <section className="parchment-sheet prep-section" aria-labelledby="prep-opening">
-          <h2 id="prep-opening" className="panel-title"><span className="prep-n">1</span> Session opening {pop('opening')}</h2>
+          <h2 id="prep-opening" className="panel-title"><span className="prep-n" data-n={1} /> Session opening {pop('opening')}</h2>
           <p className="ink-muted prep-hint">One sentence describing how the session begins. Start with something happening rather than asking the players what they want to do.</p>
           <LinkField id="prep-premise" label="Opening" className="label-hidden" multiline rows={2} value={p.premise}
             placeholder="Someone is pounding on the door at 2 a.m." onCommit={(v) => up({ premise: v })} />
@@ -206,7 +206,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
         </PrepSection>}
 
         {show('recap') && <section className="parchment-sheet prep-section" aria-labelledby="prep-recap">
-          <h2 id="prep-recap" className="panel-title"><span className="prep-n">6</span> Session recap {pop('recap')}</h2>
+          <h2 id="prep-recap" className="panel-title"><span className="prep-n" data-n={6} /> Session recap {pop('recap')}</h2>
           <p className="ink-muted prep-hint">Write this after the session. “What happened” is the session’s recap (the same text as in Review).</p>
           {p.session
             ? <LinkField id="prep-happened" label="What happened" multiline rows={3} value={p.session.recap}
@@ -493,7 +493,7 @@ function PrepSection({ p, kind, n, title, hint, add, extra, children, pop }: {
   return (
     <section className="parchment-sheet prep-section" aria-labelledby={`prep-${kind}`}>
       <div className="prep-section-head">
-        <h2 id={`prep-${kind}`} className="panel-title"><span className="prep-n">{n}</span> {title} {pop}</h2>
+        <h2 id={`prep-${kind}`} className="panel-title"><span className="prep-n" data-n={n} /> {title} {pop}</h2>
         <div className="row tight wrap">
           {extra}
           {add && <button className="ink-button primary-ink" onClick={() => void act('prepItem:add', { prepId: p.id, kind })}>{add}</button>}

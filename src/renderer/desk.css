@@ -570,6 +570,7 @@ button.otf-card:hover:not(:disabled) { background-color: #fff6dc; border-color: 
 .prep-head, .prep-section { display: flex; flex-direction: column; gap: 10px; color: var(--ink); }
 .prep-head-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 110px; gap: 12px; }
 .prep-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.prep-n::before { content: attr(data-n); }
 .prep-n { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 4px; border-radius: 50%; background: #2a1f12; color: #f6ecd0; font-size: 15px; }
 .prep-hint { margin: -4px 0 0; font-size: 13px; }
 .prep-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; counter-reset: prep; }
