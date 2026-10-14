@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.2.3 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.3.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -129,3 +129,7 @@ Owner's decisions: [kind] from the card type (character, monster, location…); 
 2.2.2 (2026-10-14): card picture Draw window in two columns (owner chose mockup option A, 2026-10-14): settings left, picture + prompt right; send-pictures tick moved under the example pictures in every Draw window, small and muted; What it is like above Include; templates renamed/removed from a Rename or remove… list (owner).; growing text boxes (two paragraphs then scroll); style examples: 8 most recent + All examples; prep pop-out windows (sections 1-7, NPC); prep NPC row option 2 (icon tools, Name drop-down with Create new NPC / One-time NPC, Flaws, fold 2×2 Location/Description/Links+New link/DM notes, Show from the sheet ticks); Location drop-down everywhere with (from map); card picture files `<card name>_<k>`; linked-words drift fixed, right-click Remove the link.
 Defaults picked: recent examples kept on this computer; Show from the sheet has no Items (none stored on cards); one-time NPC flaws use the old How to play text; pop-outs close with the main window.
 2.2.3 (2026-10-14): prep section numbers follow ↑ / ↓ order; × removes a link on prep NPC rows (History); Draw window "Description" box under its title; card picture panel: Draw with AI… + icons (✚ 🖼 ⬆ 📁 🗑), no "Drawn by AI" badge; text boxes: Enter new line everywhere (Ctrl+Enter saves), Tab/Shift+Tab indent, lists carry on, Ctrl+D, Alt+↑/↓, spelling right-click menu (owner chose).
+
+## 2.3.0 (built 2026-10-14)
+Battle map Draw window › Follow a picture (pick a map or upload, drag a box, AI redraws that part at 5 ft scale with no text/symbols/watermarks; Buildings show Inside/Roofs; saved per encounter; box over 300 ft = warning + Make the largest map); Advanced style and composition fold (boxes from the ticked examples' style tags, battle map templates); Encounters › Battle map sketch at the bottom, foldable; Suggest from the SRD is a random roll over every monster that fits the budget, words match the whole stat block. Details in `docs/STATE.md`.
+Owner's decisions: followed picture saved with the encounter; too-big box offers the largest 300 ft map. Defaults picked: Make the largest map shrinks the box (true scale); Buildings start Inside; style edits reset per opening (templates keep them); fold, not a tab.
