@@ -394,7 +394,9 @@ export function NpcRow({ i, s, k, count }: { i: PrepItemView; s: PrepScreenView;
                         return (
                           <li key={r.id}>
                             <span className="tie-type">{r.isSecret ? 'Secret · ' : ''}{words(r.type)}</span> {r.sourceId === card.id ? '→' : '←'}{' '}
-                            <button className="link-button" onClick={() => void openSheet(other)}>{name(other)}</button>
+                            <button className="link-button" onClick={() => void openSheet(other)}>{name(other)}</button>{' '}
+                            <button className="link-button danger-link" aria-label="Remove this link" title="Remove this link (it goes to History; Ctrl+Z undoes)"
+                              onClick={() => void act('relationship:setStatus', { id: r.id, status: 'defunct' })}>×</button>
                           </li>
                         )
                       })}

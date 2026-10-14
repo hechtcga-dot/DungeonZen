@@ -501,9 +501,13 @@ built.
   🗑 Remove); Name drop-down (NPC cards, + Create new NPC… makes the card right away, One-time NPC (does not create
   card) with its own name box: the line's title); Flaws (the card's `flaws`; a one-time NPC keeps them in `body`, the old
   How to play text) and Motivation on top. Fold (beige box): 2×2 Location (`LocationPick`) / Description, Links (beige
-  list + "+ New link": this card – LinkTypeFields – CardPicker, a board string) / DM notes (starts as tall as the links,
+  list + "+ New link": this card – LinkTypeFields – CardPicker, a board string; red × per link sends the string to
+  History, `relationship:setStatus` defunct, Ctrl+Z undoes) / DM notes (starts as tall as the links,
   up to 200 px, while empty). Show from the sheet: ticks (stat block summary, personality, ideals, bonds, voice,
   tactics, actions, spells) kept in `prep_item.stats` (comma list), read-only from `sheet:view`. No items list exists.
+- Prep section numbers (owner, 2026-10-14): the round number is `.prep-n[data-n]` (CSS `::before`, so titles and kept
+  folds/orders hold no digits; old "2 Likely scenes" keys are stripped on load); `fold.ts` `renumber` sets 1…n in the
+  shown order after ↑ / ↓. A pop-out window keeps the section's own number.
 - Location drop-down (owner, 2026-10-14, `LocationPick`): label "Location"; Location and Building cards (`places:list`,
   "(from map)" when a map region shows the place), + New location… (makes a Location card); a typed place that is not a
   card stays. Card sheet (Character sheet side / template), board side panel, building "Inside", prep NPCs.
