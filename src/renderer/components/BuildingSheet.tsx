@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useBoard } from '../store'
 import { call } from '../api'
-import { CommitField } from './fields'
+import { CommitField, TitleField } from './fields'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { SketchPad } from './SketchPad'
@@ -43,8 +43,8 @@ function Removed<T extends { id: string; removed?: boolean }>({ items, name, onR
  * scored secrets, layout sketch, rooms, stock with prices, Secrets & clues folders. Each edit is
  * one entity:update (undo); removing moves to History inside the card.
  */
-export function BuildingTab({ sheet, side, wrapSide, factions, lab }: {
-  sheet: SheetView; side: ReactNode; wrapSide(children: ReactNode): ReactNode; factions: ReactNode; lab(key: string, label: string): string
+export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
+  sheet: SheetView; side: ReactNode; rest: ReactNode; wrapSide(children: ReactNode): ReactNode; factions: ReactNode; lab(key: string, label: string): string
 }) {
   const { act, openSheet, say, setBattleMapOpen, info } = useBoard()
   const e = sheet.entity
@@ -89,7 +89,7 @@ export function BuildingTab({ sheet, side, wrapSide, factions, lab }: {
   return (
     <>
       <div className="building-top">
-        <BuildingBackdrop kind={kind} title={e.name}
+        <BuildingBackdrop kind={kind} title={<TitleField value={e.name} label="Building name" onCommit={(name) => void act('entity:update', { id: e.id, patch: { name } })} />}
           sub={`${KIND_LABELS[kind]} · ${floors.length} floor${floors.length === 1 ? '' : 's'}${kind === 'tavern' || freeRooms ? ` · ${freeRooms} room${freeRooms === 1 ? '' : 's'} free` : ''} · prices ×${factor.toFixed(2)}`} />
         <FloorTabs b={b} current={cur.id} onPick={setFloor} save={save} setMenu={setMenu}
           onDropPatron={(pid, fid) => void save({ patrons: upd(b.patrons, pid, { floor: fid }) })} />
@@ -103,13 +103,7 @@ export function BuildingTab({ sheet, side, wrapSide, factions, lab }: {
       </div>
       <div className="sheet-main">{order}</div>
       {wrapSide(<>
-        <SecretsFolders sheet={sheet} b={b} save={save} setMenu={setMenu} />
-        <section className="panel">
-          <CommitField id={`b-${e.id}-desc`} label={lab('description', 'Description')} value={text('description')} multiline rows={4}
-            onCommit={(description) => void act('entity:update', { id: e.id, patch: { attributes: { description } } })} />
-          <CommitField id={`b-${e.id}-hist`} label={lab('history', 'History')} value={text('history')} multiline rows={5}
-            hint="Says how the place got its name." onCommit={(history) => void act('entity:update', { id: e.id, patch: { attributes: { history } } })} />
-        </section>
+        {side}
         <section className="panel">
           <h2 className="panel-heading">Details</h2>
           <div className="field">
@@ -123,7 +117,14 @@ export function BuildingTab({ sheet, side, wrapSide, factions, lab }: {
             hint="Its region on the map shows who is in here." onCommit={(location) => void act('entity:update', { id: e.id, patch: { attributes: { location } } })} />
           {factions}
         </section>
-        {side}
+        <section className="panel">
+          <CommitField id={`b-${e.id}-desc`} label={lab('description', 'Description')} value={text('description')} multiline rows={4}
+            onCommit={(description) => void act('entity:update', { id: e.id, patch: { attributes: { description } } })} />
+          <CommitField id={`b-${e.id}-hist`} label={lab('history', 'History')} value={text('history')} multiline rows={5}
+            hint="Says how the place got its name." onCommit={(history) => void act('entity:update', { id: e.id, patch: { attributes: { history } } })} />
+        </section>
+        <SecretsFolders sheet={sheet} b={b} save={save} setMenu={setMenu} />
+        {rest}
         <details className="panel price-settings">
           <summary><span className="panel-heading">Price settings</span> <span className="hint">campaign {campaignPct}% · this {KIND_LABELS[kind].toLowerCase()} {b.priceScale}%</span></summary>
           <div className="field">

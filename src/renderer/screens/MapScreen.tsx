@@ -7,7 +7,7 @@ import { MapOverlay, PartyToken, PcTokenMark } from '../components/MapOverlay'
 import { Candle, CompassRose } from '../art/props'
 import { useLightingPref } from '../art/TableLighting'
 import { Dialog } from '../components/Dialog'
-import { CommitField } from '../components/fields'
+import { CommitField, TitleField } from '../components/fields'
 import { MapDialog } from '../components/EditDialogs'
 import { FindRegions } from './GuideScreen'
 import { OpenFolder } from '../components/OpenFolder'
@@ -43,7 +43,7 @@ export function MapScreen() {
           <Candle className="desk-candle" lit={!lighting || lightingAt(minutes).candlesLit} />
           <div className="desk-title">
             <span className="desk-eyebrow">{info ? formatClock(info.clockMin) : ''}</span>
-            <h1>{current?.name ?? 'The map'}</h1>
+            <h1>{current ? <TitleField value={current.name} label="Map name" onCommit={(name) => void act('map:rename', { mapId: current.id, name })} /> : 'The map'}</h1>
           </div>
           <div className="desk-head-actions">
             {desk && desk.maps.length > 1 && current && (

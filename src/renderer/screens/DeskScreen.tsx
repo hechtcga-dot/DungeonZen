@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { TitleField } from '../components/fields'
 import { useBoard } from '../store'
 import { call } from '../api'
 import { Candle, CompassRose, Leaf, Potion, Quill } from '../art/props'
@@ -58,7 +59,7 @@ function Desk({ desk }: { desk: DeskView }) {
         <EggCandle lit={candlesLit} fullMoonNight={moon.name === 'Full moon' && lightingAt(minutes).darkness > 0.5} />
         <div className="desk-title">
           <span className="desk-eyebrow">The campaign of</span>
-          <h1>{info?.name}</h1>
+          <h1>{info && <TitleField value={info.name} label="Campaign name" onCommit={(name) => void act('campaign:update', { name })} />}</h1>
         </div>
         <div className="desk-head-actions">
           <button className="brass" onClick={() => goTo('guide')} title="World map, regions and importing notes, step by step">Getting started</button>

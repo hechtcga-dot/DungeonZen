@@ -9,7 +9,7 @@ import { Dialog } from '../components/Dialog'
 import { call } from '../api'
 import { FACTION_LINK, fillableFields, INTERNAL_KEYS, SECRET, tabFields, tabTitle, type CardField } from '../../shared/cardFields'
 import { ExportDialog } from '../components/ExportDialog'
-import { ColourInput, CommitField, ScoreField } from '../components/fields'
+import { ColourInput, CommitField, ScoreField, TitleField } from '../components/fields'
 import { ENTITY_LABELS, cardColour, useTypeColour } from '../entityStyle'
 import {
   ABILITY_KEYS, HAS_STATBLOCK, SKILLS, abilityModifier, emptyStatBlock, formatModifier, leadingNumber, passiveScore, profFor,
@@ -68,7 +68,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const wrapSide = (children: React.ReactNode) => (
     <div className="sheet-side" style={{ flex: `0 1 ${side.width}px` }}>{side.grip}{children}</div>
   )
-  const templateInner = (
+  // Picture, name, type and quick description first on every card's sheet; the other details under them.
+  const templateTop = (
             <>
               <PicturePanel sheet={sheet} />
               <section className="panel">
@@ -102,11 +103,16 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                   <div className="hint">Shown on the board card. Every card of a type: board › Card, right-click the type.</div>
                 </div>
               </section>
+            </>
+  )
+  const templateRest = (
+            <>
               <DetailsPanel sheet={sheet} lab={lab} />
               <CustomFields sheet={sheet} />
               <PartyKnows sheet={sheet} />
             </>
   )
+  const templateInner = <>{templateTop}{templateRest}</>
   const templateSide = wrapSide(templateInner)
 
   return (
@@ -115,7 +121,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         <BackButton />
         <div className="page-title">
           <span className="badge" style={{ background: cardColour(e, typeColour) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
-          <h1>{e.name}</h1>
+          <h1><TitleField value={e.name} label={`${ENTITY_LABELS[e.type]} name`} onCommit={(name) => update({ name })} /></h1>
           {e.status === 'defunct' && <span className="source-tag">In History</span>}
           {e.status === 'resolved' && <span className="muted">Resolved</span>}
           {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
@@ -151,7 +157,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
       </nav>
 
       <div className="sheet-body">
-        {tab === 'building' && <BuildingTab sheet={sheet} side={templateInner} wrapSide={wrapSide} factions={<FactionsField sheet={sheet} />} lab={lab} />}
+        {tab === 'building' && <BuildingTab sheet={sheet} side={templateTop} rest={templateRest} wrapSide={wrapSide} factions={<FactionsField sheet={sheet} />} lab={lab} />}
         {tab === 'fight' && <FightSummary sheet={sheet} onFullSheet={() => setTab('sheet')} />}
         {tab === 'sheet' && (
           <>

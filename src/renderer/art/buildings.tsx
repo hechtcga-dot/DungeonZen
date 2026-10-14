@@ -69,7 +69,7 @@ function Street() {
   )
 }
 
-export function BuildingBackdrop({ kind, title, sub }: { kind: BuildingKind; title: string; sub: string }) {
+export function BuildingBackdrop({ kind, title, sub }: { kind: BuildingKind; title: React.ReactNode; sub: string }) {
   return (
     <div className="building-backdrop">
       <svg viewBox="0 0 1400 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">

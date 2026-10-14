@@ -1518,3 +1518,9 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 [data-folded] [data-fold]::after { content: '+'; }
 [data-folded] > :not([data-fold]):not(:has([data-fold])) { display: none !important; }
 [data-folded] :has(> [data-fold]) > :not([data-fold]):not(.prep-n) { display: none !important; }
+
+/* Names typed into in place (TitleField): looks like the title, shows it can be edited. */
+input.title-field.title-field { font: inherit; color: inherit; letter-spacing: inherit; text-shadow: inherit; background: transparent; border: 0; border-bottom: 1px dashed transparent;
+  border-radius: 0; padding: 0; margin: 0; min-height: 0; max-width: 100%; box-shadow: none; }
+input.title-field.title-field:hover { border-bottom-color: currentColor; }
+input.title-field.title-field:focus { outline: none; border-bottom: 1px solid currentColor; background: rgba(0, 0, 0, 0.12); }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { TitleField } from '../components/fields'
 import { useBoard } from '../store'
 import { BattlePlanner } from '../components/BattlePlanner'
 import { SpellName, SpellText } from '../components/SpellLink'
@@ -85,7 +86,7 @@ function Fight({ v }: { v: CombatView }) {
       <header className="combat-head">
         <BackButton />
         <div className="combat-title">
-          <h1>{v.encounterName}</h1>
+          <h1><TitleField value={v.encounterName} label="Encounter name" onCommit={(name) => void act('encounter:update', { id: v.encounterId, patch: { name } })} /></h1>
           <p className="combat-round">{ended ? 'Fight over' : <>Round <strong>{s.round}</strong>{now && <> · {now.name}'s turn</>}</>}</p>
         </div>
         <button className="ink-button" title="The encounter's pictures and maps folder" onClick={() => void act('encounter:openFolder', { id: v.encounterId })}>Pictures and maps</button>

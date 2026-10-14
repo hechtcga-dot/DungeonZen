@@ -84,3 +84,18 @@ export function ScoreField(props: {
     </div>
   )
 }
+
+/** A name shown as a title that is typed into directly: Enter or clicking away saves, Escape puts it back. */
+export function TitleField({ value, onCommit, label, className }: { value: string; onCommit(value: string): void; label: string; className?: string }) {
+  const [draft, setDraft] = useState(value)
+  useEffect(() => setDraft(value), [value])
+  const commit = () => { const next = draft.trim(); if (!next) setDraft(value); else if (next !== value) onCommit(next) }
+  return (
+    <input className={`title-field${className ? ` ${className}` : ''}`} value={draft} aria-label={label} title="Click to rename" maxLength={200}
+      size={Math.max(4, draft.length + 1)} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        if (e.key === 'Escape') { setDraft(value); setTimeout(() => (e.target as HTMLInputElement).blur()) }
+      }} />
+  )
+}
