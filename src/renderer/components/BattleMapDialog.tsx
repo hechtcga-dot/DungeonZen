@@ -5,7 +5,7 @@ import { GridLines } from './MapOverlay'
 import { call } from '../api'
 import { useBoard, useUnits } from '../store'
 import { maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
-import { SmallerExamples, withArtStyle } from './Pictures'
+import { SendExamples, SmallerExamples, withArtStyle } from './Pictures'
 import {
   ART_STYLES, aspectFor, BATTLE_FEATURES, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
   rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
@@ -116,7 +116,8 @@ export function BattleMapDialog() {
   }, [open, aiOpen])
 
   const maxRefs = maxReferences(service?.info)
-  const withExamples = maxRefs > 0 && picked.size > 0
+  const [send, setSend] = useState(false)
+  const withExamples = send && maxRefs > 0 && picked.size > 0
   const generated = withArtStyle(battleMapPrompt({ ...spec, withExamples }), artStyle, styles.filter((st) => picked.has(st.id)).map((st) => st.tags))
   const prompt = ownPrompt ?? generated
   const [gridShown, setGridShown] = useState(false)
@@ -310,7 +311,7 @@ export function BattleMapDialog() {
                     ))}
                   </ul>
                 )}
-                {service.info.references && styles.length > 0 && <SmallerExamples value={smaller} onChange={setSmaller} />}
+                {send && service.info.references && styles.length > 0 && <SmallerExamples value={smaller} onChange={setSmaller} />}
                 <button onClick={() => void addExamples()}>Add pictures to the Library…</button>
               </div>
             </div>
@@ -331,6 +332,7 @@ export function BattleMapDialog() {
           )}
           <div className="dz-actions">
             <span className="hint">Drawing can take up to a minute. Online services charge per image.</span>
+            {maxRefs > 0 && <SendExamples value={send} onChange={setSend} />}
             <button onClick={close}>Cancel</button>
             <button className="primary" disabled={busy || !sizeOk || prompt.trim().length < 10} onClick={() => void draw()}>{busy ? 'Drawing…' : 'Draw it'}</button>
           </div>

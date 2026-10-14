@@ -360,3 +360,8 @@ input.short { width: 84px; }
 .colour-input { width: 64px; padding: 2px; }
 .custom-field { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 10px; align-items: end; }
 @media (max-width: 760px) { .custom-field { grid-template-columns: minmax(0, 1fr); } }
+/* The scrollbar stays inside the dialog frame (below the title bar line, clear of the gold border), and the
+   bottom buttons stay in sight while the body scrolls. */
+.dz-dialog-body { margin: 0 6px 6px 0; scrollbar-width: thin; scrollbar-color: #8a7350 transparent; }
+.dz-dialog-body > .dz-form > .dz-actions:last-child { position: sticky; bottom: -18px; z-index: 2; margin: 0 -18px -18px; padding: 10px 18px 12px;
+  background-color: #f1e6c6; background-image: var(--tex-paper); background-size: 300px 300px; border-top: 1px solid rgba(122, 100, 64, 0.35); }

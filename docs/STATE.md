@@ -317,6 +317,19 @@ built.
     mass, silhouette, centred, pattern) with sketches drawn in code (`art/compositions.tsx`); default by card type
     (`DEFAULT_COMPOSITION_FOR`: people pyramid, monsters/scenes diagonal, places thirds, quests S-curve, items/clues/
     handouts centred, factions group mass); "As in the style examples" when ticked pictures have a composition tag. `maxReferences` per service (OpenAI and Gemini 4, Stability 1, others none).
+    Card picture Draw window (2.2.x, owner 2026-10-14): prompt starts "An illustration of a <kind> named <name>, for a
+    tabletop role-playing game." (kind: character for NPC/PC, else the card type in lower case; `entity:picturePrompt`
+    returns subject/description/figure). Advanced composition fold (`AdvancedComposition`, `ADVANCED_FIELDS` in
+    styleTags.ts): Description, Style, Medium, Palette, Light, Textures and details, Composition, Other details, each a
+    box prefilled from the card, ticked examples' tags and the composition picker; changed boxes stay changed (back to
+    the default per box, Reset clears all), this drawing only; prompt built from them (`advancedLines`; other details
+    follow the composition line). Templates: Save style as a template (Style … Other details, named; same name
+    replaces), Template drop-down, Remove template (campaign setting `prompt_templates`, status defunct, Ctrl+Z).
+    Every Draw window: "Send the ticked pictures for reference" tick by the Draw button, off by default; ticking
+    examples changes the wording only, the pictures go only with this tick (battle map's "match the example maps"
+    line too); smaller copies option shows only when sending. Style examples end with a + tile: Library upload
+    (Art folder), ticked for this drawing, then uses ticks and style tags with Read style with AI (on click).
+    Dialogs: scrollbar thin and inside the frame; a form's last button row is pinned at the bottom while scrolling.
   - Notes (rail, was Import notes): Your notes (`NotesLibrary.tsx`) and Import notes. Imported files are kept
     (`note_doc`); Word/text/PDF open with formatting in `NoteEditor` (bold, italic, underline, headings,
     lists, tables; `src/main/importers/docx.ts` reads and writes .docx); Save writes a Word version (earlier

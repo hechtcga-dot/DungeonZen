@@ -88,3 +88,47 @@ export const STYLE_TAGS_SYSTEM = [
   'composition: how the picture is framed (e.g. "asymmetric, rule of thirds, detailed foreground, hazy background").',
   'Short phrases, each under 25 words. Leave a field empty ("") when unsure.'
 ].join(' ')
+
+// Card picture Draw window › Advanced composition (owner, 2026-10-14): each line of the prompt in its own
+// box, prefilled from the card and the ticked examples; edits are for this drawing only. The style lines
+// (all but the description) can be saved as a named template.
+export const ADVANCED_FIELDS = [
+  { key: 'description', label: 'Description (what is it like)', example: 'an orange tabby in a feathered hat and boots' },
+  { key: 'style', label: 'Style', example: 'in the manner of Arthur Rackham, 1900s' },
+  { key: 'medium', label: 'Medium', example: 'watercolour washes with fine ink line work' },
+  { key: 'palette', label: 'Palette', example: 'golden ochre, soft mauve, earthy browns' },
+  { key: 'light', label: 'Light', example: 'soft diffused daylight' },
+  { key: 'detail', label: 'Textures and details', example: 'stippled foliage, fine linear striations' },
+  { key: 'composition', label: 'Composition', example: 'pyramid: the subject forms a stable triangle' },
+  { key: 'other', label: 'Other details', example: 'the character is in the left foreground, a tower stands in the centre of the picture, a small flock of birds is in the right top distance' }
+] as const
+
+export type AdvancedKey = (typeof ADVANCED_FIELDS)[number]['key']
+export type Advanced = Partial<Record<AdvancedKey, string>>
+export const TEMPLATE_FIELDS = ADVANCED_FIELDS.filter((f) => f.key !== 'description')
+
+export const PromptTemplateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  fields: z.object(Object.fromEntries(TEMPLATE_FIELDS.map((f) => [f.key, z.string().max(1000).optional()])) as Record<Exclude<AdvancedKey, 'description'>, z.ZodOptional<z.ZodString>>)
+})
+export type PromptTemplate = z.infer<typeof PromptTemplateSchema> & { status?: string }
+
+/** The boxes' starting values: the ticked pictures' tags, the chosen composition (no description: that comes from the card). */
+export function advancedFromTags(tags: StyleTags, composition: string, artStyle: string): Advanced {
+  const who = [tags.artist && `in the manner of ${tags.artist}`, tags.period].filter(Boolean).join(', ')
+  const any = who || tags.medium || tags.palette || tags.light || tags.detail || artStyle.trim()
+  return {
+    style: who || (any ? '' : 'classic fantasy book illustration'),
+    medium: tags.medium ?? '', palette: tags.palette ?? '', light: tags.light ?? '', detail: tags.detail ?? '', composition, other: ''
+  }
+}
+
+/** Prompt lines for the style boxes, then the campaign's art style in words. */
+export function advancedLines(a: Advanced, artStyle: string): string[] {
+  const line = (label: string, v?: string) => (v?.trim() ? `${label}: ${v.trim().replace(/[.\s]+$/, '')}.` : '')
+  const comp = [a.composition, a.other].map((v) => v?.trim().replace(/[.\s]+$/, '')).filter(Boolean).join('. ')
+  return [
+    line('Style', a.style), line('Medium', a.medium), line('Palette', a.palette), line('Light', a.light), line('Textures and details', a.detail),
+    artStyle.trim() && `Art style: ${artStyle.trim()}`, line('Composition', comp)
+  ].filter((x): x is string => !!x)
+}

@@ -21,7 +21,7 @@ import { STYLE_USES } from './types'
 
 /** A drawing's outline as sent: the sketch as a picture (PNG, base64) or the DM's outline picture (asset path). */
 const OutlineSend = z.object({ png: z.string().max(4_000_000).optional(), path: z.string().max(500).optional() })
-import { StyleTagsSchema, type StyleTags } from './styleTags'
+import { PromptTemplateSchema, StyleTagsSchema, type PromptTemplate, type StyleTags } from './styleTags'
 import type { NotesScreenView } from './types'
 import type { RollTable } from './rolltables'
 import { Blocks, type Block } from './noteDoc'
@@ -147,7 +147,7 @@ export const ipcInputs = {
     saveNotes: z.string().max(500).nullable()
   }),
   'entity:pictureDialog': z.object({ entityId: Id }),
-  'entity:picturePrompt': z.object({ entityId: Id, ask: z.string().max(2000) }),
+  'entity:picturePrompt': z.object({ entityId: Id }),
   'entity:drawPicture': z.object({ entityId: Id, prompt: z.string().trim().min(10).max(4000), styleIds: z.array(Id).max(16), smaller: z.boolean().optional(), outline: OutlineSend.optional() }),
   /** Update picture: the waiting picture changed by the DM's words, with the marks drawn on it (PNG, base64, transparent). */
   'image:update': z.object({
@@ -166,6 +166,9 @@ export const ipcInputs = {
   }),
   'pictures:readStyle': z.object({ key: z.string().min(3).max(120) }),
   'pictures:addFolder': z.object({ name: z.string().trim().min(1).max(80) }),
+  'promptTemplates:list': z.void(),
+  'promptTemplates:save': PromptTemplateSchema,
+  'promptTemplates:remove': z.object({ name: z.string().min(1).max(80) }),
   'ai:imageInfo': z.void(),
   'entity:keepPicture': z.object({ entityId: Id, pendingId: z.string().max(80), source: z.string().max(200) }),
   'entity:removePicture': z.object({ entityId: Id }),
@@ -521,7 +524,7 @@ export interface IpcOutputs {
   }
   'entity:applyCharSheet': string
   'entity:pictureDialog': boolean
-  'entity:picturePrompt': string
+  'entity:picturePrompt': { subject: string; description: string; figure: string }
   'entity:drawPicture': PendingImageView & { source: string; prompt: string }
   'image:update': PendingImageView & { source: string; prompt: string }
   'image:pendingCopy': PendingImageView
@@ -532,6 +535,9 @@ export interface IpcOutputs {
   'pictures:update': void
   'pictures:readStyle': { tags: StyleTags; source: string }
   'pictures:addFolder': void
+  'promptTemplates:list': PromptTemplate[]
+  'promptTemplates:save': void
+  'promptTemplates:remove': void
   'ai:imageInfo': { name: string | null; maxReferences: number }
   'entity:keepPicture': void
   'entity:removePicture': void

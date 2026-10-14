@@ -69,6 +69,16 @@ describe('Library pictures', () => {
     expect(pic(loc.id)).toBe('pictures/Location1_1.png')
   })
 
+  it('saves, replaces and removes prompt templates (undoable)', () => {
+    c.savePromptTemplate({ name: 'Alan Lee', fields: { style: 'in the manner of Alan Lee' } })
+    c.savePromptTemplate({ name: 'alan lee', fields: { style: 'watercolour' } })
+    expect(c.promptTemplates()).toEqual([{ name: 'alan lee', fields: { style: 'watercolour' } }])
+    c.removePromptTemplate('alan lee')
+    expect(c.promptTemplates()).toEqual([])
+    c.undo()
+    expect(c.promptTemplates()).toHaveLength(1)
+  })
+
   it('keeps empty folders the DM made', () => {
     c.addPictureFolder('Villains')
     expect(c.pictures().folders).toContain('Villains')

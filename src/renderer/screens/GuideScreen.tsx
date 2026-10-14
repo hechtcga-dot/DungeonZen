@@ -1,4 +1,4 @@
-import { DrawExtras, withArtStyle } from '../components/Pictures'
+import { DrawExtras, SendExamples, withArtStyle } from '../components/Pictures'
 import type { StyleTags } from '../../shared/styleTags'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChangePicture, OutlinePanel, outlineSend } from '../components/OutlinePad'
@@ -214,6 +214,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   const artStyle = useBoard((st) => st.info?.artStyle ?? '')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [smaller, setSmaller] = useState(false)
+  const [send, setSend] = useState(false)
   const [tags, setTags] = useState<StyleTags[]>([])
   // The outline is kept with the campaign (undoable); "Use" is for this drawing only.
   const outline = useBoard((st) => st.info?.worldOutline) ?? emptyOutline()
@@ -225,7 +226,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
     setBusy(true); setError(null)
     try {
       if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('world:draw', { prompt: told, styleIds: [...picked], smaller, outline: outlineSend(outline, outlineOn, 1.5) }))
+      setDrawn(await call('world:draw', { prompt: told, styleIds: send ? [...picked] : [], smaller, outline: outlineSend(outline, outlineOn, 1.5) }))
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
   }
@@ -265,13 +266,14 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
         </div>
         <OutlinePanel outline={outline} on={useOutline} onOn={(v) => { setUseOutline(v); setPrompt(null) }} ratio={1.5}
           onSave={(next) => { setPrompt(null); void act('campaign:update', { worldOutline: next }) }} />
-        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
+        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} send={send} />
         {service === null ? (
           <p>Drawing needs an image service. <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>
         ) : (
           <p className="ink-muted">{service ?? '…'} draws it.</p>
         )}
         <div className="row tight wrap">
+          <SendExamples value={send} onChange={setSend} />
           <button className="ink-button" disabled={busy || !service} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Try again' : 'Draw the map'}</button>
         </div>
         {error && <p className="field-error" role="alert">{error}</p>}

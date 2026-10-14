@@ -1,4 +1,4 @@
-import { STYLE_TAG_FIELDS, blendTags, styleLines, type StyleTags } from '../../shared/styleTags'
+import { ADVANCED_FIELDS, STYLE_TAG_FIELDS, TEMPLATE_FIELDS, advancedFromTags, advancedLines, blendTags, styleLines, type Advanced, type PromptTemplate, type StyleTags } from '../../shared/styleTags'
 import { COMPOSITIONS, DEFAULT_COMPOSITION_FOR, compositionById } from '../../shared/compositions'
 import { CompositionSketch } from '../art/compositions'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -32,8 +32,22 @@ export function SmallerExamples({ value, onChange }: { value: boolean; onChange(
   )
 }
 
-export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller }: {
+/**
+ * Draw windows, by the Draw button: send the ticked examples themselves (off by default). Ticking an example
+ * always puts its style words in the prompt; the picture goes only with this tick (owner, 2026-10-14).
+ */
+export function SendExamples({ value, onChange }: { value: boolean; onChange(v: boolean): void }) {
+  return (
+    <label className="field checkbox send-examples" title="The ticked examples' style words are in the prompt either way. Sent pictures make the AI follow them closely.">
+      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} /> Send the ticked pictures for reference
+    </label>
+  )
+}
+
+export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller, send }: {
   use: StyleUse
+  /** The ticked pictures go with the drawing (SendExamples by the Draw button). */
+  send: boolean
   prompt: string
   onPrompt(next: string): void
   onReset(): void
@@ -48,8 +62,19 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
   const [styles, setStyles] = useState<StyleExampleView[] | null>(null)
   const [service, setService] = useState<IpcOutputs['ai:imageInfo'] | null>(null)
   const [artStyle, setArtStyle] = useState(info?.artStyle ?? '')
+  const [fresh, setFresh] = useState<string[]>([])
+  const loadStyles = () => call('style:list', { use }).then(setStyles).catch(() => setStyles([]))
+  // + : pictures from the computer go into the Library (Art) and are ticked for this drawing.
+  const addPictures = async () => {
+    const added = await act('style:addDialog', undefined)
+    if (!added?.length) return
+    await loadStyles()
+    onPicked(new Set([...picked, ...added.map((x) => x.id)]))
+    setFresh(added.map((x) => x.id))
+  }
   useEffect(() => {
     // None ticked until the DM picks (owner, 2026-10-12).
+    setFresh([])
     void call('style:list', { use }).then((s) => { setStyles(s); onPicked(new Set()) }).catch(() => setStyles([]))
     void call('ai:imageInfo', undefined).then(setService).catch(() => setService(null))
   }, [use])
@@ -60,7 +85,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
     <>
       <details className="draw-prompt">
         <summary>Prompt being sent to the AI <span className="muted">(open to read and change it)</span></summary>
-        <textarea aria-label="Prompt being sent to the AI" rows={7} value={prompt} maxLength={4000} onChange={(e) => onPrompt(e.target.value)} />
+        <textarea aria-label="Prompt being sent to the AI" rows={11} value={prompt} maxLength={4000} onChange={(e) => onPrompt(e.target.value)} />
         <div className="row tight">
           <button type="button" onClick={onReset}>Reset</button>
           <span className="hint">Exactly this text goes to {service?.name ?? 'the image service'}.</span>
@@ -77,10 +102,9 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
       </details>
       <fieldset className="draw-styles">
         <legend>Style examples ({STYLE_USE_LABELS[use].toLowerCase()})</legend>
-        {styles === null ? <p className="hint">Loading…</p> : styles.length === 0 ? (
-          <p className="hint">No Library pictures are ticked for {STYLE_USE_LABELS[use].toLowerCase()}. Add art in Library › Pictures.</p>
-        ) : (
+        {styles === null ? <p className="hint">Loading…</p> : (
           <>
+            {styles.length === 0 && <p className="hint">No Library pictures are ticked for {STYLE_USE_LABELS[use].toLowerCase()}. Add one with + or in Library › Pictures.</p>}
             <div className="draw-thumbs">
               {styles.map((s) => (
                 <label key={s.id} className={`draw-thumb${picked.has(s.id) ? ' is-on' : ''}`} title={s.name}>
@@ -92,16 +116,20 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
                   <img src={`${s.url}?w=400`} alt={s.name} />
                 </label>
               ))}
+              <button type="button" className="draw-thumb draw-add" title="Add pictures from your computer to the Library" aria-label="Add pictures to the Library" onClick={() => void addPictures()}>+</button>
             </div>
+            {fresh.length > 0 && <NewPictures ids={fresh} onChanged={() => void loadStyles()} onDone={() => setFresh([])} />}
             <p className="hint">
-              {!service?.name
-                ? 'No image service is chosen yet (AI services). '
+              Ticked examples put their style tags (Library › Pictures) into the prompt.{' '}
+              {!send
+                ? 'The pictures themselves go only with "Send the ticked pictures for reference" by the Draw button.'
+                : !service?.name
+                ? 'No image service is chosen yet (AI services).'
                 : max === 0
-                ? `${service.name} can't see examples; the style is described in words only (the art style above).`
-                : `${service?.name} takes ${max === 1 ? 'one example' : `up to ${max} examples`}: ${sending ? `the first ${sending} ticked go with this drawing` : 'none ticked'}.`}
-              {' '}Tick the examples to send with this drawing; their style tags (Library › Pictures) go into the prompt.
+                ? `${service.name} can't see pictures; the style goes in words only.`
+                : `${service.name} takes ${max === 1 ? 'one picture' : `up to ${max} pictures`}: ${sending ? `the first ${sending} ticked go with this drawing` : 'none ticked'}.`}
             </p>
-            {max > 0 && <SmallerExamples value={smaller} onChange={onSmaller} />}
+            {send && max > 0 && <SmallerExamples value={smaller} onChange={onSmaller} />}
           </>
         )}
       </fieldset>
@@ -109,13 +137,48 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
   )
 }
 
-/** Draw a card's picture with AI: optional wishes, the prompt, style examples; Keep, Draw again or Cancel. */
+/** Pictures just added with +: what they are style examples for, and their style tags (AI reads them on a click). */
+function NewPictures({ ids, onChanged, onDone }: { ids: string[]; onChanged(): void; onDone(): void }) {
+  const { act } = useBoard()
+  const [pics, setPics] = useState<LibraryPictureView[]>([])
+  const load = () => void call('pictures:view', undefined).then((v) => setPics(v.pictures.filter((p) => ids.includes(p.key.slice(4)) && p.key.startsWith('lib:'))))
+  useEffect(load, [ids.join()]) // eslint-disable-line react-hooks/exhaustive-deps
+  const update = (p: LibraryPictureView, patch: { styleFor?: StyleUse[]; tags?: StyleTags }) => void act('pictures:update', { key: p.key, patch }).then(() => { load(); onChanged() })
+  return (
+    <div className="draw-new-pics">
+      {pics.map((p) => (
+        <div key={p.key} className="draw-new-pic">
+          <img src={`${p.url}?w=400`} alt="" />
+          <div>
+            <strong>{p.name}</strong> <span className="hint">added to Library › Pictures › {p.folder}</span>
+            <div className="pic-uses" role="group" aria-label={`Style example for (${p.name})`}>
+              <span className="field-label">Style example for</span>
+              {(Object.keys(STYLE_USE_LABELS) as StyleUse[]).map((u) => (
+                <label key={u} className="field checkbox">
+                  <input type="checkbox" checked={p.styleFor.includes(u)}
+                    onChange={(e) => update(p, { styleFor: e.target.checked ? [...p.styleFor, u] : p.styleFor.filter((x) => x !== u) })} /> {STYLE_USE_LABELS[u]}
+                </label>
+              ))}
+            </div>
+            <StyleTagsEditor picture={p} open onSave={(tags) => update(p, { tags })} />
+          </div>
+        </div>
+      ))}
+      <button type="button" className="link-button" onClick={onDone}>Done</button>
+    </div>
+  )
+}
+
+/** Draw a card's picture with AI: optional wishes, composition, Advanced composition, the prompt, style examples; Keep, Draw again or Cancel. */
 export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['entity']; onClose(): void }) {
   const { act, setAiSettingsOpen, info } = useBoard()
   const [ask, setAsk] = useState('')
-  const [prompt, setPrompt] = useState('')
-  const [edited, setEdited] = useState(false)
+  const [base, setBase] = useState<IpcOutputs['entity:picturePrompt'] | null>(null)
+  const [ownPrompt, setOwnPrompt] = useState<string | null>(null)
+  // Advanced composition boxes the DM changed (the rest follow the card, examples and composition).
+  const [over, setOver] = useState<Advanced>({})
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [send, setSend] = useState(false)
   const [smaller, setSmaller] = useState(false)
   const [tags, setTags] = useState<StyleTags[]>([])
   // The card type picks the composition; 'examples' = the ticked pictures' own composition tag.
@@ -129,26 +192,29 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   const outline = readOutline(entity.attributes.outline)
   const [useOutline, setUseOutline] = useState(true)
   const outlineOn = useOutline && !outlineBlank(outline)
-  // Subject and wishes from the card, then style (ticked pictures' tags), composition and art style in words.
-  const build = (wish: string) => call('entity:picturePrompt', { entityId: entity.id, ask: wish })
-    .then((p) => setPrompt([
-      p,
-      ...styleLines({ ...blended, composition: comp === 'examples' ? blended.composition : undefined }, useBoard.getState().info?.artStyle ?? info?.artStyle ?? '',
-        { composition: compositionById(comp).prompt, fallback: 'Style: classic fantasy book illustration.' }),
-      outlineOn ? outlineText(outline) : '',
-      outlineOn && outline.writeLabels ? 'No frame.' : 'No text, no frame.'
-    ].filter(Boolean).join('\n'))).catch(() => undefined)
-  // The prompt follows the wishes and ticked pictures until the DM edits it by hand.
-  useEffect(() => {
-    if (edited) return
-    const t = setTimeout(() => void build(ask), 300)
-    return () => clearTimeout(t)
-  }, [ask, edited, tags, comp, outlineOn, JSON.stringify(outline.labels), outline.writeLabels])
+  useEffect(() => { void call('entity:picturePrompt', { entityId: entity.id }).then(setBase).catch(() => undefined) }, [entity.id])
+  const artStyle = info?.artStyle ?? ''
+  const auto: Advanced = {
+    description: base?.description ?? '',
+    ...advancedFromTags(blended, comp === 'examples' ? blended.composition ?? '' : compositionById(comp).prompt, artStyle)
+  }
+  const adv: Advanced = { ...auto, ...over }
+  // The prompt follows the wishes, boxes and ticked pictures until the DM edits it by hand.
+  const built = base ? [
+    base.subject,
+    adv.description?.trim() && `What it is like: ${adv.description.trim()}`,
+    ask.trim() && `Include in the picture: ${ask.trim().replace(/[.\s]+$/, '')}.`,
+    base.figure,
+    ...advancedLines(adv, artStyle),
+    outlineOn ? outlineText(outline) : '',
+    outlineOn && outline.writeLabels ? 'No frame.' : 'No text, no frame.'
+  ].filter(Boolean).join('\n') : ''
+  const prompt = ownPrompt ?? built
   const draw = async () => {
     setBusy(true); setError('')
     try {
       if (drawn) await call('battlemap:discard', { pendingId: drawn.pendingId })
-      setDrawn(await call('entity:drawPicture', { entityId: entity.id, prompt, styleIds: [...picked], smaller, outline: outlineSend(outline, outlineOn, 1) }))
+      setDrawn(await call('entity:drawPicture', { entityId: entity.id, prompt, styleIds: send ? [...picked] : [], smaller, outline: outlineSend(outline, outlineOn, 1) }))
     } catch (err) { setError((err as Error).message) } finally { setBusy(false) }
   }
   const close = () => { if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }); onClose() }
@@ -160,11 +226,12 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
           <input id="pic-ask" value={ask} maxLength={2000} placeholder="ducks, a boat, a fisherman in the boat" onChange={(ev) => setAsk(ev.target.value)} />
           <div className="hint">Things to show, separated by commas. The card's appearance, summary and description go with it. Uses the image service chosen in AI services.</div>
         </div>
-        <CompositionPicker value={comp} onChange={setComp} fromExamples={blended.composition} />
+        <CompositionPicker value={comp} onChange={(id) => { setComp(id); setOver(({ composition: _, ...rest }) => rest) }} fromExamples={blended.composition} />
         <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
           onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />
-        <DrawExtras use={use} prompt={prompt} onPrompt={(p) => { setPrompt(p); setEdited(true) }}
-          onReset={() => { setEdited(false); void build(ask) }} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
+        <AdvancedComposition value={adv} changed={over} onChange={setOver} />
+        <DrawExtras use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send}
+          onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
         {error && (
           <div className="field-error battle-error" role="alert"><span>{error}</span>
             <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
@@ -172,6 +239,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
         {drawn && <div className="ai-suggestion"><span className="ai-badge">AI suggestion · {drawn.source}</span><img className="pic-preview" src={drawn.url} alt="The AI's drawing" /></div>}
         {drawn && <ChangePicture drawn={drawn} ratio={1} disabled={busy} onChanged={setDrawn} />}
         <div className="dz-actions">
+          <SendExamples value={send} onChange={setSend} />
           <button type="button" onClick={close}>Cancel</button>
           <button disabled={busy || prompt.trim().length < 10} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Draw again' : 'Draw'}</button>
           {drawn && <button className="primary" onClick={async () => {
@@ -181,6 +249,64 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
         </div>
       </div>
     </Dialog>
+  )
+}
+
+/**
+ * Advanced composition: every line of the prompt in its own box (this drawing only), and named templates
+ * of the style lines (campaign setting; Remove is undoable).
+ */
+function AdvancedComposition({ value, changed, onChange }: { value: Advanced; changed: Advanced; onChange(next: Advanced): void }) {
+  const { act } = useBoard()
+  const [templates, setTemplates] = useState<PromptTemplate[]>([])
+  const [chosen, setChosen] = useState('')
+  const [saving, setSaving] = useState<string | null>(null)
+  const load = () => void call('promptTemplates:list', undefined).then(setTemplates).catch(() => setTemplates([]))
+  useEffect(load, [])
+  const save = async (name: string) => {
+    const fields = Object.fromEntries(TEMPLATE_FIELDS.map((f) => [f.key, value[f.key] ?? '']))
+    await act('promptTemplates:save', { name, fields })
+    setSaving(null); setChosen(name); load()
+  }
+  return (
+    <details className="draw-advanced">
+      <summary>Advanced composition <span className="muted">(each line of the prompt; templates)</span></summary>
+      <div className="row tight wrap">
+        <label className="field-label" htmlFor="adv-template">Template</label>
+        <select id="adv-template" value={chosen} onChange={(e) => {
+          setChosen(e.target.value)
+          const t = templates.find((x) => x.name === e.target.value)
+          if (t) onChange({ ...changed, ...t.fields })
+        }}>
+          <option value="">{templates.length ? 'Choose a template…' : 'No templates yet'}</option>
+          {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+        </select>
+        {chosen && <button type="button" className="link-button danger-link" title="Ctrl+Z brings it back"
+          onClick={() => void act('promptTemplates:remove', { name: chosen }).then(() => { setChosen(''); load() })}>Remove template</button>}
+      </div>
+      {ADVANCED_FIELDS.map((f) => (
+        <label key={f.key} className="field">
+          <span className="field-label">{f.label}{changed[f.key] !== undefined && <button type="button" className="link-button" onClick={(e) => {
+            e.preventDefault()
+            const { [f.key]: _, ...rest } = changed
+            onChange(rest)
+          }}> (back to the default)</button>}</span>
+          <textarea rows={f.key === 'description' || f.key === 'other' ? 3 : f.key === 'composition' ? 2 : 1} value={value[f.key] ?? ''} maxLength={1000} placeholder={`e.g. ${f.example}`}
+            onChange={(e) => onChange({ ...changed, [f.key]: e.target.value })} />
+        </label>
+      ))}
+      <p className="hint">Changes here are for this drawing only. Ticked style examples and the composition above fill the boxes you have not changed.</p>
+      {saving === null ? (
+        <button type="button" onClick={() => setSaving(chosen)}>Save style as a template…</button>
+      ) : (
+        <form className="row tight wrap" onSubmit={(e) => { e.preventDefault(); if (saving.trim()) void save(saving.trim()) }}>
+          <input autoFocus value={saving} maxLength={80} placeholder="Template name" aria-label="Template name" onChange={(e) => setSaving(e.target.value)} />
+          <button type="submit" disabled={!saving.trim()}>Save</button>
+          <button type="button" onClick={() => setSaving(null)}>Cancel</button>
+          <span className="hint">Saves Style to Other details (not the description). The same name replaces that template.</span>
+        </form>
+      )}
+    </details>
   )
 }
 
@@ -405,7 +531,7 @@ function CompositionPicker({ value, onChange, fromExamples }: { value: string; o
 }
 
 /** A picture's art style in words: typed by the DM, or read by AI as a suggestion to keep (rule 2). */
-function StyleTagsEditor({ picture, onSave }: { picture: LibraryPictureView; onSave(tags: StyleTags): void }) {
+function StyleTagsEditor({ picture, onSave, open }: { picture: LibraryPictureView; onSave(tags: StyleTags): void; open?: boolean }) {
   const { setAiSettingsOpen } = useBoard()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -416,7 +542,7 @@ function StyleTagsEditor({ picture, onSave }: { picture: LibraryPictureView; onS
     try { setFound(await call('pictures:readStyle', { key: picture.key })) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
   return (
-    <details className="pic-tags">
+    <details className="pic-tags" open={open}>
       <summary>Style tags <span className="muted">({tagged ? `${tagged} of ${STYLE_TAG_FIELDS.length}` : 'none yet'})</span></summary>
       {STYLE_TAG_FIELDS.map((f) => (
         <label key={f.key} className="field">

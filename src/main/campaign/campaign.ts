@@ -1,4 +1,4 @@
-import type { StyleTags } from '../../shared/styleTags'
+import type { PromptTemplate, StyleTags } from '../../shared/styleTags'
 import { randomUUID } from 'node:crypto'
 import { cp } from 'node:fs/promises'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -93,7 +93,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -1177,6 +1177,25 @@ export class Campaign {
   /** Changes one campaign setting as an undoable step. */
   setSetting(key: SettingKey, value: unknown, label: string): void {
     this.setSettings({ [key]: value }, label)
+  }
+
+  /** Draw window prompt templates (style lines saved under a name); removed ones stay stored, Ctrl+Z brings them back. */
+  promptTemplates(): PromptTemplate[] {
+    const v = this.setting('prompt_templates')
+    return (Array.isArray(v) ? v as PromptTemplate[] : []).filter((t) => t.status !== 'defunct')
+  }
+
+  /** Saves a template; the same name replaces the old one (one undo step). */
+  savePromptTemplate(t: PromptTemplate): void {
+    const v = this.setting('prompt_templates')
+    const all = (Array.isArray(v) ? v as PromptTemplate[] : []).filter((x) => x.name.toLowerCase() !== t.name.toLowerCase())
+    this.setSetting('prompt_templates', [...all, { name: t.name, fields: t.fields }], `Saved the prompt template ${t.name}`)
+  }
+
+  removePromptTemplate(name: string): void {
+    const v = this.setting('prompt_templates')
+    const all = Array.isArray(v) ? v as PromptTemplate[] : []
+    this.setSetting('prompt_templates', all.map((x) => (x.name === name ? { ...x, status: 'defunct' } : x)), `Removed the prompt template ${name}`)
   }
 
   /** Changes several campaign settings as one undoable step. */

@@ -46,6 +46,9 @@ import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcOu
 import type { CampaignInfo } from '../shared/types'
 import type { z } from 'zod'
 
+/** What a card is, in the picture prompt ("An illustration of a character named …"). */
+const PICTURE_KIND: Record<string, string> = { NPC: 'character', PC: 'character' }
+
 const srdAttacks = srdAttacksData as SrdAttacks
 
 type Handler<C extends IpcChannel> = (input: z.output<(typeof ipcInputs)[C]>) => IpcOutputs[C] | Promise<IpcOutputs[C]>
@@ -495,17 +498,16 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const info = choice.provider ? providerById(choice.provider) : null
     return { name: info?.name ?? null, maxReferences: maxReferences(info) }
   })
-  handle('entity:picturePrompt', ({ entityId, ask }) => {
+  // The Draw window's starting lines; it adds the wishes, style boxes, composition and "No text, no frame."
+  handle('entity:picturePrompt', ({ entityId }) => {
     const e = current().sheet(entityId).entity
-    const sb = readStatBlock(e.attributes.statblock)
     const looks = ['appearance', 'summary', 'description', 'bio'].map((k) => e.attributes[k]).find((v) => typeof v === 'string' && v.trim()) as string | undefined
-    const creature = ['NPC', 'PC', 'MONSTER'].includes(e.type)
-    return [
-      `A fantasy illustration of ${e.name}${sb ? `, a ${[sb.size, sb.creatureType].filter(Boolean).join(' ')}` : creature ? '' : ` (${e.type.toLowerCase()})`}, for a tabletop role-playing game.`,
-      looks ? `What it is like: ${looks.trim().slice(0, 600)}` : '',
-      ask.trim() ? `Include in the picture: ${ask.trim().replace(/[.\s]+$/, '')}.` : '',
-      creature ? 'Full figure, set in a fitting place.' : ''
-    ].filter(Boolean).join('\n') // the Draw window adds style, composition and "No text, no frame."
+    const kind = PICTURE_KIND[e.type] ?? e.type.toLowerCase()
+    return {
+      subject: `An illustration of ${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind} named ${e.name}, for a tabletop role-playing game.`,
+      description: looks?.trim().slice(0, 600) ?? '',
+      figure: ['NPC', 'PC', 'MONSTER'].includes(e.type) ? 'Full figure, set in a fitting place.' : ''
+    }
   })
   // The outline goes in the blueprint spot: one picture fewer for style examples.
   const outlineOf = (o: { png?: string; path?: string } | undefined, smaller?: boolean) => {
@@ -580,6 +582,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { tags: parseStyleTags(reply), source: `${r.info.name} · ${r.model || 'default model'}` }
   })
   handle('pictures:addFolder', ({ name }) => current().addPictureFolder(name))
+  handle('promptTemplates:list', () => current().promptTemplates())
+  handle('promptTemplates:save', (t) => current().savePromptTemplate(t))
+  handle('promptTemplates:remove', ({ name }) => current().removePromptTemplate(name))
   handle('entity:keepPicture', ({ entityId, pendingId, source }) => current().setPicture(entityId, { pendingId, source }))
   handle('entity:removePicture', ({ entityId }) => current().setPicture(entityId, null))
   handle('card:applyFill', ({ entityId, fields, source, srdKey }) => current().applyFill(entityId, fields, source, srdKey ? srdCopy(srdKey) : null))
@@ -1077,7 +1082,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('style:addDialog', async () => {
     const win = getWindow()
     const options = {
-      title: 'Choose example maps for the battle map style',
+      title: 'Add pictures to the Library',
       buttonLabel: 'Add examples',
       properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'jfif', 'webp'] }]
