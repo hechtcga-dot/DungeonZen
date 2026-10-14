@@ -10,6 +10,7 @@ import { call } from '../api'
 import { FACTION_LINK, fillableFields, INTERNAL_KEYS, SECRET, tabFields, tabTitle, type CardField } from '../../shared/cardFields'
 import { ExportDialog } from '../components/ExportDialog'
 import { ColourInput, CommitField, ScoreField, TitleField } from '../components/fields'
+import { LocationPick } from '../components/LocationPick'
 import { ENTITY_LABELS, cardColour, useTypeColour } from '../entityStyle'
 import {
   ABILITY_KEYS, HAS_STATBLOCK, SKILLS, abilityModifier, emptyStatBlock, formatModifier, leadingNumber, passiveScore, profFor,
@@ -85,8 +86,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                 <CommitField id={`${p}-summary`} label={lab('summary', 'One-line summary')} value={str('summary')}
                   hint={HAS_STATBLOCK.has(e.type) ? 'Leave empty to show the stat block line on the card.' : undefined}
                   onCommit={(summary) => update({ attributes: { summary } })} />
-                {e.type !== 'BUILDING' && <CommitField id={`${p}-location`} label={lab('location', 'Default location')} value={str('location')}
-                  onCommit={(location) => update({ attributes: { location } })} />}
+                {e.type !== 'BUILDING' && <LocationPick id={`${p}-location`} value={str('location')} exclude={e.id}
+                  onChange={(location) => update({ attributes: { location } })} />}
                 {e.type === 'LOCATION' && <CommitField id={`${p}-biome`} label="Biome" value={str('biome')} placeholder="Forest, city, swamp…"
                   onCommit={(biome) => update({ attributes: { biome } })} />}
                 <CommitField id={`${p}-tags`} label="Tags" value={e.tags.join(', ')} hint="Separate tags with commas."

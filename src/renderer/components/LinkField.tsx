@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ENTITY_LABELS } from '../entityStyle'
@@ -39,6 +39,8 @@ export function findLinks(text: string, links: WordLink[]): Hit[] {
 export function LinkField(props: {
   id: string; label: string; value: string; onCommit(value: string): void
   multiline?: boolean; rows?: number; placeholder?: string; className?: string; hint?: string
+  /** Starts at least this tall (px), e.g. to line up with a box beside it. */
+  minHeight?: number
 }) {
   const ctx = useContext(LinkContext)
   const [draft, setDraft] = useState(props.value)
@@ -60,9 +62,33 @@ export function LinkField(props: {
     a.style.background = 'transparent'
   }, [])
 
+  // The copy behind must wrap like the box: when the box shows a scrollbar its text is narrower by the bar's width.
+  useLayoutEffect(() => {
+    const a = area.current, b = back.current
+    if (!a || !b) return
+    const fit = () => {
+      const cs = getComputedStyle(a)
+      const bar = a.offsetWidth - a.clientWidth - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth)
+      b.style.paddingRight = `${parseFloat(cs.paddingRight) + Math.max(0, bar)}px`
+      b.scrollTop = a.scrollTop
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(a)
+    return () => ro.disconnect()
+  })
+
   const at = () => {
     const a = area.current
     return a ? hits.find((h) => a.selectionStart >= h.from && a.selectionEnd <= h.to) : undefined
+  }
+  /** The linked words under the mouse (right-click does not move the cursor). */
+  const under = (x: number, y: number) => {
+    const marks = back.current?.querySelectorAll('mark') ?? []
+    for (const m of marks) {
+      if ([...m.getClientRects()].some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return hits.find((h) => h.from === Number(m.dataset.from))
+    }
+    return undefined
   }
   const check = () => ctx?.show(at()?.link.entityId ?? null)
   const commit = () => { const next = draft.trim(); if (next !== props.value) props.onCommit(next) }
@@ -74,14 +100,14 @@ export function LinkField(props: {
     const a = area.current
     if (!ctx || !a) return
     const words = draft.slice(a.selectionStart, a.selectionEnd).trim()
-    const hit = at()
+    const hit = under(e.clientX, e.clientY) ?? at()
     if (!words && !hit) return // the usual menu (spelling)
     e.preventDefault()
     const items: MenuItem[] = []
     if (words) items.push({ label: `Link “${words.length > 30 ? `${words.slice(0, 30)}…` : words}” to a card…`, onClick: () => setPicking(words) })
     if (hit) {
       items.push({ label: `Show ${ctx.cards.find((c) => c.id === hit.link.entityId)?.name ?? 'the card'}`, onClick: () => ctx.show(hit.link.entityId) })
-      items.push({ label: `Remove the link on “${hit.link.text}”`, danger: true, onClick: () => ctx.setLinks(ctx.links.filter((l) => l !== hit.link)) })
+      items.push({ label: `Remove the link on “${hit.link.text}” (the words stay)`, danger: true, onClick: () => ctx.setLinks(ctx.links.filter((l) => l !== hit.link)) })
     }
     setMenu({ x: e.clientX, y: e.clientY, items })
   }
@@ -90,7 +116,7 @@ export function LinkField(props: {
   const marked: ReactNode[] = []
   let k = 0
   for (const h of hits) {
-    marked.push(draft.slice(k, h.from), <mark key={h.from}>{draft.slice(h.from, h.to)}</mark>)
+    marked.push(draft.slice(k, h.from), <mark key={h.from} data-from={h.from}>{draft.slice(h.from, h.to)}</mark>)
     k = h.to
   }
   marked.push(draft.slice(k), '\n')
@@ -100,6 +126,7 @@ export function LinkField(props: {
       <div className="lf-wrap">
         <div ref={back} className="lf-back" aria-hidden="true">{marked}</div>
         <textarea ref={area} id={props.id} value={draft} rows={props.multiline ? props.rows ?? 5 : 1} placeholder={props.placeholder}
+          className={props.multiline ? 'grow' : 'grow line'} style={{ '--rows': props.multiline ? props.rows ?? 5 : 1, ...(props.minHeight ? { minHeight: props.minHeight } : {}) } as CSSProperties}
           onChange={(e) => setDraft(props.multiline ? e.target.value : e.target.value.replace(/\n/g, ' '))}
           onBlur={commit} onKeyDown={onKey} onSelect={check} onContextMenu={onMenu}
           onScroll={(e) => { if (back.current) { back.current.scrollTop = e.currentTarget.scrollTop; back.current.scrollLeft = e.currentTarget.scrollLeft } }} />

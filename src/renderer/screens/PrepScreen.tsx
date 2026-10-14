@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { CommitField } from '../components/fields'
@@ -8,11 +8,18 @@ import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { ENTITY_TYPES, type EntityType, type PrepKind, type SceneType } from '../../shared/schemas'
 import { ENTITY_LABELS } from '../entityStyle'
-import type { EntityBrief, PrepItemView, PrepScreenView, PrepView } from '../../shared/types'
+import type { EntityBrief, PrepItemView, PrepScreenView, PrepView, SheetView } from '../../shared/types'
+import { call } from '../api'
+import { Dialog } from '../components/Dialog'
+import { LocationPick } from '../components/LocationPick'
+import { CardPicker } from '../components/LinkField'
+import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
+import { readStatBlock, statLine } from '../../shared/statblock'
 import { useSidePanel } from '../components/Splitter'
 import { LinkContext, LinkField } from '../components/LinkField'
 import { AddSecretMenu, SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
 import { TypeEmblem } from '../art/emblems'
+import { ArtDefs } from '../art/ArtDefs'
 
 /** "1:15" for 75 minutes at the table. */
 export const hm = (min: number | null) => (min == null ? '' : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`)
@@ -72,7 +79,7 @@ export function PrepScreen() {
   )
 }
 
-function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
+function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }) {
   const side = useSidePanel('prep-side', 'right', 300)
   const { act, say, goTo, openEncounter, openSheet } = useBoard()
   const items = (k: PrepKind) => p.items.filter((i) => i.kind === k)
@@ -94,12 +101,28 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
     setLinks: (next: typeof p.links) => void act('prep:update', { id: p.id, patch: { links: next } })
   }), [p.links, p.id, s.cards, act])
   const card = shown ? s.cards.find((c) => c.id === shown) : undefined
+  // In a pop-out window only one section (or one NPC) shows.
+  const show = (part: string) => !only || only === part
+  const pop = (part: string) => !only && (
+    <button className="fold-btn pop-btn" title="Open this section in a window of its own (drag it to another screen)" onClick={() => void call('prep:popout', { number: p.number, part })}>⧉ Window</button>
+  )
+  if (only?.startsWith('npc:')) {
+    const list = items('npc')
+    const k = list.findIndex((x) => x.id === only.slice(4))
+    return (
+      <LinkContext.Provider value={links}>
+        <section className="parchment-sheet prep-section">
+          {k < 0 ? <p className="ink-muted">This NPC is no longer on the prep sheet.</p> : <NpcRow i={list[k]} s={s} k={k} count={list.length} />}
+        </section>
+      </LinkContext.Provider>
+    )
+  }
 
   return (
     <LinkContext.Provider value={links}>
     <div className="prep-layout" style={side.style}>
       <div className="prep-main" onMouseDown={() => setShown(null)}>
-        <section className="parchment-sheet prep-head" aria-label="Session">
+        {!only && <section className="parchment-sheet prep-head" aria-label="Session">
           <div className="prep-head-grid">
             <CommitField id="prep-title" label="Session title" value={p.title} placeholder="The Drowned Bell" onCommit={(v) => up({ title: v })} />
             <div className="field">
@@ -120,16 +143,16 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
             </button>
             {p.noteDocId && <button className="link-button" onClick={() => { useBoard.setState({ notesTab: 'notes', notesOpenId: p.noteDocId }); goTo('import') }}>Open it in Notes</button>}
           </div>
-        </section>
+        </section>}
 
-        <section className="parchment-sheet prep-section" aria-labelledby="prep-opening">
-          <h2 id="prep-opening" className="panel-title"><span className="prep-n">1</span> Session opening</h2>
+        {show('opening') && <section className="parchment-sheet prep-section" aria-labelledby="prep-opening">
+          <h2 id="prep-opening" className="panel-title"><span className="prep-n">1</span> Session opening {pop('opening')}</h2>
           <p className="ink-muted prep-hint">One sentence describing how the session begins. Start with something happening rather than asking the players what they want to do.</p>
           <LinkField id="prep-premise" label="Opening" className="label-hidden" multiline rows={2} value={p.premise}
             placeholder="Someone is pounding on the door at 2 a.m." onCommit={(v) => up({ premise: v })} />
-        </section>
+        </section>}
 
-        <PrepSection p={p} kind="scene" n={2} title="Likely scenes" hint="3–5 possible scenes. Keep each to a location + tension. These are possibilities, not a script."
+        {show('scene') && <PrepSection pop={pop('scene')} p={p} kind="scene" n={2} title="Likely scenes" hint="3–5 possible scenes. Keep each to a location + tension. These are possibilities, not a script."
           add="Add a scene" extra={scenes.length > 1 && <button className="ink-button" onClick={() => void act('prep:spread', { prepId: p.id })}>Spread times evenly</button>}>
           {(i, k) => (
             <>
@@ -147,9 +170,9 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
               <LinkField id={`s-b-${i.id}`} label="Tension" value={i.body} placeholder="The harbormaster knows what happened and won’t say." onCommit={(v) => upItem(act, i, { body: v })} />
             </>
           )}
-        </PrepSection>
+        </PrepSection>}
 
-        <PrepSection p={p} kind="discovery" n={3} title="Links, secrets, clues" hint="Things that are true about the world, each tied to the cards it is about (a link on the board for each). Don’t decide in advance where or how the players will discover them. Revealed ones show in Player preview."
+        {show('discovery') && <PrepSection pop={pop('discovery')} p={p} kind="discovery" n={3} title="Links, secrets, clues" hint="Things that are true about the world, each tied to the cards it is about (a link on the board for each). Don’t decide in advance where or how the players will discover them. Revealed ones show in Player preview."
           add={null} extra={<AddSecretMenu prepId={p.id} secrets={s.secrets} />}>
           {(i, k) => {
             const sec = i.secretId ? s.secrets.find((x) => x.id === i.secretId) ?? null : null
@@ -169,21 +192,21 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
               </>
             )
           }}
-        </PrepSection>
+        </PrepSection>}
 
-        <PrepSection p={p} kind="npc" n={4} title="NPCs" hint="Name, who they are, what they want. Tied to a card, these are the card's name, one-line summary and motivation: change them here or on the card."
+        {show('npc') && <PrepSection pop={pop('npc')} p={p} kind="npc" n={4} title="NPCs" hint="Who they are and what they want. Tied to a card, the name, flaws, motivation, description, location and DM notes are the card's own: change them here or on the card."
           add="Add an NPC">
-          {(i) => <NpcRow i={i} s={s} />}
-        </PrepSection>
+          {(i, k, count) => <NpcRow i={i} s={s} k={k} count={count} />}
+        </PrepSection>}
 
-        <PrepSection p={p} kind="thread" n={5} title="Loose threads" hint="Three unresolved things from the previous session. Possibilities to keep in mind, not objectives to force onto the players."
+        {show('thread') && <PrepSection pop={pop('thread')} p={p} kind="thread" n={5} title="Loose threads" hint="Three unresolved things from the previous session. Possibilities to keep in mind, not objectives to force onto the players."
           add="Add a thread" extra={p.number > 1 && <button className="ink-button" title="Copies last session’s “what the players seem to want next” and its threads not ticked off"
             onClick={async () => { const n = await act('prep:bringThreads', { prepId: p.id }); if (n === 0) say('Nothing new to bring in from last session.') }}>Bring in from last session</button>}>
           {(i, k) => <LinkField id={`l-b-${i.id}`} label={`Thread ${k + 1}`} value={i.body} placeholder="The party promised to investigate the abandoned mine." onCommit={(v) => upItem(act, i, { body: v })} />}
-        </PrepSection>
+        </PrepSection>}
 
-        <section className="parchment-sheet prep-section" aria-labelledby="prep-recap">
-          <h2 id="prep-recap" className="panel-title"><span className="prep-n">6</span> Session recap</h2>
+        {show('recap') && <section className="parchment-sheet prep-section" aria-labelledby="prep-recap">
+          <h2 id="prep-recap" className="panel-title"><span className="prep-n">6</span> Session recap {pop('recap')}</h2>
           <p className="ink-muted prep-hint">Write this after the session. “What happened” is the session’s recap (the same text as in Review).</p>
           {p.session
             ? <LinkField id="prep-happened" label="What happened" multiline rows={3} value={p.session.recap}
@@ -191,9 +214,9 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
             : <p className="ink-muted">What happened: write it here once session {p.number} has started.</p>}
           <LinkField id="prep-want" label="What the players seem to want next" multiline rows={2} value={p.wantNext}
             placeholder="They want to track the escaped smuggler and find out who hired him." onCommit={(v) => up({ wantNext: v })} />
-        </section>
+        </section>}
 
-        <PrepSection p={p} kind="bible" n={7} title="World bible updates" hint="Add anything established during play. If something happens at the table, it is now part of the world unless you deliberately retcon it."
+        {show('bible') && <PrepSection pop={pop('bible')} p={p} kind="bible" n={7} title="World bible updates" hint="Add anything established during play. If something happens at the table, it is now part of the world unless you deliberately retcon it."
           add="Add a line" extra={(
             <label className="row tight">Make cards as
               <select value={cardType} aria-label="Card type for Make a card" onChange={(e) => setCardType(e.target.value as EntityType)}>
@@ -210,10 +233,10 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
                     onClick={async () => { const id = await act('prep:makeCard', { itemId: i.id, type: cardType }); if (id) void openSheet(id) }}>Make a card</button>}
             </div>
           )}
-        </PrepSection>
+        </PrepSection>}
       </div>
 
-      <aside className="prep-side">
+      {!only && <aside className="prep-side">
         {side.grip}
         {card ? (
           <section className="parchment-note prep-card" aria-label={`Card: ${card.name}`}>
@@ -264,68 +287,196 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           <LinkField id="prep-notes" label="Notes" multiline rows={4} value={p.notes} className="label-hidden" placeholder="Anything else for this session…" onCommit={(v) => up({ notes: v })} />
         </section>
         </>}
-      </aside>
+      </aside>}
     </div>
     </LinkContext.Provider>
   )
 }
 
-/** A prep NPC: tied to a card (picked or made here) it shares the card's name, summary and motivation; Links and Other info fold out. */
-function NpcRow({ i, s }: { i: PrepItemView; s: PrepScreenView }) {
+const NEW_NPC = '\u0000new'
+/** What "Show from the sheet" can show under a prep NPC (ticks kept on the prep line). */
+const SHOW_PARTS = [
+  { key: 'statblock', label: 'Stat block summary' }, { key: 'personality', label: 'Personality' }, { key: 'ideals', label: 'Ideals' },
+  { key: 'bonds', label: 'Bonds' }, { key: 'voice', label: 'Voice' }, { key: 'tactics', label: 'Tactics' },
+  { key: 'actions', label: 'Actions' }, { key: 'spells', label: 'Spells' }
+] as const
+
+/**
+ * A prep NPC (owner, 2026-10-14): icon tools on top; Name (a card, + Create new NPC… or a one-time NPC without a card),
+ * Flaws and Motivation (the card's own); the fold holds Location, Description, Links (+ New link) and DM notes, and
+ * "Show from the sheet" ticks.
+ */
+export function NpcRow({ i, s, k, count }: { i: PrepItemView; s: PrepScreenView; k: number; count: number }) {
   const { act, openSheet } = useBoard()
   const card = i.entityId ? s.cards.find((c) => c.id === i.entityId) : undefined
   const name = (id: string) => s.cards.find((c) => c.id === id)?.name ?? '?'
   const ties = card ? s.strings.filter((r) => r.sourceId === card.id || r.targetId === card.id) : []
   const words = (t: string) => t.replace(/_/g, ' ').toLowerCase()
+  const [making, setMaking] = useState<string | null>(null)
+  const [linking, setLinking] = useState(false)
+  const links = useRef<HTMLDivElement>(null)
+  const [linksH, setLinksH] = useState(0)
+  useEffect(() => {
+    const el = links.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setLinksH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [card?.id])
+  const make = async () => {
+    const { info } = useBoard.getState()
+    if (!making?.trim() || !info) return
+    const made = await act('entity:create', { boardId: info.globalBoardId, type: 'NPC', name: making.trim() })
+    setMaking(null)
+    if (made) upItem(act, i, { entityId: made.id })
+  }
+  const shown = i.stats.split(',').filter(Boolean)
   return (
-    <>
-      <div className="prep-row-fields">
-        <div className="field npc-card-pick">
-          <label htmlFor={`n-card-${i.id}`}>Card</label>
-          <div className="row tight">
-            <select id={`n-card-${i.id}`} value={i.entityId ?? ''} onChange={(e) => upItem(act, i, { entityId: e.target.value || null })}>
-              <option value="">None</option>
-              {s.people.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+    <div className="npc-row">
+      <div className="npc-head">
+        <strong className="npc-title">{card?.name ?? (i.title || 'New NPC')}</strong>
+        <span className="row tight npc-tools">
+          <button className="ink-button icon" title="Move up" aria-label="Move up" disabled={k === 0} onClick={() => void act('prepItem:move', { id: i.id, direction: -1 })}>↑</button>
+          <button className="ink-button icon" title="Move down" aria-label="Move down" disabled={k === count - 1} onClick={() => void act('prepItem:move', { id: i.id, direction: 1 })}>↓</button>
+          <button className="ink-button icon" title={card ? 'Open card' : 'No card to open (one-time NPC)'} aria-label="Open card" disabled={!card} onClick={() => card && void openSheet(card.id)}>↗</button>
+          <button className="ink-button icon" title="Window: this NPC in a window of its own" aria-label="Open in a window" onClick={() => void call('prep:popout', { number: useBoard.getState().prep?.number ?? 1, part: `npc:${i.id}` })}>⧉</button>
+          <button className="ink-button icon danger-ink" title="Remove (History brings it back)" aria-label="Remove" onClick={() => void act('prepItem:setStatus', { id: i.id, status: 'defunct' })}>🗑</button>
+        </span>
+      </div>
+      <div className="prep-row-fields npc-top">
+        <div className="field">
+          <label htmlFor={`n-card-${i.id}`}>Name</label>
+          {making === null ? (
+            <select id={`n-card-${i.id}`} value={i.entityId ?? ''} onChange={(e) => {
+              if (e.target.value === NEW_NPC) setMaking(i.entityId ? '' : i.title)
+              else upItem(act, i, { entityId: e.target.value || null })
+            }}>
+              <optgroup label="NPC cards">{s.people.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
+              <option value={NEW_NPC}>+ Create new NPC…</option>
+              <option value="">One-time NPC (does not create card)</option>
             </select>
-            {card
-              ? <button className="ink-button" onClick={() => void openSheet(card.id)}>Open</button>
-              : <button className="ink-button" disabled={!i.title.trim()} title={i.title.trim() ? 'A new NPC card with this name, description and motivation (Ctrl+Z undoes)' : 'Give the NPC a name first'}
-                  onClick={async () => { const id = await act('prep:makeCard', { itemId: i.id, type: 'NPC' }); if (id) void openSheet(id) }}>Make a card</button>}
-          </div>
+          ) : (
+            <form className="row tight" onSubmit={(e) => { e.preventDefault(); void make() }}>
+              <input autoFocus value={making} maxLength={200} placeholder="Name of the new NPC" aria-label="Name of the new NPC" onChange={(e) => setMaking(e.target.value)} />
+              <button type="submit" disabled={!making.trim()}>Make</button>
+              <button type="button" onClick={() => setMaking(null)}>Cancel</button>
+            </form>
+          )}
+          {!card && making === null && (
+            <LinkField id={`n-t-${i.id}`} label="Name of the one-time NPC" className="label-hidden" value={i.title} placeholder="Gate guard Bryn" onCommit={(v) => upItem(act, i, { title: v })} />
+          )}
         </div>
-        <LinkField id={`n-t-${i.id}`} label="Name" value={i.title} placeholder="Mara Venn" onCommit={(v) => { if (v || !card) upItem(act, i, { title: v }) }} />
-        <LinkField id={`n-d-${i.id}`} label="Description" value={i.description} placeholder="Harbour clerk with ink-stained fingers" onCommit={(v) => upItem(act, i, { description: v })} />
+        {card
+          ? <LinkField id={`n-f-${i.id}`} label="Flaws" value={card.flaws} placeholder="Drinks to forget the war" onCommit={(flaws) => void act('entity:update', { id: card.id, patch: { attributes: { flaws } } })} />
+          : <LinkField id={`n-f-${i.id}`} label="Flaws" value={i.body} placeholder="Drinks to forget the war" onCommit={(v) => upItem(act, i, { body: v })} />}
         <LinkField id={`n-r-${i.id}`} label="Motivation" value={i.role} placeholder="the party to leave town" onCommit={(v) => upItem(act, i, { role: v })} />
       </div>
       <details className="npc-more">
         <summary>Links and other info</summary>
-        <div className="npc-more-body">
-          <div className="field">
-            <span className="field-label">Links</span>
-            {!card ? <p className="ink-muted">Tie or make a card to see its links.</p> : ties.length === 0 ? <p className="ink-muted">No links on this card yet.</p> : (
-              <ul className="ties">
-                {ties.map((r) => {
-                  const other = r.sourceId === card.id ? r.targetId : r.sourceId
-                  return (
-                    <li key={r.id}>
-                      <span className="tie-type">{r.isSecret ? 'Secret · ' : ''}{words(r.type)}</span> {r.sourceId === card.id ? '→' : '←'}{' '}
-                      <button className="link-button" onClick={() => void openSheet(other)}>{name(other)}</button>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+        {!card ? (
+          <div className="npc-more-body">
+            <LinkField id={`n-d-${i.id}`} label="Description" multiline rows={2} value={i.description} placeholder="Harbour clerk with ink-stained fingers" onCommit={(v) => upItem(act, i, { description: v })} />
+            <p className="ink-muted">A one-time NPC has no card. <button className="link-button" disabled={!i.title.trim()} title={i.title.trim() ? 'A new NPC card with this name, description and motivation (Ctrl+Z undoes)' : 'Give the NPC a name first'}
+              onClick={async () => { const id = await act('prep:makeCard', { itemId: i.id, type: 'NPC' }); if (id) void openSheet(id) }}>Make a card</button> for location, links and DM notes.</p>
           </div>
-          <LinkField id={`n-b-${i.id}`} label="How to play them" value={i.body} placeholder="Talks too quickly when lying." onCommit={(v) => upItem(act, i, { body: v })} />
-          {card && (
-            <>
-              <LinkField id={`n-l-${i.id}`} label="Location (on the card)" value={card.location} onCommit={(location) => void act('entity:update', { id: card.id, patch: { attributes: { location } } })} />
-              <LinkField id={`n-n-${i.id}`} label="DM notes (on the card)" value={card.notes} multiline rows={3} onCommit={(notes) => void act('entity:update', { id: card.id, patch: { attributes: { notes } } })} />
-            </>
-          )}
-        </div>
+        ) : (
+          <>
+            <div className="npc-grid">
+              <LocationPick id={`n-l-${i.id}`} value={card.location} exclude={card.id} onChange={(location) => void act('entity:update', { id: card.id, patch: { attributes: { location } } })} />
+              <LinkField id={`n-d-${i.id}`} label="Description" multiline rows={2} value={i.description} placeholder="Harbour clerk with ink-stained fingers" onCommit={(v) => upItem(act, i, { description: v })} />
+              <div className="field">
+                <span className="field-label">Links</span>
+                <div ref={links} className="npc-links">
+                  {ties.length === 0 ? <p className="ink-muted">No links on this card yet.</p> : (
+                    <ul className="ties">
+                      {ties.map((r) => {
+                        const other = r.sourceId === card.id ? r.targetId : r.sourceId
+                        return (
+                          <li key={r.id}>
+                            <span className="tie-type">{r.isSecret ? 'Secret · ' : ''}{words(r.type)}</span> {r.sourceId === card.id ? '→' : '←'}{' '}
+                            <button className="link-button" onClick={() => void openSheet(other)}>{name(other)}</button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                  <button className="ink-button" onClick={() => setLinking(true)}>+ New link</button>
+                </div>
+              </div>
+              <LinkField id={`n-n-${i.id}`} label="DM notes" multiline rows={2} value={card.notes} minHeight={card.notes ? undefined : Math.min(linksH, 200)}
+                placeholder="Notes for you only…" onCommit={(notes) => void act('entity:update', { id: card.id, patch: { attributes: { notes } } })} />
+            </div>
+            <ShowFromSheet i={i} cardId={card.id} shown={shown} />
+          </>
+        )}
       </details>
-    </>
+      {linking && card && <NewLinkDialog from={card} cards={s.cards} onClose={() => setLinking(false)} />}
+    </div>
+  )
+}
+
+/** Ticked parts of the NPC's card, read-only (change them on the card). */
+function ShowFromSheet({ i, cardId, shown }: { i: PrepItemView; cardId: string; shown: string[] }) {
+  const { act, view } = useBoard()
+  const [sheet, setSheet] = useState<SheetView | null>(null)
+  useEffect(() => { if (shown.length) void call('sheet:view', { entityId: cardId }).then(setSheet).catch(() => setSheet(null)) }, [cardId, shown.length, view?.undo])
+  const a = (sheet?.entity.attributes ?? {}) as Record<string, unknown>
+  const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string).trim() : '')
+  const sb = readStatBlock(a.statblock)
+  const part = (key: string): ReactNode => {
+    if (!sheet) return null
+    if (key === 'statblock') return sb ? <>{statLine(sb) || 'No stat block details yet'}<br /><span className="ink-muted">STR {sb.str} DEX {sb.dex} CON {sb.con} INT {sb.int} WIS {sb.wis} CHA {sb.cha}{sb.speed ? ` · Speed ${sb.speed}` : ''}</span></> : 'No stat block on this card.'
+    if (key === 'actions' || key === 'spells') {
+      const list = sheet.abilities.filter((x) => (key === 'spells') === (x.kind === 'SPELL'))
+      return list.length ? list.map((x) => x.name).join(' · ') : 'None on the card.'
+    }
+    return t(key) || 'Empty on the card.'
+  }
+  return (
+    <details className="npc-show" open={shown.length > 0}>
+      <summary>Show from the sheet <span className="ink-muted">(this NPC)</span></summary>
+      <div className="row tight wrap">
+        {SHOW_PARTS.map((p) => (
+          <label key={p.key} className="field checkbox">
+            <input type="checkbox" checked={shown.includes(p.key)}
+              onChange={(e) => upItem(act, i, { stats: (e.target.checked ? [...shown, p.key] : shown.filter((x) => x !== p.key)).join(',') })} /> {p.label}
+          </label>
+        ))}
+      </div>
+      {SHOW_PARTS.filter((p) => shown.includes(p.key)).map((p) => (
+        <div key={p.key} className="npc-show-part"><strong>{p.label}:</strong> {part(p.key)}</div>
+      ))}
+    </details>
+  )
+}
+
+/** + New link from a prep NPC: this card – link type – another card (picked or made). A string on the board, Ctrl+Z undoes. */
+function NewLinkDialog({ from, cards, onClose }: { from: EntityBrief; cards: EntityBrief[]; onClose(): void }) {
+  const act = useBoard((st) => st.act)
+  const [choice, setChoice] = useState<LinkChoice>(DEFAULT_LINK)
+  const [target, setTarget] = useState<string | null>(null)
+  const [picking, setPicking] = useState(false)
+  const save = async () => {
+    if (!target || !linkReady(choice)) return
+    await act('relationship:create', { sourceId: from.id, targetId: target, ...linkInput(choice) })
+    onClose()
+  }
+  return (
+    <Dialog title="New link" open onClose={onClose}>
+      <div className="dz-form">
+        <div className="new-link-row">
+          <div className="field"><span className="field-label">Card</span><p><strong>{from.name}</strong></p></div>
+          <div><LinkTypeFields id={`nl-${from.id}`} value={choice} onChange={setChoice} /></div>
+          <div className="field"><span className="field-label">Card</span>
+            <button type="button" onClick={() => setPicking(true)}>{target ? cards.find((c) => c.id === target)?.name ?? 'A card' : 'Pick or make a card…'}</button></div>
+        </div>
+        <div className="dz-actions">
+          <button type="button" onClick={onClose}>Cancel</button>
+          <button className="primary" disabled={!target || !linkReady(choice)} onClick={() => void save()}>Add link</button>
+        </div>
+      </div>
+      {picking && <CardPicker words="" title="Link to which card?" cards={cards.filter((c) => c.id !== from.id)} onClose={() => setPicking(false)} onPick={(id) => { setTarget(id); setPicking(false) }} />}
+    </Dialog>
   )
 }
 
@@ -333,16 +484,16 @@ function upItem(act: ReturnType<typeof useBoard.getState>['act'], i: PrepItemVie
   void act('prepItem:update', { id: i.id, patch })
 }
 
-function PrepSection({ p, kind, n, title, hint, add, extra, children }: {
-  p: PrepView; kind: PrepKind; n: number; title: string; hint: string; add: string | null; extra?: ReactNode
-  children(i: PrepItemView, index: number): ReactNode
+function PrepSection({ p, kind, n, title, hint, add, extra, children, pop }: {
+  p: PrepView; kind: PrepKind; n: number; title: string; hint: string; add: string | null; extra?: ReactNode; pop?: ReactNode
+  children(i: PrepItemView, index: number, count: number): ReactNode
 }) {
   const act = useBoard((s) => s.act)
   const list = p.items.filter((i) => i.kind === kind)
   return (
     <section className="parchment-sheet prep-section" aria-labelledby={`prep-${kind}`}>
       <div className="prep-section-head">
-        <h2 id={`prep-${kind}`} className="panel-title"><span className="prep-n">{n}</span> {title}</h2>
+        <h2 id={`prep-${kind}`} className="panel-title"><span className="prep-n">{n}</span> {title} {pop}</h2>
         <div className="row tight wrap">
           {extra}
           {add && <button className="ink-button primary-ink" onClick={() => void act('prepItem:add', { prepId: p.id, kind })}>{add}</button>}
@@ -353,9 +504,9 @@ function PrepSection({ p, kind, n, title, hint, add, extra, children }: {
         <ol className="prep-list">
           {list.map((i, k) => (
             <li key={i.id} className={`prep-item${i.done ? ' is-done' : ''}`}>
-              <div className="prep-item-body">{children(i, k)}</div>
-              <div className="prep-item-tools">
-                {DONE_LABEL[kind] && kind !== 'npc' && (
+              <div className="prep-item-body">{children(i, k, list.length)}</div>
+              {kind !== 'npc' && <div className="prep-item-tools">
+                {DONE_LABEL[kind] && (
                   <label className="prep-done">
                     <input type="checkbox" checked={i.done} onChange={(e) => void act('prepItem:done', { id: i.id, done: e.target.checked })} />
                     {DONE_LABEL[kind]}{i.done && i.doneAtMin != null ? <span className="ink-muted"> {formatClock(i.doneAtMin)}</span> : null}
@@ -364,7 +515,7 @@ function PrepSection({ p, kind, n, title, hint, add, extra, children }: {
                 <button className="ink-button" aria-label="Move up" disabled={k === 0} onClick={() => void act('prepItem:move', { id: i.id, direction: -1 })}>↑</button>
                 <button className="ink-button" aria-label="Move down" disabled={k === list.length - 1} onClick={() => void act('prepItem:move', { id: i.id, direction: 1 })}>↓</button>
                 <button className="ink-button danger-ink" onClick={() => void act('prepItem:setStatus', { id: i.id, status: 'defunct' })}>Remove</button>
-              </div>
+              </div>}
             </li>
           ))}
         </ol>
@@ -406,5 +557,35 @@ function TimeRange({ i }: { i: PrepItemView }) {
         <input className="short" placeholder="0:30" value={to} aria-label="Ends at" onChange={(e) => setTo(e.target.value)} onBlur={commit} />
       </div>
     </div>
+  )
+}
+
+/**
+ * A pop-out window with one prep section or one NPC (owner, 2026-10-14). It reads and writes the same campaign as the
+ * main window; changes either side show on both. Card sheets open in the main window.
+ */
+export function PrepWindow({ number, part }: { number: number; part: string }) {
+  const { prep, prepScreen } = useBoard()
+  const [none, setNone] = useState(false)
+  useEffect(() => {
+    useBoard.setState({ openSheet: async (entityId: string) => { await call('main:openSheet', { entityId }) } })
+    void (async () => {
+      const info = await call('campaign:info', undefined).catch(() => null)
+      if (!info) { setNone(true); return }
+      useBoard.setState({ info, boardId: info.globalBoardId, screen: 'prep', prepNumber: number })
+      await useBoard.getState().refresh()
+    })()
+    return window.dungeonzen.onChanged(() => void useBoard.getState().refresh())
+  }, [number])
+  const names: Record<string, string> = { opening: 'Session opening', scene: 'Likely scenes', discovery: 'Links, secrets, clues', npc: 'NPCs', thread: 'Loose threads', recap: 'Session recap', bible: 'World bible updates' }
+  const npc = part.startsWith('npc:') ? prep?.items.find((x) => x.id === part.slice(4)) : undefined
+  const title = npc ? (prepScreen?.cards.find((c) => c.id === npc.entityId)?.name ?? (npc.title || 'NPC')) : names[part] ?? 'Session prep'
+  useEffect(() => { document.title = `${title} · Session ${number} · Dungeon Zen` }, [title, number])
+  return (
+    <div className="desk-screen desk-theme prep-window-frame"><ArtDefs /><main className="desk prep-screen prep-window">
+      {none ? <p className="desk-loading">Open a campaign in Dungeon Zen first.</p>
+        : !prep || !prepScreen ? <p className="desk-loading">Opening…</p>
+        : <div className="prep-main"><Sheet p={prep} s={prepScreen} only={part} /></div>}
+    </main></div>
   )
 }

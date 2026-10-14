@@ -22,11 +22,15 @@ const ImportScreen = lazy(() => import('./screens/ImportScreen').then((m) => ({ 
 const CombatScreen = lazy(() => import('./screens/CombatScreen').then((m) => ({ default: m.CombatScreen })))
 const GuideScreen = lazy(() => import('./screens/GuideScreen').then((m) => ({ default: m.GuideScreen })))
 const GeneratorsScreen = lazy(() => import('./screens/GeneratorsScreen').then((m) => ({ default: m.GeneratorsScreen })))
+const PrepWindow = lazy(() => import('./screens/PrepScreen').then((m) => ({ default: m.PrepWindow })))
 const JournalWindow = lazy(() => import('./screens/JournalWindow').then((m) => ({ default: m.JournalWindow })))
 
 export function App() {
   useFolding()
-  return window.location.hash === '#journal' ? <Suspense fallback={null}><JournalWindow /></Suspense> : <MainApp />
+  const hash = window.location.hash
+  const prep = /^#prep\/(\d+)\/(.+)$/.exec(hash)
+  if (prep) return <Suspense fallback={null}><PrepWindow number={Number(prep[1])} part={decodeURIComponent(prep[2])} /></Suspense>
+  return hash === '#journal' ? <Suspense fallback={null}><JournalWindow /></Suspense> : <MainApp />
 }
 
 function MainApp() {
@@ -37,6 +41,8 @@ function MainApp() {
 
   // The popped-out DM notes changed something: show it here too.
   useEffect(() => window.dungeonzen.onChanged(() => void useBoard.getState().refresh()), [])
+  // A pop-out prep window asked for a card's sheet.
+  useEffect(() => window.dungeonzen.onOpenSheet((id) => void useBoard.getState().openSheet(id)), [])
 
   // Messages fade after a few seconds; errors stay a little longer.
   useEffect(() => {

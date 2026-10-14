@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 
 /** A colour picker that saves once, when the picker closes (one undo step, not one per step of the drag). */
 export function ColourInput({ id, value, onCommit, label }: { id?: string; value: string; onCommit(colour: string): void; label?: string }) {
@@ -47,8 +47,12 @@ export function CommitField(props: {
       <label htmlFor={props.id}>{props.label}</label>
       {props.multiline ? (
         <textarea id={props.id} value={draft} rows={props.rows ?? 5} placeholder={props.placeholder}
-          className={props.mono ? 'mono' : undefined}
+          className={props.mono ? 'mono' : 'grow'} style={{ '--rows': props.rows ?? 5 } as CSSProperties}
           onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
+      ) : !props.list ? (
+        // One line that wraps and grows as you type (Enter still finishes).
+        <textarea id={props.id} value={draft} rows={1} placeholder={props.placeholder} className="grow line"
+          onChange={(e) => setDraft(e.target.value.replace(/\n/g, ' '))} onBlur={commit} onKeyDown={onKey} />
       ) : (
         <input id={props.id} value={draft} placeholder={props.placeholder} list={props.list}
           onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />

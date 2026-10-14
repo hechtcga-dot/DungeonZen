@@ -1,7 +1,7 @@
 import { ADVANCED_FIELDS, STYLE_TAG_FIELDS, TEMPLATE_FIELDS, advancedFromTags, advancedLines, blendTags, styleLines, type Advanced, type AdvancedKey, type PromptTemplate, type StyleTags } from '../../shared/styleTags'
 import { COMPOSITIONS, DEFAULT_COMPOSITION_FOR, compositionById } from '../../shared/compositions'
 import { CompositionSketch } from '../art/compositions'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { Dialog } from './Dialog'
@@ -44,6 +44,11 @@ export function SendExamples({ value, onChange }: { value: boolean; onChange(v: 
   )
 }
 
+/** Style examples ticked or added most recently, newest first (this computer; ids are unique across campaigns). */
+const RECENT_KEY = 'dz-recent-styles'
+const readRecent = (): string[] => { try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as string[] } catch { return [] } }
+const markRecent = (ids: string[]) => { try { localStorage.setItem(RECENT_KEY, JSON.stringify([...ids, ...readRecent().filter((x) => !ids.includes(x))].slice(0, 200))) } catch { /* private window */ } }
+
 export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, onTags, smaller, onSmaller, send, onSend, only }: {
   use: StyleUse
   /** Just one part (the card picture window puts them in different columns); the 'styles' part owns the ticks. */
@@ -73,6 +78,7 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
     if (!added?.length) return
     await loadStyles()
     onPicked(new Set([...picked, ...added.map((x) => x.id)]))
+    markRecent(added.map((x) => x.id))
     setFresh(added.map((x) => x.id))
   }
   useEffect(() => {
@@ -85,6 +91,12 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
   useEffect(() => { if (styles) onTags?.(styles.filter((s) => picked.has(s.id)).map((s) => s.tags)) }, [styles, picked]) // eslint-disable-line react-hooks/exhaustive-deps
   const max = service?.maxReferences ?? 0
   const sending = Math.min(max, picked.size)
+  // The 8 most recently ticked or added next to +; the rest (and ticked ones) behind All examples.
+  const [all, setAll] = useState(false)
+  const recent = readRecent()
+  const rank = (id: string) => { const r = recent.indexOf(id); return r < 0 ? Infinity : r }
+  const ordered = [...(styles ?? [])].sort((a, b) => rank(a.id) - rank(b.id))
+  const shown = all ? ordered : ordered.filter((x, k) => k < 8 || picked.has(x.id))
   return (
     <>
       {only !== 'styles' && <details className="draw-prompt">
@@ -110,17 +122,18 @@ export function DrawExtras({ use, prompt, onPrompt, onReset, picked, onPicked, o
           <>
             {styles.length === 0 && <p className="hint">No Library pictures are ticked for {STYLE_USE_LABELS[use].toLowerCase()}. Add one with + or in Library › Pictures.</p>}
             <div className="draw-thumbs">
-              {styles.map((s) => (
+              <button type="button" className="draw-thumb draw-add" title="Add pictures from your computer to the Library" aria-label="Add pictures to the Library" onClick={() => void addPictures()}>+</button>
+              {shown.map((s) => (
                 <label key={s.id} className={`draw-thumb${picked.has(s.id) ? ' is-on' : ''}`} title={s.name}>
                   <input type="checkbox" checked={picked.has(s.id)} onChange={(e) => {
                     const next = new Set(picked)
-                    if (e.target.checked) next.add(s.id); else next.delete(s.id)
+                    if (e.target.checked) { next.add(s.id); markRecent([s.id]) } else next.delete(s.id)
                     onPicked(next)
                   }} />
                   <img src={`${s.url}?w=400`} alt={s.name} />
                 </label>
               ))}
-              <button type="button" className="draw-thumb draw-add" title="Add pictures from your computer to the Library" aria-label="Add pictures to the Library" onClick={() => void addPictures()}>+</button>
+              {ordered.length > 8 && <button type="button" className="draw-all" onClick={() => setAll(!all)}>{all ? 'Show the 8 most recent' : `All examples… (${ordered.length})`}</button>}
             </div>
             <SendExamples value={send} onChange={onSend} />
             {fresh.length > 0 && <NewPictures ids={fresh} onChanged={() => void loadStyles()} onDone={() => setFresh([])} />}
@@ -285,7 +298,7 @@ function AdvancedRows({ keys, value, changed, onChange }: { keys: AdvancedKey[];
             const { [f.key]: _, ...rest } = changed
             onChange(rest)
           }}> ↺</button>}</span>
-          <textarea rows={f.key === 'description' || f.key === 'other' || f.key === 'composition' ? 2 : 1} value={value[f.key] ?? ''} maxLength={1000} placeholder={`e.g. ${f.example}`}
+          <textarea className={f.key === 'description' || f.key === 'other' || f.key === 'composition' ? 'grow' : 'grow line'} style={{ '--rows': f.key === 'description' || f.key === 'other' || f.key === 'composition' ? 2 : 1 } as CSSProperties} rows={1} value={value[f.key] ?? ''} maxLength={1000} placeholder={`e.g. ${f.example}`}
             onChange={(e) => onChange({ ...changed, [f.key]: e.target.value })} />
         </label>
       ))}

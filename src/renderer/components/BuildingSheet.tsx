@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { LocationPick } from './LocationPick'
 import { useBoard } from '../store'
 import { call } from '../api'
 import { CommitField, TitleField } from './fields'
@@ -113,8 +114,8 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
             </select>
           </div>
           <p className="hint">Floors: {floors.length} ({floors.map((f) => f.name.toLowerCase()).join(', ')}). Add one with + Floor.</p>
-          <CommitField id={`b-${e.id}-inside`} label="Inside" value={text('location')} placeholder="The region or town it stands in"
-            hint="Its region on the map shows who is in here." onCommit={(location) => void act('entity:update', { id: e.id, patch: { attributes: { location } } })} />
+          <LocationPick id={`b-${e.id}-inside`} label="Inside" value={text('location')} exclude={e.id}
+            hint="Its region on the map shows who is in here." onChange={(location) => void act('entity:update', { id: e.id, patch: { attributes: { location } } })} />
           {factions}
         </section>
         <section className="panel">

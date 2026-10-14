@@ -365,3 +365,9 @@ input.short { width: 84px; }
 .dz-dialog-body { margin: 0 6px 6px 0; scrollbar-width: thin; scrollbar-color: #8a7350 transparent; }
 .dz-dialog-body > .dz-form > .dz-actions:last-child { position: sticky; bottom: -18px; z-index: 2; margin: 0 -18px -18px; padding: 10px 18px 12px;
   background-color: #f1e6c6; background-image: var(--tex-paper); background-size: 300px 300px; border-top: 1px solid rgba(122, 100, 64, 0.35); }
+
+/* Growing text boxes (owner, 2026-10-14): grow with the words to about two paragraphs, then scroll; the corner handle
+   still pulls the box bigger (a pulled box has its own height, so the cap comes off). */
+textarea.grow { field-sizing: content; min-height: calc(var(--rows, 1) * 1lh + 22px); max-height: calc(10lh + 22px); }
+textarea.grow.line { padding-top: 8px; padding-bottom: 8px; min-height: var(--control); }
+textarea.grow[style*="height"] { max-height: none; }

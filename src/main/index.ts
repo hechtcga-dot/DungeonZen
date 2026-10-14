@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { app, BrowserWindow, protocol, safeStorage, shell } from 'electron'
 import { Campaign } from './campaign/campaign'
 import { registerIpc } from './ipcHandlers'
@@ -41,7 +42,7 @@ function createWindow(): void {
     }
   })
   mainWindow.once('ready-to-show', () => mainWindow?.show())
-  mainWindow.on('closed', () => { mainWindow = null; journalWindow?.close() })
+  mainWindow.on('closed', () => { mainWindow = null; journalWindow?.close(); for (const w of prepWindows.values()) w.close() })
 
   // Links open in the system browser, never inside the app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -69,8 +70,35 @@ function openJournal(): void {
   else void journalWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'journal' })
 }
 
+const prepWindows = new Map<string, BrowserWindow>()
+const boundsFile = () => join(app.getPath('userData'), 'prep-windows.json')
+const readBounds = (): Record<string, Electron.Rectangle> => { try { return JSON.parse(readFileSync(boundsFile(), 'utf8')) } catch { return {} } }
+
+/**
+ * A session prep section (or one NPC) in a window of its own (owner, 2026-10-14): drag it to another screen; it stays
+ * until closed, whatever the main window shows. One per section; size and place remembered per kind on this computer.
+ */
+function openPrepWindow(number: number, part: string): void {
+  const key = `${number}/${part}`
+  const open = prepWindows.get(key)
+  if (open) { open.focus(); return }
+  const kind = part.split(':')[0]
+  const w = new BrowserWindow({
+    ...(readBounds()[kind] ?? { width: 560, height: 680 }), minWidth: 320, minHeight: 240, backgroundColor: '#2e1c0e', title: 'Dungeon Zen · Session prep',
+    autoHideMenuBar: true,
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  })
+  prepWindows.set(key, w)
+  w.on('close', () => { try { writeFileSync(boundsFile(), JSON.stringify({ ...readBounds(), [kind]: w.getBounds() })) } catch { /* not saved */ } })
+  w.on('closed', () => prepWindows.delete(key))
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  const hash = `prep/${number}/${encodeURIComponent(part)}`
+  if (process.env.ELECTRON_RENDERER_URL) void w.loadURL(`${process.env.ELECTRON_RENDERER_URL}#${hash}`)
+  else void w.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+}
+
 app.whenReady().then(() => {
-  registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')), new KeyStore(app.getPath('userData'), safeStorage), openJournal)
+  registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')), new KeyStore(app.getPath('userData'), safeStorage), openJournal, openPrepWindow)
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })

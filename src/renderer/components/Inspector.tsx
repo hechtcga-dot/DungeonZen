@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LocationPick } from './LocationPick'
 import { useReactFlow } from '@xyflow/react'
 import { useBoard, useView } from '../store'
 import { CommitField } from './fields'
@@ -122,8 +123,8 @@ function EntityInspector({ entity }: { entity: EntityView }) {
             {ENTITY_TYPES.map((t) => <option key={t} value={t}>{ENTITY_LABELS[t]}</option>)}
           </select>
         </div>
-        <CommitField id={`${p}-location`} label="Location" value={str('location')}
-          onCommit={(location) => update({ attributes: { location } })} />
+        <LocationPick id={`${p}-location`} value={str('location')} exclude={entity.id}
+          onChange={(location) => update({ attributes: { location } })} />
         <CommitField id={`${p}-motivation`} label="Motivation" value={str('motivation')}
           onCommit={(motivation) => update({ attributes: { motivation } })} />
         <CommitField id={`${p}-tags`} label="Tags" value={entity.tags.join(', ')} hint="Separate tags with commas."

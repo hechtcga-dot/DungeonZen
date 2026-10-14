@@ -115,6 +115,9 @@ export const ipcInputs = {
   'entity:create': z.object({ boardId: Id, type: EntityType, name: Name, position: Position.optional() }),
   'entity:duplicate': z.object({ id: Id }),
   'sheet:view': z.object({ entityId: Id }),
+  'places:list': z.void(),
+  'prep:popout': z.object({ number: z.number().int().min(1).max(100000), part: z.string().regex(/^(opening|scene|discovery|npc|thread|recap|bible|npc:[0-9a-zA-Z-]{1,64})$/) }),
+  'main:openSheet': z.object({ entityId: Id }),
   'ability:add': z.object({ entityId: Id, ability: AbilityFields.partial().extend({ name: Name }) }),
   'ability:update': z.object({ id: Id, patch: AbilityFields.partial() }),
   'ability:setStatus': z.object({ id: Id, status: RowStatus }),
@@ -503,6 +506,9 @@ export interface IpcOutputs {
   'entity:create': EntityView
   'entity:duplicate': EntityView
   'sheet:view': SheetView
+  'prep:popout': void
+  'main:openSheet': void
+  'places:list': Array<{ id: string; name: string; type: 'LOCATION' | 'BUILDING'; fromMap: boolean }>
   'ability:add': AbilityView
   'ability:update': void
   'ability:setStatus': void
@@ -759,6 +765,8 @@ export interface DungeonZenApi {
   onImportProgress(fn: (p: ImportProgress) => void): () => void
   /** Another window (the popped-out DM notes) changed something; returns a function that stops listening. */
   onChanged(fn: () => void): () => void
+  /** A pop-out window asked the main window to open this card's sheet. */
+  onOpenSheet(fn: (entityId: string) => void): () => void
 }
 
 export { IPC_PREFIX } from './ipcPrefix'

@@ -95,7 +95,7 @@ function markedCopy(bytes: Buffer, marksPng: Buffer): { bytes: Buffer; mime: str
   return { bytes: nativeImage.createFromBitmap(Buffer.from(out), size).toPNG(), mime: 'image/png' }
 }
 
-export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void): void {
+export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void, openPrepWindow: (number: number, part: string) => void): void {
   let campaign: Campaign | null = null
 
   const current = (): Campaign => {
@@ -118,8 +118,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       const parsed = ipcInputs[channel].safeParse(raw)
       if (!parsed.success) return { ok: false, error: `Invalid request for ${channel}: ${parsed.error.message}` }
       try {
+        const before = campaign?.log.writes
         const value = await fn(parsed.data as never)
-        if (SHARED_WRITES.has(channel)) {
+        // Any undoable change (or a notes write) shows in the other windows too (pop-out prep windows, DM notes).
+        if (SHARED_WRITES.has(channel) || (campaign && campaign.log.writes !== before)) {
           for (const w of BrowserWindow.getAllWindows()) if (w.webContents !== event.sender) w.webContents.send(IPC_PREFIX + 'changed')
         }
         return { ok: true, value }
@@ -553,6 +555,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   })
   handle('entity:usePicture', ({ entityId, path }) => current().setPicture(entityId, { path }))
   handle('pictures:view', () => current().pictures())
+  handle('places:list', () => current().placeOptions())
   handle('pictures:upload', async ({ folder }) => {
     const win = getWindow()
     const options = {
@@ -701,6 +704,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('encounter:removePicture', ({ id, name }) => current().removeEncounterPicture(id, name))
   handle('notes:screen', () => current().notesScreen())
   handle('notes:popout', () => openJournal())
+  handle('prep:popout', ({ number, part }) => openPrepWindow(number, part))
+  // A pop-out window asks the main window to open a card's sheet.
+  handle('main:openSheet', ({ entityId }) => { const w = getWindow(); if (w) { w.webContents.send(IPC_PREFIX + 'open-sheet', entityId); w.focus() } })
   handle('session:notes', ({ id, text }) => current().setSessionNotes(id, text))
   handle('notedoc:content', async ({ id }) => {
     const c = current()

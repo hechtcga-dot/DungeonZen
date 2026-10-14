@@ -47,6 +47,8 @@ export interface UndoState {
 }
 
 export class CommandLog {
+  /** Goes up on every recorded change, undo and redo (other windows refresh when it moves). */
+  writes = 0
   constructor(private readonly db: Db) {}
 
   /** Runs `fn` in one transaction and records what it changed as one undoable step. */
@@ -55,6 +57,7 @@ export class CommandLog {
       const w = new Writer(tx)
       const result = fn(w)
       if (w.changes.length > 0) {
+        this.writes++
         // A new change makes anything previously undone no longer redoable.
         tx.update(command).set({ state: 'discarded' }).where(eq(command.state, 'undone')).run()
         const next = tx
@@ -79,6 +82,7 @@ export class CommandLog {
 
   /** Undoes the latest change. Returns its label, or null if there is nothing to undo. */
   undo(): string | null {
+    this.writes++
     return this.db.transaction((tx) => {
       const latest = tx.select().from(command).where(eq(command.state, 'done')).orderBy(desc(command.seq)).get()
       if (!latest) return null
@@ -90,6 +94,7 @@ export class CommandLog {
 
   /** Redoes the most recently undone change. Returns its label, or null. */
   redo(): string | null {
+    this.writes++
     return this.db.transaction((tx) => {
       const next = tx.select().from(command).where(eq(command.state, 'undone')).orderBy(asc(command.seq)).get()
       if (!next) return null

@@ -497,6 +497,27 @@ built.
   Tied, these are the card's name, one-line summary and motivation both ways (one undo step; tying takes the card's text
   where it has some). Links and other info folds out: the card's strings (names open sheets), How to play them, the
   card's location and DM notes. `prep_item.description` (migration 2.1).
+  Next build (owner, 2026-10-14, mockup option 2): `NpcRow` header with the name and icon tools (↑ ↓ ↗ Open, ⧉ Window,
+  🗑 Remove); Name drop-down (NPC cards, + Create new NPC… makes the card right away, One-time NPC (does not create
+  card) with its own name box: the line's title); Flaws (the card's `flaws`; a one-time NPC keeps them in `body`, the old
+  How to play text) and Motivation on top. Fold (beige box): 2×2 Location (`LocationPick`) / Description, Links (beige
+  list + "+ New link": this card – LinkTypeFields – CardPicker, a board string) / DM notes (starts as tall as the links,
+  up to 200 px, while empty). Show from the sheet: ticks (stat block summary, personality, ideals, bonds, voice,
+  tactics, actions, spells) kept in `prep_item.stats` (comma list), read-only from `sheet:view`. No items list exists.
+- Location drop-down (owner, 2026-10-14, `LocationPick`): label "Location"; Location and Building cards (`places:list`,
+  "(from map)" when a map region shows the place), + New location… (makes a Location card); a typed place that is not a
+  card stays. Card sheet (Character sheet side / template), board side panel, building "Inside", prep NPCs.
+- Pop-out prep windows (owner, 2026-10-14): "⧉ Window" on sections 1–7 and ⧉ per NPC open `#prep/<n>/<part>` in a
+  BrowserWindow of its own (`openPrepWindow` in main/index.ts; one per part; size/place per kind in
+  userData/prep-windows.json; closed with the main window). `PrepWindow` loads the store itself; card sheets open in the
+  main window (`main:openSheet`). Every undoable write (`CommandLog.writes` moved) tells the other windows to refresh.
+- Growing text boxes (owner, 2026-10-14): `textarea.grow` (field-sizing: content) up to about ten lines, then scrolls;
+  the corner handle still pulls it bigger. LinkField one-line boxes wrap and grow (Enter still finishes); CommitField
+  one-line boxes are growing one-line textareas (not ones with a datalist); multi-line ones start at their rows.
+- Linked words: the marks' copy gets the box's scrollbar width (no more drift in long boxes); right-click on linked
+  words (no selection needed) offers Show the card and Remove the link (the words stay).
+- Draw windows: style examples show + then the 8 most recently ticked or added (localStorage `dz-recent-styles`), the
+  rest and any ticked behind All examples… (battle map window keeps its full list).
 - Link picker: Or make a new card (type + name from the words): makes the card, links the words, opens its sheet.
 - Names typed in place (owner, 2026-10-14, `TitleField` in fields.tsx): a card sheet's title, a building's backdrop
   title, the Map screen's map name, the desk's campaign name and a fight's encounter name are edited where they show

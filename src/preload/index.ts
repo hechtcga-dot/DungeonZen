@@ -12,6 +12,11 @@ const api: DungeonZenApi = {
     ipcRenderer.on(IPC_PREFIX + 'import-progress', listener)
     return () => { ipcRenderer.removeListener(IPC_PREFIX + 'import-progress', listener) }
   },
+  onOpenSheet: (fn) => {
+    const listener = (_e: unknown, id: string) => fn(id)
+    ipcRenderer.on(IPC_PREFIX + 'open-sheet', listener)
+    return () => { ipcRenderer.removeListener(IPC_PREFIX + 'open-sheet', listener) }
+  },
   onChanged: (fn) => {
     const listener = () => fn()
     ipcRenderer.on(IPC_PREFIX + 'changed', listener)

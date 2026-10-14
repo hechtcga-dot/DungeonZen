@@ -3794,6 +3794,15 @@ export class Campaign {
     return { openNumber: open?.number ?? null, nextNumber: all.reduce((n, x) => Math.max(n, x.number), 0) + 1 }
   }
 
+  /** Places a card can be at: Location and Building cards, marked when a map region shows them. */
+  placeOptions(): Array<{ id: string; name: string; type: 'LOCATION' | 'BUILDING'; fromMap: boolean }> {
+    const onMap = new Set(this.db.select().from(regionShape).where(eq(regionShape.status, 'active')).all().map((r) => r.locationId))
+    return this.db.select().from(entity).all()
+      .filter((e) => (e.type === 'LOCATION' || e.type === 'BUILDING') && e.status !== 'defunct')
+      .map((e) => ({ id: e.id, name: e.name, type: e.type as 'LOCATION' | 'BUILDING', fromMap: onMap.has(e.id) }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }
+
   prepScreen(): PrepScreenView {
     const brief = (e: EntityRow): EntityBrief => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus })
     const live = this.db.select().from(entity).all().filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
@@ -3806,7 +3815,7 @@ export class Campaign {
       cards: live.map((e) => {
         const a = e.attributes as Record<string, unknown>
         const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
-        return { ...brief(e), summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes') }
+        return { ...brief(e), summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes'), flaws: t('flaws') }
       }),
       secrets: this.secretViews(),
       strings: this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
