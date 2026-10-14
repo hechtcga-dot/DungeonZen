@@ -459,7 +459,7 @@ built.
   Folded panels are remembered per screen and title on this computer (localStorage `dz-folded`).
 - Names typed in place (owner, 2026-10-14, `TitleField` in fields.tsx): a card sheet's title, a building's backdrop
   title, the Map screen's map name, the desk's campaign name and a fight's encounter name are edited where they show
-  (Enter or click away saves, Escape puts it back, undoable).
+  (Enter or click away saves, Escape puts it back, undoable); shown as plain title text, no box even while typing.
 - Building sheet side panel (2026-10-14): same order as other cards: picture and Campaign template (name, type, one-line
   summary, tags, colour) first, then Details (kind, inside, factions), description and history, Secrets & clues folders,
   the other details, price settings. Main column: layout sketch always last.
