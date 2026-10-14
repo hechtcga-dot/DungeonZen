@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { create } from 'zustand'
 import { useBoard } from './store'
 
 // Every titled box on every screen gets − / + (fold to its title) and ↑ / ↓ (move it among its neighbours).
@@ -25,6 +26,24 @@ const boxOf = (h: Element) => (h.closest('dialog, .ctx-menu') ? null : h.parentE
 const headOf = (box: Element) => [...box.querySelectorAll(TITLES)].find((h) => boxOf(h) === box)
 const parentKey = (parent: Element) => `${screen()}|${parent.className}`
 
+// On card sheets a box order is this card's own, or shared by every card of its type (the DM picks; Setup › Box order).
+export type OrderScope = 'card' | 'type'
+const SCOPE_KEY = 'dz-order-scope'
+export const useOrderScope = create<{ scope: OrderScope | null; asking: ((scope: OrderScope | null) => void) | null; set(scope: OrderScope | null): void }>((set) => ({
+  scope: load<OrderScope | null>(SCOPE_KEY, null),
+  asking: null,
+  set(scope) { keep(SCOPE_KEY, scope); set({ scope }) }
+}))
+const ask = () => new Promise<OrderScope | null>((resolve) => useOrderScope.setState({ asking: (s) => { useOrderScope.setState({ asking: null }); resolve(s) } }))
+/** The keys an order is kept under: this card's, then its type's (sheets); the screen's elsewhere. */
+function keysOf(parent: Element): { card: string; type: string } | null {
+  const sheet = useBoard.getState().sheet
+  if (screen() !== 'sheet' || !sheet) return null
+  const base = parentKey(parent)
+  return { card: `${base}|card:${sheet.entity.id}`, type: `${base}|type:${sheet.entity.type}` }
+}
+const orderOf = (parent: Element) => { const k = keysOf(parent); return k ? orders[k.card] ?? orders[k.type] : orders[parentKey(parent)] }
+
 function tools(): HTMLSpanElement {
   const t = document.createElement('span')
   t.className = 'box-tools'
@@ -46,7 +65,7 @@ function arrange(parent: Element) {
   const kids = [...parent.children] as HTMLElement[]
   const boxes = kids.filter((k) => k.hasAttribute('data-box'))
   if (boxes.length < 2) return
-  const want = orders[parentKey(parent)]
+  const want = orderOf(parent)
   if (!want) return // never reordered: the screen's own layout, untouched
   const rank = (b: HTMLElement) => { const i = want.indexOf(b.dataset.box!); return i < 0 ? Infinity : i }
   const slots = boxes.map((b) => kids.indexOf(b))
@@ -74,7 +93,7 @@ function mark() {
   parents.forEach(arrange)
 }
 
-function move(box: HTMLElement, dir: -1 | 1) {
+async function move(box: HTMLElement, dir: -1 | 1) {
   const parent = box.parentElement
   if (!parent) return
   const boxes = ([...parent.children] as HTMLElement[]).filter((k) => k.hasAttribute('data-box'))
@@ -83,7 +102,14 @@ function move(box: HTMLElement, dir: -1 | 1) {
   const j = i + dir
   if (j < 0 || j >= boxes.length) return
   ;[boxes[i], boxes[j]] = [boxes[j], boxes[i]]
-  orders[parentKey(parent)] = boxes.map((b) => b.dataset.box!)
+  const order = boxes.map((b) => b.dataset.box!)
+  const k = keysOf(parent)
+  if (k) {
+    const scope = useOrderScope.getState().scope ?? await ask()
+    if (!scope) return // closed without choosing
+    if (scope === 'card') orders[k.card] = order
+    else { orders[k.type] = order; delete orders[k.card] }
+  } else orders[parentKey(parent)] = order
   keep(ORDER_KEY, orders)
   arrange(parent)
 }
@@ -109,7 +135,7 @@ export function useFolding() {
         if (folded.has(k)) folded.delete(k); else folded.add(k)
         keep(FOLD_KEY, [...folded])
         mark()
-      } else move(box as HTMLElement, act === 'up' ? -1 : 1)
+      } else void move(box as HTMLElement, act === 'up' ? -1 : 1)
     }
     document.addEventListener('click', click)
     mark()

@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.0.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.1.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -114,3 +114,7 @@ Defaults picked: Add to picture works on any card picture (uploaded too); a new 
 Region names as brown tags everywhere, card-sized on the board; region outlines off by default; board side panel (name, picture, summary, direct ties with encounters, DM notes, status, More fold); board view kept after a sheet; JFIF pictures saved as .jpg; prep sheet: link words to cards (card summary beside the sheet), secrets tied to secret strings / Clue cards (one shared text); string descriptions; Links per card with Show all links, Known/Secret groups; − / + fold on every titled panel; names edited in place (plain text look); building sheet starts with picture and name, layout last. Details in `docs/STATE.md`.
 Owner's decisions: panel fields stay editable; Type/Location/Motivation/Tags/Storylines/Hide/History in a folded More; Encounter ties = every encounter the card is in; word links in every prep text box; board secrets list = secret strings + Clue cards; tied secret and string description are one text both ways.
 Defaults picked: links per prep sheet by phrase (every place it appears, any case); Clue card shared text = its Description; board view remembered while the app runs; fold state per screen and title on this computer; picture square at most 240 px.
+
+## 2.1.0 (built 2026-10-14)
+Prep NPCs tied to cards (Make a card; Name/Description/Motivation = card name/summary/motivation both ways; Links and other info fold); link picker makes new cards; ↑ ↓ on every titled box; secrets, clues and connections (one text + Card–kind–Card connections, each a string; prep section "Connections, secrets, clues" with three Add buttons; card sheet Secrets tab with Add and Use an existing one; red check, Update now / Do not save changes); removed secrets in History with Revive; Untie for old Clue-card ties. Details in `docs/STATE.md`.
+Owner's decisions: one secret = one text + connections; clue = same, labelled Clue; an existing secret on another card is the same secret (shared); box order on card sheets: pop-up asks this card only / every card of its type, Don't ask me again, changeable in Setup › Box order on card sheets; board view remembered only while the app is open (resets on restart).

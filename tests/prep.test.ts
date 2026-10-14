@@ -256,6 +256,18 @@ describe('prep secrets tied to the board', () => {
     expect(c.boardView(g).relationships[0].secretKind).toBe('clue')
   })
 
+  it('a removed secret is in History and comes back with its strings', () => {
+    const a = c.createEntity({ boardId: g, type: 'NPC', name: 'Hodge', position: at })
+    const b = c.createEntity({ boardId: g, type: 'NPC', name: 'Luna', position: at })
+    const id = c.saveSecret({ id: null, kind: 'clue', text: 'Footprints', connections: [{ sourceId: a.id, targetId: b.id, type: 'KNOWS' }] })
+    c.removeSecret(id)
+    expect(c.boardView(g).relationships).toHaveLength(0)
+    expect(c.history().removedSecrets).toMatchObject([{ id, kind: 'clue', text: 'Footprints' }])
+    expect(c.history().removedStrings).toHaveLength(0)
+    c.reviveSecret(id)
+    expect(c.boardView(g).relationships[0]).toMatchObject({ secretKind: 'clue', description: 'Footprints' })
+  })
+
   it('a secret string tied on the board is a secret too', () => {
     const a = c.createEntity({ boardId: g, type: 'NPC', name: 'Hodge', position: at })
     const b = c.createEntity({ boardId: g, type: 'NPC', name: 'Luna', position: at })

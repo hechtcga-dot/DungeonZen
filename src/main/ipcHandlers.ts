@@ -1067,6 +1067,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('secret:save', (i) => current().saveSecret(i))
   handle('secret:setText', ({ id, text }) => current().setSecretText(id, text))
   handle('secret:remove', ({ id }) => current().removeSecret(id))
+  handle('secret:revive', ({ id }) => current().reviveSecret(id))
   handle('prepItem:done', ({ id, done }) => current().setPrepDone(id, done))
   handle('prepItem:setStatus', ({ id, status }) => current().setPrepItemStatus(id, status))
   handle('prepItem:move', ({ id, direction }) => current().movePrepItem(id, direction))

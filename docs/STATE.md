@@ -465,6 +465,11 @@ built.
   `.mat-heading` inside a section/parchment/panel) gets − / + (fold to the title; clicking the title also folds) and ↑ / ↓
   (move among the boxes beside it, by CSS `order`; a block parent becomes a column once reordered). Folds and orders are
   remembered per screen on this computer (localStorage `dz-folded`, `dz-box-order`).
+  On card sheets an order is this card's own or every card of its type (`dz-order-scope`: a pop-up asks on the first
+  move, with Don't ask me again; Setup › Box order on card sheets: Ask each time / This card only / Every card of its type).
+- History (2026-10-14): removed secrets, clues and connections listed with Revive (their strings come back with them,
+  where both cards still exist); their strings are not listed one by one. Prep lines tied to a Clue card (before 2.1)
+  show "Shares its text with the Clue card X · Untie".
 - Prep NPCs (owner, 2026-10-14): Card (pick or Make a card: an NPC card from the row), Name, Description, Motivation.
   Tied, these are the card's name, one-line summary and motivation both ways (one undo step; tying takes the card's text
   where it has some). Links and other info folds out: the card's strings (names open sheets), How to play them, the

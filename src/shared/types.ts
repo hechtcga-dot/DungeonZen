@@ -150,6 +150,7 @@ export interface LogEntryView {
 
 export interface HistoryView {
   removedEntities: EntityView[]
+  removedSecrets: Array<{ id: string; kind: SecretKind; text: string }>
   removedStrings: Array<RelationshipView & { sourceName: string; targetName: string }>
   removedNotes: Array<{ itemId: string; boardName: string; text: string }>
   removedStorylines: Array<{ storylineId: string; title: string }>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { IpcOutputs } from '../../shared/ipc'
 import { call } from '../api'
 import { useBoard } from '../store'
+import { useOrderScope } from '../fold'
 import { ContextMenu } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ExportDialog } from './ExportDialog'
@@ -11,6 +12,7 @@ type About = { version: string; campaignFolder: string | null; dataFolder: strin
 /** Rail › Setup: campaign files, printing, AI services, About and Uninstall. */
 export function SetupMenu({ icon }: { icon: React.ReactNode }) {
   const { openCampaign, closeCampaign, say, setAiSettingsOpen } = useBoard()
+  const { scope, set: setScope } = useOrderScope()
   const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | null>(null)
@@ -48,6 +50,11 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           { label: 'Print or save cards…', onClick: () => setDialog('export') },
           { label: 'Export to Foundry VTT or Owlbear Rodeo…', hint: 'Battle maps with their grid, character and monster sheets, handouts', onClick: () => setDialog('vtt') },
           { label: 'AI services…', onClick: () => setAiSettingsOpen(true) },
+          { label: 'Box order on card sheets', hint: 'What ↑ / ↓ on a card sheet changes (this computer)', items: [
+            { label: 'Ask each time', checked: scope === null, onClick: () => setScope(null) },
+            { label: 'This card only', checked: scope === 'card', onClick: () => setScope('card') },
+            { label: 'Every card of its type', checked: scope === 'type', onClick: () => setScope('type') }
+          ] },
           { label: 'Delete this campaign…', danger: true, hint: 'Moves its folder to the Recycle Bin', onClick: () => setDialog('delete') },
           'separator',
           { label: 'About Dungeon Zen', onClick: () => void showAbout('about') },

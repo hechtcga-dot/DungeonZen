@@ -171,6 +171,10 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
                     </select>
                   </div>
                 </div>
+                {!sec && i.entityId && (
+                  <p className="ink-muted">Shares its text with the Clue card <button className="link-button" onClick={() => void openSheet(i.entityId!)}>{s.cards.find((c) => c.id === i.entityId)?.name ?? 'a card'}</button>
+                    {' · '}<button className="link-button" title="This line keeps its text; the card keeps its description" onClick={() => upItem(act, i, { entityId: null })}>Untie</button></p>
+                )}
                 <SecretEditor key={sec?.id ?? i.id} secret={sec} kind={sec?.kind ?? 'secret'} cards={s.cards} text={i.body} prepItemId={i.id} />
               </>
             )

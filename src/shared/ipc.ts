@@ -341,6 +341,7 @@ export const ipcInputs = {
   }),
   'secret:setText': z.object({ id: Id, text: Text }),
   'secret:remove': z.object({ id: Id }),
+  'secret:revive': z.object({ id: Id }),
   'prepItem:setStatus': z.object({ id: Id, status: RowStatus }),
   'prepItem:move': z.object({ id: Id, direction: z.union([z.literal(-1), z.literal(1)]) }),
   'style:list': z.object({ use: z.enum(STYLE_USES).optional() }),
@@ -652,6 +653,7 @@ export interface IpcOutputs {
   'secret:save': string
   'secret:setText': void
   'secret:remove': void
+  'secret:revive': void
   'prepItem:setStatus': void
   'prepItem:move': void
   'style:list': StyleExampleView[]

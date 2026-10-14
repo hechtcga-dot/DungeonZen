@@ -391,7 +391,10 @@ export class Campaign {
 
   history(): HistoryView {
     const removed = this.db.select().from(entity).where(eq(entity.status, 'defunct')).orderBy(asc(entity.name)).all()
-    const strings = this.db.select().from(relationship).where(eq(relationship.status, 'defunct')).all()
+    // A removed secret's strings come back with it, so they are listed under the secret, not one by one.
+    const goneSecrets = this.db.select().from(secret).where(eq(secret.status, 'defunct')).all()
+    const goneIds = new Set(goneSecrets.map((s) => s.id))
+    const strings = this.db.select().from(relationship).where(eq(relationship.status, 'defunct')).all().filter((r) => !r.secretId || !goneIds.has(r.secretId))
     const names = new Map(
       this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name])
     )
@@ -406,6 +409,7 @@ export class Campaign {
       .filter((n) => n.item.kind !== 'card' || (!n.title && n.item.entityId && this.entityRow(n.item.entityId).status !== 'defunct'))
     return {
       removedEntities: removed.map((r) => toEntityView(r, [], [])),
+      removedSecrets: goneSecrets.map((s) => ({ id: s.id, kind: s.kind as SecretKind, text: s.text })),
       removedStrings: strings.map((r) => ({
         ...toRelationshipView(r),
         sourceName: names.get(r.sourceId) ?? '?',
@@ -647,6 +651,16 @@ export class Campaign {
     this.log.run('Moved a secret to History', (w) => {
       w.update('secret', id, { status: 'defunct' })
       for (const r of this.db.select().from(relationship).where(and(eq(relationship.secretId, id), eq(relationship.status, 'active'))).all()) w.update('relationship', r.id, { status: 'defunct' })
+    })
+  }
+
+  /** Brings a secret back from History with the strings that went with it (those whose cards are still there). */
+  reviveSecret(id: string): void {
+    const live = new Set(this.db.select({ id: entity.id, status: entity.status }).from(entity).all().filter((e) => e.status !== 'defunct').map((e) => e.id))
+    this.log.run('Brought a secret back from History', (w) => {
+      w.update('secret', id, { status: 'active' })
+      for (const r of this.db.select().from(relationship).where(and(eq(relationship.secretId, id), eq(relationship.status, 'defunct'))).all())
+        if (live.has(r.sourceId) && live.has(r.targetId)) w.update('relationship', r.id, { status: 'active' })
     })
   }
 

@@ -19,7 +19,7 @@ export function HistoryPanel() {
   const say = useBoard((s) => s.say)
   const [forget, setForget] = useState<{ id: string; title: string } | null>(null)
   if (!history) return <p className="muted">Loading…</p>
-  const removedCount = history.removedEntities.length + history.removedStrings.length + history.removedNotes.length +
+  const removedCount = history.removedEntities.length + history.removedSecrets.length + history.removedStrings.length + history.removedNotes.length +
     history.removedStorylines.length + history.removedMaps.length + history.removedActs.length +
     history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length + history.removedPrep.length + history.removedNoteDocs.length
 
@@ -33,6 +33,15 @@ export function HistoryPanel() {
             <li key={e.id}>
               <div className="removed-text"><strong>{e.name}</strong><span className="muted">{ENTITY_LABELS[e.type]}</span></div>
               <button onClick={() => void act('entity:setStatus', { id: e.id, status: 'active' })}>Revive</button>
+            </li>
+          ))}
+          {history.removedSecrets.map((x) => (
+            <li key={x.id}>
+              <div className="removed-text">
+                <strong>{x.text.slice(0, 60) || `Untitled ${x.kind}`}</strong>
+                <span className="muted">{x.kind[0].toUpperCase() + x.kind.slice(1)}, with its strings</span>
+              </div>
+              <button onClick={() => void act('secret:revive', { id: x.id })}>Revive</button>
             </li>
           ))}
           {history.removedStrings.map((r) => (

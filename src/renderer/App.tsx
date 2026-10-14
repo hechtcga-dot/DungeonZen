@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useBoard } from './store'
 import { useFolding } from './fold'
+import { OrderScopeDialog } from './components/OrderScopeDialog'
 import { StartScreen } from './screens/StartScreen'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
@@ -46,6 +47,7 @@ function MainApp() {
 
   return (
     <>
+      <OrderScopeDialog />
       <Suspense fallback={null}>
       {!info || !view ? <StartScreen />
         : screen === 'sheet' ? <SheetScreen />
