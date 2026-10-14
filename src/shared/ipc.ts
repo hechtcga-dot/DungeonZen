@@ -55,7 +55,7 @@ const Text = z.string().max(10000)
 const PrepItemFields = z.object({
   title: z.string().trim().max(300), body: Text, sceneType: SceneType.nullable(),
   targetStart: z.number().int().min(0).max(1440).nullable(), targetEnd: z.number().int().min(0).max(1440).nullable(),
-  entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(), relationshipId: Id.nullable(),
+  entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(), relationshipId: Id.nullable(), description: Text,
   role: z.string().max(300), stats: z.string().max(1000), tactics: z.string().max(2000)
 }).partial()
 const Polygon = z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(500)

@@ -231,6 +231,10 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE relationship ADD COLUMN description TEXT NOT NULL DEFAULT '';
   ALTER TABLE prep_item ADD COLUMN relationship_id TEXT;
   ALTER TABLE session_prep ADD COLUMN links TEXT NOT NULL DEFAULT '[]';
+  `,
+  // 2.1: prep NPCs get a description (shared with their card's one-line summary).
+  `
+  ALTER TABLE prep_item ADD COLUMN description TEXT NOT NULL DEFAULT '';
   `
 ]
 

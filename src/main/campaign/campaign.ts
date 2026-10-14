@@ -64,7 +64,7 @@ export interface NewRegion {
 export type SrdCopy = { type: 'MONSTER' | 'ITEM'; name: string; attributes: EntityAttributes; abilities: NewAbility[] }
 const PREP_LABELS: Record<PrepKind, string> = { discovery: 'secret', scene: 'scene', clue: 'clue', npc: 'NPC', threat: 'threat', thread: 'loose thread', bible: 'world bible line' }
 export type PrepItemPatch = Partial<Pick<PrepItemRow,
-  'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'relationshipId' | 'role' | 'stats' | 'tactics'>>
+  'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'relationshipId' | 'description' | 'role' | 'stats' | 'tactics'>>
 const STYLE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.jfif', '.webp']
 const PENDING_ID = /^[0-9a-f-]{36}\.(png|jpg|webp)$/
 function mimeOf(path: string): string {
@@ -491,6 +491,12 @@ export class Campaign {
       // A Clue card's description is the text of every prep secret tied to it.
       const d = patch.attributes?.description
       if (current.type === 'CLUE' && typeof d === 'string') this.syncSecretText(w, { entityId: id }, d)
+      // Prep NPCs tied to this card share its name, one-line summary and motivation.
+      const s = patch.attributes?.summary, m = patch.attributes?.motivation
+      const npc = { ...(patch.name ? { title: patch.name } : {}), ...(typeof s === 'string' ? { description: s } : {}), ...(typeof m === 'string' ? { role: m } : {}) }
+      if (Object.keys(npc).length) {
+        for (const i of this.db.select().from(prepItem).where(and(eq(prepItem.kind, 'npc'), eq(prepItem.entityId, id), eq(prepItem.status, 'active'))).all()) w.update('prep_item', i.id, npc)
+      }
     })
   }
 
@@ -3648,6 +3654,8 @@ export class Campaign {
         const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
         return { ...brief(e), summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes') }
       }),
+      strings: this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
+        .map((r) => ({ id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type, isSecret: r.isSecret })),
       boardSecrets: [
         ...this.db.select().from(relationship).where(and(eq(relationship.status, 'active'), eq(relationship.isSecret, true))).all()
           .flatMap((r) => {
@@ -3678,7 +3686,7 @@ export class Campaign {
         targetStart: i.targetStart, targetEnd: i.targetEnd,
         entityId: i.entityId, entityName: i.entityId ? names.get(i.entityId) ?? null : null,
         locationId: i.locationId, locationName: i.locationId ? names.get(i.locationId) ?? null : null,
-        discoveryId: i.discoveryId, relationshipId: i.relationshipId, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin
+        discoveryId: i.discoveryId, relationshipId: i.relationshipId, description: i.description, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin
       }))
     const sess = this.db.select().from(session).where(and(eq(session.number, p.number), eq(session.status, 'active'))).get()
     const doc = p.noteDocId ? this.db.select().from(noteDoc).where(eq(noteDoc.id, p.noteDocId)).get() : undefined
@@ -3741,7 +3749,7 @@ export class Campaign {
     const a = e.attributes as Record<string, unknown>
     const text = (k: string) => (typeof a[k] === 'string' ? (a[k] as string).trim() : '')
     // NPCs: what they want, and one cue for how to play them (the one-page DM tool).
-    if (kind === 'npc') return { role: text('motivation') || text('goal'), body: text('quirk') || text('mannerism') || text('appearance') }
+    if (kind === 'npc') return { title: e.name, role: text('motivation') || text('goal'), description: text('summary'), body: text('quirk') || text('mannerism') || text('appearance') }
     if (kind === 'threat') {
       const sb = readStatBlock(a.statblock)
       return { stats: sb ? statLine(sb) : '', tactics: text('tactics') }
@@ -3751,6 +3759,33 @@ export class Campaign {
 
   updatePrepItem(id: string, patch: PrepItemPatch): void {
     const i = this.prepItemRow(id)
+    // A prep NPC tied to a card shares its name, description (one-line summary) and motivation, both ways.
+    if (i.kind === 'npc') {
+      const tie = 'entityId' in patch ? patch.entityId : i.entityId
+      if (tie) {
+        const card = this.entityRow(tie)
+        const a = card.attributes as Record<string, unknown>
+        const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
+        const tying = tie !== i.entityId
+        if (tying) patch = { ...patch, title: card.name, role: t('motivation') || i.role, description: t('summary') || i.description, ...(i.body ? {} : { body: t('quirk') || t('mannerism') || t('appearance') }) }
+        const name = tying ? null : patch.title?.trim() || null
+        const attrs = {
+          ...(patch.role !== undefined && patch.role !== t('motivation') ? { motivation: patch.role } : {}),
+          ...(patch.description !== undefined && patch.description !== t('summary') ? { summary: patch.description } : {})
+        }
+        this.log.run(`Edited NPC ${patch.title ?? i.title}`.trim(), (w) => {
+          w.update('prep_item', id, patch)
+          if ((name && name !== card.name) || Object.keys(attrs).length) {
+            w.update('entity', card.id, { ...(name && name !== card.name ? { name } : {}), attributes: { ...card.attributes, ...attrs } })
+            // Other prep sheets tied to the same card follow.
+            for (const o of this.db.select().from(prepItem).where(and(eq(prepItem.kind, 'npc'), eq(prepItem.entityId, card.id), eq(prepItem.status, 'active'))).all()) {
+              if (o.id !== id) w.update('prep_item', o.id, { ...(name ? { title: name } : {}), ...(attrs.motivation !== undefined ? { role: attrs.motivation } : {}), ...(attrs.summary !== undefined ? { description: attrs.summary } : {}) })
+            }
+          }
+        })
+        return
+      }
+    }
     if (patch.entityId) Object.assign(patch, { ...this.prepFromCard(i.kind as PrepKind, this.entityRow(patch.entityId)), ...patch })
     // A secret tied to a secret string or Clue card shares its text: tying takes the board's text (or gives it this one
     // when the board's is empty); later edits here write it back to the board.
@@ -3830,6 +3865,17 @@ export class Campaign {
   /** World bible line › Make a card (owner: right away, no AI): a card named from the line, the line as its bio. One undo step. */
   cardFromPrepLine(itemId: string, type: EntityType): string {
     const i = this.prepItemRow(itemId)
+    if (i.kind === 'npc') {
+      // A prep NPC's own card: its name, description and motivation, tied from now on.
+      const name = i.title.trim()
+      if (!name) throw new Error('Give the NPC a name first')
+      let id = ''
+      this.log.run(`Made an NPC card for ${name}`, (w) => {
+        id = this.insertEntity(w, { boardId: this.globalBoard().id, type, name, position: this.freeGlobalSpot(), attributes: { summary: i.description, motivation: i.role, ...(i.body ? { quirk: i.body } : {}) } })
+        w.update('prep_item', itemId, { entityId: id })
+      })
+      return id
+    }
     const text = (i.body || i.title).trim()
     if (!text) throw new Error('Write the line first')
     const name = text.split(/ [—–-] |[:.;,(]/)[0].replace(/^(the|a|an) /i, (m) => m).trim().slice(0, 60) || text.slice(0, 60)

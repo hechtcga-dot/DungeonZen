@@ -454,9 +454,15 @@ built.
 - Links panel (2026-10-14): rows spelled out (both cards clickable, kind, Known/Secret, description, Hide, Remove),
   grouped Known then Secret, by kind. The left Links tool shows every link; the Links tab with a card selected shows
   that card's links, the rest under Show all links.
-- Fold any panel (owner, 2026-10-14, `fold.ts`): every titled panel on every screen (`.panel-title`, `.panel-heading`,
-  `.mat-heading` inside a section/parchment/panel) gets a − / + after its title; clicking the title folds the panel to it.
-  Folded panels are remembered per screen and title on this computer (localStorage `dz-folded`).
+- Fold and move any box (owner, 2026-10-14, `fold.ts`): every titled box on every screen (`.panel-title`, `.panel-heading`,
+  `.mat-heading` inside a section/parchment/panel) gets − / + (fold to the title; clicking the title also folds) and ↑ / ↓
+  (move among the boxes beside it, by CSS `order`; a block parent becomes a column once reordered). Folds and orders are
+  remembered per screen on this computer (localStorage `dz-folded`, `dz-box-order`).
+- Prep NPCs (owner, 2026-10-14): Card (pick or Make a card: an NPC card from the row), Name, Description, Motivation.
+  Tied, these are the card's name, one-line summary and motivation both ways (one undo step; tying takes the card's text
+  where it has some). Links and other info folds out: the card's strings (names open sheets), How to play them, the
+  card's location and DM notes. `prep_item.description` (migration 2.1).
+- Link picker: Or make a new card (type + name from the words): makes the card, links the words, opens its sheet.
 - Names typed in place (owner, 2026-10-14, `TitleField` in fields.tsx): a card sheet's title, a building's backdrop
   title, the Map screen's map name, the desk's campaign name and a fight's encounter name are edited where they show
   (Enter or click away saves, Escape puts it back, undoable); shown as plain title text, no box even while typing.

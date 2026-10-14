@@ -654,6 +654,8 @@ export interface PrepItemView {
   discoveryId: string | null
   /** A secret tied to a secret string (its text is the string's description); a Clue card is `entityId`. */
   relationshipId: string | null
+  /** npc: who they are (the card's one-line summary when tied). */
+  description: string
   role: string
   stats: string
   tactics: string
@@ -695,6 +697,8 @@ export interface PrepScreenView {
   cards: Array<EntityBrief & { summary: string; picture: string; location: string; notes: string }>
   /** Secret strings and Clue cards a prep secret can be tied to. */
   boardSecrets: Array<{ kind: 'string' | 'clue'; id: string; label: string }>
+  /** Every live string, for a card's Links on the sheet. */
+  strings: Array<{ id: string; sourceId: string; targetId: string; type: string; isSecret: boolean }>
 }
 
 /** Live desk: everything about where the party is, for the DM at the table. */

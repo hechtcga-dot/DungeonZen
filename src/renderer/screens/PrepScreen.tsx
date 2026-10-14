@@ -171,16 +171,9 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
           )}
         </PrepSection>
 
-        <PrepSection p={p} kind="npc" n={4} title="NPCs" hint="Name + what they want + one cue for how to play them. No biography or scripted dialogue required. Link a card to fill them in; change anything."
+        <PrepSection p={p} kind="npc" n={4} title="NPCs" hint="Name, who they are, what they want. Tied to a card, these are the card's name, one-line summary and motivation: change them here or on the card."
           add="Add an NPC">
-          {(i) => (
-            <div className="prep-row-fields">
-              <CardPick id={`n-card-${i.id}`} label="Card" value={i.entityId} cards={s.people} onPick={(v) => upItem(act, i, { entityId: v, ...(v ? { title: s.people.find((c) => c.id === v)?.name ?? i.title } : {}) })} />
-              <LinkField id={`n-t-${i.id}`} label="Name" value={i.title} placeholder="Mara Venn" onCommit={(v) => upItem(act, i, { title: v })} />
-              <LinkField id={`n-r-${i.id}`} label="Wants" value={i.role} placeholder="the party to leave town" onCommit={(v) => upItem(act, i, { role: v })} />
-              <LinkField id={`n-b-${i.id}`} label="How to play them" value={i.body} className="wide" placeholder="Talks too quickly when lying." onCommit={(v) => upItem(act, i, { body: v })} />
-            </div>
-          )}
+          {(i) => <NpcRow i={i} s={s} />}
         </PrepSection>
 
         <PrepSection p={p} kind="thread" n={5} title="Loose threads" hint="Three unresolved things from the previous session. Possibilities to keep in mind, not objectives to force onto the players."
@@ -274,6 +267,65 @@ function Sheet({ p, s }: { p: PrepView; s: PrepScreenView }) {
       </aside>
     </div>
     </LinkContext.Provider>
+  )
+}
+
+/** A prep NPC: tied to a card (picked or made here) it shares the card's name, summary and motivation; Links and Other info fold out. */
+function NpcRow({ i, s }: { i: PrepItemView; s: PrepScreenView }) {
+  const { act, openSheet } = useBoard()
+  const card = i.entityId ? s.cards.find((c) => c.id === i.entityId) : undefined
+  const name = (id: string) => s.cards.find((c) => c.id === id)?.name ?? '?'
+  const ties = card ? s.strings.filter((r) => r.sourceId === card.id || r.targetId === card.id) : []
+  const words = (t: string) => t.replace(/_/g, ' ').toLowerCase()
+  return (
+    <>
+      <div className="prep-row-fields">
+        <div className="field npc-card-pick">
+          <label htmlFor={`n-card-${i.id}`}>Card</label>
+          <div className="row tight">
+            <select id={`n-card-${i.id}`} value={i.entityId ?? ''} onChange={(e) => upItem(act, i, { entityId: e.target.value || null })}>
+              <option value="">None</option>
+              {s.people.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            {card
+              ? <button className="ink-button" onClick={() => void openSheet(card.id)}>Open</button>
+              : <button className="ink-button" disabled={!i.title.trim()} title={i.title.trim() ? 'A new NPC card with this name, description and motivation (Ctrl+Z undoes)' : 'Give the NPC a name first'}
+                  onClick={async () => { const id = await act('prep:makeCard', { itemId: i.id, type: 'NPC' }); if (id) void openSheet(id) }}>Make a card</button>}
+          </div>
+        </div>
+        <LinkField id={`n-t-${i.id}`} label="Name" value={i.title} placeholder="Mara Venn" onCommit={(v) => { if (v || !card) upItem(act, i, { title: v }) }} />
+        <LinkField id={`n-d-${i.id}`} label="Description" value={i.description} placeholder="Harbour clerk with ink-stained fingers" onCommit={(v) => upItem(act, i, { description: v })} />
+        <LinkField id={`n-r-${i.id}`} label="Motivation" value={i.role} placeholder="the party to leave town" onCommit={(v) => upItem(act, i, { role: v })} />
+      </div>
+      <details className="npc-more">
+        <summary>Links and other info</summary>
+        <div className="npc-more-body">
+          <div className="field">
+            <span className="field-label">Links</span>
+            {!card ? <p className="ink-muted">Tie or make a card to see its links.</p> : ties.length === 0 ? <p className="ink-muted">No strings on this card yet.</p> : (
+              <ul className="ties">
+                {ties.map((r) => {
+                  const other = r.sourceId === card.id ? r.targetId : r.sourceId
+                  return (
+                    <li key={r.id}>
+                      <span className="tie-type">{r.isSecret ? 'Secret · ' : ''}{words(r.type)}</span> {r.sourceId === card.id ? '→' : '←'}{' '}
+                      <button className="link-button" onClick={() => void openSheet(other)}>{name(other)}</button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+          <LinkField id={`n-b-${i.id}`} label="How to play them" value={i.body} placeholder="Talks too quickly when lying." onCommit={(v) => upItem(act, i, { body: v })} />
+          {card && (
+            <>
+              <LinkField id={`n-l-${i.id}`} label="Location (on the card)" value={card.location} onCommit={(location) => void act('entity:update', { id: card.id, patch: { attributes: { location } } })} />
+              <LinkField id={`n-n-${i.id}`} label="DM notes (on the card)" value={card.notes} multiline rows={3} onCommit={(notes) => void act('entity:update', { id: card.id, patch: { attributes: { notes } } })} />
+            </>
+          )}
+        </div>
+      </details>
+    </>
   )
 }
 

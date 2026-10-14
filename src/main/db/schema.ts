@@ -331,6 +331,7 @@ export const prepItem = sqliteTable('prep_item', {
   entityId: text('entity_id'), // npc or threat: its card
   locationId: text('location_id'), // scene or clue: where (a Location card)
   discoveryId: text('discovery_id'), // clue: the discovery it leads to
+  description: text('description').notNull().default(''), // npc: who they are (shared with the card's one-line summary)
   relationshipId: text('relationship_id'), // discovery: the secret string it is (its text is the string's description)
   role: text('role').notNull().default(''), // npc: role or faction
   stats: text('stats').notNull().default(''), // threat: level, CR, AC, HP, initiative

@@ -1509,15 +1509,27 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .prep-card .inspector-picture { cursor: default; }
 .prep-card-notes { white-space: pre-wrap; }
 
-/* Fold any titled panel to its title (fold.ts). */
-[data-fold] { cursor: pointer; }
-[data-fold]::after {
-  content: '−'; display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 10px; vertical-align: middle;
-  font: 700 14px/1 system-ui, sans-serif; color: #5a4a32; border: 1px solid rgba(42, 31, 18, 0.45); border-radius: 3px; background: rgba(255, 252, 240, 0.6);
+/* Fold and move any titled box (fold.ts): − / + ↑ ↓ after its title. */
+.box-tools { display: inline-flex; gap: 3px; margin-left: 10px; vertical-align: middle; }
+.box-tools button {
+  min-height: 0; width: 20px; height: 20px; padding: 0; display: inline-grid; place-items: center;
+  font: 700 13px/1 system-ui, sans-serif; color: #5a4a32; border: 1px solid rgba(42, 31, 18, 0.45); border-radius: 3px; background: rgba(255, 252, 240, 0.6);
 }
-[data-folded] [data-fold]::after { content: '+'; }
-[data-folded] > :not([data-fold]):not(:has([data-fold])) { display: none !important; }
-[data-folded] :has(> [data-fold]) > :not([data-fold]):not(.prep-n) { display: none !important; }
+.box-tools button:hover { background: #fff8e6; color: #2a1f12; }
+[data-folded] > :not(:has(.box-tools)):not(:is(.panel-title, .panel-heading, .mat-heading)) { display: none !important; }
+[data-folded] :has(> :is(.panel-title, .panel-heading, .mat-heading) > .box-tools) > :not(:is(.panel-title, .panel-heading, .mat-heading)) { display: none !important; }
+[data-box-column] { display: flex !important; flex-direction: column; }
+.npc-more { margin-top: 6px; }
+.npc-more > summary { cursor: pointer; font-weight: 600; }
+.npc-more-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 8px; }
+.card-picker-new { border-top: 1px dashed rgba(42, 31, 18, 0.35); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.card-picker-new .row { flex-wrap: nowrap; }
+.card-picker-new select { flex: 0 0 auto; width: auto; }
+.card-picker-new input { flex: 1 1 auto; min-width: 0; }
+.card-picker-new button { flex: 0 0 auto; white-space: nowrap; }
+.npc-card-pick { grid-column: span 2; }
+.npc-card-pick select { flex: 1; min-width: 0; }
+.npc-card-pick button { white-space: nowrap; }
 
 /* Names typed into in place (TitleField): plain title text, no box; click to type (owner, 2026-10-14). */
 input.title-field.title-field, input.title-field.title-field:hover, input.title-field.title-field:focus, input.title-field.title-field:focus-visible {

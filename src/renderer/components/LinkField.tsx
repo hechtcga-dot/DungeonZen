@@ -3,7 +3,9 @@ import { ContextMenu, type MenuItem } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ENTITY_LABELS } from '../entityStyle'
 import { ENTITY_TYPES } from '../../shared/schemas'
+import type { EntityType } from '../../shared/schemas'
 import type { EntityBrief } from '../../shared/types'
+import { useBoard } from '../store'
 
 export type WordLink = { text: string; entityId: string }
 
@@ -106,10 +108,11 @@ export function LinkField(props: {
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       {ctx && picking !== null && (
         <CardPicker words={picking} cards={ctx.cards} onClose={() => setPicking(null)}
-          onPick={(entityId) => {
+          onPick={(entityId, made) => {
             setPicking(null)
             ctx.setLinks([...ctx.links.filter((l) => l.text.toLowerCase() !== picking.toLowerCase()), { text: picking, entityId }])
-            ctx.show(entityId)
+            if (made) void useBoard.getState().openSheet(entityId)
+            else ctx.show(entityId)
           }} />
       )}
     </div>
@@ -117,8 +120,17 @@ export function LinkField(props: {
 }
 
 /** Every card, by type, with a search box. */
-export function CardPicker({ words, cards, onPick, onClose }: { words: string; cards: EntityBrief[]; onPick(id: string): void; onClose(): void }) {
+export function CardPicker({ words, cards, onPick, onClose }: { words: string; cards: EntityBrief[]; onPick(id: string, made?: boolean): void; onClose(): void }) {
   const [q, setQ] = useState('')
+  // Or a new card named from the words: the link is made and its sheet opens.
+  const [type, setType] = useState<EntityType>('NPC')
+  const [name, setName] = useState(words.slice(0, 200))
+  const make = async () => {
+    const { act, info } = useBoard.getState()
+    if (!info || !name.trim()) return
+    const card = await act('entity:create', { boardId: info.globalBoardId, type, name: name.trim() })
+    if (card) onPick(card.id, true)
+  }
   const t = q.trim().toLowerCase()
   const shown = cards.filter((c) => !t || c.name.toLowerCase().includes(t))
   return (
@@ -138,6 +150,16 @@ export function CardPicker({ words, cards, onPick, onClose }: { words: string; c
             )
           })}
         </div>
+        <form className="card-picker-new" onSubmit={(e) => { e.preventDefault(); void make() }}>
+          <span className="field-label">Or make a new card</span>
+          <div className="row tight">
+            <select value={type} aria-label="Card type" onChange={(e) => setType(e.target.value as EntityType)}>
+              {ENTITY_TYPES.map((t) => <option key={t} value={t}>{ENTITY_LABELS[t]}</option>)}
+            </select>
+            <input value={name} maxLength={200} aria-label="New card name" onChange={(e) => setName(e.target.value)} />
+            <button type="submit" className="primary" disabled={!name.trim()}>Make card and link</button>
+          </div>
+        </form>
         <div className="actions"><button onClick={onClose}>Cancel</button></div>
       </div>
     </Dialog>

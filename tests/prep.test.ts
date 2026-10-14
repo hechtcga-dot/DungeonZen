@@ -258,3 +258,31 @@ describe('prep secrets tied to the board', () => {
     expect(c.prepView(p).links).toEqual([{ text: 'ledger', entityId: clue.id }])
   })
 })
+
+describe('prep NPCs tied to cards', () => {
+  it('makes a card from the NPC and shares name, description and motivation both ways', () => {
+    const p = c.createPrep(1)
+    const n = c.addPrepItem(p, 'npc', { title: 'Sherman', role: 'to sell the map twice' })
+    c.updatePrepItem(n, { description: 'Nervous cartographer', body: 'Stammers' })
+    const id = c.cardFromPrepLine(n, 'NPC')
+    expect(c.boardView(g).entities[id]).toMatchObject({ name: 'Sherman', attributes: { summary: 'Nervous cartographer', motivation: 'to sell the map twice' } })
+    c.updatePrepItem(n, { role: 'to leave town', title: 'Sherman Vole' })
+    expect(c.boardView(g).entities[id]).toMatchObject({ name: 'Sherman Vole', attributes: { motivation: 'to leave town' } })
+    c.updateEntity(id, { attributes: { summary: 'Retired cartographer' } })
+    expect(c.prepView(p).items[0]).toMatchObject({ description: 'Retired cartographer', title: 'Sherman Vole', entityId: id })
+    c.undo()
+    expect(c.prepView(p).items[0].description).toBe('Nervous cartographer')
+  })
+
+  it('picking a card takes its text, keeping the NPC text where the card has none', () => {
+    const card = c.createEntity({ boardId: g, type: 'NPC', name: 'Mara Venn', position: at })
+    c.updateEntity(card.id, { attributes: { summary: 'Harbour clerk' } })
+    const p = c.createPrep(1)
+    const n = c.addPrepItem(p, 'npc', { title: 'Mara', role: 'quiet life' })
+    c.updatePrepItem(n, { entityId: card.id })
+    expect(c.prepView(p).items[0]).toMatchObject({ title: 'Mara Venn', description: 'Harbour clerk', role: 'quiet life' })
+    c.updatePrepItem(n, { role: 'quiet life' }) // no change: nothing written
+    c.updatePrepItem(n, { role: 'a quiet life' })
+    expect(c.boardView(g).entities[card.id].attributes.motivation).toBe('a quiet life')
+  })
+})
