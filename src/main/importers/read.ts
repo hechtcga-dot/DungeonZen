@@ -8,7 +8,7 @@ import { textToBlocks, type Block } from '../../shared/noteDoc'
 // Text comes out in chunks with a locator ("paragraphs 4–18", "page 3") so every
 // proposal can say where it came from. Pictures go to the AI as images.
 
-export const NOTE_EXTENSIONS = ['.txt', '.md', '.markdown', '.docx', '.pdf', '.png', '.jpg', '.jpeg', '.webp']
+export const NOTE_EXTENSIONS = ['.txt', '.md', '.markdown', '.docx', '.pdf', '.png', '.jpg', '.jpeg', '.jfif', '.webp']
 export const CHUNK_CHARS = 9000
 
 export interface Chunk { locator: string; text: string }
@@ -131,7 +131,7 @@ export async function readNotesFile(path: string): Promise<NotesFile> {
   const ext = extname(path).toLowerCase()
   if (!NOTE_EXTENSIONS.includes(ext)) throw new Error(`${name}: notes must be text, Markdown, Word (.docx), PDF or a picture (PNG, JPEG, WebP)`)
   const bytes = readFileSync(path)
-  if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+  if (['.png', '.jpg', '.jpeg', '.jfif', '.webp'].includes(ext)) {
     if (bytes.length > 15 * 1024 * 1024) throw new Error(`${name}: the picture is over 15 MB; save a smaller copy`)
     const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
     return { name, kind: 'picture', chunks: [{ locator: 'the picture', text: '' }], image: { bytes, mime }, warnings: [] }

@@ -2,7 +2,7 @@ import { share } from '../../shared/share'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   ConnectionMode, Controls, ReactFlow, ReactFlowProvider, applyEdgeChanges,
-  applyNodeChanges, useReactFlow, useStore, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams
+  applyNodeChanges, useReactFlow, useStore, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams, type Viewport
 } from '@xyflow/react'
 import { useBoard, useView } from '../store'
 import { CardNode, roman, type CardNodeType } from '../components/CardNode'
@@ -39,6 +39,8 @@ import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } f
 
 type BoardNode = CardNodeType | NoteNodeType | ImageNodeType | RegionNodeType
 
+// Where each board was zoomed and panned: coming back (from a sheet, another screen) shows the same view.
+const lastViewport = new Map<string, Viewport>()
 const nodeTypes = { card: CardNode, note: NoteNode, image: ImageNode, region: RegionNode }
 const edgeTypes = { string: StringEdge }
 const ASSET = 'dz-asset://campaign/'
@@ -595,7 +597,9 @@ function BoardLayout() {
             multiSelectionKeyCode={['Shift']}
             minZoom={0.1}
             maxZoom={2}
-            fitView
+            fitView={!lastViewport.has(view.board.id)}
+            defaultViewport={lastViewport.get(view.board.id)}
+            onMoveEnd={(_e, v) => { lastViewport.set(view.board.id, v) }}
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             proOptions={{ hideAttribution: true }}
             colorMode="light"

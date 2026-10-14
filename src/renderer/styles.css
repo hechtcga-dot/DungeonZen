@@ -124,6 +124,22 @@ textarea { padding: 10px 12px; resize: vertical; line-height: 1.45; }
 /* ---- inspector ---- */
 .inspector, .history { display: flex; flex-direction: column; gap: 12px; }
 .inspector-empty p { margin: 0 0 10px; }
+.inspector-top { align-items: center; gap: 10px; }
+.inspector-name { flex: 1; margin: 0; }
+.inspector-name label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.inspector-name input { font-family: var(--display, Georgia, serif); font-size: 18px; }
+.inspector-picture {
+  width: 100%; max-width: 240px; align-self: center; aspect-ratio: 1; padding: 0; display: grid; place-items: center; overflow: hidden; cursor: pointer;
+  background: rgba(255, 250, 235, 0.5); border: 1px solid rgba(42, 31, 18, 0.35); border-radius: 4px;
+}
+.inspector-picture img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.inspector-picture .emblem { width: 55%; height: 55%; opacity: 0.55; }
+.ties { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ties .link { text-align: left; min-height: 0; padding: 3px 0; font-weight: 400; }
+.tie-type { font-weight: 700; }
+.inspector-more { border-top: 1px dashed rgba(42, 31, 18, 0.35); padding-top: 8px; }
+.inspector-more > summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+.inspector-more[open] { display: flex; flex-direction: column; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; border: 0; padding: 0; margin: 0; min-width: 0; }
 .field > label, .field > legend { font-size: 13px; font-weight: 500; padding: 0; margin-bottom: 2px; }
 .field.checkbox { flex-direction: row; align-items: center; gap: 10px; }

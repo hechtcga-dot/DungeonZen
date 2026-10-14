@@ -431,6 +431,16 @@ built.
     Region names (owner, 2026-10-14): every region name, area or settlement, is cream writing on a dark brown tag
     (`MapOverlay` `NameTag`) on every map. On a board the tag is the region node itself, drawn like a card (19 px
     display font, 7 px Location-colour band, shadow; who is there under it); the picture draws only markers (`names={false}`).
+- Board side panel for a card (owner, 2026-10-14, `Inspector.tsx`): name (editable) and Open full sheet; picture square
+  (the card's picture, else its type emblem; click opens the sheet); one-line summary; Direct ties: every string as
+  "Type → name" (from this card) or "Type ← name" (to it), Secret marked, click selects and centres the other card
+  (not on this board: opens its sheet), plus Encounter → each encounter the card is in (creature, place or PC taking
+  part; click opens it); DM notes; Status. Type, Location, Motivation, Tags, Storylines, Hide and Move to History are
+  in the folded More section.
+- Board view kept (2026-10-14): each board's zoom and position is remembered for the app run (`lastViewport` in
+  BoardScreen); back from a sheet or another screen shows the same view; first visit fits all.
+- JFIF pictures (2026-10-14): .jfif is taken wherever pictures are (maps, board pictures, card pictures, Library,
+  outlines, notes files, encounter pictures); the copy is saved as .jpg (`storedExt`).
     Outlines (board and Map screen) are drawn smoothed (`smooth` in `MapOverlay`, 2 rounds of corner cutting, shared
     borders stay one line), thin solid ink at 55%, lighter fill; clicks and drops still use the stored polygon.
     Card menu › Take off this board (`note:setStatus` on the card item; History lists it as

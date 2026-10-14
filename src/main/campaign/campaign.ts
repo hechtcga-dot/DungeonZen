@@ -65,19 +65,21 @@ export type SrdCopy = { type: 'MONSTER' | 'ITEM'; name: string; attributes: Enti
 const PREP_LABELS: Record<PrepKind, string> = { discovery: 'secret', scene: 'scene', clue: 'clue', npc: 'NPC', threat: 'threat', thread: 'loose thread', bible: 'world bible line' }
 export type PrepItemPatch = Partial<Pick<PrepItemRow,
   'title' | 'body' | 'sceneType' | 'targetStart' | 'targetEnd' | 'entityId' | 'locationId' | 'discoveryId' | 'role' | 'stats' | 'tactics'>>
-const STYLE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
+const STYLE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.jfif', '.webp']
 const PENDING_ID = /^[0-9a-f-]{36}\.(png|jpg|webp)$/
 function mimeOf(path: string): string {
   const e = extname(path).toLowerCase()
-  return e === '.jpg' || e === '.jpeg' ? 'image/jpeg' : e === '.webp' ? 'image/webp' : 'image/png'
+  return e === '.jpg' || e === '.jpeg' || e === '.jfif' ? 'image/jpeg' : e === '.webp' ? 'image/webp' : 'image/png'
 }
-export const MAP_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
+export const MAP_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.jfif', '.webp', '.gif']
+/** The extension a copy is saved under: JFIF is JPEG, so its copies are plain .jpg files. */
+export const storedExt = (ext: string) => (ext.toLowerCase() === '.jfif' ? '.jpg' : ext.toLowerCase())
 /** Address the app's asset protocol serves files from the open campaign's assets folder under. */
 export const ASSET_URL_PREFIX = 'dz-asset://campaign/'
 /** What kind of note a file is, by its extension. */
 export function noteKind(ext: string): 'word' | 'pdf' | 'text' | 'picture' {
   const e = ext.toLowerCase()
-  return e === '.docx' ? 'word' : e === '.pdf' ? 'pdf' : ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(e) ? 'picture' : 'text'
+  return e === '.docx' ? 'word' : e === '.pdf' ? 'pdf' : MAP_EXTENSIONS.includes(e) ? 'picture' : 'text'
 }
 /** Library › Pictures folders that always exist. */
 const DEFAULT_PICTURE_FOLDERS = ['Art', 'Portraits', 'Places', 'Items', 'Maps', 'Battle maps', 'Background pictures']
@@ -811,7 +813,7 @@ export class Campaign {
     } else {
       const ext = extname(from.file).toLowerCase()
       if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Pictures must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
-      rel = `board/${randomUUID()}${ext}`
+      rel = `board/${randomUUID()}${storedExt(ext)}`
       mkdirSync(join(this.folder, ASSETS_DIR, 'board'), { recursive: true })
       copyFileSync(from.file, join(this.folder, ASSETS_DIR, rel))
       name = basename(from.file, ext)
@@ -1094,7 +1096,7 @@ export class Campaign {
     const ext = extname(sourceFile).toLowerCase()
     if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Maps must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
     const id = randomUUID()
-    const rel = `maps/${id}${ext}`
+    const rel = `maps/${id}${storedExt(ext)}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'maps'), { recursive: true })
     copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
     const size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
@@ -1119,7 +1121,7 @@ export class Campaign {
     const m = this.mapRow(mapId)
     const ext = extname(sourceFile).toLowerCase()
     if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Maps must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
-    const rel = `maps/${randomUUID()}${ext}`
+    const rel = `maps/${randomUUID()}${storedExt(ext)}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'maps'), { recursive: true })
     copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
     const size = imageSize(readFileSync(join(this.folder, ASSETS_DIR, rel)))
@@ -2169,7 +2171,7 @@ export class Campaign {
     const ext = extname(sourceFile).toLowerCase()
     if (!STYLE_EXTENSIONS.includes(ext)) throw new Error(`Pictures for the Library must be PNG, JPEG or WebP images (got ${ext || 'no extension'})`)
     const id = randomUUID()
-    const rel = `styles/${id}${ext}`
+    const rel = `styles/${id}${storedExt(ext)}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'styles'), { recursive: true })
     copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
     const label = name?.trim() || basename(sourceFile, extname(sourceFile))
@@ -2264,7 +2266,7 @@ export class Campaign {
   addOutlinePicture(sourceFile: string): string {
     const ext = extname(sourceFile).toLowerCase()
     if (!STYLE_EXTENSIONS.includes(ext)) throw new Error(`An outline picture must be PNG, JPEG or WebP (got ${ext || 'no extension'})`)
-    const rel = `outlines/${randomUUID()}${ext}`
+    const rel = `outlines/${randomUUID()}${storedExt(ext)}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'outlines'), { recursive: true })
     copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
     return rel
@@ -2472,7 +2474,7 @@ export class Campaign {
     const src = 'file' in from ? from.file : this.pendingFile(from.pendingId)
     const ext = extname(src).toLowerCase()
     if (!MAP_EXTENSIONS.includes(ext)) throw new Error(`Pictures must be PNG, JPEG, WebP or GIF images (got ${ext || 'no extension'})`)
-    const rel = `pictures/${randomUUID()}${ext}`
+    const rel = `pictures/${randomUUID()}${storedExt(ext)}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'pictures'), { recursive: true })
     if ('file' in from) copyFileSync(src, join(this.folder, ASSETS_DIR, rel))
     else renameSync(src, join(this.folder, ASSETS_DIR, rel))
@@ -2828,8 +2830,8 @@ export class Campaign {
   addEncounterPictures(id: string, paths: string[]): number {
     const folder = this.encounterFolder(id, true)
     for (const src of paths) {
-      const ext = extname(src)
-      const stem = basename(src, ext)
+      const stem = basename(src, extname(src))
+      const ext = storedExt(extname(src))
       let name = `${stem}${ext}`
       for (let n = 2; existsSync(join(folder, name)); n++) name = `${stem} ${n}${ext}`
       copyFileSync(src, join(folder, name))
@@ -3371,7 +3373,7 @@ export class Campaign {
   /** Copies a file into the notes folder (never changed after; a save writes a new one). */
   private storeNoteFile(from: { file: string } | { bytes: Buffer; ext: string }): string {
     const ext = 'file' in from ? extname(from.file).toLowerCase() : from.ext
-    const rel = `notes/${randomUUID()}${ext}`
+    const rel = `notes/${randomUUID()}${storedExt(ext)}`
     mkdirSync(join(this.folder, ASSETS_DIR, 'notes'), { recursive: true })
     if ('file' in from) copyFileSync(from.file, join(this.folder, ASSETS_DIR, rel))
     else writeFileSync(join(this.folder, ASSETS_DIR, rel), from.bytes)

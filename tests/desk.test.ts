@@ -41,6 +41,14 @@ describe('maps', () => {
     expect(c.desk().map).toBeNull()
   })
 
+  it('takes a JFIF picture and keeps its copy as a .jpg', () => {
+    const src = join(dir, 'Harbour.jfif')
+    writeFileSync(src, png(800, 600)) // content does not matter for the copy
+    const m = c.importMap(src)
+    expect(m.name).toBe('Harbour')
+    expect(m.url).toMatch(/\.jpg$/)
+  })
+
   it('refuses files that are not images and paths outside the assets folder', () => {
     const src = join(dir, 'notes.txt')
     writeFileSync(src, 'hi')

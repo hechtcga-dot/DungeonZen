@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
-import { ASSETS_DIR, Campaign, MAP_EXTENSIONS } from './campaign/campaign'
+import { ASSETS_DIR, Campaign, MAP_EXTENSIONS, storedExt } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
@@ -543,7 +543,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const win = getWindow()
     const options = {
       title: 'Choose a picture to use as the outline', buttonLabel: 'Use as outline', properties: ['openFile'] as Array<'openFile'>,
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'jfif', 'webp'] }]
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
@@ -556,7 +556,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const options = {
       title: 'Add pictures to the Library', buttonLabel: 'Add pictures',
       properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'jfif', 'webp'] }]
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
@@ -689,7 +689,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     if (r.canceled || !r.filePaths[0]) return false
     const c = current()
     c.removeEncounterPicture(id, name)
-    copyFileSync(r.filePaths[0], join(c.encounterFolder(id, true), `${basename(name, extname(name))}${extname(r.filePaths[0])}`))
+    copyFileSync(r.filePaths[0], join(c.encounterFolder(id, true), `${basename(name, extname(name))}${storedExt(extname(r.filePaths[0]))}`))
     return true
   })
   handle('encounter:removePicture', ({ id, name }) => current().removeEncounterPicture(id, name))
@@ -1075,7 +1075,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       title: 'Choose example maps for the battle map style',
       buttonLabel: 'Add examples',
       properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'jfif', 'webp'] }]
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null

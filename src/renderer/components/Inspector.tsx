@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useBoard, useView } from '../store'
 import { CommitField } from './fields'
 import { ENTITY_LABELS } from '../entityStyle'
+import { TypeEmblem } from '../art/emblems'
 import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import type { EntityView } from '../../shared/types'
 import type { IpcInput } from '../../shared/ipc'
@@ -33,9 +35,13 @@ export function Inspector() {
   return null
 }
 
+const sentence = (type: string) => { const t = type.replace(/_/g, ' ').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1) }
+
 function EntityInspector({ entity }: { entity: EntityView }) {
   const act = useBoard((s) => s.act)
+  const query = useBoard((s) => s.query)
   const openSheet = useBoard((s) => s.openSheet)
+  const openEncounter = useBoard((s) => s.openEncounter)
   const select = useBoard((s) => s.select)
   const view = useView()
   const { screenToFlowPosition } = useReactFlow()
@@ -46,20 +52,59 @@ function EntityInspector({ entity }: { entity: EntityView }) {
   const linked = storylines.filter((b) => entity.storylineIds.includes(b.storylineId!))
   const unlinked = storylines.filter((b) => !entity.storylineIds.includes(b.storylineId!))
   const p = `entity-${entity.id}`
+  const picture = str('picture')
+  // Direct ties: every string on this card, read from this card's side.
+  const ties = view.relationships.filter((r) => r.status === 'active' && (r.sourceId === entity.id || r.targetId === entity.id))
+    .map((r) => ({ r, other: r.sourceId === entity.id ? r.targetId : r.sourceId }))
+  // Encounters this card is part of: a creature in it, its place, or a PC taking part.
+  const [encounters, setEncounters] = useState<Array<{ id: string; name: string }>>([])
+  useEffect(() => {
+    void query('encounters:view', undefined).then((v) => setEncounters((v?.encounters ?? []).filter((e) =>
+      e.locationId === entity.id || e.creatures.some((c) => c.entityId === entity.id) || e.pcs.some((pc) => pc.in && pc.id === entity.id))))
+  }, [query, entity.id, view])
+  const goTo = (id: string) => {
+    if (view.entities[id]) useBoard.setState({ selection: { kind: 'entity', id }, focusEntityId: id })
+    else void openSheet(id)
+  }
 
   return (
     <div className="inspector">
-      <div className="row spread">
-        <h2 className="panel-heading">{ENTITY_LABELS[entity.type]} card</h2>
-        <button className="outline" onClick={() => void openSheet(entity.id)}>Open sheet</button>
+      <div className="row spread inspector-top">
+        <CommitField id={`${p}-name`} label="Name" className="inspector-name" value={entity.name} required onCommit={(name) => update({ name })} />
+        <button className="outline" onClick={() => void openSheet(entity.id)}>Open full sheet</button>
       </div>
-      <CommitField id={`${p}-name`} label="Name" value={entity.name} required onCommit={(name) => update({ name })} />
-      <div className="field">
-        <label htmlFor={`${p}-type`}>Type</label>
-        <select id={`${p}-type`} value={entity.type} onChange={(e) => update({ type: e.target.value as EntityType })}>
-          {ENTITY_TYPES.map((t) => <option key={t} value={t}>{ENTITY_LABELS[t]}</option>)}
-        </select>
-      </div>
+      <button className="inspector-picture" onClick={() => void openSheet(entity.id)}
+        title={picture ? 'Open the sheet to change the picture' : 'No picture yet: open the sheet to add or draw one'}>
+        {picture ? <img src={`dz-asset://campaign/${picture}?w=512`} alt={entity.name} draggable={false} /> : <TypeEmblem type={entity.type} />}
+      </button>
+      <CommitField id={`${p}-summary`} label="One-line summary" value={str('summary')}
+        placeholder="Shown on the card" hint="Leave empty to show the stat block line (size, type, CR, HP, AC)."
+        onCommit={(summary) => update({ attributes: { summary } })} />
+
+      <fieldset className="field">
+        <legend>Direct ties</legend>
+        {ties.length === 0 && encounters.length === 0 && <div className="hint">No strings yet: drag from this card's red pin to another card.</div>}
+        <ul className="ties">
+          {ties.map(({ r, other }) => (
+            <li key={r.id}>
+              {/* A string from this card reads "knows → Name"; one to it "knows ← Name". */}
+              <button className="link" onClick={() => goTo(other)} title={`Show ${view.entities[other]?.name ?? 'the card'}`}>
+                <span className="tie-type">{r.isSecret ? 'Secret · ' : ''}{sentence(r.type)}</span> {r.sourceId === entity.id ? '→' : '←'} {view.entities[other]?.name ?? 'a card'}
+              </button>
+            </li>
+          ))}
+          {encounters.map((e) => (
+            <li key={e.id}>
+              <button className="link" onClick={() => openEncounter(e.id)} title="Open the encounter">
+                <span className="tie-type">Encounter</span> → {e.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </fieldset>
+
+      <CommitField id={`${p}-notes`} label="DM notes" value={str('notes')} multiline
+        hint="Saved when you click away. Ctrl+Enter also saves." onCommit={(notes) => update({ attributes: { notes } })} />
       <fieldset className="field">
         <legend>Status</legend>
         <div className="segmented">
@@ -68,54 +113,57 @@ function EntityInspector({ entity }: { entity: EntityView }) {
         </div>
         <div className="hint">Resolved cards stay on the board, greyed, until their storyline ends.</div>
       </fieldset>
-      <CommitField id={`${p}-summary`} label="One-line summary" value={str('summary')}
-        placeholder="Shown on the card" hint="Leave empty to show the stat block line (size, type, CR, HP, AC)."
-        onCommit={(summary) => update({ attributes: { summary } })} />
-      <CommitField id={`${p}-location`} label="Location" value={str('location')}
-        onCommit={(location) => update({ attributes: { location } })} />
-      <CommitField id={`${p}-motivation`} label="Motivation" value={str('motivation')}
-        onCommit={(motivation) => update({ attributes: { motivation } })} />
-      <CommitField id={`${p}-tags`} label="Tags" value={entity.tags.join(', ')} hint="Separate tags with commas."
-        onCommit={(t) => update({ tags: [...new Set(t.split(',').map((x) => x.trim()).filter(Boolean))] })} />
-      <CommitField id={`${p}-notes`} label="DM notes" value={str('notes')} multiline
-        hint="Saved when you click away. Ctrl+Enter also saves." onCommit={(notes) => update({ attributes: { notes } })} />
 
-      <fieldset className="field">
-        <legend>Storylines</legend>
-        {linked.length === 0 && <div className="hint">Not on any storyline view yet.</div>}
-        <ul className="chips">
-          {linked.map((b) => (
-            <li key={b.id} className="chip">
-              {b.name}
-              <button aria-label={`Take ${entity.name} off ${b.name}`} title="Take off this storyline"
-                onClick={() => void act('entity:removeFromStoryline', { entityId: entity.id, storylineId: b.storylineId! })}>×</button>
-            </li>
-          ))}
-        </ul>
-        {unlinked.length > 0 && (
-          <>
-            <label htmlFor={`${p}-add-story`} className="visually-hidden">Add to storyline</label>
-            <select id={`${p}-add-story`} value="" onChange={(e) => {
-              const b = storylines.find((s) => s.id === e.target.value)
-              if (b) void act('entity:addToStoryline', {
-                entityId: entity.id, storylineId: b.storylineId!, position: screenToFlowPosition({ x: 400, y: 300 })
-              })
-            }}>
-              <option value="">Add to storyline…</option>
-              {unlinked.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-          </>
-        )}
-      </fieldset>
-
-      <div className="actions">
-        <button onClick={() => void act('board:setHidden', { kind: 'entity', id: entity.id, hidden: !entity.hidden })}
-          title="Hidden cards leave every board; Show hidden shows them greyed">{entity.hidden ? 'Unhide' : 'Hide on every board'}</button>
-        <button className="danger" onClick={async () => { await act('entity:setStatus', { id: entity.id, status: 'defunct' }); select(null) }}>
-          Move to History
-        </button>
-      </div>
-      <p className="hint">Nothing is deleted: History keeps it, and Revive brings it back with its strings.</p>
+      <details className="inspector-more">
+        <summary>More: type, location, tags, storylines</summary>
+        <div className="field">
+          <label htmlFor={`${p}-type`}>Type</label>
+          <select id={`${p}-type`} value={entity.type} onChange={(e) => update({ type: e.target.value as EntityType })}>
+            {ENTITY_TYPES.map((t) => <option key={t} value={t}>{ENTITY_LABELS[t]}</option>)}
+          </select>
+        </div>
+        <CommitField id={`${p}-location`} label="Location" value={str('location')}
+          onCommit={(location) => update({ attributes: { location } })} />
+        <CommitField id={`${p}-motivation`} label="Motivation" value={str('motivation')}
+          onCommit={(motivation) => update({ attributes: { motivation } })} />
+        <CommitField id={`${p}-tags`} label="Tags" value={entity.tags.join(', ')} hint="Separate tags with commas."
+          onCommit={(t) => update({ tags: [...new Set(t.split(',').map((x) => x.trim()).filter(Boolean))] })} />
+        <fieldset className="field">
+          <legend>Storylines</legend>
+          {linked.length === 0 && <div className="hint">Not on any storyline view yet.</div>}
+          <ul className="chips">
+            {linked.map((b) => (
+              <li key={b.id} className="chip">
+                {b.name}
+                <button aria-label={`Take ${entity.name} off ${b.name}`} title="Take off this storyline"
+                  onClick={() => void act('entity:removeFromStoryline', { entityId: entity.id, storylineId: b.storylineId! })}>×</button>
+              </li>
+            ))}
+          </ul>
+          {unlinked.length > 0 && (
+            <>
+              <label htmlFor={`${p}-add-story`} className="visually-hidden">Add to storyline</label>
+              <select id={`${p}-add-story`} value="" onChange={(e) => {
+                const b = storylines.find((s) => s.id === e.target.value)
+                if (b) void act('entity:addToStoryline', {
+                  entityId: entity.id, storylineId: b.storylineId!, position: screenToFlowPosition({ x: 400, y: 300 })
+                })
+              }}>
+                <option value="">Add to storyline…</option>
+                {unlinked.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </>
+          )}
+        </fieldset>
+        <div className="actions">
+          <button onClick={() => void act('board:setHidden', { kind: 'entity', id: entity.id, hidden: !entity.hidden })}
+            title="Hidden cards leave every board; Show hidden shows them greyed">{entity.hidden ? 'Unhide' : 'Hide on every board'}</button>
+          <button className="danger" onClick={async () => { await act('entity:setStatus', { id: entity.id, status: 'defunct' }); select(null) }}>
+            Move to History
+          </button>
+        </div>
+        <p className="hint">Nothing is deleted: History keeps it, and Revive brings it back with its strings.</p>
+      </details>
     </div>
   )
 }
