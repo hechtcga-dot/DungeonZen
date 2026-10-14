@@ -497,7 +497,7 @@ built.
   Tied, these are the card's name, one-line summary and motivation both ways (one undo step; tying takes the card's text
   where it has some). Links and other info folds out: the card's strings (names open sheets), How to play them, the
   card's location and DM notes. `prep_item.description` (migration 2.1).
-  Next build (owner, 2026-10-14, mockup option 2): `NpcRow` header with the name and icon tools (↑ ↓ ↗ Open, ⧉ Window,
+  Next build (2.2.2, owner, 2026-10-14, mockup option 2): `NpcRow` header with the name and icon tools (↑ ↓ ↗ Open, ⧉ Window,
   🗑 Remove); Name drop-down (NPC cards, + Create new NPC… makes the card right away, One-time NPC (does not create
   card) with its own name box: the line's title); Flaws (the card's `flaws`; a one-time NPC keeps them in `body`, the old
   How to play text) and Motivation on top. Fold (beige box): 2×2 Location (`LocationPick`) / Description, Links (beige
