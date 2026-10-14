@@ -1092,6 +1092,7 @@ input.cs-bonus { width: 40px; min-height: 0; height: 22px; padding: 0 2px; font-
 .draw-rows { display: grid; gap: 6px; }
 .draw-row { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: center; }
 .draw-row textarea { width: 100%; resize: vertical; }
+.draw-row.stacked { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 @media (max-width: 1000px) { .draw-two { grid-template-columns: 1fr; } .draw-right { position: static; } }
 .draw-new-pics > .link-button { justify-self: start; }
 .pic-picker { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; min-height: 360px; }

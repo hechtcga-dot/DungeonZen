@@ -220,7 +220,7 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   // The prompt follows the wishes, boxes and ticked pictures until the DM edits it by hand.
   const built = base ? [
     base.subject,
-    adv.description?.trim() && `What it is like: ${adv.description.trim()}`,
+    adv.description?.trim() && `Description: ${adv.description.trim()}`,
     ask.trim() && `Include in the picture: ${ask.trim().replace(/[.\s]+$/, '')}.`,
     base.figure,
     ...advancedLines(adv, artStyle),
@@ -292,7 +292,7 @@ function AdvancedRows({ keys, value, changed, onChange }: { keys: AdvancedKey[];
   return (
     <div className="draw-rows">
       {ADVANCED_FIELDS.filter((f) => keys.includes(f.key)).map((f) => (
-        <label key={f.key} className="draw-row">
+        <label key={f.key} className={f.key === 'description' ? 'draw-row stacked' : 'draw-row'}>
           <span className="field-label">{f.label}{changed[f.key] !== undefined && <button type="button" className="link-button" title="Back to the default" onClick={(e) => {
             e.preventDefault()
             const { [f.key]: _, ...rest } = changed
