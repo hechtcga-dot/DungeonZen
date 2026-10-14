@@ -129,12 +129,20 @@ export function srdCopy(key: string): {
 }
 
 
-export interface SrdMonsterIndexEntry { key: string; name: string; cr: string; creatureType: string }
+export interface SrdMonsterIndexEntry {
+  key: string; name: string; cr: string; creatureType: string
+  /** Everything written on the stat block, lower case (name, type, speed, senses, traits, actions): what the suggest words search. */
+  text?: string
+}
 
 /** A light list of every SRD monster, for generators. */
+let index: SrdMonsterIndexEntry[] | null = null
 export function srdMonsterIndex(): SrdMonsterIndexEntry[] {
-  return data.monsters.map((m) => {
-    const sb = m.statblock as { cr?: string; creatureType?: string }
-    return { key: m.key, name: m.name, cr: sb.cr ?? '', creatureType: sb.creatureType ?? '' }
+  index ??= data.monsters.map((m) => {
+    const sb = m.statblock as { cr?: string; creatureType?: string; size?: string; speed?: string; senses?: string; languages?: string; traits?: Array<{ name: string; desc: string }> }
+    const text = [m.name, sb.size, sb.creatureType, sb.speed, sb.senses, sb.languages, ...(sb.traits ?? []).flatMap((t) => [t.name, t.desc]), ...m.actions.flatMap((a) => [a.name, a.desc])]
+      .filter(Boolean).join(' ').toLowerCase()
+    return { key: m.key, name: m.name, cr: sb.cr ?? '', creatureType: sb.creatureType ?? '', text }
   })
+  return index
 }

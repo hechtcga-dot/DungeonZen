@@ -385,11 +385,14 @@ function Suggest({ e }: { e: EncounterView }) {
     <div className="field">
       <label htmlFor="enc-type">Suggest from the SRD for {e.target}</label>
       <div className="row tight">
-        <input id="enc-type" value={type} placeholder="Any creature type (undead, beast…)" onChange={(ev) => setType(ev.target.value)} />
+        <input id="enc-type" value={type} placeholder="Anything: undead, swim, fire, goblin… (empty = whole SRD)"
+          onChange={(ev) => setType(ev.target.value)} onKeyDown={(ev) => { if (ev.key === 'Enter') void roll() }} />
         <button className="ink-button" onClick={() => void roll()}>{s ? 'Again' : 'Suggest'}</button>
       </div>
-      {s === null && <span className="hint">No SRD monsters fit that budget and type.</span>}
-      {s && (
+      <span className="hint">A random roll from every SRD monster that fits the XP budget; words pick monsters whose stat block mentions them. The budget comes from the party's level and size.</span>
+      {s === null && <span className="hint">No SRD monsters fit that budget.</span>}
+      {s && s.note && <span className="hint">{s.note}</span>}
+      {s && !s.note && (
         <div className="enc-suggest">
           <span>{s.groups.map((g) => `${g.count} × ${g.name} (CR ${g.cr})`).join(', ')} · {s.totalXp} of {s.budget} XP</span>
           <button className="ink-button primary-ink" onClick={() => { void act('encounter:addSrd', { encounterId: e.id, groups: s.groups.map((g) => ({ key: g.key, count: g.count })) }); setS(undefined) }}>Add these</button>

@@ -637,3 +637,8 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   elsewhere it is kept while the app runs. A box bigger than 60 squares at the map's scale shows a warning with
   "Make the largest map" (`fitToMax`: box shrunk round its middle to 300 ft on its longer side, size set to match).
   Encounters: Battle map sketch moved to the bottom, foldable.
+- 2.2.4 (owner, 2026-10-14): Encounters › Suggest from the SRD is a random roll (`suggestEncounter`): each pick is any
+  SRD monster that still fits the XP budget, all equally likely, until nothing fits or 30 creatures (`MAX_ROLLED`).
+  The box takes any words (`matchMonsters`: every word starts a word on the stat block: name, size, type, speed,
+  senses, languages, traits, actions; "hills" finds Hill Giant; a creature type word means that type). No match, or
+  only matches over the budget, says so (names, CR, XP). Live › On the fly keeps its exact creature type drop-down.

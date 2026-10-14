@@ -650,7 +650,7 @@ export interface IpcOutputs {
   'encounter:addSrd': void
   'encounter:creature': void
   'encounter:removeCreature': void
-  'encounter:suggest': { groups: Array<{ key: string; name: string; cr: string; count: number; xp: number }>; totalXp: number; budget: number; creatureType: string; summary: string } | null
+  'encounter:suggest': { groups: Array<{ key: string; name: string; cr: string; count: number; xp: number }>; totalXp: number; budget: number; creatureType: string; summary: string; note?: string } | null
   'encounter:run': LogView
   'encounter:houseRules': void
   'ai:rateEncounter': AiSuggestion

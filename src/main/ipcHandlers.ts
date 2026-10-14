@@ -1248,8 +1248,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   })
   handle('generate:encounter', ({ difficulty, creatureType }) => {
     const live = current().live()
-    const e = suggestEncounter(Math.random, srdMonsterIndex(), live.partyLevel, Math.max(1, live.party.length || 4), difficulty, creatureType)
-    if (!e) return null
+    // The Live drop-down is an exact creature type, not search words.
+    const monsters = srdMonsterIndex().filter((m) => !creatureType || m.creatureType === creatureType)
+    const e = suggestEncounter(Math.random, monsters, live.partyLevel, Math.max(1, live.party.length || 4), difficulty)
+    if (!e || !e.groups.length) return null
     return {
       kind: 'encounter', title: `${e.difficulty[0].toUpperCase()}${e.difficulty.slice(1)} encounter: ${e.creatureType}`, summary: e.summary,
       payload: e,

@@ -3,7 +3,6 @@
 // until the DM puts the result on the board or saves it for later (rule 2).
 // Names and details are made up for play.
 
-import { crToNumber } from '../shared/statblock'
 import type { SrdMonsterIndexEntry } from './srd'
 import { DIFFICULTIES, encounterBudget, xpForCr, type Difficulty } from '../shared/encounter'
 
@@ -110,35 +109,59 @@ export interface GeneratedEncounter {
   creatureType: string
   groups: EncounterGroup[]
   summary: string
+  /** Why nothing was rolled (no monster matches the words, or all that match cost more than the budget). */
+  note?: string
+}
+
+/** Most creatures one roll puts in (a very cheap pool with a big budget would otherwise fill a page). */
+export const MAX_ROLLED = 30
+
+/** Monsters whose stat block has every word (a word matches the start of any word written there; "hills" finds "hill"); a creature type word means that type. */
+export function matchMonsters(monsters: SrdMonsterIndexEntry[], words = ''): SrdMonsterIndexEntry[] {
+  const stems = words.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1).map((w) => w.length > 3 ? w.replace(/(es|s)$/, '') : w)
+  if (!stems.length) return monsters
+  // A word that is a creature type (undead, beasts) means that type, not every stat block that mentions it.
+  const types = new Set(monsters.map((m) => m.creatureType.toLowerCase()))
+  const tests = stems.map((w) => {
+    if (types.has(w)) return (m: SrdMonsterIndexEntry) => m.creatureType.toLowerCase() === w
+    const re = new RegExp(`\\b${w}`)
+    return (m: SrdMonsterIndexEntry) => re.test(m.text ?? `${m.name} ${m.creatureType}`.toLowerCase())
+  })
+  return monsters.filter((m) => tests.every((t) => t(m)))
 }
 
 /**
- * Builds an encounter from SRD monsters of one creature type, spending up to the
- * 2024 XP budget: a leader (the strongest monster that fits) and, when budget is
- * left, a pack of weaker ones. Never exceeds the budget.
+ * A random roll of SRD monsters within the 2024 XP budget: every pick is any monster that still fits
+ * (all equally likely), until nothing fits or MAX_ROLLED creatures are in. Words narrow the pool to
+ * monsters whose stat block mentions them. Never exceeds the budget. Null only when the SRD is empty.
  */
 export function suggestEncounter(
-  rng: Rng, monsters: SrdMonsterIndexEntry[], partyLevel: number, partySize: number, difficulty: Difficulty, creatureType?: string,
+  rng: Rng, monsters: SrdMonsterIndexEntry[], partyLevel: number, partySize: number, difficulty: Difficulty, words?: string,
   budgetFactor = 1
 ): GeneratedEncounter | null {
   const budget = Math.round(encounterBudget(partyLevel, partySize, difficulty) * budgetFactor)
-  const usable = monsters.filter((m) => xpForCr(m.cr) > 0 && xpForCr(m.cr) <= budget)
-  const types = [...new Set(usable.map((m) => m.creatureType))].filter(Boolean)
-  const type = creatureType && types.includes(creatureType) ? creatureType : pick(rng, types.length ? types : [''])
-  const pool = usable.filter((m) => !type || m.creatureType === type)
-  if (pool.length === 0) return null
-  // Leader: something between half and all of the budget if possible.
-  const strong = pool.filter((m) => xpForCr(m.cr) >= budget * 0.35)
-  const leader = pick(rng, strong.length ? strong : pool)
-  const groups: EncounterGroup[] = [{ key: leader.key, name: leader.name, cr: leader.cr, count: 1, xp: xpForCr(leader.cr) }]
-  let left = budget - xpForCr(leader.cr)
-  const minions = pool.filter((m) => m.key !== leader.key && xpForCr(m.cr) <= left && (crToNumber(m.cr) ?? 0) < (crToNumber(leader.cr) ?? 0))
-  if (minions.length && left > 0) {
-    const m = pick(rng, minions)
-    const count = Math.min(8, Math.floor(left / xpForCr(m.cr)))
-    if (count > 0) { groups.push({ key: m.key, name: m.name, cr: m.cr, count, xp: count * xpForCr(m.cr) }); left -= count * xpForCr(m.cr) }
+  const matching = matchMonsters(monsters.filter((m) => xpForCr(m.cr) > 0), words)
+  const empty = (note: string): GeneratedEncounter => ({ difficulty, budget, totalXp: 0, creatureType: '', groups: [], summary: note, note })
+  if (!matching.length) return words?.trim() ? empty(`No SRD monster mentions “${words.trim()}”.`) : null
+  const pool = matching.filter((m) => xpForCr(m.cr) <= budget)
+  if (!pool.length) {
+    const cheapest = [...matching].sort((x, y) => xpForCr(x.cr) - xpForCr(y.cr)).slice(0, 3).map((m) => `${m.name} (CR ${m.cr}, ${xpForCr(m.cr)} XP)`)
+    return empty(`${cheapest.join(', ')}${matching.length > 3 ? ` and ${matching.length - 3} more` : ''} match, but each costs more than the ${budget} XP budget.`)
   }
+  const groups: EncounterGroup[] = []
+  let left = budget, count = 0
+  for (;;) {
+    const fits = pool.filter((m) => xpForCr(m.cr) <= left)
+    if (!fits.length || count >= MAX_ROLLED) break
+    const m = pick(rng, fits)
+    const xp = xpForCr(m.cr)
+    const g = groups.find((x) => x.key === m.key)
+    if (g) { g.count++; g.xp += xp } else groups.push({ key: m.key, name: m.name, cr: m.cr, count: 1, xp })
+    left -= xp; count++
+  }
+  groups.sort((x, y) => y.xp / y.count - x.xp / x.count)
   const totalXp = budget - left
-  const summary = groups.map((g) => `${g.count} × ${g.name}`).join(' and ') + ` · ${difficulty} · ${totalXp} of ${budget} XP`
-  return { difficulty, budget, totalXp, creatureType: type, groups, summary }
+  const creatureType = [...new Set(groups.map((g) => monsters.find((m) => m.key === g.key)?.creatureType ?? ''))].filter(Boolean).join(', ')
+  const summary = groups.map((g) => `${g.count} × ${g.name}`).join(', ') + ` · ${difficulty} · ${totalXp} of ${budget} XP`
+  return { difficulty, budget, totalXp, creatureType, groups, summary }
 }

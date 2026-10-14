@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { encounterBudget, fillTavern, rollCharacter, seededRng, suggestEncounter, xpForCr } from '../src/main/generators'
+import { encounterBudget, fillTavern, matchMonsters, MAX_ROLLED, rollCharacter, seededRng, suggestEncounter, xpForCr } from '../src/main/generators'
 import { srdMonsterIndex } from '../src/main/srd'
 
 describe('on-the-fly generators', () => {
@@ -28,20 +28,32 @@ describe('on-the-fly generators', () => {
     expect(xpForCr('5')).toBe(1800)
   })
 
-  it('never goes over the budget and keeps to one creature type', () => {
+  it('rolls at random from the whole SRD within the budget', () => {
     const monsters = srdMonsterIndex()
+    const seen = new Set<string>()
     for (let s = 0; s < 40; s++) {
       const e = suggestEncounter(seededRng(s), monsters, 1 + (s % 10), 4, (['low', 'moderate', 'high'] as const)[s % 3])!
-      expect(e).not.toBeNull()
       expect(e.totalXp).toBeLessThanOrEqual(e.budget)
       expect(e.groups.reduce((n, g) => n + g.xp, 0)).toBe(e.totalXp)
-      const types = new Set(e.groups.map((g) => monsters.find((m) => m.key === g.key)!.creatureType))
-      expect(types.size).toBe(1)
+      expect(e.groups.reduce((n, g) => n + g.count, 0)).toBeLessThanOrEqual(MAX_ROLLED)
+      e.groups.forEach((g) => seen.add(g.key))
     }
+    expect(seen.size).toBeGreaterThan(60) // many different monsters, not the same few
+    // A small budget still varies between rolls.
+    const small = new Set(Array.from({ length: 30 }, (_, s) => suggestEncounter(seededRng(s), monsters, 1, 1, 'moderate')!.groups.map((g) => g.name).join()))
+    expect(small.size).toBeGreaterThan(10)
   })
 
-  it('honours a chosen creature type', () => {
-    const e = suggestEncounter(seededRng(1), srdMonsterIndex(), 3, 4, 'moderate', 'undead')!
+  it('words pick monsters whose stat block mentions them', () => {
+    const monsters = srdMonsterIndex()
+    const e = suggestEncounter(seededRng(1), monsters, 3, 4, 'moderate', 'undead')!
     expect(e.creatureType).toBe('undead')
+    expect(matchMonsters(monsters, 'hills').map((m) => m.name)).toContain('Hill Giant')
+    expect(matchMonsters(monsters, 'swim').length).toBeGreaterThan(10)
+    expect(matchMonsters(monsters, 'sphinx').every((m) => /sphinx/i.test(m.name))).toBe(true)
+    const tooDear = suggestEncounter(seededRng(1), monsters, 1, 1, 'moderate', 'sphinx')!
+    expect(tooDear.groups).toEqual([])
+    expect(tooDear.note).toMatch(/Sphinx.*more than the 75 XP budget/)
+    expect(suggestEncounter(seededRng(1), monsters, 1, 1, 'moderate', 'zzqx')!.note).toBe('No SRD monster mentions “zzqx”.')
   })
 })
