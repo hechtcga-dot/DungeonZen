@@ -1192,6 +1192,13 @@ export class Campaign {
     this.setSetting('prompt_templates', [...all, { name: t.name, fields: t.fields }], `Saved the prompt template ${t.name}`)
   }
 
+  renamePromptTemplate(name: string, next: string): void {
+    const v = this.setting('prompt_templates')
+    const all = Array.isArray(v) ? v as PromptTemplate[] : []
+    if (all.some((x) => x.status !== 'defunct' && x.name !== name && x.name.toLowerCase() === next.toLowerCase())) throw new Error(`There is already a template called ${next}`)
+    this.setSetting('prompt_templates', all.map((x) => (x.name === name && x.status !== 'defunct' ? { ...x, name: next } : x)), `Renamed the prompt template ${name} to ${next}`)
+  }
+
   removePromptTemplate(name: string): void {
     const v = this.setting('prompt_templates')
     const all = Array.isArray(v) ? v as PromptTemplate[] : []

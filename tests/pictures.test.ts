@@ -73,10 +73,12 @@ describe('Library pictures', () => {
     c.savePromptTemplate({ name: 'Alan Lee', fields: { style: 'in the manner of Alan Lee' } })
     c.savePromptTemplate({ name: 'alan lee', fields: { style: 'watercolour' } })
     expect(c.promptTemplates()).toEqual([{ name: 'alan lee', fields: { style: 'watercolour' } }])
-    c.removePromptTemplate('alan lee')
+    c.renamePromptTemplate('alan lee', 'Lee')
+    expect(c.promptTemplates()[0].name).toBe('Lee')
+    c.removePromptTemplate('Lee')
     expect(c.promptTemplates()).toEqual([])
     c.undo()
-    expect(c.promptTemplates()).toHaveLength(1)
+    expect(c.promptTemplates().map((t) => t.name)).toEqual(['Lee'])
   })
 
   it('keeps empty folders the DM made', () => {

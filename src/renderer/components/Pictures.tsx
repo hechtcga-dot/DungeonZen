@@ -229,12 +229,12 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
       <div className="dz-form">
         <div className="draw-two">
           <div className="draw-left">
+            {rows(['description'])}
             <div className="field">
               <label htmlFor="pic-ask">Include in the picture (optional)</label>
               <input id="pic-ask" value={ask} maxLength={2000} placeholder="ducks, a boat, a fisherman in the boat" onChange={(ev) => setAsk(ev.target.value)} />
               <div className="hint">Things to show, separated by commas. Uses the image service chosen in AI services.</div>
             </div>
-            {rows(['description'])}
             <DrawExtras only="styles" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
               onReset={() => undefined} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
             <section className="draw-box">
@@ -299,6 +299,7 @@ function TemplateBar({ value, changed, onChange }: { value: Advanced; changed: A
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
   const [chosen, setChosen] = useState('')
   const [saving, setSaving] = useState<string | null>(null)
+  const [managing, setManaging] = useState(false)
   const load = () => void call('promptTemplates:list', undefined).then(setTemplates).catch(() => setTemplates([]))
   useEffect(load, [])
   const save = async (name: string) => {
@@ -326,8 +327,18 @@ function TemplateBar({ value, changed, onChange }: { value: Advanced; changed: A
         {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
       </select>
       <button type="button" className="link-button" onClick={() => setSaving(chosen)}>Save as template…</button>
-      {chosen && <button type="button" className="link-button danger-link" title="Ctrl+Z brings it back"
-        onClick={() => void act('promptTemplates:remove', { name: chosen }).then(() => { setChosen(''); load() })}>Remove</button>}
+      {templates.length > 0 && <button type="button" className="link-button" aria-expanded={managing} onClick={() => setManaging(!managing)}>Rename or remove…</button>}
+      {managing && (
+        <span className="template-manage">
+          {templates.map((t) => (
+            <span key={t.name} className="row tight">
+              <CommitName value={t.name} label={`Name of the template ${t.name}`} onCommit={(next) => void act('promptTemplates:rename', { name: t.name, next }).then(() => { if (chosen === t.name) setChosen(next); load() })} />
+              <button type="button" className="link-button danger-link" title="Ctrl+Z brings it back"
+                onClick={() => void act('promptTemplates:remove', { name: t.name }).then(() => { if (chosen === t.name) setChosen(''); load() })}>Remove</button>
+            </span>
+          ))}
+        </span>
+      )}
     </span>
   )
 }

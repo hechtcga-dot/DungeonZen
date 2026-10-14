@@ -585,6 +585,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('promptTemplates:list', () => current().promptTemplates())
   handle('promptTemplates:save', (t) => current().savePromptTemplate(t))
   handle('promptTemplates:remove', ({ name }) => current().removePromptTemplate(name))
+  handle('promptTemplates:rename', ({ name, next }) => current().renamePromptTemplate(name, next))
   handle('entity:keepPicture', ({ entityId, pendingId, source }) => current().setPicture(entityId, { pendingId, source }))
   handle('entity:removePicture', ({ entityId }) => current().setPicture(entityId, null))
   handle('card:applyFill', ({ entityId, fields, source, srdKey }) => current().applyFill(entityId, fields, source, srdKey ? srdCopy(srdKey) : null))

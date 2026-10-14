@@ -169,6 +169,7 @@ export const ipcInputs = {
   'promptTemplates:list': z.void(),
   'promptTemplates:save': PromptTemplateSchema,
   'promptTemplates:remove': z.object({ name: z.string().min(1).max(80) }),
+  'promptTemplates:rename': z.object({ name: z.string().min(1).max(80), next: z.string().trim().min(1).max(80) }),
   'ai:imageInfo': z.void(),
   'entity:keepPicture': z.object({ entityId: Id, pendingId: z.string().max(80), source: z.string().max(200) }),
   'entity:removePicture': z.object({ entityId: Id }),
@@ -538,6 +539,7 @@ export interface IpcOutputs {
   'promptTemplates:list': PromptTemplate[]
   'promptTemplates:save': void
   'promptTemplates:remove': void
+  'promptTemplates:rename': void
   'ai:imageInfo': { name: string | null; maxReferences: number }
   'entity:keepPicture': void
   'entity:removePicture': void
