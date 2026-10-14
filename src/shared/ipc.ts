@@ -41,6 +41,13 @@ const AbilityFields = z.object({
   showMacroBar: z.boolean()
 })
 const OptionalNumber = z.number().finite().optional()
+/** Follow a picture (battle maps): a campaign map or an uploaded picture (assets path), the boxed part (fractions 0–1). */
+const FollowInput = z.object({
+  mapId: Id.optional(), path: z.string().min(1).max(500).optional(),
+  crop: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: z.number().min(0.001).max(1), h: z.number().min(0.001).max(1) }),
+  buildings: z.enum(['inside', 'roofs']).optional(),
+  cols: z.number().int().min(GRID_MIN).max(GRID_MAX).optional(), rows: z.number().int().min(GRID_MIN).max(GRID_MAX).optional()
+})
 const SketchInput = z.object({
   cols: z.number().int().min(4).max(60), rows: z.number().int().min(4).max(60), cells: z.string().max(3600),
   labels: z.array(z.object({ x: z.number().int().min(0).max(60), y: z.number().int().min(0).max(60), t: z.string().max(80) })).max(300)
@@ -283,7 +290,8 @@ export const ipcInputs = {
     id: Id,
     patch: z.object({
       name: Name, locationId: Id.nullable(), target: z.enum(['low', 'moderate', 'high']), tactics: z.string().max(5000),
-      notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable(), pcsOut: z.array(Id).max(100), sketch: SketchInput.nullable()
+      notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable(), pcsOut: z.array(Id).max(100), sketch: SketchInput.nullable(),
+      follow: FollowInput.nullable()
     }).partial()
   }),
   'encounter:pictures': z.object({ id: Id }),
@@ -361,11 +369,7 @@ export const ipcInputs = {
     aspect: z.enum(['1:1', '3:2', '2:3', '16:9', '9:16']),
     /** The sketch as a plan picture (PNG, base64) and its blueprint text: the AI follows it as the layout. */
     blueprint: z.object({ png: z.string().max(4_000_000), text: z.string().max(12000) }).optional(),
-    /** Follow a picture: a campaign map or an uploaded picture (assets path), and the part of it to use (fractions 0–1). */
-    follow: z.object({
-      mapId: Id.optional(), path: z.string().min(1).max(500).optional(),
-      crop: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), w: z.number().min(0.001).max(1), h: z.number().min(0.001).max(1) })
-    }).optional()
+    follow: FollowInput.optional()
   }),
   'building:patronCard': z.object({ buildingId: Id, patronId: z.string().min(1).max(40), type: z.enum(['NPC', 'PC']) }),
   'building:secretPool': z.object({ buildingId: Id }),

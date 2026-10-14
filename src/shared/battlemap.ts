@@ -80,6 +80,39 @@ export interface BattleMapSpec {
 export const BUILDINGS = ['inside', 'roofs'] as const
 export type Buildings = (typeof BUILDINGS)[number]
 
+/** Part of a picture, as fractions (0–1) of its width and height. */
+export type Crop = { x: number; y: number; w: number; h: number }
+/** "Follow a picture": a campaign map or an uploaded picture (assets path), the boxed part and how buildings show. Saved on the encounter. */
+export type FollowSource = { mapId?: string; path?: string; crop: Crop; buildings?: Buildings; cols?: number; rows?: number }
+
+const frac = (n: unknown) => typeof n === 'number' && n >= 0 && n <= 1
+export function readFollow(x: unknown): FollowSource | null {
+  const f = x as Partial<FollowSource> | null
+  if (!f || typeof f !== 'object' || !(typeof f.mapId === 'string' || typeof f.path === 'string')) return null
+  const c = f.crop
+  if (!c || ![c.x, c.y, c.w, c.h].every(frac) || !c.w || !c.h) return null
+  const size = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX
+  return {
+    ...(f.mapId ? { mapId: f.mapId } : { path: f.path }), crop: { x: c.x, y: c.y, w: c.w, h: c.h }, buildings: f.buildings === 'roofs' ? 'roofs' : 'inside',
+    ...(size(f.cols) && size(f.rows) ? { cols: f.cols, rows: f.rows } : {})
+  }
+}
+
+/**
+ * The boxed part shrunk (about its centre) to the largest true-scale battle map, GRID_MAX squares
+ * (300 ft) on its longer side; null when it already fits. `squares` = the box's size in squares at the map's scale.
+ */
+export function fitToMax(crop: Crop, squares: { across: number; deep: number }): { crop: Crop; cols: number; rows: number } | null {
+  const k = Math.min(GRID_MAX / squares.across, GRID_MAX / squares.deep)
+  if (k >= 1) return null
+  const w = crop.w * k, h = crop.h * k
+  return {
+    crop: { x: crop.x + (crop.w - w) / 2, y: crop.y + (crop.h - h) / 2, w, h },
+    cols: Math.max(GRID_MIN, Math.min(GRID_MAX, Math.round(squares.across * k))),
+    rows: Math.max(GRID_MIN, Math.min(GRID_MAX, Math.round(squares.deep * k)))
+  }
+}
+
 export const GRID_MIN = 5
 export const GRID_MAX = 60
 

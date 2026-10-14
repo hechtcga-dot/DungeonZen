@@ -99,7 +99,7 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
   const [ratingBusy, setRatingBusy] = useState(false)
   const [ratingError, setRatingError] = useState<string | null>(null)
   const [roll20, setRoll20] = useState(false)
-  const drawMap = () => setBattleMapOpen({ name: `${e.name} battle map`, description: e.scene, sketch: e.sketch, onKept: (mapId) => up({ battleMapId: mapId }) })
+  const drawMap = () => setBattleMapOpen({ name: `${e.name} battle map`, description: e.scene, sketch: e.sketch, follow: e.follow, onFollow: (follow) => up({ follow }), onKept: (mapId) => up({ battleMapId: mapId }) })
   const [pdf, setPdf] = useState(false)
   const d = e.difficulty
   // The scale stops at 1.5 × the high budget so the marks stay readable; more than that fills the bar.

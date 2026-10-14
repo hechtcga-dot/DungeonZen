@@ -632,5 +632,8 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   (`cropSource`), sent first as `follow` (Gemini/OpenAI: "the source picture to redraw"; Stability control/structure
   0.8); the sketch blueprint is not sent while following. Prompt `followPrompt` (shared/battlemap.ts): keep every road,
   river, building footprint, tree line in place, read blurry shapes by colour, 5 ft scale sizes (person 1 square,
-  cottage 4×6, road 2–3), fine detail, no text/symbols/compass/grid/watermark/logo. The boxed part is kept while the
-  app runs. Encounters: Battle map sketch moved to the bottom, foldable.
+  cottage 4×6, road 2–3), fine detail, no text/symbols/compass/grid/watermark/logo. Saved on the encounter
+  (`attributes.follow`: map or path, box, buildings, size drawn at; `encounter:update` follow, undoable); opened from
+  elsewhere it is kept while the app runs. A box bigger than 60 squares at the map's scale shows a warning with
+  "Make the largest map" (`fitToMax`: box shrunk round its middle to 300 ft on its longer side, size set to match).
+  Encounters: Battle map sketch moved to the bottom, foldable.

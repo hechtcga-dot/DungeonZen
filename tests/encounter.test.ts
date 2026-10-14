@@ -74,6 +74,12 @@ describe('encounter planner', () => {
     expect(e).toMatchObject({ target: 'high', tactics: 'Ghouls come out of the water' })
     c.undo()
     expect(c.encounterView(id).creatures).toHaveLength(2)
+    // Follow a picture is kept on the encounter, undoable.
+    const follow = { mapId: 'm1', crop: { x: 0.1, y: 0.2, w: 0.3, h: 0.2 }, buildings: 'roofs' as const, cols: 60, rows: 40 }
+    c.updateEncounter(id, { follow })
+    expect(c.encounterView(id).follow).toEqual(follow)
+    c.undo()
+    expect(c.encounterView(id).follow).toBeNull()
     // It is a SCENE card: the region panel and History see it.
     expect(c.encountersView().encounters.map((x) => x.name)).toEqual(['Dockside ambush'])
     c.setEntityStatus(id, 'defunct')

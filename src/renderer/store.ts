@@ -1,5 +1,6 @@
 import { share } from '../shared/share'
 import type { Sketch } from '../shared/sketch'
+import type { FollowSource } from '../shared/battlemap'
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
@@ -105,6 +106,9 @@ export interface BattleMapRequest {
   description?: string
   sketch?: Sketch | null
   indoors?: boolean
+  /** Follow a picture, saved on the encounter: what to start with, and where changes go. */
+  follow?: FollowSource | null
+  onFollow?(follow: FollowSource | null): void
   /** Called with the kept map's id (e.g. to tie it to the encounter or the floor). */
   onKept?(mapId: string): void
 }

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Campaign } from '../src/main/campaign/campaign'
-import { aspectFor, battleMapPrompt, defaultFeatures, guessTerrain, rowsFor, settingFor, timeOfDayFor, type BattleMapSpec } from '../src/shared/battlemap'
+import { aspectFor, battleMapPrompt, defaultFeatures, fitToMax, readFollow, guessTerrain, rowsFor, settingFor, timeOfDayFor, type BattleMapSpec } from '../src/shared/battlemap'
 import { generateImage, resolve, type Fetch } from '../src/main/ai/client'
 
 let dir: string
@@ -68,6 +68,24 @@ describe('battle map rules', () => {
     expect(p).toContain('Where the source leaves room, add: scattered cover')
     expect(p).toMatch(/no text, names, labels.*watermark, signature or logo/)
     expect(battleMapPrompt({ ...base, follow: true, buildings: 'roofs', withExamples: true })).toMatch(/show their roofs[\s\S]*layout only from the source picture/)
+  })
+
+  it('shrinks a too-big boxed part to the largest true-scale map (60 squares, 300 ft)', () => {
+    expect(fitToMax({ x: 0.2, y: 0.2, w: 0.2, h: 0.2 }, { across: 40, deep: 30 })).toBeNull()
+    const f = fitToMax({ x: 0.2, y: 0.2, w: 0.4, h: 0.2 }, { across: 120, deep: 60 })!
+    expect(f.cols).toBe(60)
+    expect(f.rows).toBe(30)
+    expect(f.crop.w).toBeCloseTo(0.2)
+    expect(f.crop.x).toBeCloseTo(0.3) // shrunk round its middle
+    expect(f.crop.y).toBeCloseTo(0.25)
+    expect(fitToMax({ x: 0, y: 0, w: 0.1, h: 0.5 }, { across: 20, deep: 100 })).toMatchObject({ cols: 12, rows: 60 })
+  })
+
+  it('reads a saved followed picture safely', () => {
+    expect(readFollow(null)).toBeNull()
+    expect(readFollow({ mapId: 'm', crop: { x: 0, y: 0, w: 0, h: 1 } })).toBeNull()
+    expect(readFollow({ mapId: 'm', crop: { x: 0, y: 0, w: 1, h: 1 }, cols: 30, rows: 20 })).toEqual({ mapId: 'm', crop: { x: 0, y: 0, w: 1, h: 1 }, buildings: 'inside', cols: 30, rows: 20 })
+    expect(readFollow({ path: 'outlines/a.png', crop: { x: 0, y: 0, w: 1, h: 1 }, buildings: 'roofs', cols: 99, rows: 1 })).toEqual({ path: 'outlines/a.png', crop: { x: 0, y: 0, w: 1, h: 1 }, buildings: 'roofs' })
   })
 
   it('fills in first guesses the DM can change', () => {

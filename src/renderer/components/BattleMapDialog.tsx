@@ -7,7 +7,7 @@ import { useBoard, useUnits } from '../store'
 import { maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
 import { SendExamples, SmallerExamples, withArtStyle } from './Pictures'
 import {
-  ART_STYLES, aspectFor, BATTLE_FEATURES, BUILDINGS, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
+  ART_STYLES, aspectFor, BATTLE_FEATURES, BUILDINGS, type FollowSource, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
   rowsFor, SEASONS, settingFor, TERRAINS, TIMES_OF_DAY, WEATHERS, type BattleMapSpec, type BattleSetting
 } from '../../shared/battlemap'
 import type { PendingImageView, StyleExampleView } from '../../shared/types'
@@ -15,7 +15,7 @@ import { fmtSquares } from '../../shared/units'
 import { ChangePicture } from './OutlinePad'
 import { blueprintText, isBlank } from '../../shared/sketch'
 import { SketchDrawing, sketchPng } from './SketchPad'
-import { FollowPicture, type Follow } from './FollowPicture'
+import { FollowPicture } from './FollowPicture'
 
 type Drawn = PendingImageView & { source: string; prompt: string; cols: number }
 type Spec = Omit<BattleMapSpec, 'withExamples' | 'follow'>
@@ -57,8 +57,9 @@ export function BattleMapDialog() {
   const [labelsOn, setLabelsOn] = useState(false)
   const [markersOn, setMarkersOn] = useState(false)
   const [smaller, setSmaller] = useState(false)
-  // Kept between openings while the app runs, so Try again or a second drawing keeps the boxed part.
-  const [follow, setFollow] = useState<Follow | null>(null)
+  // Saved on the encounter (req.onFollow); elsewhere kept between openings while the app runs.
+  const [follow, setFollowState] = useState<FollowSource | null>(null)
+  const setFollow = (f: FollowSource | null) => { setFollowState(f); setOwnPrompt(null); req?.onFollow?.(f) }
   const setOpen = useBoard((s) => s.setBattleMapOpen)
   const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
   const aiOpen = useBoard((s) => s.aiSettingsOpen)
@@ -98,10 +99,14 @@ export function BattleMapDialog() {
         const filled = { description, timeOfDay: ctx.timeOfDay, terrain, setting }
         setUseBlueprint(true)
         setAuto(filled)
+        const saved = req?.onFollow ? req.follow ?? null : follow
+        setFollowState(saved)
         setSpec((cur) => ({
           ...cur, ...filled, features: defaultFeatures(setting),
           weather: setting === 'indoors' || setting === 'underground' ? 'indoors (none)' : cur.weather === 'indoors (none)' ? 'clear' : cur.weather,
-          ...(sketch ? { cols: Math.max(GRID_MIN, sketch.cols), rows: Math.max(GRID_MIN, sketch.rows) } : {})
+          ...(saved?.cols && saved.rows ? { cols: saved.cols, rows: saved.rows }
+            : sketch ? { cols: Math.max(GRID_MIN, sketch.cols), rows: Math.max(GRID_MIN, sketch.rows) } : {}),
+          buildings: saved?.buildings ?? 'inside'
         }))
         setName(req?.name ?? (ctx.placeName ? `${ctx.placeName} battle map` : 'Battle map'))
         setPicked(new Set()) // none ticked until the DM picks (owner, 2026-10-12)
@@ -133,6 +138,11 @@ export function BattleMapDialog() {
   }
   const draw = async () => {
     setBusy(true); setError(null)
+    // The size drawn at goes with the followed picture, so it comes back next time.
+    if (follow && (follow.cols !== cols || follow.rows !== rows || follow.buildings !== spec.buildings)) {
+      const next = { ...follow, cols, rows, buildings: spec.buildings }
+      setFollowState(next); req?.onFollow?.(next)
+    }
     try {
       if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }).catch(() => undefined)
       const ids = withExamples ? [...picked].slice(0, maxRefs) : []
@@ -279,7 +289,7 @@ export function BattleMapDialog() {
               </div>
             </div>
             <div className="dz-form">
-              <FollowPicture value={follow} onChange={(f) => { setFollow(f); setOwnPrompt(null) }} cols={cols} onSize={(c, r) => set({ cols: c, rows: r })} />
+              <FollowPicture value={follow} onChange={setFollow} cols={cols} onSize={(c, r) => set({ cols: c, rows: r })} />
               {follow && (
                 <Choice id="bm-buildings" label="Buildings show" k="buildings" options={BUILDINGS} spec={spec} set={set} />
               )}

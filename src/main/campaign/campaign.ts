@@ -38,7 +38,7 @@ import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, regionOnBoard, type Point } from '../../shared/geometry'
 import { scaleToCr } from '../../shared/crscale'
 import { boostsAllies, CombatState, DAMAGE_TYPES, isLeaderName, legendaryCount, limitedUses, newCombatant, slotsFromText, type Combatant, type CombatantInfo } from '../../shared/combat'
-import { rowsFor } from '../../shared/battlemap'
+import { readFollow, rowsFor, type FollowSource } from '../../shared/battlemap'
 import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/places'
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
 import { adaptation, RATING_LABELS, rateEncounter, xpForCr, type FightFeedback } from '../../shared/encounter'
@@ -2895,6 +2895,7 @@ export class Campaign {
       scene: typeof a.scene === 'string' ? a.scene : '',
       battleMapId: typeof a.battle_map_id === 'string' ? a.battle_map_id : null,
       sketch: readSketch(a.sketch),
+      follow: readFollow(a.follow),
       creatures, pcs, difficulty: rateEncounter(creatures, pcs.length ? (levels.length ? levels : [p.level]) : p.level, p.size, p.factor), runs
     }
   }
@@ -2911,7 +2912,7 @@ export class Campaign {
     return id
   }
 
-  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[]; sketch?: Sketch | null }): void {
+  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[]; sketch?: Sketch | null; follow?: FollowSource | null }): void {
     const e = this.entityRow(id)
     this.log.run(`Edited encounter ${patch.name ?? e.name}`, (w) => {
       const attrs: Record<string, unknown> = { encounter: true }
@@ -2922,6 +2923,7 @@ export class Campaign {
       if (patch.battleMapId !== undefined) attrs.battle_map_id = patch.battleMapId
       if (patch.pcsOut !== undefined) attrs.pcs_out = patch.pcsOut
       if (patch.sketch !== undefined) attrs.sketch = patch.sketch
+      if (patch.follow !== undefined) attrs.follow = patch.follow
       w.update('entity', id, { name: patch.name, attributes: { ...e.attributes, ...attrs } })
       if (patch.locationId !== undefined) {
         for (const r of this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).all()) {

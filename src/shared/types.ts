@@ -804,6 +804,8 @@ export interface EncounterView {
   battleMapId: string | null
   /** The battle map sketch (Encounters › Sketch), sent to the image AI as a blueprint. */
   sketch: import('./sketch').Sketch | null
+  /** Draw window › Follow a picture: the map or picture and the boxed part, kept for this encounter. */
+  follow: import('./battlemap').FollowSource | null
   creatures: EncounterCreatureView[]
   /** The player characters: all take part unless the DM unticks them (budget and fight follow). */
   pcs: Array<{ id: string; name: string; level: number; hp: number; maxHp: number; in: boolean }>
