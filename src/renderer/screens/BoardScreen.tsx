@@ -1,5 +1,5 @@
 import { share } from '../../shared/share'
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import {
   ConnectionMode, Controls, ReactFlow, ReactFlowProvider, applyEdgeChanges,
   applyNodeChanges, useReactFlow, useStore, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams, type Viewport
@@ -544,12 +544,14 @@ function BoardLayout() {
 
       <nav className="viewbar" aria-label="Board views">
         <span className="eyebrow">VIEW</span>
-        {view.boards.map((b) => (
-          <button key={b.id} aria-pressed={b.id === view.board.id} onClick={() => void showBoard(b.id)}
-            style={b.storyline?.colour ? { borderBottom: `4px solid ${b.storyline.colour}` } : undefined}>
-            {b.storylineId ? b.name : 'Global: all characters and plot points'}
-          </button>
-        ))}
+        <ViewStrip activeId={view.board.id}>
+          {view.boards.map((b) => (
+            <button key={b.id} data-board={b.id} aria-pressed={b.id === view.board.id} onClick={() => void showBoard(b.id)}
+              style={b.storyline?.colour ? { borderBottom: `4px solid ${b.storyline.colour}` } : undefined}>
+              {b.storylineId ? b.name : 'View all cards'}
+            </button>
+          ))}
+        </ViewStrip>
         {newStoryline === null ? (
           <button className="ghost" onClick={() => setNewStoryline('')}>+ Storyline</button>
         ) : (
@@ -561,11 +563,10 @@ function BoardLayout() {
             <button type="button" onClick={() => setNewStoryline(null)}>Cancel</button>
           </form>
         )}
+        <button className="outline" aria-haspopup="menu" onClick={(e) => openMenu(e, displayItems())}>Display ▾</button>
         {view.board.storylineId && view.board.storyline && (
           <button className="ghost" onClick={() => setEditStory(true)}>Edit storyline</button>
         )}
-        <span className="spacer" />
-        <button className="outline" aria-haspopup="menu" onClick={(e) => openMenu(e, displayItems())}>Display ▾</button>
         {editStory && view.board.storylineId && view.board.storyline && (
           <StorylineDialog open onClose={() => setEditStory(false)} storylineId={view.board.storylineId} detail={view.board.storyline} />
         )}
@@ -734,5 +735,33 @@ function BoardLayout() {
           onChoose={(winner) => { setAskLink(false); void act('board:linkPositions', { on: true, winner }) }} onClose={() => setAskLink(false)} />
       )}
     </DeskFrame>
+  )
+}
+
+/** Board views on one row; ‹ › appear when there are more storylines off to that side. */
+function ViewStrip({ activeId, children }: { activeId: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [more, setMore] = useState({ left: false, right: false })
+  const measure = useCallback(() => {
+    const el = ref.current
+    if (el) setMore({ left: el.scrollLeft > 1, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1 })
+  }, [])
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.querySelector<HTMLElement>(`[data-board="${activeId}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    for (const c of Array.from(el.children)) ro.observe(c)
+    return () => ro.disconnect()
+  }, [activeId, children, measure])
+  const step = (dir: number) => ref.current?.scrollBy({ left: dir * ref.current.clientWidth * 0.8, behavior: 'smooth' })
+  return (
+    <>
+      {more.left && <button className="ghost view-arrow" aria-label="More storylines to the left" onClick={() => step(-1)}>‹</button>}
+      <div className="view-strip" ref={ref} onScroll={measure}>{children}</div>
+      {more.right && <button className="ghost view-arrow" aria-label="More storylines to the right" onClick={() => step(1)}>›</button>}
+    </>
   )
 }

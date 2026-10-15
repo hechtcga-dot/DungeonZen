@@ -3,10 +3,10 @@ import { randomUUID } from 'node:crypto'
 import { cp } from 'node:fs/promises'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import { classesOf, hitDice, usesOf } from '../../shared/charsheet'
-import { combat, noteDoc, secret,
+import { combat, noteDoc, secret, tracked, type TableName,
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
   actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
@@ -388,6 +388,46 @@ export class Campaign {
     const [view] = this.entityViews([id])
     if (!view) throw new Error(`No entity with id ${id}`)
     return view
+  }
+
+  /**
+   * History › Delete for good (owner, 2026-10-15): the rows leave the database in one undoable step.
+   * Rows that need them (cards, links, abilities…) go too; rows that only point at them lose the pointer.
+   * Notes files are not here: their files go to the Recycle Bin (forgetNoteDoc).
+   */
+  forgetRemoved(items: Array<{ kind: ForgetKind; id: string }>): void {
+    if (items.length === 0) return
+    this.log.run(items.length === 1 ? 'Deleted 1 thing from History for good' : `Deleted ${items.length} things from History for good`, (w) => {
+      for (const it of items) this.dropRow(w, FORGET_TABLE[it.kind], it.id)
+    })
+  }
+
+  private fkCache: Array<{ table: TableName; column: string; key: string; parent: string; notNull: boolean }> | null = null
+  private fkRefs() {
+    return this.fkCache ??= (Object.keys(tracked) as TableName[]).filter((t) => t !== 'campaign_settings').flatMap((t) => {
+      const cols = this.db.all<{ name: string; notnull: number }>(sql`PRAGMA table_info(${sql.identifier(t)})`)
+      const keys = Object.entries(getTableColumns(tracked[t].table)).map(([k, c]) => [c.name, k] as const)
+      return this.db.all<{ table: string; from: string }>(sql`PRAGMA foreign_key_list(${sql.identifier(t)})`).map((f) => ({
+        table: t, column: f.from, key: keys.find(([n]) => n === f.from)?.[1] ?? f.from, parent: f.table,
+        notNull: cols.find((c) => c.name === f.from)?.notnull === 1
+      }))
+    })
+  }
+
+  private dropRow(w: Writer, table: TableName, id: string): void {
+    if (!w.get(table, id)) return
+    for (const r of this.fkRefs().filter((r) => r.parent === table)) {
+      for (const child of w.idsWhere(r.table, r.column, id)) {
+        // A storyline's own board goes with it.
+        if (r.notNull || (r.table === 'board' && r.column === 'storyline_id')) this.dropRow(w, r.table, child)
+        else w.update(r.table, child, { [r.key]: null } as never)
+      }
+    }
+    if (table === 'secret') { // a secret's links have no foreign key to it
+      for (const rid of w.idsWhere('relationship', 'secret_id', id)) this.dropRow(w, 'relationship', rid)
+      for (const pid of w.idsWhere('prep_item', 'secret_id', id)) w.update('prep_item', pid, { secretId: null })
+    }
+    w.delete(table, id)
   }
 
   history(): HistoryView {
@@ -4479,3 +4519,10 @@ function toLogView(l: LogRow, names: Map<string, string>): LogView {
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+export type ForgetKind = keyof typeof FORGET_TABLE
+const FORGET_TABLE = {
+  entity: 'entity', secret: 'secret', string: 'relationship', note: 'board_item', storyline: 'storyline', act: 'act',
+  outcome: 'act_outcome', trigger: 'story_trigger', map: 'map', region: 'region_shape', style: 'style_example',
+  prep: 'session_prep', prepItem: 'prep_item'
+} as const satisfies Record<string, TableName>

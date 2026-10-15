@@ -675,6 +675,13 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
 - 2.5.0 (owner, 2026-10-15): board top bar New NPC button removed (Card tool / right-click › New card instead).
 - 2.5.0 (owner, 2026-10-15): board Card tool type column closes on any click outside it.
 - 2.5.0 (owner, 2026-10-15): History › Removed from board sorts: Recently removed (default; order from the undo log), A–Z, Type (then A–Z); kept while the app runs.
+- 2.5.0 (owner, 2026-10-15): History › Delete for good: tick boxes, click / Ctrl+click / Shift+click to select, Select all,
+  right-click › Delete for good…, Clear all history… (Removed list only; Change log stays). One are-you-sure, then the rows
+  leave the database in one undo step (`Campaign.forgetRemoved`, `Writer.delete`): rows that need them (cards, links,
+  abilities, a storyline's board…) go too, rows that only point at them lose the pointer (foreign keys read from SQLite).
+  Ctrl+Z / Change log bring them back (owner chose undoable). Notes files go to the Recycle Bin as before.
+- 2.5.0 (owner, 2026-10-15): board view bar on one row: View all cards (was "Global: all characters and plot points"),
+  storylines, ‹ › when there are more off either side, + Storyline, Display ▾, Edit storyline.
 - 2.5.0 (owner, 2026-10-15): board multi-select: Ctrl+click or Shift+click adds/removes a card (Shift+drag still
   boxes). Right-click one of several selected cards: "N cards selected" menu (Acts, Storylines, Mark active/resolved,
   Card colour…, Hide/Unhide, Take off this board, Delete to History); each choice is one undo step (`board:many`,

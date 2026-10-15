@@ -493,7 +493,12 @@ export const ipcInputs = {
   'history:view': z.void(),
   'history:undo': z.void(),
   'history:redo': z.void(),
-  'history:undoTo': z.object({ commandId: Id })
+  'history:undoTo': z.object({ commandId: Id }),
+  // Delete for good from History (owner, 2026-10-15): rows in one undo step; notes files to the Recycle Bin.
+  'history:forget': z.object({
+    items: z.array(z.object({ kind: z.enum(['entity', 'secret', 'string', 'note', 'storyline', 'act', 'outcome', 'trigger', 'map', 'region', 'style', 'prep', 'prepItem']), id: Id })),
+    noteDocs: z.array(Id)
+  })
 } as const
 
 export interface IpcOutputs {
@@ -777,6 +782,7 @@ export interface IpcOutputs {
   'history:undo': string | null
   'history:redo': string | null
   'history:undoTo': number
+  'history:forget': void
 }
 
 export type IpcChannel = keyof typeof ipcInputs

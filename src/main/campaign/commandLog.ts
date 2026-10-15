@@ -39,6 +39,20 @@ export class Writer {
     this.changes.push({ table, id, before, after: this.get(table, id) })
     return true
   }
+
+  /** Deletes a row for good (History › Delete for good); undo puts it back. */
+  delete<T extends TableName>(table: T, id: string): void {
+    const before = this.get(table, id)
+    if (!before) return
+    const { table: t, pk } = tracked[table]
+    this.tx.delete(t).where(eq(pk, id)).run()
+    this.changes.push({ table, id, before, after: null })
+  }
+
+  /** Ids of the rows in `table` whose `column` (SQL name) equals `value`. */
+  idsWhere(table: TableName, column: string, value: string): string[] {
+    return this.tx.all<{ id: string }>(sql`SELECT id FROM ${sql.identifier(table)} WHERE ${sql.identifier(column)} = ${value}`).map((r) => r.id)
+  }
 }
 
 export interface UndoState {

@@ -81,8 +81,13 @@ textarea { padding: 10px 12px; resize: vertical; line-height: 1.45; }
 .topbar button[aria-label] { min-width: var(--control); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .clock { font-size: 13px; padding: 0 12px; min-height: var(--control); display: flex; align-items: center; border: 1px solid var(--border); border-radius: 6px; }
 
-.viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--bar); }
+.viewbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--bar); }
 .viewbar .eyebrow { padding-left: 2px; }
+.viewbar > * { flex: none; }
+.viewbar > .view-strip { flex: 0 1 auto; min-width: 0; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.view-strip::-webkit-scrollbar { display: none; }
+.view-strip > button { flex: none; white-space: nowrap; }
+.viewbar .view-arrow { min-width: 32px; padding: 0 6px; font-size: 20px; line-height: 1; }
 .viewbar form input { width: 220px; }
 .spacer { flex: 1 1 20px; }
 
@@ -160,6 +165,10 @@ textarea { padding: 10px 12px; resize: vertical; line-height: 1.45; }
 .removed-text, .log-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .removed-text .muted, .log-text .muted { font-size: 12px; }
 .log li button, .removed li button { flex: none; font-size: 13px; padding: 0 10px; }
+.removed li { user-select: none; cursor: default; }
+.removed li > input[type='checkbox'] { flex: none; margin: 0; width: 18px; height: 18px; min-height: 18px; padding: 0; accent-color: var(--selection); }
+.removed li .removed-text { flex: 1; }
+.removed li.is-picked, .desk-theme .removed li.is-picked { outline: 2px solid var(--selection); outline-offset: -1px; }
 .log li.is-undone .log-text > span:first-child { text-decoration: line-through; color: var(--muted); }
 
 /* ---- cards and notes on the board ---- */

@@ -1273,6 +1273,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('history:undo', () => current().undo())
   handle('history:redo', () => current().redo())
   handle('history:undoTo', ({ commandId }) => current().undoTo(commandId))
+  handle('history:forget', async ({ items, noteDocs }) => {
+    current().forgetRemoved(items)
+    for (const id of noteDocs) for (const f of current().forgetNoteDoc(id)) if (existsSync(f)) await shell.trashItem(f)
+  })
 }
 
 /** A folder name that is safe on Windows. */
