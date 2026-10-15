@@ -35,6 +35,7 @@ import { useBoardPrefs } from '../boardPrefs'
 let sideFoldedNow = false
 import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import type { BoardView, EntityView, MapScreenView } from '../../shared/types'
+import type { ManyOp } from '../../shared/ipc'
 import { useCtrlPan } from '../useCtrlPan'
 import { Dialog } from '../components/Dialog'
 import { MapViewPanel } from './MapScreen'
@@ -387,6 +388,44 @@ function BoardLayout() {
     { label: 'Delete (to History)', danger: true, onClick: () => { void act('entity:setStatus', { id: e.id, status: 'defunct' }); select(null) } }
   ]
 
+  /** Right-click with several cards selected (Ctrl/Shift+click, or Shift+drag a box): each choice changes them all, one undo step. */
+  const manyItems = (picked: Array<{ entity: EntityView; itemId: string }>): MenuItem[] => {
+    const cards = picked.filter((c, i) => picked.findIndex((x) => x.entity.id === c.entity.id) === i)
+    const n = cards.length
+    const many = (label: string, ops: ManyOp[]) => { if (ops.length) void act('board:many', { label: `${label} (${n} cards)`, ops }) }
+    const at = (itemId: string) => { const i = view.items.find((x) => x.id === itemId); return { x: i?.x ?? 0, y: i?.y ?? 0 } }
+    const onBoard = cards.filter((c) => view.items.some((i) => i.id === c.itemId))
+    return [
+      { label: `${n} cards selected`, disabled: true },
+      'separator',
+      { label: 'Acts', items: storylineBoards.map((b) => ({
+        label: b.name,
+        items: view.acts.filter((a) => a.storylineId === b.storylineId).map((a) => {
+          const has = (c: { entity: EntityView }) => c.entity.acts.some((m) => m.actId === a.id)
+          const all = cards.every(has)
+          return { label: `${roman(a.number)}. ${a.title}`, checked: all,
+            onClick: () => many(all ? `Took out of act ${a.title}` : `Put in act ${a.title}`, cards.filter((c) => has(c) === all).map((c) => ({ op: 'act' as const, entityId: c.entity.id, actId: a.id, on: !all }))) }
+        })
+      })) },
+      { label: 'Storylines', items: storylineBoards.map((b) => {
+        const has = (c: { entity: EntityView }) => c.entity.storylineIds.includes(b.storylineId!)
+        const all = cards.every(has)
+        return { label: b.name, checked: all,
+          onClick: () => many(all ? `Took off ${b.name}` : `Added to ${b.name}`, cards.filter((c) => has(c) === all).map((c) => ({ op: 'storyline' as const, entityId: c.entity.id, storylineId: b.storylineId!, on: !all, position: at(c.itemId) }))) }
+      }) },
+      { label: 'Mark active', onClick: () => many('Marked active', cards.filter((c) => c.entity.status !== 'active').map((c) => ({ op: 'status' as const, id: c.entity.id, status: 'active' as const }))) },
+      { label: 'Mark resolved', onClick: () => many('Marked resolved', cards.filter((c) => c.entity.status !== 'resolved').map((c) => ({ op: 'status' as const, id: c.entity.id, status: 'resolved' as const }))) },
+      { label: 'Card colour…', onClick: () => setColourFor({ kind: 'cards', entities: cards.map((c) => c.entity) }) },
+      'separator',
+      cards.every((c) => c.entity.hidden)
+        ? { label: 'Unhide', onClick: () => many('Unhid', cards.map((c) => ({ op: 'hidden' as const, id: c.entity.id, hidden: false }))) }
+        : { label: 'Hide (on every board)', onClick: () => many('Hid', cards.filter((c) => !c.entity.hidden).map((c) => ({ op: 'hidden' as const, id: c.entity.id, hidden: true }))) },
+      { label: 'Take off this board', hint: 'The cards stay everywhere else; History puts them back', disabled: onBoard.length === 0,
+        onClick: () => { many('Took off this board', onBoard.map((c) => ({ op: 'takeOff' as const, itemId: c.itemId }))); select(null) } },
+      { label: `Delete ${n} cards (to History)`, danger: true, onClick: () => { many('Moved to History', cards.map((c) => ({ op: 'status' as const, id: c.entity.id, status: 'defunct' as const }))); select(null) } }
+    ]
+  }
+
   const noteItems = (itemId: string): MenuItem[] => {
     const item = view.items.find((i) => i.id === itemId)!
     return [
@@ -594,14 +633,19 @@ function BoardLayout() {
             }}
             onPaneClick={() => setLinking(null)}
             onMouseMove={(e) => { if (linking) setMouse({ x: e.clientX, y: e.clientY }) }}
-            onNodeContextMenu={(e, n: BoardNode) => openMenu(e, n.type === 'card' || n.type === 'region' ? cardItems(n.data.entity, n.id) : n.type === 'image' ? imageItems(n.id) : noteItems(n.id))}
+            onNodeContextMenu={(e, n: BoardNode) => {
+              // Several cards selected and one of them right-clicked: the menu changes all of them.
+              const sel = nodes.filter((x): x is Extract<BoardNode, { type: 'card' | 'region' }> => x.selected === true && (x.type === 'card' || x.type === 'region'))
+              if (n.selected && sel.length > 1) return openMenu(e, manyItems(sel.map((x) => ({ entity: x.data.entity, itemId: x.id }))))
+              openMenu(e, n.type === 'card' || n.type === 'region' ? cardItems(n.data.entity, n.id) : n.type === 'image' ? imageItems(n.id) : noteItems(n.id))
+            }}
             onEdgeContextMenu={(e, edge) => openMenu(e, stringItems(edge.id))}
             onPaneContextMenu={(e) => openMenu(e, paneItems(screenToFlowPosition({ x: e.clientX, y: e.clientY })))}
             connectionMode={ConnectionMode.Loose}
             connectionLineStyle={{ stroke: '#d2453a', strokeWidth: 2 }}
             deleteKeyCode={null}
             selectionKeyCode="Shift"
-            multiSelectionKeyCode={['Shift']}
+            multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
             minZoom={0.1}
             maxZoom={2}
             fitView={!lastViewport.has(view.board.id)}

@@ -214,3 +214,23 @@ describe('undo and redo', () => {
     expect(c.redo()).toBe('Added npc A')
   })
 })
+
+describe('board: change many cards at once', () => {
+  it('colours, hides and resolves several cards as one undo step', () => {
+    const { globalBoardId } = c.info()
+    const a = c.createEntity({ boardId: globalBoardId, type: 'NPC', name: 'A', position: at })
+    const b = c.createEntity({ boardId: globalBoardId, type: 'NPC', name: 'B', position: at })
+    const ids = [a, b].map((x) => (typeof x === 'string' ? x : (x as { id: string }).id))
+    c.many('Changed (2 cards)', ids.flatMap((id) => [
+      { op: 'colour' as const, id, colour: '#123456' },
+      { op: 'hidden' as const, id, hidden: true },
+      { op: 'status' as const, id, status: 'resolved' as const }
+    ]))
+    const after = c.boardView(globalBoardId).entities
+    for (const id of ids) expect([after[id].attributes.colour, after[id].hidden, after[id].status]).toEqual(['#123456', true, 'resolved'])
+    expect(c.undo()).toBe('Changed (2 cards)')
+    const back = c.boardView(globalBoardId).entities
+    for (const id of ids) expect([back[id].attributes.colour, back[id].hidden, back[id].status]).toEqual([undefined, false, 'active'])
+    expect(c.undo()).toBe('Added npc B')
+  })
+})

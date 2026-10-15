@@ -50,9 +50,16 @@ export class CommandLog {
   /** Goes up on every recorded change, undo and redo (other windows refresh when it moves). */
   writes = 0
   constructor(private readonly db: Db) {}
+  private outer: Writer | null = null
+
+  /** Several commands as one undoable step (board: change many cards at once). */
+  many<R>(label: string, fn: () => R): R {
+    return this.run(label, (w) => { this.outer = w; try { return fn() } finally { this.outer = null } })
+  }
 
   /** Runs `fn` in one transaction and records what it changed as one undoable step. */
   run<R>(label: string, fn: (w: Writer) => R, groupId: string | null = null): R {
+    if (this.outer) return fn(this.outer) // inside many(): joins its step
     return this.db.transaction((tx) => {
       const w = new Writer(tx)
       const result = fn(w)

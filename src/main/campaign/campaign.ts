@@ -43,6 +43,7 @@ import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/p
 import { ImportDraft as ImportDraftSchema, type ImportDraft, type ImportDraftSummary } from '../../shared/notesImport'
 import { adaptation, RATING_LABELS, rateEncounter, xpForCr, type FightFeedback } from '../../shared/encounter'
 import type { RollTable } from '../../shared/rolltables'
+import type { ManyOp } from '../../shared/ipc'
 import { readSketch, type Sketch } from '../../shared/sketch'
 import { buildingAttrs, newId, occupantsOf, readBuilding, type BSecret } from '../../shared/building'
 import { projectTimeline, whatIf, type TimelineInput, type TriggerEffect } from '../engine/timeline'
@@ -500,6 +501,20 @@ export class Campaign {
       const npc = { ...(patch.name ? { title: patch.name } : {}), ...(typeof s === 'string' ? { description: s } : {}), ...(typeof m === 'string' ? { role: m } : {}) }
       if (Object.keys(npc).length) {
         for (const i of this.db.select().from(prepItem).where(and(eq(prepItem.kind, 'npc'), eq(prepItem.entityId, id), eq(prepItem.status, 'active'))).all()) w.update('prep_item', i.id, npc)
+      }
+    })
+  }
+
+  /** Board: one change to many cards, one undo step. */
+  many(label: string, ops: ManyOp[]): void {
+    this.log.many(label, () => {
+      for (const o of ops) {
+        if (o.op === 'status') this.setEntityStatus(o.id, o.status)
+        else if (o.op === 'colour') this.updateEntity(o.id, { attributes: { colour: o.colour } })
+        else if (o.op === 'hidden') this.setHidden('entity', o.id, o.hidden)
+        else if (o.op === 'storyline') { if (o.on) this.addToStoryline(o.entityId, o.storylineId, o.position); else this.removeFromStoryline(o.entityId, o.storylineId) }
+        else if (o.op === 'act') this.setActMark(o.entityId, o.actId, o.on)
+        else this.setNoteStatus(o.itemId, 'defunct')
       }
     })
   }

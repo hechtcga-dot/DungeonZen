@@ -312,6 +312,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('item:resize', ({ itemId, size }) => current().resizeItem(itemId, size))
   handle('board:setHidden', ({ kind, id, hidden }) => current().setHidden(kind, id, hidden))
   handle('act:mark', ({ entityId, actId, on }) => current().setActMark(entityId, actId, on))
+  handle('board:many', ({ label, ops }) => current().many(label, ops))
   handle('stringTypes:set', ({ types }) => current().setStringTypes(types))
   handle('entityType:setColour', ({ type, colour, clearOwn }) => current().setTypeColour(type, colour, clearOwn))
   handle('stringTypes:rename', ({ from, to }) => current().renameStringType(from, to))

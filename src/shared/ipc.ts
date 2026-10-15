@@ -88,7 +88,19 @@ const TriggerEffect = z.discriminatedUnion('type', [
   z.object({ type: z.literal('set_status'), status: StorylineStatus })
 ])
 
+// Board › several cards selected: the right-click changes all of them as one undoable step.
+const ManyOp = z.discriminatedUnion('op', [
+  z.object({ op: z.literal('status'), id: Id, status: EntityStatus }),
+  z.object({ op: z.literal('colour'), id: Id, colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable() }),
+  z.object({ op: z.literal('hidden'), id: Id, hidden: z.boolean() }),
+  z.object({ op: z.literal('storyline'), entityId: Id, storylineId: Id, on: z.boolean(), position: Position }),
+  z.object({ op: z.literal('act'), entityId: Id, actId: Id, on: z.boolean() }),
+  z.object({ op: z.literal('takeOff'), itemId: Id })
+])
+export type ManyOp = z.infer<typeof ManyOp>
+
 export const ipcInputs = {
+  'board:many': z.object({ label: z.string().min(1).max(200), ops: z.array(ManyOp).min(1).max(1000) }),
   'profile:recent': z.void(),
   'campaign:create': z.object({ name: Name }),
   'campaign:openDialog': z.void(),
@@ -752,6 +764,7 @@ export interface IpcOutputs {
   'item:resize': void
   'board:setHidden': void
   'act:mark': void
+  'board:many': void
   'stringTypes:set': void
   'entityType:setColour': void
   'stringTypes:rename': number
