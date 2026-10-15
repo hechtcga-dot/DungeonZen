@@ -80,6 +80,13 @@ function BoardLayout() {
   const [nodes, setNodes] = useState<BoardNode[]>([])
   const [edges, setEdges] = useState<StringEdgeType[]>([])
   const [cardMenu, setCardMenu] = useState(false)
+  const cardWrap = useRef<HTMLDivElement>(null)
+  useEffect(() => { // a click anywhere outside the Card tool closes its type column
+    if (!cardMenu) return
+    const close = (e: PointerEvent) => { if (!cardWrap.current?.contains(e.target as Node)) setCardMenu(false) }
+    document.addEventListener('pointerdown', close, true)
+    return () => document.removeEventListener('pointerdown', close, true)
+  }, [cardMenu])
   const [menu, setMenu] = useState<Menu | null>(null)
   const [newStoryline, setNewStoryline] = useState<string | null>(null)
   const [editStory, setEditStory] = useState(false)
@@ -566,7 +573,7 @@ function BoardLayout() {
 
       <div className="workspace">
         <nav className="tools" aria-label="Board tools">
-          <div className="tool-wrap">
+          <div className="tool-wrap" ref={cardWrap}>
             <button className="tool" aria-expanded={cardMenu} aria-haspopup="menu" onClick={() => setCardMenu((v) => !v)}>Card</button>
             {cardMenu && (
               <div className="menu" role="menu" aria-label="New card type">
