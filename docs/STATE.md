@@ -674,6 +674,7 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   buttons; The chest › Add a player character opens Create from scratch / Import a character sheet….
 - 2.5.0 (owner, 2026-10-15): board top bar New NPC button removed (Card tool / right-click › New card instead).
 - 2.5.0 (owner, 2026-10-15): board Card tool type column closes on any click outside it.
+- 2.5.0 (owner, 2026-10-15): History › Removed from board sorts: Recently removed (default; order from the undo log), A–Z, Type (then A–Z); kept while the app runs.
 - 2.5.0 (owner, 2026-10-15): board multi-select: Ctrl+click or Shift+click adds/removes a card (Shift+drag still
   boxes). Right-click one of several selected cards: "N cards selected" menu (Acts, Storylines, Mark active/resolved,
   Card colour…, Hide/Unhide, Take off this board, Delete to History); each choice is one undo step (`board:many`,

@@ -117,6 +117,14 @@ export class CommandLog {
     return { undoLabel: undo?.label ?? null, redoLabel: redo?.label ?? null }
   }
 
+  /** Row id → seq of the last done change that touched it (removal order in History). */
+  lastTouched(): Record<string, number> {
+    const rows = this.db.all<{ id: string; seq: number }>(sql`
+      SELECT json_extract(j.value, '$.id') AS id, MAX(c.seq) AS seq
+      FROM ${command} c, json_each(c.payload) j WHERE c.state = 'done' GROUP BY 1`)
+    return Object.fromEntries(rows.map((r) => [r.id, r.seq]))
+  }
+
   /** Recent changes, newest first (done and undone; discarded ones are hidden). */
   recent(limit = 50): CommandRow[] {
     return this.db

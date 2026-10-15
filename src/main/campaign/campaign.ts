@@ -438,6 +438,7 @@ export class Campaign {
         .filter((r) => existsSync(join(this.folder, ASSETS_DIR, r.file))).map((r) => ({ id: r.id, title: r.title })),
       removedStyles: this.db.select().from(styleExample).where(eq(styleExample.status, 'defunct')).all()
         .map((r) => ({ id: r.id, name: r.name })),
+      removedOrder: this.log.lastTouched(),
       log: this.log.recent().map((c) => ({ id: c.id, label: c.label, at: c.at, undone: c.state === 'undone' }))
     }
   }

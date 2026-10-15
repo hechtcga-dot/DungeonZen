@@ -162,6 +162,8 @@ export interface HistoryView {
   removedStyles: Array<{ id: string; name: string }>
   removedPrep: Array<{ id: string; name: string; what: string }>
   removedNoteDocs: Array<{ id: string; title: string }>
+  /** Row id → order of the last change to it (higher = more recent), for sorting History by most recently removed. */
+  removedOrder: Record<string, number>
   log: LogEntryView[]
 }
 
