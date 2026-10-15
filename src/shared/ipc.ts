@@ -32,6 +32,9 @@ import type { BSecret, BuildingProposal } from './building'
 
 const Position = z.object({ x: z.number().finite(), y: z.number().finite() })
 const Name = z.string().trim().min(1).max(200)
+/** Screens that can open in a window of their own (rail right-click). */
+export const POP_SCREENS = ['board', 'encounters', 'prep', 'library', 'import'] as const
+const PopScreen = z.enum(POP_SCREENS)
 const AbilityFields = z.object({
   name: Name,
   kind: AbilityKind,
@@ -125,6 +128,9 @@ export const ipcInputs = {
   'places:list': z.void(),
   'prep:popout': z.object({ number: z.number().int().min(1).max(100000), part: z.string().regex(/^(opening|scene|discovery|npc|thread|recap|bible|npc:[0-9a-zA-Z-]{1,64})$/) }),
   'main:openSheet': z.object({ entityId: Id }),
+  'window:popScreen': z.object({ screen: PopScreen }),
+  'window:focusScreen': z.object({ screen: PopScreen }),
+  'window:popped': z.void(),
   'ability:add': z.object({ entityId: Id, ability: AbilityFields.partial().extend({ name: Name }) }),
   'ability:update': z.object({ id: Id, patch: AbilityFields.partial() }),
   'ability:setStatus': z.object({ id: Id, status: RowStatus }),
@@ -517,6 +523,9 @@ export interface IpcOutputs {
   'sheet:view': SheetView
   'prep:popout': void
   'main:openSheet': void
+  'window:popScreen': void
+  'window:focusScreen': void
+  'window:popped': string[]
   'places:list': Array<{ id: string; name: string; type: 'LOCATION' | 'BUILDING'; fromMap: boolean }>
   'ability:add': AbilityView
   'ability:update': void
@@ -776,6 +785,8 @@ export interface DungeonZenApi {
   onChanged(fn: () => void): () => void
   /** A pop-out window asked the main window to open this card's sheet. */
   onOpenSheet(fn: (entityId: string) => void): () => void
+  /** The screens open in windows of their own changed (main window only). */
+  onPopped(fn: (screens: string[]) => void): () => void
 }
 
 export { IPC_PREFIX } from './ipcPrefix'

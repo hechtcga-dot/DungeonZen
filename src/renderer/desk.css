@@ -55,6 +55,13 @@
 .rail-item:hover:not(:disabled) { background: rgba(246, 201, 69, 0.08); border-color: #4a3216; }
 .rail-item[aria-current='page'] { color: var(--gold); border-color: var(--brass); background: rgba(246, 201, 69, 0.12); }
 .rail-item span { text-align: center; line-height: 1.15; }
+/* A screen open in a window of its own: small mark on its rail button, faint picture in the main window. */
+.rail-item { position: relative; }
+.rail-popped { position: absolute; top: 3px; right: 6px; font-style: normal; font-size: 11px; opacity: 0.7; }
+.popped-out { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; margin: 14px; border: 1px dashed rgba(246, 236, 208, 0.18); border-radius: 6px; background: rgba(20, 12, 4, 0.25); color: rgba(246, 236, 208, 0.45); box-shadow: none; cursor: pointer; }
+.popped-out:hover { color: rgba(246, 236, 208, 0.7); background: rgba(20, 12, 4, 0.35); }
+.popped-icon svg { width: 120px; height: 120px; stroke-width: 1; opacity: 0.35; }
+.popped-text { font-family: 'IM Fell English', serif; font-size: 20px; }
 .rail-modes { display: flex; flex-direction: column; gap: 3px; padding: 4px; margin-bottom: 8px; border: 1px solid #4a3216; border-radius: 6px; background: rgba(0, 0, 0, 0.35); }
 .rail-mode {
   min-height: 28px; padding: 2px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.03em; color: #cdb98f;
@@ -1609,3 +1616,48 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .prep-window { padding: 12px; }
 .prep-window .prep-main { max-width: none; }
 @media (max-width: 760px) { .npc-top, .npc-grid, .new-link-row { grid-template-columns: 1fr; } }
+
+/* Board side panel: fold away with › and back with ‹ (owner, 2026-10-15). */
+.desk-theme .side { position: relative; }
+.side-fold, .side-unfold { width: 16px; min-height: 0; height: 44px; padding: 0; border: 1px solid #4a3216; background: #2a1a0c; color: #e9d6a8; font-size: 15px; line-height: 1; box-shadow: none; cursor: pointer; }
+.side-fold { position: absolute; left: -1px; top: 50%; transform: translateY(-50%); border-radius: 0 5px 5px 0; z-index: 5; opacity: 0.7; }
+.side-unfold { align-self: center; border-radius: 5px 0 0 5px; }
+.side-fold:hover, .side-unfold:hover { opacity: 1; background: #3a2412; color: var(--gold); }
+
+/* DM screen, compact (owner, 2026-10-15): same pictures, side by side with their text; the Session box takes the room. */
+.dm-screen { grid-template-columns: minmax(250px, 1.05fr) minmax(170px, 0.7fr) minmax(220px, 1fr) minmax(320px, 1.7fr); gap: 10px; padding: 10px; }
+.dm-screen .dm-panel { padding: 8px 12px; gap: 4px; }
+.dm-screen .panel-title { font-size: 19px; line-height: 1.2; }
+.dm-panel-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dm-panel-row .clock-dial { width: 120px; flex: 0 0 120px; max-height: 72px; }
+.dm-panel-row .moon-disc { width: 64px; height: 64px; flex: 0 0 64px; }
+.dm-screen .moon-panel { align-items: stretch; text-align: left; }
+.dm-screen .moon-name { font-size: 18px; }
+.clock-side { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.clock-side .clock-text { font-size: 16px; }
+.dm-screen .ink-button { min-height: 28px; padding: 0 8px; font-size: 13px; white-space: nowrap; }
+.dm-screen .ledger li { min-height: 24px; }
+.dm-screen .ledger-name { min-height: 24px; font-size: 16px; }
+.dm-screen .row.tight { gap: 4px; }
+@media (max-width: 1200px) { .dm-screen { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.session-panel { min-height: 0; }
+.session-panel .panel-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-nav { display: flex; align-items: center; gap: 4px; }
+.session-nav .ink-button.icon { width: 28px; padding: 0; font-size: 16px; flex: 0 0 28px; }
+.session-part { flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px; border: 0; background: transparent; box-shadow: none; color: var(--ink); font-family: var(--display); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.session-part:hover:not(:disabled) { background: rgba(120, 80, 30, 0.12); }
+.session-part .prep-n { width: 20px; height: 20px; font-size: 12px; flex: 0 0 20px; font-family: var(--sans, inherit); }
+.session-lines { list-style: none; margin: 0; padding: 0; max-height: 104px; overflow-y: auto; font-size: 13px; }
+.session-lines li { display: flex; align-items: center; gap: 6px; min-height: 24px; border-bottom: 1px dashed rgba(90, 74, 50, 0.35); cursor: default; }
+.session-lines li:last-child { border-bottom: 0; }
+.session-lines li span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-lines li.is-done span { text-decoration: line-through; color: var(--ink-muted); }
+.session-lines input { margin: 0; width: 15px; height: 15px; min-height: 0; flex: 0 0 15px; }
+.session-empty { margin: 4px 0; }
+
+/* DM notes title on one line beside Pop out. */
+.journal-top .journal-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 20px; }
+.journal-pop { flex: 0 0 auto; white-space: nowrap; }
+.session-lines.is-text li span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.rail-item.pop-close { color: var(--gold); border-color: var(--brass); }

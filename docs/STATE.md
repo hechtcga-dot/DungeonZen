@@ -648,3 +648,18 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   `withArtStyle` in the prompt. Templates (`TemplateBar use="battle"`) kept apart from card picture templates
   (`PromptTemplate.use`, old ones = portraits; same name allowed in each). Each ticked example's Style tags editor
   (Read style with AI, Keep/Discard) is in the fold too; tags save to the Library picture (`pictures:update`).
+- 2.4.0 (owner, 2026-10-15): screens in windows of their own. Right-click Board, Encounters, Session prep, Library or
+  Notes on the rail › Open in a new window (`window:popScreen`, `popScreen` in `src/main/index.ts`, one window per
+  screen, `#screen/<id>`, `ScreenWindow` in `App.tsx`). The pop-out has its own rail: Close window (screen goes back)
+  and Back; card sheets it opens show in the main window. The main window shows that screen as a faint picture
+  "… is open in another window" (`PoppedOut`; click brings the window forward, `window:focusScreen`) and a ⧉ mark on
+  the rail button; the list comes from main (`popped` event, `window:popped`). Writes in any window refresh the others
+  (existing `changed` broadcast). Closing the campaign or the main window closes them. Positions not remembered.
+- 2.4.0: board side panel folds with › on its left edge, back with ‹ (kept while the app is open).
+- 2.4.0: desk DM screen compact: clock dial and moon beside their text, smaller titles; "On the board" panel gone
+  (counts still on the board itself); Session box (`SessionPanel` in `DeskScreen.tsx`): the running or next session's
+  prep sheet, one section at a time with ‹ ›, in the DM's section order, one line per item (hover for the rest),
+  Played / Followed up / Revealed ticks, section name opens Session prep, ⧉ opens the section in a prep pop-out.
+  DM notes title stays on one line beside Pop out.
+- 2.4.0: prep section numbers come from the saved ↑ / ↓ order (`src/renderer/prepParts.ts`, `boxOrder` in
+  `fold.ts`), so pop-out section windows and the desk Session box show the same numbers as Session prep.

@@ -17,6 +17,11 @@ const api: DungeonZenApi = {
     ipcRenderer.on(IPC_PREFIX + 'open-sheet', listener)
     return () => { ipcRenderer.removeListener(IPC_PREFIX + 'open-sheet', listener) }
   },
+  onPopped: (fn) => {
+    const listener = (_e: unknown, screens: string[]) => fn(screens)
+    ipcRenderer.on(IPC_PREFIX + 'popped', listener)
+    return () => { ipcRenderer.removeListener(IPC_PREFIX + 'popped', listener) }
+  },
   onChanged: (fn) => {
     const listener = () => fn()
     ipcRenderer.on(IPC_PREFIX + 'changed', listener)

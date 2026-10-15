@@ -5,6 +5,7 @@ import { Campaign } from './campaign/campaign'
 import { registerIpc } from './ipcHandlers'
 import { ProfileStore } from './profile'
 import { KeyStore } from './ai/keys'
+import { IPC_PREFIX } from '../shared/ipcPrefix'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -42,7 +43,7 @@ function createWindow(): void {
     }
   })
   mainWindow.once('ready-to-show', () => mainWindow?.show())
-  mainWindow.on('closed', () => { mainWindow = null; journalWindow?.close(); for (const w of prepWindows.values()) w.close() })
+  mainWindow.on('closed', () => { mainWindow = null; journalWindow?.close(); for (const w of [...prepWindows.values(), ...screenWindows.values()]) w.close() })
 
   // Links open in the system browser, never inside the app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -97,8 +98,43 @@ function openPrepWindow(number: number, part: string): void {
   else void w.loadFile(join(__dirname, '../renderer/index.html'), { hash })
 }
 
+const screenWindows = new Map<string, BrowserWindow>()
+const SCREEN_TITLES: Record<string, string> = { board: 'Board', encounters: 'Encounters', prep: 'Session prep', library: 'Library', import: 'Notes' }
+const sendPopped = () => mainWindow?.webContents.send(IPC_PREFIX + 'popped', [...screenWindows.keys()])
+
+/**
+ * A whole screen (board, encounters, session prep, library, notes) in a window of its own (owner, 2026-10-15): the main
+ * window shows that screen as "open in another window" until it closes. One window per screen.
+ */
+function popScreen(screen: string): void {
+  const open = screenWindows.get(screen)
+  if (open) { open.focus(); return }
+  const w = new BrowserWindow({
+    width: 1280, height: 820, minWidth: 720, minHeight: 480, backgroundColor: '#2e1c0e', title: `Dungeon Zen · ${SCREEN_TITLES[screen]}`,
+    autoHideMenuBar: true,
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  })
+  screenWindows.set(screen, w)
+  sendPopped()
+  w.on('closed', () => { screenWindows.delete(screen); sendPopped() })
+  w.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  const hash = `screen/${screen}`
+  if (process.env.ELECTRON_RENDERER_URL) void w.loadURL(`${process.env.ELECTRON_RENDERER_URL}#${hash}`)
+  else void w.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+}
+
+const screens = {
+  pop: popScreen,
+  focus: (screen: string) => { const w = screenWindows.get(screen); if (w) { if (w.isMinimized()) w.restore(); w.focus() } },
+  popped: () => [...screenWindows.keys()],
+  closeAll: () => { for (const w of screenWindows.values()) w.close() }
+}
+
 app.whenReady().then(() => {
-  registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')), new KeyStore(app.getPath('userData'), safeStorage), openJournal, openPrepWindow)
+  registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')), new KeyStore(app.getPath('userData'), safeStorage), openJournal, openPrepWindow, screens)
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })

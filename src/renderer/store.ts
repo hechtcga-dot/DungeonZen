@@ -30,6 +30,10 @@ const modeFor = (screen: Screen, current: Mode): Mode =>
 interface BoardState {
   info: CampaignInfo | null
   screen: Screen
+  /** Main window: the screens open in windows of their own. */
+  popped: string[]
+  /** A popped-out screen window: the screen it holds (null in the main window). */
+  windowScreen: Screen | null
   boardId: string | null
   view: BoardView | null
   history: HistoryView | null
@@ -116,6 +120,8 @@ export interface BattleMapRequest {
 export const useBoard = create<BoardState>((set, get) => ({
   info: null,
   screen: 'board',
+  popped: [],
+  windowScreen: null,
   boardId: null,
   view: null,
   history: null,

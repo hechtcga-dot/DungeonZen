@@ -22,6 +22,9 @@ const folded = new Set(load<string[]>(FOLD_KEY, []).map((k) => k.startsWith('pre
 const orders = load<Record<string, string[]>>(ORDER_KEY, {})
 for (const k of Object.keys(orders)) if (k.startsWith('prep|')) orders[k] = orders[k].map(unnumber)
 
+/** The box titles in the order the DM chose under one parent (`<screen>|<parent class>`), if they moved any. */
+export const boxOrder = (key: string): string[] | undefined => orders[key]
+
 const screen = () => useBoard.getState().screen
 const titleOf = (h: Element) => (h.firstChild?.nodeType === Node.TEXT_NODE ? h.textContent ?? '' : h.textContent ?? '').replace(/[−+↑↓]/g, '').trim()
 const boxOf = (h: Element) => (h.closest('dialog, .ctx-menu') ? null : h.parentElement?.closest(BOXES) ?? null)
@@ -85,7 +88,7 @@ function renumber(parent: Element) {
   const nums = kids.filter((k) => k.hasAttribute('data-box'))
     .map((b) => ({ at: b.style.order === '' ? kids.indexOf(b) : Number(b.style.order), n: headOf(b)?.querySelector<HTMLElement>(':scope > .prep-n') }))
     .filter((x) => x.n).sort((a, b) => a.at - b.at)
-  if (nums.length < 2) return // a pop-out window keeps the section's own number
+  if (nums.length < 2) return // a pop-out window: its number comes from the saved order (prepParts)
   nums.forEach((x, i) => { if (x.n!.dataset.n !== String(i + 1)) x.n!.dataset.n = String(i + 1) })
 }
 

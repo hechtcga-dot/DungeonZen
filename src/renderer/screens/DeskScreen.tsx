@@ -16,7 +16,8 @@ import { useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
 import { ImportCharSheet } from '../components/ImportCharSheet'
 import { xpProgress } from '../../shared/charsheet'
-import type { DeskPartyMember, DeskView } from '../../shared/types'
+import { prepOrder } from '../prepParts'
+import type { DeskPartyMember, DeskView, PrepItemView, PrepView } from '../../shared/types'
 
 
 export function DeskScreen() {
@@ -79,25 +80,29 @@ function Desk({ desk }: { desk: DeskView }) {
       <section className="dm-screen" aria-label="DM screen">
         <div className="dm-panel clock-panel">
           <h2 className="panel-title">The hour</h2>
-          <ClockDial minutes={minutes} moonOffsetDays={desk.moonOffsetDays} />
-          <div className="clock-row">
-            <div>
+          <div className="dm-panel-row">
+            <ClockDial minutes={minutes} moonOffsetDays={desk.moonOffsetDays} />
+            <div className="clock-side">
               <div className="clock-text">{formatClock(minutes)}</div>
               <div className="ink-muted">{{ night: 'Night', dawn: 'Dawn', daylight: 'Daylight', dusk: 'Dusk' }[sky.light]}</div>
-            </div>
-            <div className="row tight">
-              <button className="ink-button" aria-label="Move the clock back one hour" onClick={() => void act('clock:shift', { minutes: -60 })}>−1 h</button>
-              <button className="ink-button" aria-label="Move the clock forward one hour" onClick={() => void act('clock:shift', { minutes: 60 })}>+1 h</button>
-              <button className="ink-button" onClick={() => setSettingsOpen(true)} title="Set an exact day and time">Set…</button>
+              <div className="row tight">
+                <button className="ink-button" aria-label="Move the clock back one hour" onClick={() => void act('clock:shift', { minutes: -60 })}>−1 h</button>
+                <button className="ink-button" aria-label="Move the clock forward one hour" onClick={() => void act('clock:shift', { minutes: 60 })}>+1 h</button>
+                <button className="ink-button" onClick={() => setSettingsOpen(true)} title="Set an exact day and time">Set…</button>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="dm-panel moon-panel">
           <h2 className="panel-title">The moon</h2>
-          <MoonDisc minutes={minutes} offsetDays={desk.moonOffsetDays} />
-          <div className="moon-name">{moon.name}</div>
-          <div className="ink-muted">{moon.nightsUntilFull === 0 ? 'Full tonight' : `Full in ${moon.nightsUntilFull} night${moon.nightsUntilFull === 1 ? '' : 's'}`}</div>
+          <div className="dm-panel-row">
+            <MoonDisc minutes={minutes} offsetDays={desk.moonOffsetDays} />
+            <div>
+              <div className="moon-name">{moon.name}</div>
+              <div className="ink-muted">{moon.nightsUntilFull === 0 ? 'Full tonight' : `Full in ${moon.nightsUntilFull} night${moon.nightsUntilFull === 1 ? '' : 's'}`}</div>
+            </div>
+          </div>
         </div>
 
         <div className="dm-panel party-panel">
@@ -120,16 +125,7 @@ function Desk({ desk }: { desk: DeskView }) {
           </div>
         </div>
 
-        <div className="dm-panel ledger-panel">
-          <h2 className="panel-title">On the board</h2>
-          <ul className="ledger">
-            <li><span>Cards</span><span className="mono">{desk.counts.cards}</span></li>
-            <li><span>Links</span><span className="mono">{desk.counts.strings}</span></li>
-            <li><span>Storylines</span><span className="mono">{desk.storylines.length}</span></li>
-            <li><span>In History</span><span className="mono">{desk.counts.removed}</span></li>
-          </ul>
-          <button className="ink-button" onClick={() => goTo('board')}>Open the board</button>
-        </div>
+        <SessionPanel desk={desk} />
       </section>
 
       {/* The leather mat with storylines, the map and the journal. */}
@@ -245,6 +241,84 @@ function Desk({ desk }: { desk: DeskView }) {
     </main>
   )
 }
+
+// The section the Session box shows; kept while the app is open.
+let sessionPart = 0
+
+/**
+ * Desk › Session (owner, 2026-10-15): the running or next session's prep sheet, one section at a time (‹ › flip, in the
+ * DM's order from Session prep). Short lines; hover shows the rest. ⧉ opens that section in a window of its own.
+ */
+function SessionPanel({ desk }: { desk: DeskView }) {
+  const { goTo, act } = useBoard()
+  const [prep, setPrep] = useState<PrepView | null | undefined>(undefined)
+  const [at, setAt] = useState(sessionPart)
+  // The desk view changes with every write, so the sheet here follows edits made anywhere.
+  useEffect(() => { void call('prep:view', {}).then(setPrep).catch(() => setPrep(null)) }, [desk])
+  const parts = prepOrder()
+  const i = ((at % parts.length) + parts.length) % parts.length
+  const part = parts[i]
+  const flip = (d: number) => { sessionPart = i + d; setAt(i + d) }
+  if (prep === undefined) return <div className="dm-panel session-panel"><h2 className="panel-title">Session</h2></div>
+  if (!prep) {
+    return (
+      <div className="dm-panel session-panel">
+        <h2 className="panel-title">Session</h2>
+        <p className="ink-muted">No prep sheet for the next session yet.</p>
+        <button className="ink-button" onClick={() => goTo('prep')}>Open Session prep</button>
+      </div>
+    )
+  }
+  const items = prep.items.filter((x) => x.kind === part.kind)
+  const lines: Array<{ id: string; text: string; more: string; done?: boolean }> =
+    part.kind === 'opening' ? (prep.premise ? [{ id: 'o', text: prep.premise, more: prep.premise }] : [])
+      : part.kind === 'recap' ? [
+          ...(prep.session?.recap ? [{ id: 'h', text: `Happened: ${prep.session.recap}`, more: prep.session.recap }] : []),
+          ...(prep.wantNext ? [{ id: 'w', text: `Want next: ${prep.wantNext}`, more: prep.wantNext }] : [])
+        ]
+      : items.map((x) => ({ id: x.id, text: lineOf(x), more: moreOf(x), done: x.done }))
+  return (
+    <div className="dm-panel session-panel">
+      <h2 className="panel-title" title={prep.title ? `Session ${prep.number}: ${prep.title}` : undefined}>Session {prep.number}{prep.title ? `: ${prep.title}` : ''}</h2>
+      <div className="session-nav">
+        <button className="ink-button icon" aria-label="Previous section" title="Previous section" onClick={() => flip(-1)}>‹</button>
+        <button className="session-part" title="Open this section on Session prep" onClick={() => { useBoard.setState({ prepNumber: prep.number }); goTo('prep') }}>
+          <span className="prep-n" data-n={i + 1} /> {part.name}
+        </button>
+        <button className="ink-button icon" aria-label="Next section" title="Next section" onClick={() => flip(1)}>›</button>
+        <button className="ink-button icon" aria-label="Open this section in a window" title="Open this section of Session prep in a window of its own"
+          onClick={() => void call('prep:popout', { number: prep.number, part: part.kind })}>⧉</button>
+      </div>
+      {lines.length === 0
+        ? <p className="ink-muted session-empty">Nothing here yet.</p>
+        : (
+          <ul className={`session-lines${part.kind === 'opening' || part.kind === 'recap' ? ' is-text' : ''}`}>
+            {lines.map((l) => (
+              <li key={l.id} title={l.more} className={l.done ? 'is-done' : undefined}>
+                {DONE[part.kind]
+                  ? <input type="checkbox" checked={!!l.done} aria-label={`${DONE[part.kind]}: ${l.text}`} title={DONE[part.kind]}
+                      onChange={(e) => void act('prepItem:done', { id: l.id, done: e.target.checked })} />
+                  : null}
+                <span>{l.text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+    </div>
+  )
+}
+
+const DONE: Record<string, string> = { scene: 'Played', thread: 'Followed up', discovery: 'Revealed' }
+const lineOf = (x: PrepItemView): string =>
+  x.kind === 'npc' ? (x.entityName || x.title || 'NPC') + (x.description ? `: ${x.description}` : '')
+    : x.kind === 'scene' ? (x.title || 'Scene') + (x.body ? `: ${x.body}` : '')
+    : x.title || x.body || '(empty)'
+const moreOf = (x: PrepItemView): string => [
+  x.kind === 'npc' ? x.entityName || x.title : x.title,
+  x.kind === 'npc' ? x.description : x.body,
+  x.kind === 'scene' && x.locationName ? `At ${x.locationName}` : '',
+  x.kind === 'npc' && x.role ? `Wants: ${x.role}` : ''
+].filter(Boolean).join('\n')
 
 function Journal({ notes, session }: { notes: string; session: number | null }) {
   const act = useBoard((s) => s.act)

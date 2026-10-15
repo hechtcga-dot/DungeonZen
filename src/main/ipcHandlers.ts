@@ -109,7 +109,8 @@ function markedCopy(bytes: Buffer, marksPng: Buffer): { bytes: Buffer; mime: str
   return { bytes: nativeImage.createFromBitmap(Buffer.from(out), size).toPNG(), mime: 'image/png' }
 }
 
-export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void, openPrepWindow: (number: number, part: string) => void): void {
+export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void, openPrepWindow: (number: number, part: string) => void,
+  screens: { pop(screen: string): void; focus(screen: string): void; popped(): string[]; closeAll(): void }): void {
   let campaign: Campaign | null = null
 
   const current = (): Campaign => {
@@ -208,7 +209,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   })
 
   handle('campaign:openRecent', ({ folder }) => openFolder(folder))
-  handle('campaign:close', () => { campaign?.close(); campaign = null })
+  handle('campaign:close', () => { screens.closeAll(); campaign?.close(); campaign = null })
   // Delete = the whole campaign folder to the Recycle Bin (restorable there), never erased.
   handle('campaign:delete', async () => {
     const c = current()
@@ -719,6 +720,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notes:screen', () => current().notesScreen())
   handle('notes:popout', () => openJournal())
   handle('prep:popout', ({ number, part }) => openPrepWindow(number, part))
+  handle('window:popScreen', ({ screen }) => screens.pop(screen))
+  handle('window:focusScreen', ({ screen }) => screens.focus(screen))
+  handle('window:popped', () => screens.popped())
   // A pop-out window asks the main window to open a card's sheet.
   handle('main:openSheet', ({ entityId }) => { const w = getWindow(); if (w) { w.webContents.send(IPC_PREFIX + 'open-sheet', entityId); w.focus() } })
   handle('session:notes', ({ id, text }) => current().setSessionNotes(id, text))

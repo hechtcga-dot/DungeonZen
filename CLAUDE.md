@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.3.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.4.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -133,3 +133,7 @@ Defaults picked: recent examples kept on this computer; Show from the sheet has 
 ## 2.3.0 (built 2026-10-14)
 Battle map Draw window › Follow a picture (pick a map or upload, drag a box, AI redraws that part at 5 ft scale with no text/symbols/watermarks; Buildings show Inside/Roofs; saved per encounter; box over 300 ft = warning + Make the largest map); Advanced style and composition fold (boxes from the ticked examples' style tags, battle map templates); Encounters › Battle map sketch at the bottom, foldable; Suggest from the SRD is a random roll over every monster that fits the budget, words match the whole stat block. Details in `docs/STATE.md`.
 Owner's decisions: followed picture saved with the encounter; too-big box offers the largest 300 ft map. Defaults picked: Make the largest map shrinks the box (true scale); Buildings start Inside; style edits reset per opening (templates keep them); fold, not a tab.
+
+## 2.4.0 (built 2026-10-15)
+Right-click Board / Encounters / Session prep / Library / Notes on the rail › Open in a new window (main window shows a faint "open in another window" picture, Close window returns it, several at once); board side panel folds with › / ‹; desk DM screen compact, "On the board" replaced by a Session box (one prep section at a time, ‹ ›, hover for detail, ⧉ pops the section out); DM notes title on one line; prep section numbers follow the ↑ / ↓ order everywhere. Details in `docs/STATE.md`.
+Owner's decisions: Session box shows one section at a time with left/right arrows. Defaults picked: clicking the faint picture brings the window forward; pop-out positions not remembered; Session box shows the running or next session's sheet, read-only text (ticks for Played / Followed up / Revealed); side panel fold kept while the app is open; card sheets from a pop-out open in the main window.

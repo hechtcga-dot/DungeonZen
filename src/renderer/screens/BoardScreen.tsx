@@ -30,6 +30,9 @@ import { lightingAt } from '../../shared/sky'
 import { useLightingPref } from '../art/TableLighting'
 import { StorylineDialog } from '../components/EditDialogs'
 import { useBoardPrefs } from '../boardPrefs'
+
+/** Side panel folded away; kept while the app is open (owner, 2026-10-15). */
+let sideFoldedNow = false
 import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import type { BoardView, EntityView, MapScreenView } from '../../shared/types'
 import { useCtrlPan } from '../useCtrlPan'
@@ -96,6 +99,8 @@ function BoardLayout() {
   }, [getViewport, setViewport]))
   const [lighting] = useLightingPref()
   const [sideWidth, setSideWidth] = useSplit('board-side', 360)
+  const [sideFolded, setSideFolded] = useState(sideFoldedNow)
+  const foldSide = (on: boolean) => { sideFoldedNow = on; setSideFolded(on) }
   useBoard((s) => s.info?.clockMin) // re-render when the clock moves, for the candle
 
   const [maps, setMaps] = useState<Array<{ id: string; name: string; kind: string; url: string }>>([])
@@ -636,9 +641,11 @@ function BoardLayout() {
           </div>
         </main>
 
-        <Splitter value={sideWidth} onChange={setSideWidth} side="right" min={260} max={720} initial={360} label="Resize the side panel" />
+        {sideFolded && !mapView && <button className="side-unfold" title="Show the side panel" aria-label="Show the side panel" onClick={() => foldSide(false)}>‹</button>}
+        {!sideFolded && <Splitter value={sideWidth} onChange={setSideWidth} side="right" min={260} max={720} initial={360} label="Resize the side panel" />}
 
-        <aside className="side" style={mapView ? { display: 'none' } : { flexBasis: sideWidth }}>
+        <aside className="side" style={mapView || sideFolded ? { display: 'none' } : { flexBasis: sideWidth }}>
+          <button className="side-fold" title="Hide the side panel" aria-label="Hide the side panel" onClick={() => foldSide(true)}>›</button>
           <div className="segmented full" role="tablist" aria-label="Side panel">
             <button role="tab" aria-selected={panel === 'inspector'} aria-pressed={panel === 'inspector'} onClick={() => setPanel('inspector')}>Inspector</button>
             <button role="tab" aria-selected={panel === 'connections'} aria-pressed={panel === 'connections'} onClick={() => { setLinksAll(false); setPanel('connections') }}>Links</button>

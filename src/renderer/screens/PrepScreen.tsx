@@ -20,6 +20,7 @@ import { LinkContext, LinkField } from '../components/LinkField'
 import { AddSecretMenu, SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
 import { TypeEmblem } from '../art/emblems'
 import { ArtDefs } from '../art/ArtDefs'
+import { PREP_PARTS, prepNumber } from '../prepParts'
 
 /** "1:15" for 75 minutes at the table. */
 export const hm = (min: number | null) => (min == null ? '' : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`)
@@ -146,13 +147,13 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
         </section>}
 
         {show('opening') && <section className="parchment-sheet prep-section" aria-labelledby="prep-opening">
-          <h2 id="prep-opening" className="panel-title"><span className="prep-n" data-n={1} /> Session opening {pop('opening')}</h2>
+          <h2 id="prep-opening" className="panel-title"><span className="prep-n" data-n={prepNumber('opening')} /> Session opening {pop('opening')}</h2>
           <p className="ink-muted prep-hint">One sentence describing how the session begins. Start with something happening rather than asking the players what they want to do.</p>
           <LinkField id="prep-premise" label="Opening" className="label-hidden" multiline rows={2} value={p.premise}
             placeholder="Someone is pounding on the door at 2 a.m." onCommit={(v) => up({ premise: v })} />
         </section>}
 
-        {show('scene') && <PrepSection pop={pop('scene')} p={p} kind="scene" n={2} title="Likely scenes" hint="3–5 possible scenes. Keep each to a location + tension. These are possibilities, not a script."
+        {show('scene') && <PrepSection pop={pop('scene')} p={p} kind="scene" n={prepNumber('scene')} title="Likely scenes" hint="3–5 possible scenes. Keep each to a location + tension. These are possibilities, not a script."
           add="Add a scene" extra={scenes.length > 1 && <button className="ink-button" onClick={() => void act('prep:spread', { prepId: p.id })}>Spread times evenly</button>}>
           {(i, k) => (
             <>
@@ -172,7 +173,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
           )}
         </PrepSection>}
 
-        {show('discovery') && <PrepSection pop={pop('discovery')} p={p} kind="discovery" n={3} title="Links, secrets, clues" hint="Things that are true about the world, each tied to the cards it is about (a link on the board for each). Don’t decide in advance where or how the players will discover them. Revealed ones show in Player preview."
+        {show('discovery') && <PrepSection pop={pop('discovery')} p={p} kind="discovery" n={prepNumber('discovery')} title="Links, secrets, clues" hint="Things that are true about the world, each tied to the cards it is about (a link on the board for each). Don’t decide in advance where or how the players will discover them. Revealed ones show in Player preview."
           add={null} extra={<AddSecretMenu prepId={p.id} secrets={s.secrets} />}>
           {(i, k) => {
             const sec = i.secretId ? s.secrets.find((x) => x.id === i.secretId) ?? null : null
@@ -194,19 +195,19 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
           }}
         </PrepSection>}
 
-        {show('npc') && <PrepSection pop={pop('npc')} p={p} kind="npc" n={4} title="NPCs" hint="Who they are and what they want. Tied to a card, the name, flaws, motivation, description, location and DM notes are the card's own: change them here or on the card."
+        {show('npc') && <PrepSection pop={pop('npc')} p={p} kind="npc" n={prepNumber('npc')} title="NPCs" hint="Who they are and what they want. Tied to a card, the name, flaws, motivation, description, location and DM notes are the card's own: change them here or on the card."
           add="Add an NPC">
           {(i, k, count) => <NpcRow i={i} s={s} k={k} count={count} />}
         </PrepSection>}
 
-        {show('thread') && <PrepSection pop={pop('thread')} p={p} kind="thread" n={5} title="Loose threads" hint="Three unresolved things from the previous session. Possibilities to keep in mind, not objectives to force onto the players."
+        {show('thread') && <PrepSection pop={pop('thread')} p={p} kind="thread" n={prepNumber('thread')} title="Loose threads" hint="Three unresolved things from the previous session. Possibilities to keep in mind, not objectives to force onto the players."
           add="Add a thread" extra={p.number > 1 && <button className="ink-button" title="Copies last session’s “what the players seem to want next” and its threads not ticked off"
             onClick={async () => { const n = await act('prep:bringThreads', { prepId: p.id }); if (n === 0) say('Nothing new to bring in from last session.') }}>Bring in from last session</button>}>
           {(i, k) => <LinkField id={`l-b-${i.id}`} label={`Thread ${k + 1}`} value={i.body} placeholder="The party promised to investigate the abandoned mine." onCommit={(v) => upItem(act, i, { body: v })} />}
         </PrepSection>}
 
         {show('recap') && <section className="parchment-sheet prep-section" aria-labelledby="prep-recap">
-          <h2 id="prep-recap" className="panel-title"><span className="prep-n" data-n={6} /> Session recap {pop('recap')}</h2>
+          <h2 id="prep-recap" className="panel-title"><span className="prep-n" data-n={prepNumber('recap')} /> Session recap {pop('recap')}</h2>
           <p className="ink-muted prep-hint">Write this after the session. “What happened” is the session’s recap (the same text as in Review).</p>
           {p.session
             ? <LinkField id="prep-happened" label="What happened" multiline rows={3} value={p.session.recap}
@@ -216,7 +217,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
             placeholder="They want to track the escaped smuggler and find out who hired him." onCommit={(v) => up({ wantNext: v })} />
         </section>}
 
-        {show('bible') && <PrepSection pop={pop('bible')} p={p} kind="bible" n={7} title="World bible updates" hint="Add anything established during play. If something happens at the table, it is now part of the world unless you deliberately retcon it."
+        {show('bible') && <PrepSection pop={pop('bible')} p={p} kind="bible" n={prepNumber('bible')} title="World bible updates" hint="Add anything established during play. If something happens at the table, it is now part of the world unless you deliberately retcon it."
           add="Add a line" extra={(
             <label className="row tight">Make cards as
               <select value={cardType} aria-label="Card type for Make a card" onChange={(e) => setCardType(e.target.value as EntityType)}>
@@ -579,7 +580,7 @@ export function PrepWindow({ number, part }: { number: number; part: string }) {
     })()
     return window.dungeonzen.onChanged(() => void useBoard.getState().refresh())
   }, [number])
-  const names: Record<string, string> = { opening: 'Session opening', scene: 'Likely scenes', discovery: 'Links, secrets, clues', npc: 'NPCs', thread: 'Loose threads', recap: 'Session recap', bible: 'World bible updates' }
+  const names: Record<string, string> = Object.fromEntries(PREP_PARTS.map((x) => [x.kind, x.name]))
   const npc = part.startsWith('npc:') ? prep?.items.find((x) => x.id === part.slice(4)) : undefined
   const title = npc ? (prepScreen?.cards.find((c) => c.id === npc.entityId)?.name ?? (npc.title || 'NPC')) : names[part] ?? 'Session prep'
   useEffect(() => { document.title = `${title} · Session ${number} · Dungeon Zen` }, [title, number])
