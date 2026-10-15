@@ -666,7 +666,8 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
 - 2.5.0 (owner, 2026-10-15): Encounters › Battle map sketch starts as a small square at the bottom of the left
   Planned panel (example map drawn in code, `art/battlemap.tsx`, and ✦ Draw battle map); either opens the sketch in
   the middle where it was (scrolls to it), with ⇲ Minimize to the side back to the square; the − / + fold still
-  folds it in the middle. Big/small kept while the app runs (all encounters).
+  folds it in the middle. Big/small kept while the app runs (all encounters). While open in the middle,
+  Pictures and maps sits under the sketch inside it (owner, 2026-10-15); minimized, it stays after Scene.
 - 2.5.0 (owner, 2026-10-15): one pop-out button everywhere, ⧉ (`components/PopOut.tsx`): desk Session box (left of
   its title), desk DM notes, Notes, prep sections and prep NPC rows; titles leave ⧉ out (saved folds kept), a button in a
   title no longer folds the box. Desk: The hour buttons wrap inside the panel; The party panel lost its Add/Import

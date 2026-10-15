@@ -166,7 +166,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         placeholder="A collapsed watchtower in the rain; smugglers unload crates by lantern light…"
         hint="What the place looks like and what is going on. Build with AI works from it." onCommit={(scene) => up({ scene })} />
 
-      <EncounterPictures id={e.id} />
+      {!sketchBig && <EncounterPictures id={e.id} />}
 
       {e.pcs.length > 0 && (
         <div className="enc-pcs" role="group" aria-label="Player characters in this fight">
@@ -297,6 +297,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
             <button className="ink-button" onClick={() => { sketchShown.current = false; onSketchSmall() }} title="Back to a small square on the left">⇲ Minimize to the side</button>
           </div>
           <SketchPad label={`Battle map sketch for ${e.name}`} sketch={e.sketch} tools={BATTLE_TOOLS} size={[20, 20]} onCommit={(sketch) => up({ sketch })} />
+          <EncounterPictures id={e.id} />
         </section>
       )}
       {roll20 && <Roll20Dialog entityIds={e.creatures.map((c) => c.entityId)} title={`Roll20: ${e.name}`} mapId={e.battleMapId} onClose={() => setRoll20(false)} />}
