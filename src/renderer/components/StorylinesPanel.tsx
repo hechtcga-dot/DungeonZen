@@ -86,7 +86,10 @@ export function StorylinesPanel() {
                 <ColourInput value={s.colour ?? '#8a6a12'} label={`Colour for ${b.name}`}
                   onCommit={(colour) => void act('storyline:update', { storylineId: b.storylineId!, patch: { colour } })} />
                 <button className="link-button story-title" onClick={() => void showBoard(b.id)} title="Open its board">{b.name}</button>
-                <button className="link-button" onClick={() => setEdit(b)}>Edit</button>
+                <span className="story-links">
+                  <button className="link-button" onClick={() => setEdit(b)}>Edit</button>
+                  <button className="link-button" onClick={() => goTo('timeline')}>Timeline</button>
+                </span>
               </div>
               <div className="hint">{s.isMajor ? 'Major' : 'Minor'} · {STORY_STATUS[s.status]} · {inStory(b.storylineId!)} cards
                 {s.colour && <> · <button className="link-button" onClick={() => void act('storyline:update', { storylineId: b.storylineId!, patch: { colour: null } })}>no colour</button></>}</div>

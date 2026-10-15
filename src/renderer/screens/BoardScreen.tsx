@@ -547,6 +547,14 @@ function BoardLayout() {
         <ViewStrip activeId={view.board.id}>
           {view.boards.map((b) => (
             <button key={b.id} data-board={b.id} aria-pressed={b.id === view.board.id} onClick={() => void showBoard(b.id)}
+              onContextMenu={b.storylineId ? (e) => openMenu(e, [
+                { label: 'Edit storyline…', onClick: () => void showBoard(b.id).then(() => setEditStory(true)) },
+                { label: 'Delete storyline (to History)', danger: true, onClick: async () => {
+                  await act('storyline:setRemoved', { storylineId: b.storylineId!, removed: true })
+                  const all = view.boards.find((x) => !x.storylineId)
+                  if (b.id === view.board.id && all) await showBoard(all.id)
+                } }
+              ]) : undefined}
               style={b.storyline?.colour ? { borderBottom: `4px solid ${b.storyline.colour}` } : undefined}>
               {b.storylineId ? b.name : 'View all cards'}
             </button>

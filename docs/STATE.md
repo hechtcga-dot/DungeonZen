@@ -686,3 +686,6 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   boxes). Right-click one of several selected cards: "N cards selected" menu (Acts, Storylines, Mark active/resolved,
   Card colour…, Hide/Unhide, Take off this board, Delete to History); each choice is one undo step (`board:many`,
   `CommandLog.many`: nested commands join one step). Acts/Storylines tick when every selected card has it.
+- Next build (owner, 2026-10-15): right-click a storyline button on the board view bar: Edit storyline…, Delete
+  storyline (to History; undoable, History › Restore; the board goes back to View all cards if it was showing).
+  Board › Story panel: Timeline link under each storyline's Edit, opens the Timeline.
