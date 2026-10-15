@@ -667,3 +667,7 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   Planned panel (example map drawn in code, `art/battlemap.tsx`, and ✦ Draw battle map); either opens the sketch in
   the middle where it was (scrolls to it), with ⇲ Minimize to the side back to the square; the − / + fold still
   folds it in the middle. Big/small kept while the app runs (all encounters).
+- Next build (owner, 2026-10-15): one pop-out button everywhere, ⧉ (`components/PopOut.tsx`): desk Session box (left of
+  its title), desk DM notes, Notes, prep sections and prep NPC rows; titles leave ⧉ out (saved folds kept), a button in a
+  title no longer folds the box. Desk: The hour buttons wrap inside the panel; The party panel lost its Add/Import
+  buttons; The chest › Add a player character opens Create from scratch / Import a character sheet….

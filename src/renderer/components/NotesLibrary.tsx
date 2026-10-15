@@ -12,6 +12,7 @@ import { ImportCharSheet } from './ImportCharSheet'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { blockLines, guessHeadings, headingLevel, type Block, type HeadingLevel } from '../../shared/noteDoc'
 import type { IpcOutputs } from '../../shared/ipc'
+import { PopOut } from './PopOut'
 
 type Open = { kind: 'master' } | { kind: 'dm' } | { kind: 'session'; id: string } | { kind: 'doc'; id: string }
 type Outline = IpcOutputs['notes:outline']
@@ -441,7 +442,7 @@ function TextNote({ title, text, hint, recap, popout, jump, onSave }: {
         <div className="notes-head">
           <h2 className="panel-title">{title}</h2>
           <span className="row tight wrap">
-            {popout && <button className="ink-button" title="Open these notes in their own window; drag it to another screen" onClick={() => void call('notes:popout', undefined)}>Pop out</button>}
+            {popout && <PopOut title="Open these notes in their own window; drag it to another screen" onClick={() => void call('notes:popout', undefined)} />}
             <button className="ink-button" onClick={async () => { const p = await call('file:saveDocx', { name: title.replace(/[^\w\s-]/g, ''), text: draft }).catch(() => null); if (p) useBoard.getState().say(`Saved ${p}`) }}>Save as Word…</button>
           </span>
         </div>

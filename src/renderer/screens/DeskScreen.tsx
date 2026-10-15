@@ -15,6 +15,7 @@ import { lightingAt, moonOn, skyAt } from '../../shared/sky'
 import { useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
 import { ImportCharSheet } from '../components/ImportCharSheet'
+import { PopOut } from '../components/PopOut'
 import { xpProgress } from '../../shared/charsheet'
 import { prepOrder } from '../prepParts'
 import type { DeskPartyMember, DeskView, PrepItemView, PrepView } from '../../shared/types'
@@ -38,6 +39,7 @@ function Desk({ desk }: { desk: DeskView }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [editStory, setEditStory] = useState<DeskView['storylines'][number] | null>(null)
   const [mapOpen, setMapOpen] = useState(false)
+  const [pcChoice, setPcChoice] = useState(false)
   const [lighting, setLighting] = useLightingPref()
   const candlesLit = !lighting || lightingAt(minutes).candlesLit
 
@@ -85,7 +87,7 @@ function Desk({ desk }: { desk: DeskView }) {
             <div className="clock-side">
               <div className="clock-text">{formatClock(minutes)}</div>
               <div className="ink-muted">{{ night: 'Night', dawn: 'Dawn', daylight: 'Daylight', dusk: 'Dusk' }[sky.light]}</div>
-              <div className="row tight">
+              <div className="row tight wrap">
                 <button className="ink-button" aria-label="Move the clock back one hour" onClick={() => void act('clock:shift', { minutes: -60 })}>−1 h</button>
                 <button className="ink-button" aria-label="Move the clock forward one hour" onClick={() => void act('clock:shift', { minutes: 60 })}>+1 h</button>
                 <button className="ink-button" onClick={() => setSettingsOpen(true)} title="Set an exact day and time">Set…</button>
@@ -119,10 +121,6 @@ function Desk({ desk }: { desk: DeskView }) {
                 ))}
               </ul>
             )}
-          <div className="row tight wrap">
-            <button className="ink-button" onClick={() => void newCard('PC')}>Add a player character</button>
-            <ImportCharSheet />
-          </div>
         </div>
 
         <SessionPanel desk={desk} />
@@ -219,6 +217,13 @@ function Desk({ desk }: { desk: DeskView }) {
             <button className="brass" onClick={() => void newCard('NPC')}>New NPC</button>
             <button className="brass" onClick={() => goTo('library')}>Library and SRD</button>
             <button className="brass" onClick={() => void act('map:importDialog', undefined)}>Import a map</button>
+            <button className="brass" aria-expanded={pcChoice} onClick={() => setPcChoice(!pcChoice)}>Add a player character</button>
+            {pcChoice && (
+              <div className="chest-choice">
+                <button className="brass" onClick={() => { setPcChoice(false); void newCard('PC') }}>Create from scratch</button>
+                <ImportCharSheet className="brass" label="Import a character sheet…" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -279,15 +284,16 @@ function SessionPanel({ desk }: { desk: DeskView }) {
       : items.map((x) => ({ id: x.id, text: lineOf(x), more: moreOf(x), done: x.done }))
   return (
     <div className="dm-panel session-panel">
-      <h2 className="panel-title" title={prep.title ? `Session ${prep.number}: ${prep.title}` : undefined}>Session {prep.number}{prep.title ? `: ${prep.title}` : ''}</h2>
+      <div className="session-head">
+        <PopOut title="Open this section of Session prep in a window of its own" onClick={() => void call('prep:popout', { number: prep.number, part: part.kind })} />
+        <h2 className="panel-title" title={prep.title ? `Session ${prep.number}: ${prep.title}` : undefined}>Session {prep.number}{prep.title ? `: ${prep.title}` : ''}</h2>
+      </div>
       <div className="session-nav">
         <button className="ink-button icon" aria-label="Previous section" title="Previous section" onClick={() => flip(-1)}>‹</button>
         <button className="session-part" title="Open this section on Session prep" onClick={() => { useBoard.setState({ prepNumber: prep.number }); goTo('prep') }}>
           <span className="prep-n" data-n={i + 1} /> {part.name}
         </button>
         <button className="ink-button icon" aria-label="Next section" title="Next section" onClick={() => flip(1)}>›</button>
-        <button className="ink-button icon" aria-label="Open this section in a window" title="Open this section of Session prep in a window of its own"
-          onClick={() => void call('prep:popout', { number: prep.number, part: part.kind })}>⧉</button>
       </div>
       {lines.length === 0
         ? <p className="ink-muted session-empty">Nothing here yet.</p>
@@ -331,8 +337,7 @@ function Journal({ notes, session }: { notes: string; session: number | null }) 
         <Quill className="journal-quill" />
         <div className="journal-top">
           <label htmlFor="dm-journal" className="journal-title">DM notes{session ? ` · Session ${session}` : ''}</label>
-          <button className="journal-pop" title="Open the notes in their own window; drag it to another screen"
-            onClick={() => void call('notes:popout', undefined)}>Pop out</button>
+          <PopOut title="Open the notes in their own window; drag it to another screen" onClick={() => void call('notes:popout', undefined)} />
         </div>
         <textarea id="dm-journal" value={draft} placeholder="Plans, reminders, names you made up on the spot…"
           onChange={(e) => setDraft(e.target.value)}

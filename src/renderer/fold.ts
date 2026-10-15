@@ -17,7 +17,8 @@ function keep(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* not kept */ }
 }
 // Prep section titles held their number as text until 2.2.3 ("2 Likely scenes"); kept folds and orders drop it.
-const unnumber = (t: string) => t.replace(/^(\d+) (?=\D)/, '')
+// Until 2.4.0 prep titles also held "⧉ Window" (the pop-out button, now ⧉ alone and left out of titles).
+const unnumber = (t: string) => t.replace(/^(\d+) (?=\D)/, '').replace(/ ?⧉( Window)?$/, '')
 const folded = new Set(load<string[]>(FOLD_KEY, []).map((k) => k.startsWith('prep|') ? `prep|${unnumber(k.slice(5))}` : k))
 const orders = load<Record<string, string[]>>(ORDER_KEY, {})
 for (const k of Object.keys(orders)) if (k.startsWith('prep|')) orders[k] = orders[k].map(unnumber)
@@ -26,7 +27,7 @@ for (const k of Object.keys(orders)) if (k.startsWith('prep|')) orders[k] = orde
 export const boxOrder = (key: string): string[] | undefined => orders[key]
 
 const screen = () => useBoard.getState().screen
-const titleOf = (h: Element) => (h.firstChild?.nodeType === Node.TEXT_NODE ? h.textContent ?? '' : h.textContent ?? '').replace(/[−+↑↓]/g, '').trim()
+const titleOf = (h: Element) => (h.firstChild?.nodeType === Node.TEXT_NODE ? h.textContent ?? '' : h.textContent ?? '').replace(/[−+↑↓⧉]/g, '').trim()
 const boxOf = (h: Element) => (h.closest('dialog, .ctx-menu') ? null : h.parentElement?.closest(BOXES) ?? null)
 /** The box's title element (its first title, not one inside a nested box). */
 const headOf = (box: Element) => [...box.querySelectorAll(TITLES)].find((h) => boxOf(h) === box)
@@ -146,6 +147,7 @@ export function useFolding() {
       const h = (button ?? t).closest?.(TITLES)
       const box = h && boxOf(h)
       if (!h || !box || headOf(box) !== h) return
+      if (!button && t.closest('button, input, select, a')) return // another button in the title (⧉) does its own thing
       const act = button?.dataset.boxAct ?? 'fold' // clicking the title itself folds too
       if (act === 'fold') {
         const k = `${screen()}|${titleOf(h)}`

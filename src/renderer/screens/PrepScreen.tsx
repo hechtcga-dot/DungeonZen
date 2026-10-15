@@ -21,6 +21,7 @@ import { AddSecretMenu, SECRET_LABEL, SecretEditor } from '../components/SecretE
 import { TypeEmblem } from '../art/emblems'
 import { ArtDefs } from '../art/ArtDefs'
 import { PREP_PARTS, prepNumber } from '../prepParts'
+import { PopOut } from '../components/PopOut'
 
 /** "1:15" for 75 minutes at the table. */
 export const hm = (min: number | null) => (min == null ? '' : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`)
@@ -105,7 +106,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
   // In a pop-out window only one section (or one NPC) shows.
   const show = (part: string) => !only || only === part
   const pop = (part: string) => !only && (
-    <button className="fold-btn pop-btn" title="Open this section in a window of its own (drag it to another screen)" onClick={() => void call('prep:popout', { number: p.number, part })}>⧉ Window</button>
+    <PopOut title="Open this section in a window of its own (drag it to another screen)" onClick={() => void call('prep:popout', { number: p.number, part })} />
   )
   if (only?.startsWith('npc:')) {
     const list = items('npc')
@@ -340,7 +341,7 @@ export function NpcRow({ i, s, k, count }: { i: PrepItemView; s: PrepScreenView;
           <button className="ink-button icon" title="Move up" aria-label="Move up" disabled={k === 0} onClick={() => void act('prepItem:move', { id: i.id, direction: -1 })}>↑</button>
           <button className="ink-button icon" title="Move down" aria-label="Move down" disabled={k === count - 1} onClick={() => void act('prepItem:move', { id: i.id, direction: 1 })}>↓</button>
           <button className="ink-button icon" title={card ? 'Open card' : 'No card to open (one-time NPC)'} aria-label="Open card" disabled={!card} onClick={() => card && void openSheet(card.id)}>↗</button>
-          <button className="ink-button icon" title="Window: this NPC in a window of its own" aria-label="Open in a window" onClick={() => void call('prep:popout', { number: useBoard.getState().prep?.number ?? 1, part: `npc:${i.id}` })}>⧉</button>
+          <PopOut title="Open this NPC in a window of its own" onClick={() => void call('prep:popout', { number: useBoard.getState().prep?.number ?? 1, part: `npc:${i.id}` })} />
           <button className="ink-button icon danger-ink" title="Remove (History brings it back)" aria-label="Remove" onClick={() => void act('prepItem:setStatus', { id: i.id, status: 'defunct' })}>🗑</button>
         </span>
       </div>
