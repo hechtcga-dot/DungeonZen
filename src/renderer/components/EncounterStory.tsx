@@ -33,7 +33,7 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
           onClick={() => save({ ...s, npcs: [...s.npcs, { id: newRowId(), name: '', entityId: null, notes: '' }] })}>+</button></h3>
         {s.npcs.length === 0 && <p className="ink-muted">Nobody yet. + adds a card or a one-time NPC.</p>}
         {s.npcs.map((n) => (
-          <div key={n.id} className="story-row">
+          <div key={n.id} className="story-row story-grid">
             {n.entityId && npcCards.some((c) => c.id === n.entityId) ? (
               <select aria-label="NPC card" value={n.entityId} onChange={(ev) => {
                 const c = npcCards.find((x) => x.id === ev.target.value)
@@ -43,7 +43,7 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
                 <option value="">One-time NPC (no card)</option>
               </select>
             ) : (
-              <span className="row tight story-name">
+              <span className="story-name">
                 <CommitField id={`npc-${n.id}`} label="NPC name" className="label-hidden" value={n.name} placeholder="Name, or pick a card →" onCommit={(name) => setNpc(n.id, { name })} />
                 <select aria-label="Pick an NPC card" value="" onChange={(ev) => {
                   const c = npcCards.find((x) => x.id === ev.target.value)
@@ -54,10 +54,10 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
                 </select>
               </span>
             )}
-            <CommitField id={`npcn-${n.id}`} label="Notes" className="label-hidden grow" value={n.notes} placeholder="Hiding under the cart, wounded" onCommit={(notes) => setNpc(n.id, { notes })} />
+            <CommitField id={`npcn-${n.id}`} label="Notes" className="label-hidden story-wide" value={n.notes} placeholder="Hiding under the cart, wounded" onCommit={(notes) => setNpc(n.id, { notes })} />
             {n.entityId
-              ? <button className="ink-button" onClick={() => void openSheet(n.entityId!)}>Sheet</button>
-              : <button className="ink-button" disabled={!n.name.trim()} onClick={() => void toCard('npc', n.id, n.name)}>Make a card</button>}
+              ? <button className="ink-button" title="Open the NPC's card" onClick={() => void openSheet(n.entityId!)}>Sheet</button>
+              : <button className="ink-button" title="Make an NPC card for them" disabled={!n.name.trim()} onClick={() => void toCard('npc', n.id, n.name)}>Card</button>}
             <button className="ink-button icon" aria-label={`Remove ${n.name || 'this NPC'}`} onClick={() => save({ ...s, npcs: s.npcs.filter((x) => x.id !== n.id) })}>×</button>
           </div>
         ))}
@@ -68,7 +68,7 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
         {s.items.length === 0 ? <p className="ink-muted">Nothing yet. + adds an item; “+ inside” puts things in it. Right-click an item to put it on the board.</p>
           : <p className="hint">Right-click an item: Put on the board makes an Item card; the line stays here.</p>}
         {itemTree(s.items).map(({ item: it, depth }) => (
-          <div key={it.id} className="story-row" style={{ paddingLeft: depth * 24 }}
+          <div key={it.id} className="story-row story-grid"
             onContextMenu={(ev) => {
               ev.preventDefault()
               setMenu({ x: ev.clientX, y: ev.clientY, items: [
@@ -79,12 +79,14 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
                 { label: 'Remove (with what is inside)', danger: true, onClick: () => removeItem(it.id) }
               ] })
             }}>
-            {depth > 0 && <span className="ink-muted" aria-hidden="true">↳</span>}
-            <CommitField id={`it-${it.id}`} label="Item" className="label-hidden story-item" value={it.name} placeholder="Cart, crates of goods, a body…" onCommit={(name) => setItem(it.id, { name })} />
+            <span className="story-name" style={{ paddingLeft: depth * 18 }}>
+              {depth > 0 && <span className="ink-muted" aria-hidden="true">↳</span>}
+              <CommitField id={`it-${it.id}`} label="Item" className="label-hidden" value={it.name} placeholder="Cart, crates of goods, a body…" onCommit={(name) => setItem(it.id, { name })} />
+              {it.entityId && <span className="ink-muted" title="Has an Item card">▣</span>}
+            </span>
             <input className="short" type="number" min={1} aria-label={`How many: ${it.name}`} defaultValue={it.count} key={`${it.id}-${it.count}`}
               onBlur={(ev) => { const n = Math.max(1, Math.round(Number(ev.target.value) || 1)); if (n !== it.count) setItem(it.id, { count: n }) }} />
-            <CommitField id={`itn-${it.id}`} label="Notes" className="label-hidden grow" value={it.notes} placeholder="Worth 10 gp each" onCommit={(notes) => setItem(it.id, { notes })} />
-            {it.entityId && <span className="ink-muted" title="Has an Item card">card</span>}
+            <CommitField id={`itn-${it.id}`} label="Notes" className="label-hidden" value={it.notes} placeholder="Notes" onCommit={(notes) => setItem(it.id, { notes })} />
             <button className="ink-button" title="Put something inside this" onClick={() => addItem(it.id)}>+ inside</button>
             <button className="ink-button icon" aria-label={`Remove ${it.name || 'this item'}`} onClick={() => removeItem(it.id)}>×</button>
           </div>

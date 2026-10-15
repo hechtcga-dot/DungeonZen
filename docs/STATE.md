@@ -738,3 +738,9 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     a map); the Battle map row in the editor is gone (owner); XP bar and Battle planner moved to the bottom, above the buttons (owner). Scene keeps its title (owner). Save / Run encounter buttons unchanged.
   - Defaults picked: the builder also sits on Encounters (left); AI picks SRD monsters only; story removals are undoable
     (Change log), not History rows.
+- Next build (owner chose mockup v5, 2026-10-15): Encounters in a compact look (scoped `.encounters-screen` in desk.css):
+  two columns (The party panel gone; its budget line under the builder's level; House rules on the left under Battle
+  map; left = Planned, Suggest an encounter, Battle map, House rules as separate boxes), one-line boxes 30 px and not
+  growing here, small uppercase labels, small buttons and icon tools, bordered boxes (CR bar, Add monsters, checks,
+  Battle planner), stat line on the creature's row, NPC and item rows on one grid (name / count / notes / button / ×,
+  things inside indent only in the name column), NPC "Make a card" reads "Card".

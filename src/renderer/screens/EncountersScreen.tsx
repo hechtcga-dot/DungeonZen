@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useBoard } from '../store'
 import { call } from '../api'
@@ -33,7 +32,6 @@ const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about
 /** DM Prep › Encounters: plan fights per place, rated with the 2024 rules and adapted to the party. */
 export function EncountersScreen() {
   const left = useSidePanel('enc-list', 'left', 240)
-  const side = useSidePanel('enc-side', 'right', 300)
   const { encounters, encounterId, openEncounter, act, info } = useBoard()
   const [lighting] = useLightingPref()
   const [sketchBig, setSketchBigState] = useState(sketchBigKept)
@@ -58,9 +56,10 @@ export function EncountersScreen() {
           </div>
         </header>
         {!v ? <p className="desk-loading">Sharpening blades…</p> : (
-          <div className="enc-layout" style={{ ...left.style, ...side.style }}>
+          <div className="enc-layout" style={left.style}>
+            <div className="enc-left">
+            {left.grip}
             <nav className="parchment-note enc-list" aria-label="Planned encounters">
-              {left.grip}
               <h2 className="panel-title">Planned</h2>
               {v.encounters.length === 0 ? <p className="ink-muted">None yet. Plan one here, or from a region on the map.</p> : (
                 groupByPlace(v).map(([place, list]) => (
@@ -79,11 +78,12 @@ export function EncountersScreen() {
                   </div>
                 ))
               )}
-              <EncounterBuilder className="enc-builder-card" onKept={(id) => openEncounter(id)} />
-              {current && <BattleMapBox e={current} maps={v.battleMaps} onSketch={() => setSketchBig(true)} />}
             </nav>
+            <EncounterBuilder className="parchment-note" onKept={(id) => openEncounter(id)} />
+            {current && <BattleMapBox e={current} maps={v.battleMaps} onSketch={() => setSketchBig(true)} />}
+            <HouseRules v={v} />
+            </div>
             {current ? <Editor key={current.id} e={current} v={v} sketchBig={sketchBig} onSketchSmall={() => setSketchBig(false)} /> : <div className="parchment-sheet enc-editor"><p className="ink-muted">Choose or plan an encounter.</p></div>}
-            <PartyPanel v={v} grip={side.grip} />
           </div>
         )}
       </main>
@@ -96,8 +96,8 @@ function BattleMapBox({ e, maps, onSketch }: { e: EncounterView; maps: Encounter
   const { act, say, setBattleMapOpen } = useBoard()
   const up = (patch: Parameters<typeof call<'encounter:update'>>[1]['patch']) => void act('encounter:update', { id: e.id, patch })
   return (
-    <div className="enc-mini-map">
-      <h3 className="side-h">Battle map</h3>
+    <div className="parchment-note enc-mini-map">
+      <h2 className="panel-title">Battle map</h2>
       <select aria-label="Battle map for this encounter" value={e.battleMapId ?? ''} onChange={(ev) => up({ battleMapId: ev.target.value || null })}>
         <option value="">No battle map yet</option>
         {maps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -198,7 +198,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
           <span>CR of selected</span>
           <button className="ink-button" disabled={!sel.length} onClick={() => crStepAll(sel, -1)}>▼ lower</button>
           <button className="ink-button" disabled={!sel.length} onClick={() => crStepAll(sel, 1)}>▲ raise</button>
-          <span className="ink-muted">one step a click; a copy for this encounter only (the card stays as it is)</span>
+          <span className="ink-muted enc-bulk-note">One step a click; stats follow the 2024 CR table; a copy for this encounter only.</span>
         </div>
         <table className="enc-table">
           <thead><tr><th /><th>Creature</th><th>CR</th><th>XP each</th><th>How many</th><th>XP</th><th>Notes</th><th /></tr></thead>
@@ -208,7 +208,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
                 <td><input type="checkbox" aria-label={`Select ${c.name}`} checked={ticked.has(c.entityId)} onChange={() => setTicked((t) => { const n = new Set(t); if (n.has(c.entityId)) n.delete(c.entityId); else n.add(c.entityId); return n })} /></td>
                 <td><button className="ledger-name" onClick={() => void openSheet(c.entityId)}>{c.name}</button>
                   {c.aiMade && <span className="ai-badge enc-ai">AI</span>}
-                  {c.statLine && <div className="ink-muted enc-stat">{c.statLine}</div>}
+                  {c.statLine && <span className="ink-muted enc-stat"> · {c.statLine}</span>}
                   {c.stashed && <div className="enc-stash"><span className="ink-muted">Only in this encounter.</span> <button className="link-button" onClick={() => void act('entity:setStatus', { id: c.entityId, status: 'active' })}>Put on board</button></div>}</td>
                 <td className="enc-cr">{c.cr ? <><button className="ink-button icon" aria-label={`Lower the CR of ${c.name}`} title="Lower the CR one step (a copy for this encounter)" disabled={c.cr === '0'} onClick={() => crStepAll([c.entityId], -1)}>▼</button>
                   <span className="mono">{c.cr}</span>
@@ -233,6 +233,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         </table>
       </>)}
 
+      <div className="enc-box">
       <h3 className="side-h">Add monsters</h3>
       <div className="enc-add">
         <div className="field">
@@ -250,6 +251,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         <Suggest e={e} />
       </div>
       <BuildWithAi e={e} />
+      </div>
 
       <EncounterStoryEditor e={e} v={v} />
 
@@ -431,7 +433,7 @@ function Suggest({ e }: { e: EncounterView }) {
           onChange={(ev) => setType(ev.target.value)} onKeyDown={(ev) => { if (ev.key === 'Enter') void roll() }} />
         <button className="ink-button" onClick={() => void roll()}>{s ? 'Again' : 'Suggest'}</button>
       </div>
-      <span className="hint">Empty: one creature family with a leader that lives at the encounter's place. Words: a random roll over monsters whose stat block mentions them. The budget comes from the party's level and size.</span>
+      <span className="hint">Empty = a themed group for this place; words = monsters whose stat block mentions them.</span>
       {s === null && <span className="hint">No SRD monsters fit that budget.</span>}
       {s && s.note && <span className="hint">{s.note}</span>}
       {s && !s.note && (
@@ -444,29 +446,15 @@ function Suggest({ e }: { e: EncounterView }) {
   )
 }
 
-function PartyPanel({ v, grip }: { v: EncountersView; grip: ReactNode }) {
+/** House rules the AI works from (rating, building, writing up), on the left under the battle map. */
+function HouseRules({ v }: { v: EncountersView }) {
   const act = useBoard((s) => s.act)
   return (
-    <aside className="enc-side">
-      {grip}
-      <section className="parchment-note">
-        <h2 className="panel-title">The party</h2>
-        <div className="row tight">
-          <label htmlFor="enc-level">Level</label>
-          <input id="enc-level" className="short" type="number" min={1} max={20} defaultValue={v.party.level} key={v.party.level}
-            onBlur={(e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n <= 20 && n !== v.party.level) void act('party:setLevel', { level: n }) }} />
-          <span className="ink-muted">{v.party.size} characters (from the PC cards, or 4)</span>
-        </div>
-        <h3 className="side-h">Adapted to your table</h3>
-        <p className="ink-muted">{v.adaptation.explain}</p>
-        <p className="hint">Rate fights in the session review (too easy … nearly deadly); the budgets follow the last {10} ratings.</p>
-      </section>
-      <section className="parchment-note">
-        <h2 className="panel-title">House rules</h2>
-        <CommitField id="house-rules" label="Rules the AI works from when rating" multiline rows={8} value={v.houseRules}
-          placeholder="Paste your house rules: flanking gives advantage, potions are a bonus action, minions die in one hit…"
-          onCommit={(text) => void act('encounter:houseRules', { text })} />
-      </section>
-    </aside>
+    <section className="parchment-note">
+      <h2 className="panel-title">House rules</h2>
+      <CommitField id="house-rules" label="Rules the AI works from" multiline rows={5} value={v.houseRules}
+        placeholder="Paste your house rules: flanking gives advantage, potions are a bonus action, minions die in one hit…"
+        onCommit={(text) => void act('encounter:houseRules', { text })} />
+    </section>
   )
 }

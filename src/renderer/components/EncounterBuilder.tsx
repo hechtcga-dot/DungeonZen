@@ -48,10 +48,11 @@ export function EncounterBuilder({ className, onKept }: { className: string; onK
   const fighter = (id: string) => v.fighters.find((f) => f.id === id)
   return (
     <div className={`${className} enc-builder`}>
-      <h3 className="enc-builder-title">Suggest an encounter</h3>
+      <h2 className="panel-title">Suggest an encounter</h2>
       <div className="row tight">For {v.party.size} characters of level
         <input aria-label="Party level" className="tiny" type="number" min={1} max={20} defaultValue={v.party.level} key={v.party.level}
           onBlur={(e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n <= 20 && n !== v.party.level) void act('party:setLevel', { level: n }) }} /></div>
+      <span className="ink-muted eb-adapt">{v.adaptation.explain}</span>
       <label className="field-label" htmlFor="eb-where">Where</label>
       <select id="eb-where" className="ink-select" value={where} onChange={(e) => setWhere(e.target.value)}>
         <option value="">{v.partyPlace ? `${v.partyPlace.name} (party location)` : 'Where the party is (not placed)'}</option>
