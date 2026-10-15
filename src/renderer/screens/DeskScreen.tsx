@@ -285,7 +285,7 @@ function SessionPanel({ desk }: { desk: DeskView }) {
   return (
     <div className="dm-panel session-panel">
       <div className="session-head">
-        <PopOut title="Open this section of Session prep in a window of its own" onClick={() => void call('prep:popout', { number: prep.number, part: part.kind })} />
+        <PopOut title="Open the whole Session prep in a window of its own" onClick={() => void call('window:popScreen', { screen: 'prep' })} />
         <h2 className="panel-title" title={prep.title ? `Session ${prep.number}: ${prep.title}` : undefined}>Session {prep.number}{prep.title ? `: ${prep.title}` : ''}</h2>
       </div>
       <div className="session-nav">

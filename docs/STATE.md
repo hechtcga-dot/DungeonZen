@@ -708,3 +708,5 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   for moving/panning). Library folder moves still work (drag a picture onto a folder). Picture files dropped on the
   board (Explorer or a picture from the app) become background pictures at the drop spot (`boardImage:add` `file`,
   copied into `assets/board`, undoable). Files dropped where nothing takes them no longer open in the window.
+- Next build (owner, 2026-10-15): Desk › Session box ⧉ opens the whole Session prep screen in its own window
+  (`window:popScreen` prep, same as the rail's Open in a new window; shows the running or next session), not one section.
