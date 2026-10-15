@@ -710,3 +710,6 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   copied into `assets/board`, undoable). Files dropped where nothing takes them no longer open in the window.
 - Next build (owner, 2026-10-15): Desk › Session box ⧉ opens the whole Session prep screen in its own window
   (`window:popScreen` prep, same as the rail's Open in a new window; shows the running or next session), not one section.
+- Next build (owner, 2026-10-15): Live › Where they are: every text (tips, place notes, secrets, Opening, pacing, prep
+  scenes/secrets/threads, AI answers) links card names by themselves (`LinkedText` in `LinkField.tsx`, same auto links
+  and own links as text boxes); click a name = card in the corner note (Open full sheet).

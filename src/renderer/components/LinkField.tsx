@@ -71,6 +71,25 @@ export function LinkedCardNote() {
   )
 }
 
+/** Read-only text with card names linked (Live): click a name to show its card in the corner note. */
+export function LinkedText({ text }: { text: string }) {
+  const ctx = useContext(LinkContext)
+  const typeColour = useTypeColour()
+  if (!ctx || !text) return <>{text}</>
+  const out: ReactNode[] = []
+  let k = 0
+  for (const h of findLinks(text, ctx.links)) {
+    const c = ctx.cards.find((x) => x.id === h.link.entityId) as (EntityBrief & { colour?: string }) | undefined
+    out.push(text.slice(k, h.from), (
+      <button key={h.from} type="button" className="linked-word" style={{ '--lc': c ? c.colour ?? typeColour(c.type) : '#2f5d8a' } as CSSProperties}
+        title={`Show ${c?.name ?? 'the card'}`} onClick={(e) => { e.preventDefault(); ctx.show(h.link.entityId) }}>{text.slice(h.from, h.to)}</button>
+    ))
+    k = h.to
+  }
+  out.push(text.slice(k))
+  return <>{out}</>
+}
+
 /** Every place a linked phrase appears in the text (any case), longest phrases first, never overlapping. */
 export function findLinks(text: string, links: WordLink[]): Hit[] {
   const low = text.toLowerCase()

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LinkedText } from './LinkField'
 import { useBoard } from '../store'
 import { call } from '../api'
 import { providerById } from '../../shared/aiProviders'
@@ -58,7 +59,7 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
       <div className="where-grid">
         <div className="parchment-note where-panel">
           <h3 className="side-h">Tips</h3>
-          {where.tips.length ? <ul className="ink-list where-tips">{where.tips.map((t, i) => <li key={i}>{t}</li>)}</ul> : <p className="ink-muted">Nothing to point out.</p>}
+          {where.tips.length ? <ul className="ink-list where-tips">{where.tips.map((t, i) => <li key={i}><LinkedText text={t} /></li>)}</ul> : <p className="ink-muted">Nothing to point out.</p>}
           {where.encounters.length > 0 && (
             <>
               <h3 className="side-h">Encounters here</h3>
@@ -73,7 +74,7 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
               </ul>
             </>
           )}
-          {where.place?.notes && (<><h3 className="side-h">Notes on {where.place.name}</h3><p className="region-notes">{where.place.notes}</p></>)}
+          {where.place?.notes && (<><h3 className="side-h">Notes on {where.place.name}</h3><p className="region-notes"><LinkedText text={where.place.notes} /></p></>)}
         </div>
 
         <div className="parchment-note where-panel">
@@ -98,8 +99,8 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
               {where.secrets.map((x) => (
                 <li key={x.id} className={x.done ? 'is-done' : undefined}>
                   {x.source === 'clue'
-                    ? <label><input type="checkbox" checked={!!x.done} onChange={(e) => void act('prepItem:done', { id: x.id, done: e.target.checked })} /> {x.text}</label>
-                    : <span>{x.text}</span>}
+                    ? <label><input type="checkbox" checked={!!x.done} onChange={(e) => void act('prepItem:done', { id: x.id, done: e.target.checked })} /> <LinkedText text={x.text} /></label>
+                    : <span><LinkedText text={x.text} /></span>}
                   <span className="secret-src">{x.source === 'string' ? 'secret string' : x.source === 'card' ? 'clue card' : 'prep secret'}</span>
                 </li>
               ))}
@@ -113,7 +114,7 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
             <p className="ink-muted">No prep sheet for this session. <button className="link-button" onClick={() => goTo('prep')}>Start one</button></p>
           ) : (
             <>
-              {prep.premise && <p className="prep-premise"><strong>Opening:</strong> {prep.premise}</p>}
+              {prep.premise && <p className="prep-premise"><strong>Opening:</strong> <LinkedText text={prep.premise} /></p>}
               <Pacing v={v} scenes={scenes} pacing={prep.pacingMinutes} />
               <PrepTicks title="Secrets & clues" one="Secret" items={discoveries} label="Revealed" />
               <PrepTicks title="Scenes" one="Scene" items={scenes} label="Played" here={where.place?.locationId} />
@@ -137,8 +138,8 @@ function Pacing({ v, scenes, pacing }: { v: LiveView; scenes: PrepItemView[]; pa
     <p className={`pacing${late ? ' is-late' : ''}`} role="status">
       {hm(elapsed)} of {hm(pacing)} played.{' '}
       {current ? (late
-        ? <>Behind: <strong>{current.title || 'this scene'}</strong> was meant to end by {hm(current.targetEnd!)}. Skip ahead, wrap it up or push a hook.</>
-        : <>Now: <strong>{current.title || 'untitled scene'}</strong>{current.targetEnd != null ? `, until ${hm(current.targetEnd)}` : ''}.</>)
+        ? <>Behind: <strong><LinkedText text={current.title || 'this scene'} /></strong> was meant to end by {hm(current.targetEnd!)}. Skip ahead, wrap it up or push a hook.</>
+        : <>Now: <strong><LinkedText text={current.title || 'untitled scene'} /></strong>{current.targetEnd != null ? `, until ${hm(current.targetEnd)}` : ''}.</>)
         : 'All planned scenes played.'}
     </p>
   )
@@ -155,7 +156,7 @@ function PrepTicks({ title, one, items, label, here }: { title: string; one: str
           <li key={i.id} className={`${i.done ? 'is-done' : ''}${here && i.locationId === here ? ' is-here' : ''}`}>
             <label title={`${label}${i.done && i.doneAtMin != null ? ` at ${formatClock(i.doneAtMin)}` : ''}`}>
               <input type="checkbox" checked={i.done} onChange={(e) => void act('prepItem:done', { id: i.id, done: e.target.checked })} />
-              <span><strong>{i.title || `${one} ${k + 1}`}</strong>{i.body ? `: ${i.body}` : ''}{i.locationName ? ` (${i.locationName})` : ''}</span>
+              <span><strong><LinkedText text={i.title || `${one} ${k + 1}`} /></strong>{i.body ? <>: <LinkedText text={i.body} /></> : ''}{i.locationName ? <> (<LinkedText text={i.locationName} />)</> : ''}</span>
             </label>
           </li>
         ))}
@@ -210,7 +211,7 @@ function AskAi({ where, hasSession }: { where: WhereView; hasSession: boolean })
       {answer && (
         <div className="ai-suggestion" role="region" aria-label="AI suggestion">
           <span className="ai-badge">AI suggestion · {answer.source}</span>
-          <p className="ai-suggestion-text">{answer.text}</p>
+          <p className="ai-suggestion-text"><LinkedText text={answer.text} /></p>
           <div className="row tight wrap">
             {hasSession && <button className="ink-button primary-ink" onClick={async () => {
               if (await act('log:add', { kind: 'note', text: `${answer.what}: ${answer.text}` }) !== undefined) { say('Added to the session log'); setAnswer(null) }
