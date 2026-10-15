@@ -44,6 +44,7 @@ import { allSrdMonsters, searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from 
 import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } from './generators'
 import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
+import { setCardWords } from './cardWords'
 import type { z } from 'zod'
 
 /** What a card is, in the picture prompt ("An illustration of a character named …"). */
@@ -365,6 +366,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('storyline:setRemoved', ({ storylineId, removed }) => current().setStorylineRemoved(storylineId, removed))
   handle('map:rename', ({ mapId, name }) => current().renameMap(mapId, name))
   handle('timeline:view', () => current().timeline())
+  handle('links:view', () => {
+    const v = current().wordLinks()
+    setCardWords(v.cards.map((c) => c.name))
+    return v
+  })
+  handle('links:set', (links) => current().setSetting('word_links', links, 'Changed the linked words'))
   handle('act:create', (i) => current().createAct(i))
   handle('act:update', ({ id, patch }) => current().updateAct(id, patch))
   handle('act:setStatus', ({ id, status }) => current().setActStatus(id, status))
@@ -1096,6 +1103,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('prepItem:update', ({ id, patch }) => current().updatePrepItem(id, patch))
   handle('prepItem:addSecret', ({ prepId, kind }) => current().addPrepSecret(prepId, kind))
   handle('secret:save', (i) => current().saveSecret(i))
+  handle('secret:freeLinks', () => current().freeLinks().map((r) => ({ id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type })))
   handle('secret:setText', ({ id, text }) => current().setSecretText(id, text))
   handle('secret:remove', ({ id }) => current().removeSecret(id))
   handle('secret:revive', ({ id }) => current().reviveSecret(id))

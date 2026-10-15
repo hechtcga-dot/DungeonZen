@@ -8,6 +8,7 @@ import { OrderScopeDialog } from './components/OrderScopeDialog'
 import { StartScreen } from './screens/StartScreen'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { BattleMapDialog } from './components/BattleMapDialog'
+import { GlobalLinks, LinkedCardNote } from './components/LinkField'
 
 // Each screen loads the first time it opens (faster start).
 const BoardScreen = lazy(() => import('./screens/BoardScreen').then((m) => ({ default: m.BoardScreen })))
@@ -65,6 +66,7 @@ function MainApp() {
   return (
     <>
       <OrderScopeDialog />
+      <GlobalLinks>
       <Suspense fallback={null}>
       {!info || !view ? <StartScreen />
         : popped.includes(screen) ? <PoppedOut screen={screen} />
@@ -85,6 +87,8 @@ function MainApp() {
                 : <BoardScreen />}
       </Suspense>
       {info && view && <BattleMapDialog />}
+      </GlobalLinks>
+      {info && view && <LinkedCardNote />}
       <AiSettingsDialog />
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
@@ -138,6 +142,7 @@ function ScreenWindow({ screen }: { screen: Screen }) {
   return (
     <>
       <OrderScopeDialog />
+      <GlobalLinks>
       <Suspense fallback={null}>
         {current === 'encounters' ? <EncountersScreen />
           : current === 'prep' ? <PrepScreen />
@@ -152,6 +157,8 @@ function ScreenWindow({ screen }: { screen: Screen }) {
           : <BoardScreen />}
       </Suspense>
       <BattleMapDialog />
+      </GlobalLinks>
+      <LinkedCardNote />
       <AiSettingsDialog />
       {message && <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>{message.text}</div>}
     </>

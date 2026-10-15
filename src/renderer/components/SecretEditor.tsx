@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBoard, useView } from '../store'
 import { CardPicker } from './LinkField'
+import { ContextMenu } from './ContextMenu'
+import { call } from '../api'
 import { CommitField } from './fields'
 import { Dialog } from './Dialog'
 import { RELATIONSHIP_TYPES } from '../../shared/schemas'
@@ -43,6 +45,9 @@ export function SecretEditor({ secret, kind, cards, text, showText, mustInclude,
   const [picking, setPicking] = useState<{ i: number; end: 'sourceId' | 'targetId' } | null>(null)
   const [asking, setAsking] = useState(false)
   const [newType, setNewType] = useState<{ i: number; name: string; colour: string } | null>(null)
+  const [addMenu, setAddMenu] = useState<{ x: number; y: number } | null>(null)
+  const [existing, setExisting] = useState<Array<{ id: string; sourceId: string; targetId: string; type: string }> | null>(null)
+  const [linkQ, setLinkQ] = useState('')
   const root = useRef<HTMLDivElement>(null)
   // A newer saved version (undo, another screen) replaces the draft when nothing is held back here.
   const savedKey = JSON.stringify(saved)
@@ -104,13 +109,41 @@ export function SecretEditor({ secret, kind, cards, text, showText, mustInclude,
           </div>
         ))}
         <div className="row tight">
-          <button type="button" className="ink-button" onClick={() => setDraft({ ...draft, connections: [...draft.connections, { sourceId: mustInclude?.id ?? '', targetId: '', type: 'KNOWS' }] })}>Add link</button>
+          <button type="button" className="ink-button" onClick={(e) => setAddMenu({ x: e.clientX, y: e.clientY })}>Add link</button>
+          {addMenu && <ContextMenu x={addMenu.x} y={addMenu.y} onClose={() => setAddMenu(null)} items={[
+            { label: 'New link', onClick: () => setDraft({ ...draft, connections: [...draft.connections, { sourceId: mustInclude?.id ?? '', targetId: '', type: 'KNOWS' }] }) },
+            { label: 'Existing link…', onClick: () => void call('secret:freeLinks', undefined).then(setExisting) }
+          ]} />}
           <select value={draft.kind} aria-label="Secret, clue or link" onChange={(e) => void save({ ...draft, kind: e.target.value as SecretKind })}>
             {(['secret', 'clue', 'connection'] as const).map((k) => <option key={k} value={k}>{SECRET_LABEL[k]}{k === 'connection' ? ' (known)' : ''}</option>)}
           </select>
         </div>
         {problems.length > 0 && <p className="secret-problem" role="alert">{problems.join(' ')}</p>}
       </div>
+      {existing && (
+        <Dialog title="Pick an existing link" open onClose={() => setExisting(null)}>
+          <div className="card-picker">
+            <input autoFocus type="search" placeholder="Search links…" value={linkQ} aria-label="Search links" onChange={(e) => setLinkQ(e.target.value)} />
+            <div className="card-picker-list">
+              {(() => {
+                const list = existing.filter((r) => !draft.connections.some((c) => c.id === r.id))
+                  .map((r) => ({ r, label: `${name(r.sourceId) || '?'} – ${words(r.type)} – ${name(r.targetId) || '?'}` }))
+                  .filter((x) => x.label.toLowerCase().includes(linkQ.trim().toLowerCase()))
+                  .sort((a, b) => a.label.localeCompare(b.label))
+                return list.length === 0 ? <p className="hint">No board links left to pick (links already in a secret or clue are not listed).</p> : (
+                  <ul>{list.map(({ r, label }) => (
+                    <li key={r.id}><button className="link-button" onClick={() => {
+                      setExisting(null)
+                      void save({ ...draft, connections: [...draft.connections, { id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type }] })
+                    }}>{label}</button></li>
+                  ))}</ul>
+                )
+              })()}
+            </div>
+            <div className="actions"><button onClick={() => setExisting(null)}>Cancel</button></div>
+          </div>
+        </Dialog>
+      )}
       {picking && (
         <CardPicker words="" title="Pick a card" cards={cards} onClose={() => setPicking(null)}
           onPick={(id) => { const p = picking; setPicking(null); setConn(p.i, { [p.end]: id }) }} />

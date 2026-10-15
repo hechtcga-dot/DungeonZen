@@ -689,3 +689,16 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
 - Next build (owner, 2026-10-15): right-click a storyline button on the board view bar: Edit storyline…, Delete
   storyline (to History; undoable, History › Restore; the board goes back to View all cards if it was showing).
   Board › Story panel: Timeline link under each storyline's Edit, opens the Timeline.
+- Next build (owner, 2026-10-15): Timeline: drag a day's right edge to resize every day column, drag the title column's
+  edge (sizes kept while the app runs); − / + still zoom; ⊞ Show all, ⊟ Collapse all; tick per storyline to show/hide
+  its lane; ▾ / ▸ per lane folds it to a thin title row (trigger lines and NOW follow); Board › Story › Timeline opens
+  with only that storyline open (store `timelineFocus`). Act panel: Planned start/end on one row; Encounters line
+  (chips open Encounters, × unties, + menu: New encounter… or tick existing; ties are act marks, `act:mark`).
+- Auto card links (owner, 2026-10-15): every multi-line `CommitField` is a `LinkField`, plus prep and act texts; card
+  names link by themselves (whole words, any case; `withAutoLinks`); the DM's own links win; right-click: Write it as
+  "<card name>", Stop linking "<name>" by itself (setting `word_links` {own, off}, undoable). Marks take the card's
+  colour (own, else type). Outside prep/Timeline the card shows in a corner note (`LinkedCardNote`, store `linkCard`).
+  Store `wordLinks` (`links:view`) refreshes with every change. Spelling: card name words never flagged
+  (`src/main/cardWords.ts` adds them to the dictionary); a near miss lists the card spelling first.
+- Secret/clue/link editor: Add link › New link or Existing link… (board links tied to no secret yet; picking one ties
+  that link to this secret, `secret:freeLinks`). Pop-out ⧉ button same size as the − ↑ ↓ box tools.

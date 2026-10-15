@@ -1,13 +1,14 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { Dialog } from './Dialog'
-import { ENTITY_LABELS } from '../entityStyle'
+import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { ENTITY_TYPES } from '../../shared/schemas'
 import type { EntityType } from '../../shared/schemas'
-import type { EntityBrief } from '../../shared/types'
+import type { EntityBrief, WordLinksView } from '../../shared/types'
 import { useBoard } from '../store'
 
-export type WordLink = { text: string; entityId: string }
+/** auto: a card's own name, linked only as whole words. */
+export type WordLink = { text: string; entityId: string; auto?: boolean }
 
 /** What a sheet gives its linkable text boxes: the links, the cards, and the card shown beside the sheet. */
 export const LinkContext = createContext<{
@@ -18,6 +19,57 @@ export const LinkContext = createContext<{
 } | null>(null)
 
 type Hit = { from: number; to: number; link: WordLink }
+type LinkCtx = NonNullable<React.ContextType<typeof LinkContext>>
+
+/**
+ * Card names link by themselves (whole words, any case) unless the DM switched that name off; own links win.
+ * Removing a name's link switches it off everywhere (setting word_links), undoable.
+ */
+export function withAutoLinks(w: WordLinksView | null, own: WordLink[], setOwn: (links: WordLink[]) => void, show: (id: string | null) => void): LinkCtx {
+  const cards = w?.cards ?? []
+  const off = w?.off ?? []
+  const taken = new Set([...own.map((l) => l.text.toLowerCase()), ...off])
+  const auto: WordLink[] = cards.filter((c) => c.name.trim().length > 2 && !taken.has(c.name.toLowerCase()))
+    .map((c) => ({ text: c.name, entityId: c.id, auto: true }))
+  return {
+    links: [...own, ...auto], cards, show,
+    setLinks: (next) => {
+      const nextOwn = next.filter((l) => !l.auto).map(({ text, entityId }) => ({ text, entityId }))
+      const dropped = auto.filter((l) => !next.includes(l) && !nextOwn.some((o) => o.text.toLowerCase() === l.text.toLowerCase())).map((l) => l.text.toLowerCase())
+      if (dropped.length && w) void useBoard.getState().act('links:set', { own: w.own, off: [...new Set([...off, ...dropped])] })
+      if (nextOwn.length !== own.length || nextOwn.some((l, i) => l.text !== own[i].text || l.entityId !== own[i].entityId)) setOwn(nextOwn)
+    }
+  }
+}
+
+/** The whole app's linked words (no sheet of its own): the card shows in a note at the corner. */
+export function GlobalLinks({ children }: { children: ReactNode }) {
+  const w = useBoard((s) => s.wordLinks)
+  const value = useMemo(() => withAutoLinks(w, w?.own ?? [],
+    (own) => void useBoard.getState().act('links:set', { own, off: w?.off ?? [] }),
+    (id) => useBoard.setState({ linkCard: id })), [w])
+  return <LinkContext.Provider value={value}>{children}</LinkContext.Provider>
+}
+
+/** The card behind linked words, in a note at the bottom right. */
+export function LinkedCardNote() {
+  const id = useBoard((s) => s.linkCard)
+  const card = useBoard((s) => (id ? s.wordLinks?.cards.find((c) => c.id === id) : undefined))
+  if (!card) return null
+  return (
+    <aside className="parchment-note linked-card-note" aria-label={`Card: ${card.name}`} onMouseDown={(e) => e.preventDefault()}>
+      <div className="row spread">
+        <strong>{card.name}</strong>
+        <span className="row tight">
+          <button className="ink-button" onClick={() => { useBoard.setState({ linkCard: null }); void useBoard.getState().openSheet(card.id) }}>Open full sheet</button>
+          <button aria-label="Close the card" onClick={() => useBoard.setState({ linkCard: null })}>×</button>
+        </span>
+      </div>
+      <span className="ink-muted">{ENTITY_LABELS[card.type]}{card.location ? ` · ${card.location}` : ''}</span>
+      {card.summary && <p>{card.summary}</p>}
+    </aside>
+  )
+}
 
 /** Every place a linked phrase appears in the text (any case), longest phrases first, never overlapping. */
 export function findLinks(text: string, links: WordLink[]): Hit[] {
@@ -26,6 +78,7 @@ export function findLinks(text: string, links: WordLink[]): Hit[] {
   for (const link of [...links].sort((a, b) => b.text.length - a.text.length)) {
     const t = link.text.toLowerCase()
     for (let i = low.indexOf(t); i >= 0 && t; i = low.indexOf(t, i + t.length)) {
+      if (link.auto && (/[\p{L}\p{N}]/u.test(text[i - 1] ?? '') || /[\p{L}\p{N}]/u.test(text[i + t.length] ?? ''))) continue
       if (!hits.some((h) => i < h.to && i + t.length > h.from)) hits.push({ from: i, to: i + t.length, link })
     }
   }
@@ -50,6 +103,12 @@ export function LinkField(props: {
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const [picking, setPicking] = useState<string | null>(null)
   const hits = ctx ? findLinks(draft, ctx.links) : []
+  // Linked words take their card's colour (its own, else its type's).
+  const typeColour = useTypeColour()
+  const colourOf = (id: string) => {
+    const c = ctx?.cards.find((x) => x.id === id) as (EntityBrief & { colour?: string }) | undefined
+    return c ? c.colour ?? typeColour(c.type) : '#2f5d8a'
+  }
   // The copy behind takes the box's own look (font, padding, border, background) so the marks sit under the words.
   useLayoutEffect(() => {
     const a = area.current, b = back.current
@@ -105,9 +164,17 @@ export function LinkField(props: {
     e.preventDefault()
     const items: MenuItem[] = []
     if (words) items.push({ label: `Link “${words.length > 30 ? `${words.slice(0, 30)}…` : words}” to a card…`, onClick: () => setPicking(words) })
+    const card = hit && ctx.cards.find((c) => c.id === hit.link.entityId)
+    if (hit && card && hit.link.auto && draft.slice(hit.from, hit.to) !== card.name) {
+      items.push({ label: `Write it as “${card.name}”`, onClick: () => {
+        const next = draft.slice(0, hit.from) + card.name + draft.slice(hit.to)
+        setDraft(next)
+        if (next.trim() !== props.value) props.onCommit(next.trim())
+      } })
+    }
     if (hit) {
       items.push({ label: `Show ${ctx.cards.find((c) => c.id === hit.link.entityId)?.name ?? 'the card'}`, onClick: () => ctx.show(hit.link.entityId) })
-      items.push({ label: `Remove the link on “${hit.link.text}” (the words stay)`, danger: true, onClick: () => ctx.setLinks(ctx.links.filter((l) => l !== hit.link)) })
+      items.push({ label: hit.link.auto ? `Stop linking “${hit.link.text}” by itself (the words stay)` : `Remove the link on “${hit.link.text}” (the words stay)`, danger: true, onClick: () => ctx.setLinks(ctx.links.filter((l) => l !== hit.link)) })
     }
     setMenu({ x: e.clientX, y: e.clientY, items })
   }
@@ -116,7 +183,7 @@ export function LinkField(props: {
   const marked: ReactNode[] = []
   let k = 0
   for (const h of hits) {
-    marked.push(draft.slice(k, h.from), <mark key={h.from} data-from={h.from}>{draft.slice(h.from, h.to)}</mark>)
+    marked.push(draft.slice(k, h.from), <mark key={h.from} data-from={h.from} style={{ '--lc': colourOf(h.link.entityId) } as CSSProperties}>{draft.slice(h.from, h.to)}</mark>)
     k = h.to
   }
   marked.push(draft.slice(k), '\n')

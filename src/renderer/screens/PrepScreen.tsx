@@ -16,7 +16,7 @@ import { CardPicker } from '../components/LinkField'
 import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 import { readStatBlock, statLine } from '../../shared/statblock'
 import { useSidePanel } from '../components/Splitter'
-import { LinkContext, LinkField } from '../components/LinkField'
+import { LinkContext, LinkField, withAutoLinks } from '../components/LinkField'
 import { AddSecretMenu, SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
 import { TypeEmblem } from '../art/emblems'
 import { ArtDefs } from '../art/ArtDefs'
@@ -98,10 +98,9 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
 
   // Words linked to cards: the card shows in the side panel while the cursor is in them; a click elsewhere drops it.
   const [shown, setShown] = useState<string | null>(null)
-  const links = useMemo(() => ({
-    links: p.links, cards: s.cards, show: setShown,
-    setLinks: (next: typeof p.links) => void act('prep:update', { id: p.id, patch: { links: next } })
-  }), [p.links, p.id, s.cards, act])
+  const wordLinks = useBoard((st) => st.wordLinks)
+  const links = useMemo(() => withAutoLinks(wordLinks, p.links,
+    (next) => void act('prep:update', { id: p.id, patch: { links: next } }), setShown), [wordLinks, p.links, p.id, act])
   const card = shown ? s.cards.find((c) => c.id === shown) : undefined
   // In a pop-out window only one section (or one NPC) shows.
   const show = (part: string) => !only || only === part

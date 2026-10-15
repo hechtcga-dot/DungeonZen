@@ -27,7 +27,7 @@ import { battlePlan, spellRoles, type BattlePlan, type PlanFoe, type PlanPc } fr
 import { spellLevel } from '../../shared/attacks'
 import type { CombatView, PcToken, SecretKind, SecretView,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
-  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
+  LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, WordLinksView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
   SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView, LibraryPictureView, PicturesView, StyleUse, NoteDocView, NotesScreenView
 } from '../../shared/types'
@@ -94,7 +94,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates' | 'word_links'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -682,10 +682,11 @@ export class Campaign {
       if (input.id) w.update('secret', id, { kind: input.kind, text: input.text })
       else w.insert('secret', { id, kind: input.kind, text: input.text, status: 'active' })
       for (const c of input.connections) {
-        const was = c.id ? old.find((r) => r.id === c.id) : undefined
+        // An existing board link not yet tied to a secret joins this one (Add link › Existing link).
+        const was = c.id ? old.find((r) => r.id === c.id) ?? this.freeLinks().find((r) => r.id === c.id) : undefined
         if (was) {
-          if (was.sourceId !== c.sourceId || was.targetId !== c.targetId || was.type !== c.type || was.isSecret !== isSecret)
-            w.update('relationship', was.id, { sourceId: c.sourceId, targetId: c.targetId, type: c.type, isSecret })
+          if (was.sourceId !== c.sourceId || was.targetId !== c.targetId || was.type !== c.type || was.isSecret !== isSecret || was.secretId !== id)
+            w.update('relationship', was.id, { sourceId: c.sourceId, targetId: c.targetId, type: c.type, isSecret, secretId: id })
         } else {
           w.insert('relationship', { id: randomUUID(), sourceId: c.sourceId, targetId: c.targetId, type: c.type, isSecret, boardId: owner, status: 'active', secretId: id })
         }
@@ -695,6 +696,11 @@ export class Campaign {
       if (input.prepItemId) w.update('prep_item', input.prepItemId, { secretId: id, entityId: null, body: input.text })
     })
     return id
+  }
+
+  /** Board links between two cards that belong to no secret, clue or link text yet. */
+  freeLinks() {
+    return this.db.select().from(relationship).where(eq(relationship.status, 'active')).all().filter((r) => !r.secretId && r.type !== 'BOARD_LINK')
   }
 
   /** A secret's text, everywhere it shows (prep sheets, card sheets, Links). */
@@ -3863,6 +3869,22 @@ export class Campaign {
       .sort((a, b) => a.name.localeCompare(b.name))
   }
 
+  /** Every card still in play, with what a linked word shows of it. */
+  cardBriefs(): PrepScreenView['cards'] {
+    return this.db.select().from(entity).all().filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
+      .sort((a, b) => a.name.localeCompare(b.name)).map((e) => {
+        const a = e.attributes as Record<string, unknown>
+        const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
+        return { id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus, summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes'), flaws: t('flaws'), ...(a.encounter === true ? { encounter: true } : {}), ...(typeof a.colour === 'string' ? { colour: a.colour } : {}) }
+      })
+  }
+
+  /** Text boxes everywhere: card names link by themselves; the DM's own links and the names switched off (setting word_links). */
+  wordLinks(): WordLinksView {
+    const v = this.setting('word_links') as { own?: WordLinksView['own']; off?: string[] } | undefined
+    return { cards: this.cardBriefs(), own: Array.isArray(v?.own) ? v.own : [], off: Array.isArray(v?.off) ? v.off : [] }
+  }
+
   prepScreen(): PrepScreenView {
     const brief = (e: EntityRow): EntityBrief => ({ id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus })
     const live = this.db.select().from(entity).all().filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
@@ -3872,11 +3894,7 @@ export class Campaign {
         .sort((a, b) => a.number - b.number).map((p) => ({ id: p.id, number: p.number, title: p.title })),
       ...this.sessionNumbers(),
       people: live.filter((e) => e.type === 'NPC' || e.type === 'FACTION').map(brief),
-      cards: live.map((e) => {
-        const a = e.attributes as Record<string, unknown>
-        const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
-        return { ...brief(e), summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes'), flaws: t('flaws') }
-      }),
+      cards: this.cardBriefs(),
       secrets: this.secretViews(),
       strings: this.db.select().from(relationship).where(eq(relationship.status, 'active')).all()
         .map((r) => ({ id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type, isSecret: r.isSecret })),

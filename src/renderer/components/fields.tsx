@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { LinkField } from './LinkField'
 
 /** A colour picker that saves once, when the picker closes (one undo step, not one per step of the drag). */
 export function ColourInput({ id, value, onCommit, label }: { id?: string; value: string; onCommit(colour: string): void; label?: string }) {
@@ -31,6 +32,15 @@ export function CommitField(props: {
   mono?: boolean
   className?: string
 }) {
+  // Text boxes of several lines link card names (owner, 2026-10-15).
+  if (props.multiline && !props.mono && !props.required) {
+    return <LinkField id={props.id} label={props.label} value={props.value} onCommit={props.onCommit} multiline rows={props.rows}
+      placeholder={props.placeholder} hint={props.hint} className={props.className} />
+  }
+  return <PlainField {...props} />
+}
+
+function PlainField(props: Parameters<typeof CommitField>[0]) {
   const [draft, setDraft] = useState(props.value)
   useEffect(() => setDraft(props.value), [props.value])
   const commit = () => {

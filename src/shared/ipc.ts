@@ -13,7 +13,7 @@ import {
 } from './schemas'
 import type { BuiltCreature, CombatView, SrdMonsterRow,
   AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
-  RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, LiveView, SessionView, LogView,
+  RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, WordLinksView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
   StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export, PicturesView
 } from './types'
@@ -226,6 +226,8 @@ export const ipcInputs = {
   'storyline:setRemoved': z.object({ storylineId: Id, removed: z.boolean() }),
   'map:rename': z.object({ mapId: Id, name: Name }),
   'timeline:view': z.void(),
+  'links:view': z.void(),
+  'links:set': z.object({ own: z.array(z.object({ text: z.string().min(1).max(200), entityId: Id })), off: z.array(z.string().max(200)) }),
   'act:create': z.object({ storylineId: Id, title: Name, startMin: Minute, endMin: Minute }),
   'act:update': z.object({
     id: Id, patch: z.object({ title: Name.optional(), summary: z.string().max(20000).optional(), startMin: Minute.optional(), endMin: Minute.optional() })
@@ -367,6 +369,7 @@ export const ipcInputs = {
   'prepItem:update': z.object({ id: Id, patch: PrepItemFields }),
   'prepItem:done': z.object({ id: Id, done: z.boolean() }),
   'prepItem:addSecret': z.object({ prepId: Id, kind: z.enum(['secret', 'clue', 'connection']) }),
+  'secret:freeLinks': z.void(),
   'secret:save': z.object({
     id: Id.nullable(), kind: z.enum(['secret', 'clue', 'connection']), text: Text,
     connections: z.array(z.object({ id: Id.optional(), sourceId: Id, targetId: Id, type: RelationshipType })).max(50),
@@ -596,6 +599,8 @@ export interface IpcOutputs {
   'storyline:setRemoved': void
   'map:rename': void
   'timeline:view': TimelineView
+  'links:view': WordLinksView
+  'links:set': void
   'act:create': string
   'act:update': void
   'act:setStatus': void
@@ -700,6 +705,7 @@ export interface IpcOutputs {
   'prepItem:done': void
   'prepItem:addSecret': string
   'secret:save': string
+  'secret:freeLinks': Array<{ id: string; sourceId: string; targetId: string; type: string }>
   'secret:setText': void
   'secret:remove': void
   'secret:revive': void

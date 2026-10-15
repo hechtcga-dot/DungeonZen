@@ -88,7 +88,7 @@ export function StorylinesPanel() {
                 <button className="link-button story-title" onClick={() => void showBoard(b.id)} title="Open its board">{b.name}</button>
                 <span className="story-links">
                   <button className="link-button" onClick={() => setEdit(b)}>Edit</button>
-                  <button className="link-button" onClick={() => goTo('timeline')}>Timeline</button>
+                  <button className="link-button" onClick={() => { useBoard.setState({ timelineFocus: b.storylineId }); goTo('timeline') }}>Timeline</button>
                 </span>
               </div>
               <div className="hint">{s.isMajor ? 'Major' : 'Minor'} · {STORY_STATUS[s.status]} · {inStory(b.storylineId!)} cards

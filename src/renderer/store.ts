@@ -4,7 +4,7 @@ import type { FollowSource } from '../shared/battlemap'
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { CombatView, BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView } from '../shared/types'
+import type { CombatView, BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView, WordLinksView } from '../shared/types'
 import type { Units } from '../shared/units'
 
 export type Selection =
@@ -52,6 +52,12 @@ interface BoardState {
   encounters: EncountersView | null
   /** The encounter open on the Encounters screen. */
   encounterId: string | null
+  /** Storyline to open the Timeline on (the others start as thin rows); cleared once used. */
+  timelineFocus: string | null
+  /** Card names and the DM's linked words, for every text box. */
+  wordLinks: WordLinksView | null
+  /** The card behind the linked words under the cursor (outside sheets with their own side panel). */
+  linkCard: string | null
   openEncounter(id: string | null): void
   /** Run encounter: the fight on the combat screen. */
   combatId: string | null
@@ -138,6 +144,9 @@ export const useBoard = create<BoardState>((set, get) => ({
   players: null,
   encounters: null,
   encounterId: null,
+  timelineFocus: null,
+  wordLinks: null,
+  linkCard: null,
   combatId: null,
   combat: null,
   async openCombat(id) {
@@ -217,7 +226,7 @@ export const useBoard = create<BoardState>((set, get) => ({
     const { boardId, panel, screen, sheetId, reviewSessionId, prepNumber } = get()
     if (!boardId) return
     try {
-      const [view, history, sheet, desk, info, timeline, live, review] = await Promise.all([
+      const [view, history, sheet, desk, info, timeline, live, review, wordLinks] = await Promise.all([
         call('board:view', { boardId }),
         panel === 'history' ? call('history:view', undefined) : Promise.resolve(get().history),
         screen === 'sheet' && sheetId ? call('sheet:view', { entityId: sheetId }).catch(() => null) : Promise.resolve(null),
@@ -225,7 +234,8 @@ export const useBoard = create<BoardState>((set, get) => ({
         call('campaign:info', undefined),
         screen === 'timeline' ? call('timeline:view', undefined) : Promise.resolve(get().timeline),
         screen === 'live' ? call('live:view', undefined) : Promise.resolve(get().live),
-        screen === 'review' && reviewSessionId ? call('review:view', { sessionId: reviewSessionId }).catch(() => null) : Promise.resolve(null)
+        screen === 'review' && reviewSessionId ? call('review:view', { sessionId: reviewSessionId }).catch(() => null) : Promise.resolve(null),
+        call('links:view', undefined).catch(() => get().wordLinks)
       ])
       if (screen === 'review' && !review) {
         // The session is gone, for example the whole session was undone.
@@ -260,7 +270,8 @@ export const useBoard = create<BoardState>((set, get) => ({
         view: share(st.view, view), history: share(st.history, history), sheet: share(st.sheet, sheet), desk: share(st.desk, desk),
         timeline: share(st.timeline, timeline), live: share(st.live, live), review: share(st.review, review), mapScreen: share(st.mapScreen, mapScreen),
         prepScreen: share(st.prepScreen, prepScreen), prep: share(st.prep, prep), where: share(st.where, where), players: share(st.players, players),
-        encounters: share(st.encounters, encounters), combat: share(st.combat, combat), info: share(st.info, info ?? st.info)
+        encounters: share(st.encounters, encounters), combat: share(st.combat, combat), info: share(st.info, info ?? st.info),
+        wordLinks: share(st.wordLinks, wordLinks)
       })
     } catch (err) {
       get().say((err as Error).message, true)

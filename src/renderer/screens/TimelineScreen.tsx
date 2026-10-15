@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { useCtrlPan } from '../useCtrlPan'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
@@ -11,10 +11,16 @@ import { formatClock, fromClockParts, MINUTES_PER_DAY, toClockParts } from '../.
 import { StorylineStatus } from '../../shared/schemas'
 import type { ActView, TimelineStoryline, TimelineView, TriggerEffectView, TriggerView, WhatIfView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
+import { LinkContext, LinkField, withAutoLinks } from '../components/LinkField'
+import { ContextMenu, type MenuItem } from '../components/ContextMenu'
+import { TypeEmblem } from '../art/emblems'
+import { ENTITY_LABELS } from '../entityStyle'
 
-const LANE_HEAD = 220
 const LANE_H = 120
-const ZOOMS = [60, 90, 140, 200, 300, 420] // pixels per day
+const LANE_THIN = 32
+const DAYS_H = 44
+/** Column sizes and lane folds, kept while the app runs. */
+const keep = { pxPerDay: 140, head: 220, closed: new Set<string>(), hidden: new Set<string>() }
 
 export function TimelineScreen() {
   const timeline = useBoard((s) => s.timeline)
@@ -55,16 +61,40 @@ function Timeline({ t }: { t: TimelineView }) {
     if (el) { el.scrollLeft -= dx; el.scrollTop -= dy }
   }, []))
   const side = useSidePanel('timeline-side', 'right', 380)
-  const [zoom, setZoom] = useState(2)
+  const [pxPerDay, setPxPerDay] = useState(keep.pxPerDay)
+  const [head, setHead] = useState(keep.head)
+  const [closed, setClosed] = useState(keep.closed)
+  const [hidden, setHidden] = useState(keep.hidden)
+  useEffect(() => { Object.assign(keep, { pxPerDay, head, closed, hidden }) }, [pxPerDay, head, closed, hidden])
+  // Opened from a storyline's Timeline link: only that storyline open, the others thin rows.
+  useEffect(() => {
+    const focus = useBoard.getState().timelineFocus
+    if (!focus) return
+    useBoard.setState({ timelineFocus: null })
+    setClosed(new Set(t.storylines.filter((s) => s.storylineId !== focus).map((s) => s.storylineId)))
+    setHidden((h) => { const n = new Set(h); n.delete(focus); return n })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const toggle = (set: Set<string>, id: string) => { const n = new Set(set); if (n.has(id)) n.delete(id); else n.add(id); return n }
+  /** Drag a column's right edge: the title column, or a day (every day takes the new width). */
+  const dragSize = (e: ReactPointerEvent, apply: (dx: number) => void) => {
+    e.preventDefault(); e.stopPropagation()
+    const x0 = e.clientX
+    const move = (m: PointerEvent) => apply(m.clientX - x0)
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+  }
   const [selected, setSelected] = useState<string | null>(null)
   const [adding, setAdding] = useState<{ storylineId: string; startMin: number } | null>(null)
   const [editStory, setEditStory] = useState<TimelineStoryline | null>(null)
-  const pxPerDay = ZOOMS[zoom]
   const pxPerMin = pxPerDay / MINUTES_PER_DAY
   const lastMin = Math.max(t.nowMin, ...t.acts.map((a) => Math.max(a.endMin, a.plannedEndMin)))
   const days = Math.max(7, Math.ceil(lastMin / MINUTES_PER_DAY) + 2)
   const width = days * pxPerDay
-  const laneIndex = new Map(t.storylines.map((s, i) => [s.storylineId, i]))
+  const shown = t.storylines.filter((s) => !hidden.has(s.storylineId))
+  const laneH = (id: string) => (closed.has(id) ? LANE_THIN : LANE_H)
+  const laneTop = new Map<string, number>()
+  shown.reduce((y, s) => { laneTop.set(s.storylineId, y); return y + laneH(s.storylineId) }, DAYS_H)
+  const lanesH = shown.reduce((y, s) => y + laneH(s.storylineId), 0)
   const selectedAct = t.acts.find((a) => a.id === selected) ?? null
 
   useEffect(() => { if (selected && !t.acts.some((a) => a.id === selected)) setSelected(null) }, [t, selected])
@@ -81,9 +111,13 @@ function Timeline({ t }: { t: TimelineView }) {
       <div className="page-head">
         <div className="page-title"><h1>Timeline</h1></div>
         <div className="row tight wrap">
-          <button className="brass icon" aria-label="Zoom out" disabled={zoom === 0} onClick={() => setZoom((z) => z - 1)}>−</button>
-          <span className="zoom-label mono" aria-live="polite">{pxPerDay} px a day</span>
-          <button className="brass icon" aria-label="Zoom in" disabled={zoom === ZOOMS.length - 1} onClick={() => setZoom((z) => z + 1)}>+</button>
+          <button className="brass icon" title="Show all storylines open" aria-label="Show all"
+            onClick={() => { setClosed(new Set()); setHidden(new Set()) }}>⊞</button>
+          <button className="brass icon" title="Collapse all storylines to thin rows" aria-label="Collapse all"
+            onClick={() => setClosed(new Set(t.storylines.map((s) => s.storylineId)))}>⊟</button>
+          <button className="brass icon" aria-label="Zoom out" disabled={pxPerDay <= 40} onClick={() => setPxPerDay((p) => Math.max(40, Math.round(p / 1.4)))}>−</button>
+          <span className="zoom-label mono" aria-live="polite" title="Or drag the edge of a day">{pxPerDay} px a day</span>
+          <button className="brass icon" aria-label="Zoom in" disabled={pxPerDay >= 800} onClick={() => setPxPerDay((p) => Math.min(800, Math.round(p * 1.4)))}>+</button>
           <button className="brass" onClick={() => document.getElementById('tl-now')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })}>
             Jump to now
           </button>
@@ -97,20 +131,43 @@ function Timeline({ t }: { t: TimelineView }) {
               <p className="hint">Add a storyline on the desk or the board, then give it acts here.</p>
             </div>
           ) : (
+            <>
+            <div className="tl-ticks" role="group" aria-label="Storylines shown">
+              {t.storylines.map((s) => (
+                <label key={s.storylineId} style={s.colour ? { borderBottomColor: s.colour } : undefined}>
+                  <input type="checkbox" checked={!hidden.has(s.storylineId)} onChange={() => setHidden((h) => toggle(h, s.storylineId))} /> {s.title}
+                </label>
+              ))}
+            </div>
             <div className="tl-scroll" ref={scrollRef}>
-              <div className="tl-grid" style={{ width: LANE_HEAD + width }}>
-                <div className="tl-days" style={{ marginLeft: LANE_HEAD, width }}>
+              <div className="tl-grid" style={{ width: head + width }}>
+                <div className="tl-days" style={{ width: head + width }}>
+                  <div className="tl-days-corner" style={{ width: head }}>
+                    <span className="tl-grip" title="Drag to change the width" onPointerDown={(e) => { const w0 = head; dragSize(e, (dx) => setHead(Math.min(600, Math.max(120, w0 + dx)))) }} />
+                  </div>
                   {dayHeads.map((d) => (
                     <div key={d.day} className="tl-day" style={{ width: pxPerDay }}>
                       <span className="tl-day-name">Day {d.day}</span>
                       {d.note && <span className={`tl-day-note${d.note === 'Full moon' ? ' full' : ''}`}>{d.note}</span>}
+                      <span className="tl-grip" title="Drag to change the width of the days"
+                        onPointerDown={(e) => { const p0 = pxPerDay; dragSize(e, (dx) => setPxPerDay(Math.min(800, Math.max(40, Math.round(p0 + dx / d.day))))) }} />
                     </div>
                   ))}
                 </div>
-                {t.storylines.map((s) => (
+                {shown.map((s) => closed.has(s.storylineId) ? (
+                  <div key={s.storylineId} className="tl-lane is-thin" style={{ height: LANE_THIN }}>
+                    <div className="tl-lane-head" style={{ width: head }}>
+                      <button className="tl-fold" aria-label={`Open ${s.title}`} title="Open" onClick={() => setClosed((c) => toggle(c, s.storylineId))}>▸ {s.title}</button>
+                    </div>
+                    <div className="tl-track" style={{ width, ['--day' as string]: `${pxPerDay}px` }} />
+                  </div>
+                ) : (
                   <div key={s.storylineId} className="tl-lane" style={{ height: LANE_H }}>
-                    <div className="tl-lane-head" style={{ width: LANE_HEAD }}>
-                      <button className="tl-lane-title" onClick={() => setEditStory(s)} title={`${s.title} (edit storyline)`}>{s.title}</button>
+                    <div className="tl-lane-head" style={{ width: head }}>
+                      <span className="tl-lane-row">
+                        <button className="tl-fold" aria-label={`Collapse ${s.title}`} title="Collapse to a thin row" onClick={() => setClosed((c) => toggle(c, s.storylineId))}>▾</button>
+                        <button className="tl-lane-title" onClick={() => setEditStory(s)} title={`${s.title} (edit storyline)`}>{s.title}</button>
+                      </span>
                       <span className="tl-lane-row">
                         <span className="tl-lane-kind">{s.isMajor ? 'Major' : 'Minor'}</span>
                         <span className={`tl-status st-${s.projectedStatus}`}>{STORYLINE_STATUS_LABELS[s.projectedStatus]}</span>
@@ -135,12 +192,13 @@ function Timeline({ t }: { t: TimelineView }) {
                     </div>
                   </div>
                 ))}
-                <TriggerLines t={t} pxPerMin={pxPerMin} laneIndex={laneIndex} />
-                <div id="tl-now" className="tl-now" style={{ left: LANE_HEAD + t.nowMin * pxPerMin, top: 0, height: 44 + t.storylines.length * LANE_H }}>
+                <TriggerLines t={t} pxPerMin={pxPerMin} laneTop={laneTop} laneH={laneH} head={head} />
+                <div id="tl-now" className="tl-now" style={{ left: head + t.nowMin * pxPerMin, top: 0, height: DAYS_H + lanesH }}>
                   <span>NOW · {formatClock(t.nowMin)}</span>
                 </div>
               </div>
             </div>
+            </>
           )}
           <div className="tl-legend" aria-label="Legend">
             <span><i className="sw sw-running" />In progress with players</span>
@@ -201,18 +259,20 @@ function ActBlock({ a, s, pxPerMin, selected, onSelect }: {
 }
 
 /** Dotted connectors from where a trigger fires (end of its act) down or up to the storyline it affects. */
-function TriggerLines({ t, pxPerMin, laneIndex }: { t: TimelineView; pxPerMin: number; laneIndex: Map<string, number> }) {
+function TriggerLines({ t, pxPerMin, laneTop, laneH, head }: { t: TimelineView; pxPerMin: number; laneTop: Map<string, number>; laneH(id: string): number; head: number }) {
   return (
     <>
       {t.triggers.map((tr) => {
         const src = t.acts.find((a) => a.id === tr.sourceActId)
         if (!src) return null
-        const from = laneIndex.get(src.storylineId)
-        const to = laneIndex.get(tr.targetStorylineId)
+        const from = laneTop.get(src.storylineId)
+        const to = laneTop.get(tr.targetStorylineId)
         if (from === undefined || to === undefined) return null
-        const x = LANE_HEAD + src.endMin * pxPerMin - 2
-        const y1 = 44 + Math.min(from, to) * LANE_H + LANE_H / 2
-        const y2 = 44 + Math.max(from, to) * LANE_H + LANE_H / 2
+        const x = head + src.endMin * pxPerMin - 2
+        const mid = (id: string, top: number) => top + laneH(id) / 2
+        const a = mid(src.storylineId, from), b = mid(tr.targetStorylineId, to)
+        const y1 = Math.min(a, b)
+        const y2 = Math.max(a, b)
         return (
           <div key={tr.id} className={`tl-trigger${tr.firedAtMin !== null ? ' fired' : ''}`} style={{ left: x, top: y1, height: Math.max(24, y2 - y1) }}
             title={`${tr.label}: ${effectText(t, tr.effect)}`}>
@@ -294,18 +354,76 @@ function ActPanel({ t, a, onClose }: { t: TimelineView; a: ActView; onClose(): v
   const timesChanged = start !== a.plannedStartMin || end !== a.plannedEndMin
   const triggers = t.triggers.filter((x) => x.sourceActId === a.id)
   const incoming = t.triggers.filter((x) => x.effect.type !== 'set_status' && 'actId' in x.effect && x.effect.actId === a.id)
+  const openSheet = useBoard((s) => s.openSheet)
+  const openEncounter = useBoard((s) => s.openEncounter)
+
+  // Card names link by themselves; the card shows at the top of this panel.
+  const [shownId, setShownId] = useState<string | null>(null)
+  const wordLinks = useBoard((st) => st.wordLinks)
+  const links = useMemo(() => withAutoLinks(wordLinks, wordLinks?.own ?? [],
+    (own) => void act('links:set', { own, off: wordLinks?.off ?? [] }), setShownId), [wordLinks, act])
+  const cards = wordLinks?.cards ?? []
+  const shownCard = shownId ? cards.find((c) => c.id === shownId) : undefined
+
+  // Encounters tied to this act: encounter cards marked with it.
+  const encounters = cards.filter((c) => c.encounter && a.cards.some((m) => m.id === c.id))
+  const [encMenu, setEncMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+  const newEncounter = async () => {
+    const id = await act('encounter:create', { name: `${a.title} encounter`.slice(0, 200) })
+    if (id) { await act('act:mark', { entityId: id, actId: a.id, on: true }); openEncounter(id) }
+  }
+  const encItems = (): MenuItem[] => [
+    { label: 'New encounter…', onClick: () => void newEncounter() },
+    ...(cards.some((c) => c.encounter) ? ['separator' as const] : []),
+    ...cards.filter((c) => c.encounter).map((c) => {
+      const on = encounters.includes(c)
+      return { label: c.name, checked: on, onClick: () => void act('act:mark', { entityId: c.id, actId: a.id, on: !on }) }
+    })
+  ]
 
   return (
+    <LinkContext.Provider value={links}>
     <div className="act-panel">
       <div className="row spread">
         <h2 className="panel-heading">{actLabel(t, a)}</h2>
         <button aria-label="Close" onClick={onClose}>×</button>
       </div>
+      {shownCard && (
+        <section className="parchment-note prep-card" aria-label={`Card: ${shownCard.name}`}>
+          <div className="row spread">
+            <h3 className="panel-title">{shownCard.name}</h3>
+            <span className="row tight">
+              <button className="ink-button" onClick={() => void openSheet(shownCard.id)}>Open full sheet</button>
+              <button aria-label="Close the card" onClick={() => setShownId(null)}>×</button>
+            </span>
+          </div>
+          <span className="ink-muted">{ENTITY_LABELS[shownCard.type]}{shownCard.location ? ` · ${shownCard.location}` : ''}</span>
+          <div className="inspector-picture">
+            {shownCard.picture ? <img src={`dz-asset://campaign/${shownCard.picture}?w=512`} alt={shownCard.name} draggable={false} /> : <TypeEmblem type={shownCard.type} />}
+          </div>
+          {shownCard.summary && <p>{shownCard.summary}</p>}
+        </section>
+      )}
       <CommitField id={`act-${a.id}-title`} label="Title" value={a.title} required onCommit={(title) => void act('act:update', { id: a.id, patch: { title } })} />
-      <CommitField id={`act-${a.id}-summary`} label="What happens in this act" value={a.summary} multiline rows={3}
+      <LinkField id={`act-${a.id}-summary`} label="What happens in this act" value={a.summary} multiline rows={3}
         onCommit={(summary) => void act('act:update', { id: a.id, patch: { summary } })} />
-      <DayTime id={`act-${a.id}-start`} label="Planned start" value={start} onChange={setStart} />
-      <DayTime id={`act-${a.id}-end`} label="Planned end" value={end} onChange={setEnd} />
+      <div className="tl-encounters">
+        <span className="field-label">Encounters</span>
+        {encounters.map((c) => (
+          <span key={c.id} className="tl-enc">
+            <button className="link-button" title="Open in Encounters" onClick={() => openEncounter(c.id)}>{c.name}</button>
+            <button className="tl-enc-x" aria-label={`Untie ${c.name} from this act`} title="Untie from this act"
+              onClick={() => void act('act:mark', { entityId: c.id, actId: a.id, on: false })}>×</button>
+          </span>
+        ))}
+        <button className="tl-enc-add" aria-label="Tie an encounter or make a new one" title="Tie an encounter, or make a new one"
+          onClick={(e) => setEncMenu({ x: e.clientX, y: e.clientY, items: encItems() })}>+</button>
+        {encMenu && <ContextMenu x={encMenu.x} y={encMenu.y} items={encMenu.items} onClose={() => setEncMenu(null)} />}
+      </div>
+      <div className="row tight wrap tl-times">
+        <DayTime id={`act-${a.id}-start`} label="Planned start" value={start} onChange={setStart} />
+        <DayTime id={`act-${a.id}-end`} label="Planned end" value={end} onChange={setEnd} />
+      </div>
       {timesChanged && (
         <div className="row tight">
           <button className="primary" disabled={end <= start} onClick={() => void act('act:update', { id: a.id, patch: { startMin: start, endMin: end } })}>Save times</button>
@@ -324,7 +442,7 @@ function ActPanel({ t, a, onClose }: { t: TimelineView; a: ActView; onClose(): v
             <li key={o.id} className={`${happened ? 'is-happened' : ''}${o.isDefault ? ' is-default' : ''}`}>
               <CommitField id={`out-${o.id}-label`} label="Outcome" value={o.label} required
                 onCommit={(label) => void act('outcome:update', { id: o.id, patch: { label } })} />
-              <CommitField id={`out-${o.id}-desc`} label="What it means" value={o.description} multiline rows={2}
+              <LinkField id={`out-${o.id}-desc`} label="What it means" value={o.description} multiline rows={2}
                 onCommit={(description) => void act('outcome:update', { id: o.id, patch: { description } })} />
               <div className="row tight wrap">
                 <div className="field checkbox">
@@ -380,6 +498,7 @@ function ActPanel({ t, a, onClose }: { t: TimelineView; a: ActView; onClose(): v
         <button className="danger" onClick={() => void act('act:setStatus', { id: a.id, status: 'defunct' })}>Move act to History</button>
       </div>
     </div>
+    </LinkContext.Provider>
   )
 }
 
