@@ -20,7 +20,7 @@ const LANE_H = 120
 const LANE_THIN = 32
 const DAYS_H = 44
 /** Column sizes and lane folds, kept while the app runs. */
-const keep = { pxPerDay: 140, head: 220, closed: new Set<string>(), hidden: new Set<string>() }
+const keep = { pxPerDay: 140, head: 220, closed: new Set<string>(), rows: new Map<string, number>() }
 
 export function TimelineScreen() {
   const timeline = useBoard((s) => s.timeline)
@@ -64,15 +64,14 @@ function Timeline({ t }: { t: TimelineView }) {
   const [pxPerDay, setPxPerDay] = useState(keep.pxPerDay)
   const [head, setHead] = useState(keep.head)
   const [closed, setClosed] = useState(keep.closed)
-  const [hidden, setHidden] = useState(keep.hidden)
-  useEffect(() => { Object.assign(keep, { pxPerDay, head, closed, hidden }) }, [pxPerDay, head, closed, hidden])
+  const [rows, setRows] = useState(keep.rows)
+  useEffect(() => { Object.assign(keep, { pxPerDay, head, closed, rows }) }, [pxPerDay, head, closed, rows])
   // Opened from a storyline's Timeline link: only that storyline open, the others thin rows.
   useEffect(() => {
     const focus = useBoard.getState().timelineFocus
     if (!focus) return
     useBoard.setState({ timelineFocus: null })
     setClosed(new Set(t.storylines.filter((s) => s.storylineId !== focus).map((s) => s.storylineId)))
-    setHidden((h) => { const n = new Set(h); n.delete(focus); return n })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (set: Set<string>, id: string) => { const n = new Set(set); if (n.has(id)) n.delete(id); else n.add(id); return n }
   /** Drag a column's right edge: the title column, or a day (every day takes the new width). */
@@ -83,6 +82,14 @@ function Timeline({ t }: { t: TimelineView }) {
     const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
   }
+  /** Drag a lane's bottom edge: that storyline's row height. */
+  const dragRow = (e: ReactPointerEvent, apply: (dy: number) => void) => {
+    e.preventDefault(); e.stopPropagation()
+    const y0 = e.clientY
+    const move = (m: PointerEvent) => apply(m.clientY - y0)
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up)
+  }
   const [selected, setSelected] = useState<string | null>(null)
   const [adding, setAdding] = useState<{ storylineId: string; startMin: number } | null>(null)
   const [editStory, setEditStory] = useState<TimelineStoryline | null>(null)
@@ -90,8 +97,8 @@ function Timeline({ t }: { t: TimelineView }) {
   const lastMin = Math.max(t.nowMin, ...t.acts.map((a) => Math.max(a.endMin, a.plannedEndMin)))
   const days = Math.max(7, Math.ceil(lastMin / MINUTES_PER_DAY) + 2)
   const width = days * pxPerDay
-  const shown = t.storylines.filter((s) => !hidden.has(s.storylineId))
-  const laneH = (id: string) => (closed.has(id) ? LANE_THIN : LANE_H)
+  const shown = t.storylines
+  const laneH = (id: string) => (closed.has(id) ? LANE_THIN : rows.get(id) ?? LANE_H)
   const laneTop = new Map<string, number>()
   shown.reduce((y, s) => { laneTop.set(s.storylineId, y); return y + laneH(s.storylineId) }, DAYS_H)
   const lanesH = shown.reduce((y, s) => y + laneH(s.storylineId), 0)
@@ -112,7 +119,7 @@ function Timeline({ t }: { t: TimelineView }) {
         <div className="page-title"><h1>Timeline</h1></div>
         <div className="row tight wrap">
           <button className="brass icon" title="Show all storylines open" aria-label="Show all"
-            onClick={() => { setClosed(new Set()); setHidden(new Set()) }}>⊞</button>
+            onClick={() => setClosed(new Set())}>⊞</button>
           <button className="brass icon" title="Collapse all storylines to thin rows" aria-label="Collapse all"
             onClick={() => setClosed(new Set(t.storylines.map((s) => s.storylineId)))}>⊟</button>
           <button className="brass icon" aria-label="Zoom out" disabled={pxPerDay <= 40} onClick={() => setPxPerDay((p) => Math.max(40, Math.round(p / 1.4)))}>−</button>
@@ -132,13 +139,6 @@ function Timeline({ t }: { t: TimelineView }) {
             </div>
           ) : (
             <>
-            <div className="tl-ticks" role="group" aria-label="Storylines shown">
-              {t.storylines.map((s) => (
-                <label key={s.storylineId} style={s.colour ? { borderBottomColor: s.colour } : undefined}>
-                  <input type="checkbox" checked={!hidden.has(s.storylineId)} onChange={() => setHidden((h) => toggle(h, s.storylineId))} /> {s.title}
-                </label>
-              ))}
-            </div>
             <div className="tl-scroll" ref={scrollRef}>
               <div className="tl-grid" style={{ width: head + width }}>
                 <div className="tl-days" style={{ width: head + width }}>
@@ -162,7 +162,9 @@ function Timeline({ t }: { t: TimelineView }) {
                     <div className="tl-track" style={{ width, ['--day' as string]: `${pxPerDay}px` }} />
                   </div>
                 ) : (
-                  <div key={s.storylineId} className="tl-lane" style={{ height: LANE_H }}>
+                  <div key={s.storylineId} className="tl-lane" style={{ height: laneH(s.storylineId) }}>
+                    <span className="tl-grip is-row" title="Drag to change the height"
+                      onPointerDown={(e) => { const h0 = laneH(s.storylineId); dragRow(e, (dy) => setRows((r) => new Map(r).set(s.storylineId, Math.min(600, Math.max(90, h0 + dy))))) }} />
                     <div className="tl-lane-head" style={{ width: head }}>
                       <span className="tl-lane-row">
                         <button className="tl-fold" aria-label={`Collapse ${s.title}`} title="Collapse to a thin row" onClick={() => setClosed((c) => toggle(c, s.storylineId))}>▾</button>

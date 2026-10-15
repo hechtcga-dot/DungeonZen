@@ -690,8 +690,8 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   storyline (to History; undoable, History › Restore; the board goes back to View all cards if it was showing).
   Board › Story panel: Timeline link under each storyline's Edit, opens the Timeline.
 - Next build (owner, 2026-10-15): Timeline: drag a day's right edge to resize every day column, drag the title column's
-  edge (sizes kept while the app runs); − / + still zoom; ⊞ Show all, ⊟ Collapse all; tick per storyline to show/hide
-  its lane; ▾ / ▸ per lane folds it to a thin title row (trigger lines and NOW follow); Board › Story › Timeline opens
+  edge (sizes kept while the app runs); − / + still zoom; ⊞ Show all, ⊟ Collapse all (storyline tick bar removed, owner 2026-10-15); drag a lane's bottom edge to set its height (90-600 px, per storyline, kept while the app runs);
+  ▾ / ▸ per lane folds it to a thin title row (trigger lines and NOW follow); Board › Story › Timeline opens
   with only that storyline open (store `timelineFocus`). Act panel: Planned start/end on one row; Encounters line
   (chips open Encounters, × unties, + menu: New encounter… or tick existing; ties are act marks, `act:mark`).
 - Auto card links (owner, 2026-10-15): every multi-line `CommitField` is a `LinkField`, plus prep and act texts; card

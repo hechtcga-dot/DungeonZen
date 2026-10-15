@@ -164,7 +164,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .tl-day-name { font-family: var(--display); font-size: 16px; white-space: nowrap; }
 .tl-day-note { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
 .tl-day-note.full { color: #7a5a12; font-weight: 600; }
-.tl-lane { display: flex; border-bottom: 1px dashed rgba(90, 74, 50, 0.45); }
+.tl-lane { position: relative; display: flex; border-bottom: 1px dashed rgba(90, 74, 50, 0.45); }
 .tl-lane-head {
   flex: none; position: sticky; left: 0; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 8px 12px;
   background: rgba(232, 217, 176, 0.97); border-right: 2px solid #6b5636; box-shadow: 4px 0 8px rgba(60, 35, 10, 0.15);
@@ -299,12 +299,11 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .timeline-side-wrap { position: relative; min-height: 0; display: flex; flex-direction: column; }
 .timeline-side-wrap > .timeline-side { flex: 1; }
 /* Timeline: storyline ticks, column grips, thin lanes, act encounters */
-.tl-ticks { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 10px; font-size: 13px; border-bottom: 1px solid rgba(90, 74, 50, 0.4); }
-.tl-ticks label { display: inline-flex; align-items: center; gap: 4px; border-bottom: 3px solid transparent; }
 .tl-days-corner { flex: none; position: sticky; left: 0; z-index: 4; background: rgba(232, 217, 176, 0.97); border-right: 2px solid #6b5636; }
 .tl-day, .tl-days-corner { position: relative; }
 .tl-days-corner { position: sticky; }
 .tl-grip { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; cursor: col-resize; z-index: 5; }
+.tl-grip.is-row { top: auto; right: 0; bottom: -4px; left: 0; width: auto; height: 8px; cursor: row-resize; }
 .tl-grip:hover { background: rgba(138, 106, 18, 0.35); }
 .tl-lane.is-thin .tl-lane-head { padding: 2px 8px; justify-content: center; }
 .tl-fold { min-height: 0; padding: 0 2px; border: 0; background: transparent; color: var(--ink); font-family: var(--display); font-size: 15px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
