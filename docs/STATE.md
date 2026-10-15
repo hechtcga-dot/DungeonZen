@@ -717,3 +717,5 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   log row of that kind to History (`log:setStatus` defunct, undoable; `today.last`), works without a session.
 - Fix (2026-10-15): Generators › Suggest an encounter with more than 10 kinds of creature failed on Put on the board /
   Save for later (`generate:keep` and `encounter:addSrd` groups now up to 50).
+- Fix (owner, 2026-10-15): Live generator cards (Roll a character, Fill a tavern, Draw a battle map) on hover keep their
+  solid parchment and get a deeper shadow (the general desk button hover made them see-through).
