@@ -80,7 +80,7 @@ const GenPerson = z.object({
 const GenTavern = z.object({ name: Name, keeper: GenPerson, patrons: z.array(GenPerson).max(20), rumour: Short, dish: Short, summary: Short })
 const GenEncounter = z.object({
   summary: Short,
-  groups: z.array(z.object({ key: z.string().min(1).max(200), name: Short, count: z.number().int().min(1).max(100) })).min(1).max(10)
+  groups: z.array(z.object({ key: z.string().min(1).max(200), name: Short, count: z.number().int().min(1).max(100) })).min(1).max(50)
 })
 const TriggerEffect = z.discriminatedUnion('type', [
   z.object({ type: z.literal('shift_act'), actId: Id, minutes: z.number().int().min(-525600).max(525600) }),
@@ -322,7 +322,7 @@ export const ipcInputs = {
   'encounter:resetFolder': z.object({ id: Id }),
   'encounter:removePicture': z.object({ id: Id, name: z.string().min(1).max(260) }),
   'encounter:addCreature': z.object({ encounterId: Id, entityId: Id, count: z.number().int().min(1).max(100) }),
-  'encounter:addSrd': z.object({ encounterId: Id, groups: z.array(z.object({ key: z.string().min(1).max(200), count: z.number().int().min(1).max(100) })).min(1).max(10) }),
+  'encounter:addSrd': z.object({ encounterId: Id, groups: z.array(z.object({ key: z.string().min(1).max(200), count: z.number().int().min(1).max(100) })).min(1).max(50) }),
   'encounter:creature': z.object({ rowId: Id, patch: z.object({ count: z.number().int().min(0).max(100), notes: z.string().max(1000) }).partial() }),
   'encounter:removeCreature': z.object({ encounterId: Id, entityId: Id }),
   'encounter:suggest': z.object({ difficulty: z.enum(['low', 'moderate', 'high']), creatureType: z.string().max(40).optional() }),

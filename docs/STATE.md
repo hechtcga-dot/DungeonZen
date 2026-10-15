@@ -715,3 +715,5 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   and own links as text boxes); click a name = card in the corner note (Open full sheet).
 - Next build (owner, 2026-10-15): Live › Today so far: smaller buttons, − / count / + per row; − takes today's newest
   log row of that kind to History (`log:setStatus` defunct, undoable; `today.last`), works without a session.
+- Fix (2026-10-15): Generators › Suggest an encounter with more than 10 kinds of creature failed on Put on the board /
+  Save for later (`generate:keep` and `encounter:addSrd` groups now up to 50).
