@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.4.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.5.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -137,3 +137,7 @@ Owner's decisions: followed picture saved with the encounter; too-big box offers
 ## 2.4.0 (built 2026-10-15)
 Right-click Board / Encounters / Session prep / Library / Notes on the rail › Open in a new window (main window shows a faint "open in another window" picture, Close window returns it, several at once); board side panel folds with › / ‹; desk DM screen compact, "On the board" replaced by a Session box (one prep section at a time, ‹ ›, hover for detail, ⧉ pops the section out); DM notes title on one line; prep section numbers follow the ↑ / ↓ order everywhere. Details in `docs/STATE.md`.
 Owner's decisions: Session box shows one section at a time with left/right arrows. Defaults picked: clicking the faint picture brings the window forward; pop-out positions not remembered; Session box shows the running or next session's sheet, read-only text (ticks for Played / Followed up / Revealed); side panel fold kept while the app is open; card sheets from a pop-out open in the main window.
+
+## 2.5.0 (built 2026-10-15)
+Encounters battle map sketch as a small square on the left (example map, ✦ Draw battle map), opens in the middle, ⇲ Minimize to the side; one ⧉ pop-out button everywhere (Session box left of its title, DM notes, Notes, prep); desk clock buttons wrap; Add a player character moved to the chest (Create from scratch / Import a character sheet…), party panel buttons gone; board Ctrl/Shift+click multi-select with a right-click menu changing all selected cards in one undo step. Details in `docs/STATE.md`.
+Defaults picked: sketch square shows the example map (not the encounter's sketch); big/small kept while the app runs; party-row + card on the mat kept.
