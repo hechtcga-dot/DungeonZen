@@ -247,7 +247,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
             </div>
             <span className="ink-muted">{ENTITY_LABELS[card.type]}{card.location ? ` · ${card.location}` : ''}</span>
             <div className="inspector-picture">
-              {card.picture ? <img src={`dz-asset://campaign/${card.picture}?w=512`} alt={card.name} draggable={false} /> : <TypeEmblem type={card.type} />}
+              {card.picture ? <img src={`dz-asset://campaign/${card.picture}?w=512`} alt={card.name} /> : <TypeEmblem type={card.type} />}
             </div>
             {card.summary && <p>{card.summary}</p>}
             {card.notes && <><h3 className="panel-subheading">DM notes</h3><p className="prep-card-notes">{card.notes}</p></>}

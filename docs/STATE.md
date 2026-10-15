@@ -702,3 +702,9 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   (`src/main/cardWords.ts` adds them to the dictionary); a near miss lists the card spelling first.
 - Secret/clue/link editor: Add link › New link or Existing link… (board links tied to no secret yet; picking one ties
   that link to this secret, `secret:freeLinks`). Pop-out ⧉ button same size as the − ↑ ↓ box tools.
+- Next build (owner, 2026-10-15): every campaign picture (`dz-asset://`) drags out of the app as its full-size file
+  (Roll20, Explorer): `main.tsx` dragstart → `dragOut` (preload) → main `drag-out` → `webContents.startDrag`, small copy
+  under the mouse. Not on board card pictures, board background pictures, the zoom map or Follow a picture (those drag
+  for moving/panning). Library folder moves still work (drag a picture onto a folder). Picture files dropped on the
+  board (Explorer or a picture from the app) become background pictures at the drop spot (`boardImage:add` `file`,
+  copied into `assets/board`, undoable). Files dropped where nothing takes them no longer open in the window.

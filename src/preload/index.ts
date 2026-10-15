@@ -7,6 +7,7 @@ import { IPC_PREFIX } from '../shared/ipcPrefix'
 const api: DungeonZenApi = {
   invoke: (channel, input) => ipcRenderer.invoke(IPC_PREFIX + channel, input),
   pathForFile: (file) => webUtils.getPathForFile(file),
+  dragOut: (url) => ipcRenderer.send(IPC_PREFIX + 'drag-out', url),
   onImportProgress: (fn) => {
     const listener = (_e: unknown, p: Parameters<typeof fn>[0]) => fn(p)
     ipcRenderer.on(IPC_PREFIX + 'import-progress', listener)

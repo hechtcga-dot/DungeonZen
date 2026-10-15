@@ -149,12 +149,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
 
   // dz-asset://campaign/<path> serves files from the open campaign's assets folder only;
   // dz-asset://encounter/<id>/<file> a file in that encounter's pictures folder.
-  protocol.handle('dz-asset', (request) => {
-    const url = new URL(request.url)
+  const assetOf = (url: URL): string | null => {
     const path = decodeURIComponent(url.pathname.slice(1))
     const [encId, ...rest] = path.split('/')
-    const file = !campaign ? null : url.hostname === 'campaign' ? campaign.assetFile(path)
+    return !campaign ? null : url.hostname === 'campaign' ? campaign.assetFile(path)
       : url.hostname === 'encounter' && rest.length === 1 ? (() => { try { return campaign.encounterFile(encId, rest[0]) } catch { return null } })() : null
+  }
+  protocol.handle('dz-asset', (request) => {
+    const url = new URL(request.url)
+    const file = assetOf(url)
     if (!file) return new Response('Not found', { status: 404 })
     const w = Number(url.searchParams.get('w'))
     if (w > 0) {
@@ -180,6 +183,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       return out
     } catch { return null }
   }
+
+  // Drag any picture out of the app (Roll20, Explorer, another program): the full-size file, a small copy under the mouse.
+  ipcMain.on(IPC_PREFIX + 'drag-out', (event, raw: unknown) => {
+    try {
+      const file = typeof raw === 'string' ? assetOf(new URL(raw)) : null
+      if (!file) return
+      const icon = nativeImage.createFromPath(thumbnail(file, 128) ?? file)
+      if (icon.isEmpty()) return
+      event.sender.startDrag({ file, icon: icon.resize({ width: Math.min(128, icon.getSize().width) }) })
+    } catch { /* not a campaign picture */ }
+  })
 
   handle('profile:recent', () => profile.recent())
 
@@ -319,7 +333,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('stringTypes:rename', ({ from, to }) => current().renameStringType(from, to))
   handle('board:linkPositions', ({ on, winner }) => current().setLinkPositions(on, winner))
   handle('board:sharedStrings', ({ on, winner }) => current().setSharedStrings(on, winner))
-  handle('boardImage:add', async ({ boardId, mapId, position }) => {
+  handle('boardImage:add', async ({ boardId, mapId, position, file }) => {
+    if (file) return current().addBoardImage(boardId, { file }, position)
     if (mapId) return current().addBoardImage(boardId, { mapId }, position)
     const win = getWindow()
     const options = {

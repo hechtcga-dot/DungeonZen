@@ -299,8 +299,8 @@ function BoardLayout() {
     }
   }, [act, view.board.id, centre, select, setPanel])
 
-  const addPicture = useCallback(async (mapId: string | null, at?: { x: number; y: number }) => {
-    const item = await act('boardImage:add', { boardId: view.board.id, mapId, position: at ?? centre() })
+  const addPicture = useCallback(async (mapId: string | null, at?: { x: number; y: number }, file?: string) => {
+    const item = await act('boardImage:add', { boardId: view.board.id, mapId, position: at ?? centre(), file })
     if (item) {
       prefs.set({ pictures: true, layer: 'background' })
       say(`Added ${item.content?.name ?? 'the picture'} as a background picture. Now moving the background: drag it, drag a corner to resize, right-click to lock it. Switch back with Move: Cards.`)
@@ -628,7 +628,16 @@ function BoardLayout() {
         </nav>
 
         {mapView && <main className="canvas"><MapViewPanel mapId={mapView} onClose={() => setMapView(null)} /></main>}
-        <main className="canvas" ref={paneRef} aria-label={`${view.board.name} board`} style={mapView ? { display: 'none' } : undefined}>
+        <main className="canvas" ref={paneRef} aria-label={`${view.board.name} board`} style={mapView ? { display: 'none' } : undefined}
+          // Picture files dropped on the board (from Explorer or a picture in the app) become background pictures there.
+          onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault() }}
+          onDrop={(e) => {
+            const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
+            if (!files.length) return
+            e.preventDefault()
+            const at = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+            files.forEach((f, i) => void addPicture(null, { x: at.x + i * 40, y: at.y + i * 40 }, window.dungeonzen.pathForFile(f)))
+          }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}

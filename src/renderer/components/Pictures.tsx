@@ -471,6 +471,14 @@ export function PicturesTab() {
   const [dragKey, setDragKey] = useState<string | null>(null)
   const load = () => void query('pictures:view', undefined).then((v) => { if (v) setData(v) })
   useEffect(load, [query, boardView?.undo])
+  // The picture drags out as a file (main.tsx), so dragend never comes: a drop anywhere or the next click ends the folder drag.
+  useEffect(() => {
+    if (!dragKey) return
+    const end = () => setDragKey(null)
+    window.addEventListener('pointerdown', end)
+    window.addEventListener('drop', end)
+    return () => { window.removeEventListener('pointerdown', end); window.removeEventListener('drop', end) }
+  }, [dragKey])
   const update = (p: LibraryPictureView, patch: { name?: string; folder?: string; styleFor?: StyleUse[]; tags?: StyleTags }) => void act('pictures:update', { key: p.key, patch }).then(load)
   if (!data) return <p className="hint">Loading…</p>
   const shown = folder === 'All' ? data.pictures : data.pictures.filter((p) => p.folder === folder)

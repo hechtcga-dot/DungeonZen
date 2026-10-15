@@ -401,7 +401,7 @@ function ActPanel({ t, a, onClose }: { t: TimelineView; a: ActView; onClose(): v
           </div>
           <span className="ink-muted">{ENTITY_LABELS[shownCard.type]}{shownCard.location ? ` · ${shownCard.location}` : ''}</span>
           <div className="inspector-picture">
-            {shownCard.picture ? <img src={`dz-asset://campaign/${shownCard.picture}?w=512`} alt={shownCard.name} draggable={false} /> : <TypeEmblem type={shownCard.type} />}
+            {shownCard.picture ? <img src={`dz-asset://campaign/${shownCard.picture}?w=512`} alt={shownCard.name} /> : <TypeEmblem type={shownCard.type} />}
           </div>
           {shownCard.summary && <p>{shownCard.summary}</p>}
         </section>

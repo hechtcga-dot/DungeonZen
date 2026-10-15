@@ -490,7 +490,7 @@ export const ipcInputs = {
   'stringTypes:rename': z.object({ from: z.string().min(1).max(40), to: RelationshipType }),
   'board:linkPositions': z.object({ on: z.boolean(), winner: z.enum(['global', 'storyline']) }),
   'board:sharedStrings': z.object({ on: z.boolean(), winner: z.enum(['global', 'storyline']) }),
-  'boardImage:add': z.object({ boardId: Id, mapId: Id.nullable(), position: Position }),
+  'boardImage:add': z.object({ boardId: Id, mapId: Id.nullable(), position: Position, file: z.string().optional() }),
   'boardImage:update': z.object({ itemId: Id, patch: z.object({ opacity: z.number().min(0.05).max(1).optional(), locked: z.boolean().optional(), name: Name.optional() }) }),
   'storyline:create': z.object({ title: Name }),
   'history:view': z.void(),
@@ -804,6 +804,8 @@ export interface DungeonZenApi {
   invoke<C extends IpcChannel>(channel: C, input: IpcInput<C>): Promise<IpcResult<IpcOutputs[C]>>
   /** The path of a file dropped from Explorer. */
   pathForFile(file: File): string
+  /** Drag a dz-asset picture out of the app as its real file (Roll20, Explorer). */
+  dragOut(url: string): void
   /** Notes import progress; returns a function that stops listening. */
   onImportProgress(fn: (p: ImportProgress) => void): () => void
   /** Another window (the popped-out DM notes) changed something; returns a function that stops listening. */

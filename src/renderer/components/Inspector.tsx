@@ -76,7 +76,7 @@ function EntityInspector({ entity }: { entity: EntityView }) {
       </div>
       <button className="inspector-picture" onClick={() => void openSheet(entity.id)}
         title={picture ? 'Open the sheet to change the picture' : 'No picture yet: open the sheet to add or draw one'}>
-        {picture ? <img src={`dz-asset://campaign/${picture}?w=512`} alt={entity.name} draggable={false} /> : <TypeEmblem type={entity.type} />}
+        {picture ? <img src={`dz-asset://campaign/${picture}?w=512`} alt={entity.name} /> : <TypeEmblem type={entity.type} />}
       </button>
       <CommitField id={`${p}-summary`} label="One-line summary" value={str('summary')}
         placeholder="Shown on the card" hint="Leave empty to show the stat block line (size, type, CR, HP, AC)."
