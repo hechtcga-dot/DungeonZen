@@ -663,3 +663,7 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   DM notes title stays on one line beside Pop out.
 - 2.4.0: prep section numbers come from the saved ↑ / ↓ order (`src/renderer/prepParts.ts`, `boxOrder` in
   `fold.ts`), so pop-out section windows and the desk Session box show the same numbers as Session prep.
+- Next build (owner, 2026-10-15): Encounters › Battle map sketch starts as a small square at the bottom of the left
+  Planned panel (example map drawn in code, `art/battlemap.tsx`, and ✦ Draw battle map); either opens the sketch in
+  the middle where it was (scrolls to it), with ⇲ Minimize to the side back to the square; the − / + fold still
+  folds it in the middle. Big/small kept while the app runs (all encounters).

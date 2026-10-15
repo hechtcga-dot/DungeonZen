@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useBoard } from '../store'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
@@ -20,6 +20,10 @@ import { EncounterPictures } from '../components/EncounterPictures'
 import { BattlePlanner } from '../components/BattlePlanner'
 import { SketchPad } from '../components/SketchPad'
 import { BATTLE_TOOLS } from '../../shared/sketch'
+import { ExampleBattleMap } from '../art/battlemap'
+
+// Battle map sketch: a small square on the left until the DM opens it in the middle; kept while the app runs.
+let sketchBigKept = false
 
 type Suggestion = NonNullable<Awaited<ReturnType<typeof call<'encounter:suggest'>>>>
 const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about right', hard: 'hard', nearly_deadly: 'nearly deadly' }
@@ -30,6 +34,8 @@ export function EncountersScreen() {
   const side = useSidePanel('enc-side', 'right', 300)
   const { encounters, encounterId, openEncounter, act, info } = useBoard()
   const [lighting] = useLightingPref()
+  const [sketchBig, setSketchBigState] = useState(sketchBigKept)
+  const setSketchBig = (big: boolean) => { sketchBigKept = big; setSketchBigState(big) }
   const v = encounters
   const current = v?.encounters.find((e) => e.id === encounterId) ?? v?.encounters[0] ?? null
   const create = async () => {
@@ -71,8 +77,17 @@ export function EncountersScreen() {
                   </div>
                 ))
               )}
+              {current && !sketchBig && (
+                <div className="enc-mini-map">
+                  <h3 className="side-h">Battle map sketch</h3>
+                  <button className="enc-mini-thumb" title="Open the battle map sketch in the middle" onClick={() => setSketchBig(true)}>
+                    <ExampleBattleMap />
+                  </button>
+                  <button className="ink-button primary-ink" onClick={() => setSketchBig(true)}>✦ Draw battle map</button>
+                </div>
+              )}
             </nav>
-            {current ? <Editor key={current.id} e={current} v={v} /> : <div className="parchment-sheet enc-editor"><p className="ink-muted">Choose or plan an encounter.</p></div>}
+            {current ? <Editor key={current.id} e={current} v={v} sketchBig={sketchBig} onSketchSmall={() => setSketchBig(false)} /> : <div className="parchment-sheet enc-editor"><p className="ink-muted">Choose or plan an encounter.</p></div>}
             <PartyPanel v={v} grip={side.grip} />
           </div>
         )}
@@ -90,7 +105,7 @@ function groupByPlace(v: EncountersView): Array<[string, EncounterView[]]> {
   return [...groups.entries()].sort(([a], [b]) => (a === 'No place yet' ? 1 : b === 'No place yet' ? -1 : a.localeCompare(b)))
 }
 
-function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
+function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: EncountersView; sketchBig: boolean; onSketchSmall(): void }) {
   const { act, openSheet, openCombat, say, setBattleMapOpen, setAiSettingsOpen } = useBoard()
   const up = (patch: Parameters<typeof call<'encounter:update'>>[1]['patch']) => void act('encounter:update', { id: e.id, patch })
   const [pick, setPick] = useState('')
@@ -99,6 +114,7 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
   const [ratingBusy, setRatingBusy] = useState(false)
   const [ratingError, setRatingError] = useState<string | null>(null)
   const [roll20, setRoll20] = useState(false)
+  const sketchShown = useRef(sketchBig) // scroll to the sketch only when the DM opens it, not on every encounter switch
   const drawMap = () => setBattleMapOpen({ name: `${e.name} battle map`, description: e.scene, sketch: e.sketch, follow: e.follow, onFollow: (follow) => up({ follow }), onKept: (mapId) => up({ battleMapId: mapId }) })
   const [pdf, setPdf] = useState(false)
   const d = e.difficulty
@@ -271,15 +287,18 @@ function Editor({ e, v }: { e: EncounterView; v: EncountersView }) {
         <button className="ink-button" onClick={() => void openSheet(e.id)}>Open card</button>
         <button className="ink-button danger-ink" onClick={() => void act('entity:setStatus', { id: e.id, status: 'defunct' })}>Remove encounter</button>
       </div>
-      <section className="enc-sketch" aria-label="Battle map sketch">
-        <h3 className="panel-title side-h">Battle map sketch</h3>
-        <div className="row tight">
-          <span className="ink-muted">Draw the layout square by square; the map service follows it as a blueprint.</span>
-          <span className="spacer" />
-          <button className="ink-button" onClick={drawMap} title="Draw…: the sketch goes to the map service as a blueprint">✦ Draw battle map from sketch</button>
-        </div>
-        <SketchPad label={`Battle map sketch for ${e.name}`} sketch={e.sketch} tools={BATTLE_TOOLS} size={[20, 20]} onCommit={(sketch) => up({ sketch })} />
-      </section>
+      {sketchBig && (
+        <section className="enc-sketch" aria-label="Battle map sketch" ref={(el) => { if (el && !sketchShown.current) { sketchShown.current = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }) } }}>
+          <h3 className="panel-title side-h">Battle map sketch</h3>
+          <div className="row tight">
+            <span className="ink-muted">Draw the layout square by square; the map service follows it as a blueprint.</span>
+            <span className="spacer" />
+            <button className="ink-button" onClick={drawMap} title="Draw…: the sketch goes to the map service as a blueprint">✦ Draw battle map from sketch</button>
+            <button className="ink-button" onClick={() => { sketchShown.current = false; onSketchSmall() }} title="Back to a small square on the left">⇲ Minimize to the side</button>
+          </div>
+          <SketchPad label={`Battle map sketch for ${e.name}`} sketch={e.sketch} tools={BATTLE_TOOLS} size={[20, 20]} onCommit={(sketch) => up({ sketch })} />
+        </section>
+      )}
       {roll20 && <Roll20Dialog entityIds={e.creatures.map((c) => c.entityId)} title={`Roll20: ${e.name}`} mapId={e.battleMapId} onClose={() => setRoll20(false)} />}
       {pdf && <ExportDialog kind="sheets" entityIds={e.creatures.map((c) => c.entityId)} title={e.name} onClose={() => setPdf(false)} />}
     </section>
