@@ -720,7 +720,7 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
 - Fix (owner, 2026-10-15): Live generator cards (Roll a character, Fill a tavern, Draw a battle map) on hover keep their
   solid parchment and get a deeper shadow (the general desk button hover made them see-through).
 - Next build (owner, 2026-10-15): encounter builder.
-  - Suggest an encounter (Live › On the fly, and Encounters left column under Planned; `EncounterBuilder.tsx`): Where
+  - Suggest an encounter (Encounters left column under Planned; Live › On the fly has a same-size card that opens Encounters, owner; `EncounterBuilder.tsx`): Where
     (party location first, "(party location)"; every place; Custom location… typed), difficulty, creature type, Include
     these cards (NPC/monster cards with counts), What happens here (for the AI). Suggest = offline themed roll
     (`encounter:roll`, `suggestThemed` in generators.ts, themes in `src/main/encounterThemes.ts`: one family, a leader

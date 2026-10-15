@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useBoard } from '../store'
-import { EncounterBuilder } from '../components/EncounterBuilder'
 import { DeskFrame } from '../components/DeskFrame'
 import { Candle, D20 } from '../art/props'
 import { ClockDial } from '../art/sky'
@@ -425,7 +424,10 @@ export function OnTheFly(_props: { partySize: number; partyLevel: number }) {
           <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><circle cx="20" cy="13" r="8" fill="#e3cfa6" stroke="#2a1f12" /><path d="M6 38q0-14 14-14t14 14z" fill="#2f5d8a" stroke="#2a1f12" /></svg>
           <span><strong>Roll a character</strong><span>Name, species, job, attitude, a want and an SRD stat block</span></span>
         </button>
-        <EncounterBuilder className="otf-card" onKept={(_id, name, stash) => useBoard.getState().say(stash ? `Saved for later: ${name} (Encounters and the Library).` : `Put on the board: ${name}. Fill it in under Encounters.`)} />
+        <button className="otf-card" onClick={() => useBoard.getState().goTo('encounters')} title="Opens Encounters: Suggest an encounter is on the left">
+          <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><polygon points="20,2 37,11 37,29 20,38 3,29 3,11" fill="#8f2a21" stroke="#3b0c08" /><text x="20" y="25" textAnchor="middle" fontSize="11" fill="#fbe7c6">20</text></svg>
+          <span><strong>Suggest an encounter</strong><span>Themed for where the party is, or built with AI; opens Encounters</span></span>
+        </button>
         <button className="otf-card" onClick={() => void roll('tavern')}>
           <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><rect x="9" y="10" width="18" height="24" rx="3" fill="#c9893b" stroke="#2a1f12" /><path d="M27 15h4a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-4" fill="none" stroke="#2a1f12" strokeWidth="2" /><path d="M9 12q9-6 18 0" fill="#fffbea" stroke="#2a1f12" /></svg>
           <span><strong>Fill a tavern</strong><span>A named tavern, its keeper and patrons, a rumour</span></span>
