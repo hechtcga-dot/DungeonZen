@@ -559,7 +559,6 @@ function BoardLayout() {
         )}
         <span className="spacer" />
         <button className="outline" aria-haspopup="menu" onClick={(e) => openMenu(e, displayItems())}>Display ▾</button>
-        <button className="outline" onClick={() => void addCard('NPC')}>New NPC</button>
         {editStory && view.board.storylineId && view.board.storyline && (
           <StorylineDialog open onClose={() => setEditStory(false)} storylineId={view.board.storylineId} detail={view.board.storyline} />
         )}
@@ -660,7 +659,7 @@ function BoardLayout() {
           {view.items.length === 0 && (
             <div className="empty-board">
               <p><strong>This board is empty.</strong></p>
-              <p>Add a card with <em>New NPC</em> or the <em>Card</em> tool, then drag between the red pins to tie links. Right-click the board for more.</p>
+              <p>Add a card with the <em>Card</em> tool, then drag between the red pins to tie links. Right-click the board for more.</p>
             </div>
           )}
           {linking && mouse && (() => {
