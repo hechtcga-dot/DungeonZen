@@ -189,23 +189,6 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         </div>
       )}
 
-      <div className="enc-meter" role="img" aria-label={`${d.totalXp} XP: ${RATING_LABELS[d.rating]}`}>
-        <div className="meter-bar">
-          <span className="meter-fill" style={{ width: pct(d.totalXp) }} />
-          {(['low', 'moderate', 'high'] as const).map((k) => (
-            <span key={k} className={`meter-mark${k === e.target ? ' is-target' : ''}`} style={{ left: pct(d.budgets[k]) }} title={`${k}: ${d.budgets[k]} XP`}>
-              <span>{k[0].toUpperCase() + k.slice(1)} {d.budgets[k]}</span>
-            </span>
-          ))}
-        </div>
-        <p className={`meter-text r-${d.rating}`}>
-          <strong>{d.totalXp} XP: {RATING_LABELS[d.rating]}.</strong>{' '}
-          {d.totalXp < targetBudget ? `${targetBudget - d.totalXp} XP left before ${e.target}.` : d.rating === e.target ? 'On target.' : `Over the ${e.target} budget by ${d.totalXp - targetBudget} XP.`}
-          {d.factor !== 1 && <span className="ink-muted"> Budgets adapted ×{d.factor} to your party.</span>}
-        </p>
-      </div>
-
-      <BattlePlanner encounterId={e.id} stamp={e} />
 
       <h3 className="side-h">Who fights</h3>
       {e.creatures.length === 0 ? <p className="ink-muted">Nobody yet. Add cards, SRD monsters or a suggestion below.</p> : (<>
@@ -274,6 +257,24 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         <CommitField id="enc-tactics" label="Tactics" multiline rows={3} value={e.tactics} placeholder="Archers stay on the ledge; the leader flees at half HP…" onCommit={(tactics) => up({ tactics })} />
         <CommitField id="enc-notes" label="Notes" multiline rows={3} value={e.notes} placeholder="Why they are here, what they carry…" onCommit={(notes) => up({ notes })} />
       </div>
+
+      <div className="enc-meter" role="img" aria-label={`${d.totalXp} XP: ${RATING_LABELS[d.rating]}`}>
+        <div className="meter-bar">
+          <span className="meter-fill" style={{ width: pct(d.totalXp) }} />
+          {(['low', 'moderate', 'high'] as const).map((k) => (
+            <span key={k} className={`meter-mark${k === e.target ? ' is-target' : ''}`} style={{ left: pct(d.budgets[k]) }} title={`${k}: ${d.budgets[k]} XP`}>
+              <span>{k[0].toUpperCase() + k.slice(1)} {d.budgets[k]}</span>
+            </span>
+          ))}
+        </div>
+        <p className={`meter-text r-${d.rating}`}>
+          <strong>{d.totalXp} XP: {RATING_LABELS[d.rating]}.</strong>{' '}
+          {d.totalXp < targetBudget ? `${targetBudget - d.totalXp} XP left before ${e.target}.` : d.rating === e.target ? 'On target.' : `Over the ${e.target} budget by ${d.totalXp - targetBudget} XP.`}
+          {d.factor !== 1 && <span className="ink-muted"> Budgets adapted ×{d.factor} to your party.</span>}
+        </p>
+      </div>
+
+      <BattlePlanner encounterId={e.id} stamp={e} />
 
       {e.runs.length > 0 && (
         <>
