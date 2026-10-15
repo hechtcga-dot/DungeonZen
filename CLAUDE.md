@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.5.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.5.1 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -141,3 +141,4 @@ Owner's decisions: Session box shows one section at a time with left/right arrow
 ## 2.5.0 (built 2026-10-15)
 Encounters battle map sketch as a small square on the left (example map, ✦ Draw battle map), opens in the middle, ⇲ Minimize to the side; one ⧉ pop-out button everywhere (Session box left of its title, DM notes, Notes, prep); desk clock buttons wrap; Add a player character moved to the chest (Create from scratch / Import a character sheet…), party panel buttons gone; board Ctrl/Shift+click multi-select with a right-click menu changing all selected cards in one undo step. Details in `docs/STATE.md`.
 Defaults picked: sketch square shows the example map (not the encounter's sketch); big/small kept while the app runs; party-row + card on the mat kept.
+2.5.1 (2026-10-15): Encounters Pictures and maps under the battle map sketch when open in the middle; board New NPC button gone, Card column closes on a click outside, view bar on one row (View all cards, storylines with ‹ ›, + Storyline, Display); History sorts (Recently removed / A–Z / Type) and Delete for good (ticks, Ctrl/Shift+click, right-click, Clear all history; undoable, Change log stays; notes files to Recycle Bin) (owner chose undoable, Removed list only).
