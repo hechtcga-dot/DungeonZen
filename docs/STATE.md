@@ -713,3 +713,5 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
 - Next build (owner, 2026-10-15): Live › Where they are: every text (tips, place notes, secrets, Opening, pacing, prep
   scenes/secrets/threads, AI answers) links card names by themselves (`LinkedText` in `LinkField.tsx`, same auto links
   and own links as text boxes); click a name = card in the corner note (Open full sheet).
+- Next build (owner, 2026-10-15): Live › Today so far: smaller buttons, − / count / + per row; − takes today's newest
+  log row of that kind to History (`log:setStatus` defunct, undoable; `today.last`), works without a session.

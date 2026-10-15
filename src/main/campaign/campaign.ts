@@ -1715,7 +1715,13 @@ export class Campaign {
       session: open ? toSessionView(open) : null,
       sessions: sessions.map(toSessionView),
       log,
-      today: { fights, meetings: count('meeting'), quests: count('quest') },
+      today: {
+        fights, meetings: count('meeting'), quests: count('quest'),
+        last: Object.fromEntries((['fight', 'meeting', 'quest'] as const).flatMap((k) => {
+          const row = todayRows.filter((l) => l.kind === k).sort((a, b) => b.atMin - a.atMin || b.createdAt.localeCompare(a.createdAt))[0]
+          return row ? [[k, row.id]] : []
+        }))
+      },
       party,
       health: { hp, maxHp, percent },
       advisor: advise({

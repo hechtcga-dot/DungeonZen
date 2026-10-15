@@ -501,7 +501,8 @@ export interface LiveView {
   session: SessionView | null
   sessions: SessionView[]
   log: LogView[]
-  today: { fights: number; meetings: number; quests: number }
+  /** last: today's newest log row of each kind (− takes it to History). */
+  today: { fights: number; meetings: number; quests: number; last: Partial<Record<'fight' | 'meeting' | 'quest', string>> }
   party: PartyHealth[]
   health: { hp: number; maxHp: number; percent: number | null }
   advisor: AdvisorNote[]

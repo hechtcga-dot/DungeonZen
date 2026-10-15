@@ -111,6 +111,8 @@ function Live({ v }: { v: LiveView }) {
             {([['fight', 'Fights', v.today.fights], ['meeting', 'Meetings with NPCs', v.today.meetings], ['quest', 'Quests delivered', v.today.quests]] as const).map(([k, label, n]) => (
               <li key={k}>
                 <span>{label}</span>
+                <button className="tally-add" disabled={!v.today.last[k]} aria-label={`Take one off: ${label}`} title="Take the latest one off (to History)"
+                  onClick={() => { const id = v.today.last[k]; if (id) void act('log:setStatus', { id, status: 'defunct' }) }}>−</button>
                 <span className="tally-n mono">{n}</span>
                 <button className="tally-add" disabled={!s} aria-label={`Add one: ${label}`} title={s ? `Log one ${label.toLowerCase()}` : 'Start a session first'}
                   onClick={() => void act('log:add', { kind: k, text: '' })}>+</button>

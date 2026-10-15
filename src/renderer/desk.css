@@ -403,9 +403,9 @@ button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; color: 
 .hp-bar.big { height: 14px; }
 .hp-bar span { display: block; height: 100%; background: linear-gradient(90deg, #8f2a21, #c4433a); transition: width 0.4s ease; }
 .tally { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.tally li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; min-height: 48px; border-bottom: 1px dashed rgba(90, 74, 50, 0.45); }
-.tally-n { font-size: 22px; }
-.tally-add { min-width: 44px; padding: 0; font-size: 22px; color: var(--parchment-light); background: #2a1f12; border-color: #000; }
+.tally li { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 6px; min-height: 36px; border-bottom: 1px dashed rgba(90, 74, 50, 0.45); }
+.tally-n { font-size: 20px; min-width: 1.4em; text-align: center; }
+.desk-theme .tally-add, .tally-add { min-width: 26px; width: 26px; min-height: 26px; height: 26px; padding: 0; font-size: 16px; line-height: 1; color: var(--parchment-light); background: #2a1f12; border-color: #000; }
 .tally-add:hover:not(:disabled) { background: #3d2c18; }
 .dm-panel.advisor { color: var(--parchment-light); background: #1d140c; background-image: none; box-shadow: inset 0 0 0 1px #6b4a26, 0 2px 6px rgba(0, 0, 0, 0.5); }
 .dm-panel.advisor .panel-title { color: var(--parchment-light); display: flex; align-items: center; gap: 8px; }
