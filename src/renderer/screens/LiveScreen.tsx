@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useBoard } from '../store'
+import { EncounterBuilder } from '../components/EncounterBuilder'
 import { DeskFrame } from '../components/DeskFrame'
 import { Candle, D20 } from '../art/props'
 import { ClockDial } from '../art/sky'
@@ -21,7 +22,6 @@ const KIND_LABELS: Record<LogKind, string> = {
   note: 'Note', fight: 'Fight', meeting: 'Met', quest: 'Quest delivered', rest: 'Rest', travel: 'Travel'
 }
 const TIME_CHOICES: Array<[number, string]> = [[0, 'No time'], [10, '10 min'], [30, '30 min'], [60, '1 h'], [240, '4 h']]
-const CREATURE_TYPES = ['', 'aberration', 'beast', 'celestial', 'construct', 'dragon', 'elemental', 'fey', 'fiend', 'giant', 'humanoid', 'monstrosity', 'ooze', 'plant', 'undead']
 
 export function LiveScreen() {
   const live = useBoard((s) => s.live)
@@ -402,17 +402,12 @@ function AiSceneHelper({ current, onUse }: { current: string; onUse(text: string
   )
 }
 
-export function OnTheFly({ partySize, partyLevel }: { partySize: number; partyLevel: number }) {
+export function OnTheFly(_props: { partySize: number; partyLevel: number }) {
   const act = useBoard((s) => s.act)
   const [result, setResult] = useState<GeneratedView | null>(null)
-  const [difficulty, setDifficulty] = useState<'low' | 'moderate' | 'high'>('moderate')
-  const [ctype, setCtype] = useState('')
-  const roll = async (kind: 'character' | 'tavern' | 'encounter') => {
-    const r = kind === 'character' ? await act('generate:character', undefined)
-      : kind === 'tavern' ? await act('generate:tavern', undefined)
-        : await act('generate:encounter', { difficulty, creatureType: ctype || undefined })
-    if (r === null) useBoard.getState().say('No SRD monsters fit that budget and type. Try another type or difficulty.', true)
-    else if (r) setResult(r)
+  const roll = async (kind: 'character' | 'tavern') => {
+    const r = kind === 'character' ? await act('generate:character', undefined) : await act('generate:tavern', undefined)
+    if (r) setResult(r)
   }
   const keep = async (stash: boolean) => {
     if (!result) return
@@ -430,28 +425,7 @@ export function OnTheFly({ partySize, partyLevel }: { partySize: number; partyLe
           <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><circle cx="20" cy="13" r="8" fill="#e3cfa6" stroke="#2a1f12" /><path d="M6 38q0-14 14-14t14 14z" fill="#2f5d8a" stroke="#2a1f12" /></svg>
           <span><strong>Roll a character</strong><span>Name, species, job, attitude, a want and an SRD stat block</span></span>
         </button>
-        <div className="otf-card">
-          <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><polygon points="20,2 37,11 37,29 20,38 3,29 3,11" fill="#8f2a21" stroke="#3b0c08" /><text x="20" y="25" textAnchor="middle" fontSize="11" fill="#fbe7c6">20</text></svg>
-          <span>
-            <strong>Suggest an encounter</strong>
-            <span>For {partySize || 4} characters of level{' '}
-              <label htmlFor="otf-level" className="visually-hidden">Party level</label>
-              <input id="otf-level" className="tiny" type="number" min={1} max={20} value={partyLevel}
-                onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= 20) void act('party:setLevel', { level: n }) }} />
-            </span>
-            <span className="row tight wrap">
-              <label htmlFor="otf-diff" className="visually-hidden">Difficulty</label>
-              <select id="otf-diff" className="ink-select" value={difficulty} onChange={(e) => setDifficulty(e.target.value as typeof difficulty)}>
-                <option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option>
-              </select>
-              <label htmlFor="otf-type" className="visually-hidden">Creature type</label>
-              <select id="otf-type" className="ink-select" value={ctype} onChange={(e) => setCtype(e.target.value)}>
-                {CREATURE_TYPES.map((t) => <option key={t} value={t}>{t ? t[0].toUpperCase() + t.slice(1) : 'Any creature'}</option>)}
-              </select>
-              <button className="ink-button" onClick={() => void roll('encounter')}>Suggest</button>
-            </span>
-          </span>
-        </div>
+        <EncounterBuilder className="otf-card" onKept={(_id, name, stash) => useBoard.getState().say(stash ? `Saved for later: ${name} (Encounters and the Library).` : `Put on the board: ${name}. Fill it in under Encounters.`)} />
         <button className="otf-card" onClick={() => void roll('tavern')}>
           <svg viewBox="0 0 40 40" width="44" height="44" aria-hidden="true"><rect x="9" y="10" width="18" height="24" rx="3" fill="#c9893b" stroke="#2a1f12" /><path d="M27 15h4a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-4" fill="none" stroke="#2a1f12" strokeWidth="2" /><path d="M9 12q9-6 18 0" fill="#fffbea" stroke="#2a1f12" /></svg>
           <span><strong>Fill a tavern</strong><span>A named tavern, its keeper and patrons, a rumour</span></span>
@@ -470,7 +444,7 @@ export function OnTheFly({ partySize, partyLevel }: { partySize: number; partyLe
           <div className="row tight wrap">
             <button className="ink-button primary-ink" onClick={() => void keep(false)}>Put on the board</button>
             <button className="ink-button" onClick={() => void keep(true)}>Save for later</button>
-            <button className="ink-button" onClick={() => void roll(result.kind)}>Roll again</button>
+            <button className="ink-button" onClick={() => void roll(result.kind === 'tavern' ? 'tavern' : 'character')}>Roll again</button>
             <button className="ink-button" onClick={() => setResult(null)}>Dismiss</button>
           </div>
           <p className="ink-muted">Everything it makes is editable afterwards, like any other card.</p>

@@ -816,6 +816,8 @@ export interface EncounterView {
   sketch: import('./sketch').Sketch | null
   /** Draw window › Follow a picture: the map or picture and the boxed part, kept for this encounter. */
   follow: import('./battlemap').FollowSource | null
+  /** NPCs, items on the ground, checks and rewards (owner, 2026-10-15). */
+  story: import('./encounterStory').EncounterStory
   creatures: EncounterCreatureView[]
   /** The player characters: all take part unless the DM unticks them (budget and fight follow). */
   pcs: Array<{ id: string; name: string; level: number; hp: number; maxHp: number; in: boolean }>
@@ -835,6 +837,30 @@ export interface EncountersView {
   fighters: Array<EntityBrief & { cr: string }>
   places: EntityBrief[]
   battleMaps: Array<{ id: string; name: string }>
+  /** Secrets and clues of the campaign, for an encounter's rewards. */
+  secrets: Array<{ id: string; kind: 'secret' | 'clue'; label: string }>
+  /** Where the party is (the builder's default place). */
+  partyPlace: { id: string; name: string } | null
+}
+
+/**
+ * Build an encounter (Live and Encounters): a themed roll or an AI draft, not saved until the DM keeps it.
+ * groups are SRD monsters; include are the DM's own cards.
+ */
+export interface EncounterDraft {
+  name: string
+  scene: string
+  difficulty: 'low' | 'moderate' | 'high'
+  locationId: string | null
+  placeName: string
+  groups: Array<{ key: string; name: string; cr: string; count: number; xp: number; notes: string }>
+  include: Array<{ entityId: string; name: string; cr: string; count: number; xp: number }>
+  totalXp: number
+  budget: number
+  story: import('./encounterStory').EncounterStory | null
+  tactics: string
+  /** The AI service that wrote it; null for an offline roll. */
+  source: string | null
 }
 
 export interface Roll20Export {

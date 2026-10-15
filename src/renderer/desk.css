@@ -1686,3 +1686,51 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 /* The card behind linked words outside sheets with their own side panel. */
 .linked-card-note { position: fixed; right: 16px; bottom: 16px; z-index: 900; width: 300px; max-height: 40vh; overflow: auto; padding: 10px 12px; box-shadow: 0 6px 18px rgba(30, 18, 6, 0.4); }
 .linked-card-note p { margin: 6px 0 0; font-size: 13px; }
+
+/* Build an encounter (Live and Encounters) and the encounter story (owner, 2026-10-15). */
+.enc-list { position: relative; top: auto; }
+.enc-builder { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0; }
+.otf-card.enc-builder { flex-direction: column; align-items: stretch; }
+.enc-builder-card { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(42, 31, 18, 0.25); }
+.enc-builder-title { font-family: var(--display); font-weight: 400; font-size: 21px; }
+.enc-builder .field-label, .enc-story .field-label { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-muted); margin-top: 4px; }
+.enc-builder select, .enc-builder textarea, .enc-builder input:not(.tiny) { width: 100%; min-width: 0; }
+.enc-builder .row select { flex: 1; width: auto; }
+.enc-builder input.tiny { width: 56px; min-height: 30px; padding: 0 6px; }
+.eb-chip { --c: #6b4a8f; display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 9px; border: 1px solid var(--c); border-radius: 12px; color: var(--c); font-size: 12px; background: rgba(255, 250, 236, 0.7); max-width: 100%; }
+.eb-chip.t-monster { --c: #8f2a21; } .eb-chip.t-npc { --c: #2f5d8a; } .eb-chip.t-clue { --c: #6b5a3a; }
+.eb-chip input { width: 40px; min-height: 20px; padding: 0 3px; font-size: 12px; }
+.desk-theme .eb-chip button, .eb-chip button { min-height: 0; height: 18px; padding: 0 4px; border: 0; background: transparent; color: inherit; line-height: 1; }
+.eb-draft { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding: 10px; border: 2px dashed #8a7350; border-radius: 6px; }
+.eb-draft h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; }
+.eb-draft ul { margin: 0; padding-left: 18px; }
+.eb-draft p, .eb-story p { margin: 0; }
+.enc-bulk { margin: 0 0 6px; padding: 5px 8px; background: rgba(255, 250, 236, 0.55); border-radius: 4px; }
+.enc-cr { white-space: nowrap; }
+.desk-theme .enc-cr .ink-button.icon, .desk-theme .story-row .ink-button.icon, .desk-theme .story-tier .ink-button.icon, .desk-theme .enc-story .side-h .ink-button.icon, .desk-theme .story-check .ink-button.icon {
+  min-width: 24px; width: 24px; min-height: 24px; height: 24px; padding: 0; font-size: 12px; line-height: 1;
+}
+.enc-cr .mono { display: inline-block; min-width: 2.4em; text-align: center; }
+.enc-story { margin-top: 12px; padding-top: 8px; border-top: 1px dashed rgba(90, 74, 50, 0.45); }
+.enc-story .side-h { display: flex; align-items: center; gap: 8px; }
+.story-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.story-row .field { margin: 0; }
+.story-row .grow { flex: 1; min-width: 0; }
+.story-row .short { width: 64px; }
+.story-row .story-item, .story-row .story-name { width: 240px; flex: none; }
+.story-row select { max-width: 240px; }
+.story-check { padding: 8px; margin-bottom: 8px; border: 1px solid #c9b48a; border-radius: 4px; background: rgba(255, 250, 236, 0.5); }
+.story-tier { display: grid; grid-template-columns: 70px 1fr 24px; gap: 6px; align-items: start; margin-top: 5px; }
+.story-tier .field { margin: 0; }
+.enc-write { margin-top: 12px; padding: 10px 12px; border: 2px dashed #2f5d8a; border-radius: 6px; background: rgba(47, 93, 138, 0.06); }
+.enc-write .row input { flex: 1; min-width: 0; }
+.enc-write h4 { margin: 6px 0 2px; }
+.otf-grid { align-items: start; }
+.enc-builder .enc-builder-title { margin: 0; }
+.enc-builder .eb-draft strong, .enc-builder .eb-draft h3 + span { font-family: inherit; font-size: inherit; }
+.enc-builder .eb-draft strong { font-weight: 600; }
+.enc-builder .eb-draft h3 { font-size: 20px; }
+.enc-bulk label { display: inline-flex; align-items: center; gap: 4px; }
+.desk-theme .enc-bulk input[type='checkbox'], .desk-theme .enc-table input[type='checkbox'] { width: 18px; height: 18px; min-height: 0; padding: 0; margin: 0; }
+.story-check select { width: auto; min-width: 180px; }
+.enc-story .row.wrap > select { width: auto; flex: 1; min-width: 200px; }

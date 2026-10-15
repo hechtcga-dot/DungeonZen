@@ -12,7 +12,7 @@ import { checkConnection, generateImage, generateText, listModels, resolve } fro
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
 import { RECAP_SYSTEM, recapPrompt } from './ai/recap'
-import { BUILD_SYSTEM, buildPrompt, COMBAT_SYSTEM, combatPrompt, parseBuild, RATE_SYSTEM, ratePrompt } from './ai/encounter'
+import { BUILD_SYSTEM, buildPrompt, COMBAT_SYSTEM, combatPrompt, DRAFT_SYSTEM, draftPrompt, parseBuild, parseDraft, RATE_SYSTEM, ratePrompt, writePrompt, type DraftContext } from './ai/encounter'
 import { FILL_SYSTEM, fillPrompt, parseFill } from './ai/fill'
 import { BUILDING_SYSTEM, buildingPrompt, parseBuilding } from './ai/building'
 import { readBuilding } from '../shared/building'
@@ -41,8 +41,11 @@ import { aspectFor, timeOfDayFor } from '../shared/battlemap'
 import { blendMarks, changePrompt } from '../shared/outline'
 import { imageSize } from './imageSize'
 import { allSrdMonsters, searchSrd, srdCopy, srdMonsterIndex, SRD_SOURCE } from './srd'
-import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter } from './generators'
-import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcOutputs, type IpcResult } from '../shared/ipc'
+import { fillTavern, rollCharacter, rollNames, seededRng, suggestEncounter, suggestThemed } from './generators'
+import { landsFromWords } from './encounterThemes'
+import { encounterBudget, xpForCr } from '../shared/encounter'
+import type { EncounterDraft } from '../shared/types'
+import { ipcInputs, IPC_PREFIX, type ImportProgress, type IpcChannel, type IpcInput, type IpcOutputs, type IpcResult } from '../shared/ipc'
 import type { CampaignInfo } from '../shared/types'
 import { setCardWords } from './cardWords'
 import type { z } from 'zod'
@@ -1037,10 +1040,92 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('encounter:addSrd', ({ encounterId, groups }) => current().addSrdToEncounter(encounterId, groups, srdCopy))
   handle('encounter:creature', ({ rowId, patch }) => current().updateEncounterCreature(rowId, patch))
   handle('encounter:removeCreature', ({ encounterId, entityId }) => current().removeEncounterCreature(encounterId, entityId))
-  handle('encounter:suggest', ({ difficulty, creatureType }) => {
+  handle('encounter:suggest', ({ difficulty, creatureType, locationId }) => {
     const v = current().encountersView()
+    // No words: a themed group for the encounter's place (owner, 2026-10-15); words: the old random roll over what matches.
+    if (!creatureType?.trim()) {
+      const p = locationId ? current().placeLands(locationId) : { name: '', lands: [] }
+      const t = suggestThemed(Math.random, srdMonsterIndex(), v.party.level, v.party.size, difficulty, { lands: [...p.lands, ...landsFromWords(p.name)], budgetFactor: v.adaptation.factor })
+      if (t) return t
+    }
     return suggestEncounter(Math.random, srdMonsterIndex(), v.party.level, v.party.size, difficulty, creatureType, v.adaptation.factor)
   })
+  // ---- Build an encounter (Live and Encounters, owner 2026-10-15)
+  type Ask = IpcInput<'encounter:roll'>
+  const buildContext = (ask: Ask) => {
+    const c = current()
+    const v = c.encountersView()
+    const place = 'custom' in ask.place
+      ? { locationId: null, name: ask.place.custom, lands: landsFromWords(ask.place.custom) }
+      : (() => {
+          const id = ask.place.locationId ?? v.partyPlace?.id ?? null
+          if (!id) return { locationId: null, name: '', lands: [] as string[] }
+          const p = c.placeLands(id)
+          return { locationId: id, name: p.name, lands: [...p.lands, ...landsFromWords(p.name)] }
+        })()
+    const fighters = new Map(v.fighters.map((f) => [f.id, f]))
+    const include = ask.include.flatMap((i) => {
+      const f = fighters.get(i.entityId)
+      return f ? [{ entityId: f.id, name: f.name, cr: f.cr, count: i.count, xp: xpForCr(f.cr) * i.count }] : []
+    })
+    const budget = Math.round(encounterBudget(v.party.level, v.party.size, ask.difficulty) * v.adaptation.factor)
+    const ctx: DraftContext = {
+      party: v.party, place: place.name, lands: place.lands, secrets: v.secrets, houseRules: v.houseRules,
+      npcNames: v.fighters.filter((f) => f.type === 'NPC').map((f) => f.name)
+    }
+    return { c, v, place, include, budget, ctx }
+  }
+  handle('encounter:roll', (ask) => {
+    const { v, place, include, budget } = buildContext(ask)
+    const spent = include.reduce((n, i) => n + i.xp, 0)
+    const t = suggestThemed(Math.random, srdMonsterIndex(), v.party.level, v.party.size, ask.difficulty, {
+      lands: place.lands, creatureType: ask.creatureType || undefined, spentXp: spent, includeNames: include.map((i) => i.name), budgetFactor: v.adaptation.factor
+    })
+    if (!t && !include.length) return null
+    const groups = (t?.groups ?? []).map((g) => ({ ...g, notes: '' }))
+    const draft: EncounterDraft = {
+      name: `${t?.theme ?? include.map((i) => i.name).join(' and ')}${place.name ? ` at ${place.name}` : ''}`, scene: t?.scene ?? '',
+      difficulty: ask.difficulty, locationId: place.locationId, placeName: place.name, groups, include,
+      totalXp: spent + (t?.totalXp ?? 0), budget, story: null, tactics: '', source: null
+    }
+    return draft
+  })
+  handle('ai:draftEncounter', async (ask) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const { v, place, include, budget, ctx } = buildContext(ask)
+    const index = srdMonsterIndex()
+    const reply = await generateText(r, {
+      system: DRAFT_SYSTEM, json: true, maxTokens: 6000,
+      prompt: draftPrompt(ctx, { budget, difficulty: ask.difficulty, creatureType: ask.creatureType, include, description: ask.description }, index.map((m) => `${m.name} (${m.cr})`))
+    })
+    const p = parseDraft(reply, index, v.fighters.filter((f) => f.type === 'NPC'), v.secrets.map((s) => s.id))
+    const groups = p.creatures.map((g) => ({ ...g, xp: xpForCr(g.cr) * g.count }))
+    const draft: EncounterDraft = {
+      name: p.name || `Encounter${place.name ? ` at ${place.name}` : ''}`, scene: p.scene, difficulty: ask.difficulty, locationId: place.locationId, placeName: place.name,
+      groups, include, totalXp: groups.reduce((n, g) => n + g.xp, 0) + include.reduce((n, i) => n + i.xp, 0), budget,
+      story: p.story, tactics: p.tactics, source: `${r.info.name} · ${r.model || 'default model'}`
+    }
+    return draft
+  })
+  handle('ai:writeEncounter', async ({ encounterId, ask }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const c = current()
+    const v = c.encountersView()
+    const e = v.encounters.find((x) => x.id === encounterId) ?? c.encounterView(encounterId)
+    const p = e.locationId ? c.placeLands(e.locationId) : { name: '', lands: [] }
+    const ctx: DraftContext = {
+      party: v.party, place: p.name, lands: [...p.lands, ...landsFromWords(p.name)], secrets: v.secrets, houseRules: v.houseRules,
+      npcNames: v.fighters.filter((f) => f.type === 'NPC').map((f) => f.name)
+    }
+    const reply = await generateText(r, { system: DRAFT_SYSTEM, prompt: writePrompt(ctx, e, ask), json: true, maxTokens: 5000 })
+    const d = parseDraft(reply, [], v.fighters.filter((f) => f.type === 'NPC'), v.secrets.map((s) => s.id))
+    return { name: d.name, scene: d.scene, story: d.story, source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
+  handle('encounter:keepDraft', ({ draft, stash }) => current().keepEncounterDraft(draft, stash, srdCopy))
+  handle('encounter:storyCard', ({ encounterId, kind, rowId }) => current().encounterStoryCard(encounterId, kind, rowId))
+  handle('encounter:adjustCr', ({ encounterId, entityIds, step }) => current().adjustEncounterCr(encounterId, entityIds, step))
   handle('encounter:run', ({ encounterId }) => current().runEncounter(encounterId))
   handle('encounter:houseRules', ({ text }) => current().setSetting('house_rules', text, 'Edited the house rules'))
   handle('ai:rateEncounter', async ({ encounterId }) => {

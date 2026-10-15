@@ -3,6 +3,7 @@
 // until the DM puts the result on the board or saves it for later (rule 2).
 // Names and details are made up for play.
 
+import { THEMES } from './encounterThemes'
 import type { SrdMonsterIndexEntry } from './srd'
 import { DIFFICULTIES, encounterBudget, xpForCr, type Difficulty } from '../shared/encounter'
 
@@ -164,4 +165,51 @@ export function suggestEncounter(
   const creatureType = [...new Set(groups.map((g) => monsters.find((m) => m.key === g.key)?.creatureType ?? ''))].filter(Boolean).join(', ')
   const summary = groups.map((g) => `${g.count} × ${g.name}`).join(', ') + ` · ${difficulty} · ${totalXp} of ${budget} XP`
   return { difficulty, budget, totalXp, creatureType, groups, summary }
+}
+
+export interface ThemedEncounter extends GeneratedEncounter { theme: string; scene: string }
+
+/**
+ * A themed roll (owner, 2026-10-15): one creature family from THEMES for the land of the place (or the
+ * cards the DM included), a leader costing at most 60 % of what is left, then troops of that family until
+ * the budget is spent. `spentXp` is what included cards already cost. Null when no theme fits.
+ */
+export function suggestThemed(
+  rng: Rng, monsters: SrdMonsterIndexEntry[], partyLevel: number, partySize: number, difficulty: Difficulty,
+  opts: { lands: string[]; creatureType?: string; spentXp?: number; includeNames?: string[]; budgetFactor?: number }
+): ThemedEncounter | null {
+  const budget = Math.round(encounterBudget(partyLevel, partySize, difficulty) * (opts.budgetFactor ?? 1))
+  let left = budget - (opts.spentXp ?? 0)
+  const byName = new Map(monsters.map((m) => [m.name, m]))
+  const found = (names: string[]) => names.map((n) => byName.get(n)).filter((m): m is SrdMonsterIndexEntry => !!m && xpForCr(m.cr) > 0)
+  let themes = THEMES.filter((t) => found(t.troops).some((m) => xpForCr(m.cr) <= left))
+  if (opts.creatureType) themes = themes.filter((t) => found([...t.leaders, ...t.troops]).some((m) => m.creatureType === opts.creatureType))
+  const words = new Set((opts.includeNames ?? []).flatMap((n) => n.toLowerCase().split(/[^a-z]+/)).filter((w) => w.length > 2))
+  const byInclude = themes.filter((t) => [...t.leaders, ...t.troops].some((n) => n.toLowerCase().split(/[^a-z]+/).some((w) => words.has(w))))
+  const byLand = themes.filter((t) => t.lands.some((l) => opts.lands.includes(l)))
+  const pool = byInclude.length ? byInclude : byLand.length ? byLand : themes
+  if (!pool.length) return null
+  const theme = pick(rng, pool)
+  const groups: EncounterGroup[] = []
+  let count = 0
+  const add = (m: SrdMonsterIndexEntry) => {
+    const xp = xpForCr(m.cr)
+    const g = groups.find((x) => x.key === m.key)
+    if (g) { g.count++; g.xp += xp } else groups.push({ key: m.key, name: m.name, cr: m.cr, count: 1, xp })
+    left -= xp; count++
+  }
+  const leader = found(theme.leaders).filter((m) => xpForCr(m.cr) <= left * 0.6).sort((a, b) => xpForCr(b.cr) - xpForCr(a.cr))[0]
+  if (leader) add(leader)
+  const troops = found(theme.troops).filter((m) => !leader || m.key !== leader.key || theme.troops.length === 1)
+  for (;;) {
+    const fits = troops.filter((m) => xpForCr(m.cr) <= left)
+    if (!fits.length || count >= MAX_ROLLED) break
+    add(pick(rng, fits))
+  }
+  if (!groups.length) return null
+  groups.sort((x, y) => y.xp / y.count - x.xp / x.count)
+  const totalXp = groups.reduce((n, g) => n + g.xp, 0)
+  const creatureType = [...new Set(groups.map((g) => byName.get(g.name)?.creatureType ?? ''))].filter(Boolean).join(', ')
+  const summary = groups.map((g) => `${g.count} × ${g.name}`).join(', ') + ` · ${difficulty} · ${totalXp + (opts.spentXp ?? 0)} of ${budget} XP`
+  return { difficulty, budget, totalXp, creatureType, groups, summary, theme: theme.name, scene: theme.scene }
 }

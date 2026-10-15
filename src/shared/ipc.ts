@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { Outline } from './outline'
 import { StatBlock } from './statblock'
+import { EncounterStory } from './encounterStory'
 import type { SrdAttacks } from './attacks'
 import type { BattlePlan } from './battleplan'
 import { CombatState } from './combat'
@@ -78,6 +79,18 @@ const GenPerson = z.object({
   name: Name, species: Short, occupation: Short, attitude: Short.min(1), quirk: Short, wants: Short, statblockName: Short, summary: Short
 })
 const GenTavern = z.object({ name: Name, keeper: GenPerson, patrons: z.array(GenPerson).max(20), rumour: Short, dish: Short, summary: Short })
+const BuildAsk = z.object({
+  difficulty: z.enum(['low', 'moderate', 'high']), creatureType: z.string().max(40).optional(),
+  // null = where the party is; custom = a place the DM typed ("open field").
+  place: z.union([z.object({ locationId: z.string().max(64).nullable() }), z.object({ custom: z.string().trim().min(1).max(200) })]),
+  include: z.array(z.object({ entityId: z.string().max(64), count: z.number().int().min(1).max(100) })).max(20)
+})
+const DraftInput = z.object({
+  name: Name, scene: z.string().max(5000), difficulty: z.enum(['low', 'moderate', 'high']), locationId: z.string().max(64).nullable(), placeName: z.string().max(200),
+  groups: z.array(z.object({ key: z.string().min(1).max(200), name: Short, cr: z.string().max(10), count: z.number().int().min(1).max(100), xp: z.number(), notes: z.string().max(1000) })).max(50),
+  include: z.array(z.object({ entityId: z.string().max(64), name: z.string().max(200), cr: z.string().max(10), count: z.number().int().min(1).max(100), xp: z.number() })).max(20),
+  totalXp: z.number(), budget: z.number(), story: EncounterStory.nullable(), tactics: z.string().max(3000), source: z.string().max(200).nullable()
+})
 const GenEncounter = z.object({
   summary: Short,
   groups: z.array(z.object({ key: z.string().min(1).max(200), name: Short, count: z.number().int().min(1).max(100) })).min(1).max(50)
@@ -311,9 +324,15 @@ export const ipcInputs = {
     patch: z.object({
       name: Name, locationId: Id.nullable(), target: z.enum(['low', 'moderate', 'high']), tactics: z.string().max(5000),
       notes: z.string().max(5000), scene: z.string().max(5000), battleMapId: Id.nullable(), pcsOut: z.array(Id).max(100), sketch: SketchInput.nullable(),
-      follow: FollowInput.nullable()
+      follow: FollowInput.nullable(), story: EncounterStory
     }).partial()
   }),
+  'encounter:storyCard': z.object({ encounterId: Id, kind: z.enum(['npc', 'item']), rowId: z.string().min(1).max(64) }),
+  'encounter:adjustCr': z.object({ encounterId: Id, entityIds: z.array(Id).min(1).max(50), step: z.union([z.literal(1), z.literal(-1)]) }),
+  'encounter:roll': BuildAsk,
+  'ai:draftEncounter': BuildAsk.extend({ description: z.string().max(4000) }),
+  'ai:writeEncounter': z.object({ encounterId: Id, ask: z.string().max(2000) }),
+  'encounter:keepDraft': z.object({ draft: DraftInput, stash: z.boolean() }),
   'encounter:pictures': z.object({ id: Id }),
   'encounter:plan': z.object({ id: Id }),
   'encounter:addPictures': z.object({ id: Id }),
@@ -325,7 +344,7 @@ export const ipcInputs = {
   'encounter:addSrd': z.object({ encounterId: Id, groups: z.array(z.object({ key: z.string().min(1).max(200), count: z.number().int().min(1).max(100) })).min(1).max(50) }),
   'encounter:creature': z.object({ rowId: Id, patch: z.object({ count: z.number().int().min(0).max(100), notes: z.string().max(1000) }).partial() }),
   'encounter:removeCreature': z.object({ encounterId: Id, entityId: Id }),
-  'encounter:suggest': z.object({ difficulty: z.enum(['low', 'moderate', 'high']), creatureType: z.string().max(40).optional() }),
+  'encounter:suggest': z.object({ difficulty: z.enum(['low', 'moderate', 'high']), creatureType: z.string().max(40).optional(), locationId: Id.nullable().optional() }),
   'encounter:run': z.object({ encounterId: Id }),
   'ai:buildEncounter': z.object({ encounterId: Id, ask: z.string().max(2000) }),
   'encounter:addProposals': z.object({
@@ -663,6 +682,12 @@ export interface IpcOutputs {
   'encounters:view': EncountersView
   'encounter:create': string
   'encounter:update': void
+  'encounter:storyCard': string
+  'encounter:adjustCr': void
+  'encounter:roll': import('./types').EncounterDraft | null
+  'ai:draftEncounter': import('./types').EncounterDraft
+  'ai:writeEncounter': { name: string; scene: string; story: import('./encounterStory').EncounterStory; source: string }
+  'encounter:keepDraft': string
   'ai:buildEncounter': { creatures: BuiltCreature[]; tactics: string; source: string }
   'encounter:addProposals': void
   'combat:start': string

@@ -36,7 +36,8 @@ import { advise } from '../advisor'
 import type { SceneContext } from '../ai/scene'
 import { moonOn, skyAt } from '../../shared/sky'
 import { centroid, estimateTravel, regionAt, regionOnBoard, type Point } from '../../shared/geometry'
-import { scaleToCr } from '../../shared/crscale'
+import { CR_STEPS, crStep, scaleToCr } from '../../shared/crscale'
+import { readStory, type EncounterStory } from '../../shared/encounterStory'
 import { boostsAllies, CombatState, DAMAGE_TYPES, isLeaderName, legendaryCount, limitedUses, newCombatant, slotsFromText, type Combatant, type CombatantInfo } from '../../shared/combat'
 import { readFollow, rowsFor, type FollowSource } from '../../shared/battlemap'
 import { isBiome, isPlaceKind, type Biome, type PlaceKind } from '../../shared/places'
@@ -2923,7 +2924,9 @@ export class Campaign {
       houseRules: String(this.setting('house_rules') ?? ''),
       fighters: live.filter((e) => e.type === 'MONSTER' || e.type === 'NPC').sort((a, b) => a.name.localeCompare(b.name)).map((e) => ({ ...brief(e), cr: cr(e) })),
       places: live.filter((e) => e.type === 'LOCATION').sort((a, b) => a.name.localeCompare(b.name)).map(brief),
-      battleMaps: this.maps().filter((m) => m.kind === 'battle').map((m) => ({ id: m.id, name: m.name }))
+      battleMaps: this.maps().filter((m) => m.kind === 'battle').map((m) => ({ id: m.id, name: m.name })),
+      secrets: this.secretViews().flatMap((s) => (s.kind === 'connection' ? [] : [{ id: s.id, kind: s.kind, label: s.label || s.text }])),
+      partyPlace: this.partyPlace()
     }
   }
 
@@ -2966,6 +2969,7 @@ export class Campaign {
       battleMapId: typeof a.battle_map_id === 'string' ? a.battle_map_id : null,
       sketch: readSketch(a.sketch),
       follow: readFollow(a.follow),
+      story: readStory(a.story),
       creatures, pcs, difficulty: rateEncounter(creatures, pcs.length ? (levels.length ? levels : [p.level]) : p.level, p.size, p.factor), runs
     }
   }
@@ -2982,7 +2986,7 @@ export class Campaign {
     return id
   }
 
-  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[]; sketch?: Sketch | null; follow?: FollowSource | null }): void {
+  updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[]; sketch?: Sketch | null; follow?: FollowSource | null; story?: EncounterStory }): void {
     const e = this.entityRow(id)
     this.log.run(`Edited encounter ${patch.name ?? e.name}`, (w) => {
       const attrs: Record<string, unknown> = { encounter: true }
@@ -2994,6 +2998,7 @@ export class Campaign {
       if (patch.pcsOut !== undefined) attrs.pcs_out = patch.pcsOut
       if (patch.sketch !== undefined) attrs.sketch = patch.sketch
       if (patch.follow !== undefined) attrs.follow = patch.follow
+      if (patch.story !== undefined) attrs.story = patch.story
       w.update('entity', id, { name: patch.name, attributes: { ...e.attributes, ...attrs } })
       if (patch.locationId !== undefined) {
         for (const r of this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).all()) {
@@ -3171,6 +3176,121 @@ export class Campaign {
       if (tactics && !String(e.attributes.tactics ?? '').trim()) w.update('entity', encounterId, { attributes: { ...e.attributes, tactics } })
       this.syncFight(w, encounterId)
     })
+  }
+
+  /** Where the party is now, if they are placed on a map. */
+  partyPlace(): { id: string; name: string } | null {
+    try {
+      const p = this.liveWhere().place
+      return p ? { id: p.locationId, name: p.name } : null
+    } catch { return null }
+  }
+
+  /** A Location card's name and its land for themed rolls: its biome, or settlement / dungeon / water by kind. */
+  placeLands(locationId: string): { name: string; lands: string[] } {
+    const e = this.entityRow(locationId)
+    const kind = e.attributes.place_kind
+    const lands = [
+      ...(isBiome(e.attributes.biome) ? [e.attributes.biome] : []),
+      ...(kind === 'village' || kind === 'town' || kind === 'city' ? ['settlement'] : kind === 'dungeon' ? ['dungeon'] : kind === 'sea' ? ['water'] : [])
+    ]
+    return { name: e.name, lands }
+  }
+
+  /**
+   * Raise or lower the challenge rating of creatures in an encounter one step (owner, 2026-10-15): each becomes
+   * an adjusted copy that lives only in this encounter ("Goblin Boss (CR 2)"); a copy already made for it is
+   * changed in place. The original card stays as it is. One undo step.
+   */
+  adjustEncounterCr(encounterId: string, entityIds: string[], step: 1 | -1): void {
+    const e = this.entityRow(encounterId)
+    this.log.run(`${step > 0 ? 'Raised' : 'Lowered'} the challenge rating in ${e.name}`, (w) => {
+      this.adoptLegacyCreatures(w, encounterId)
+      const rows = this.db.select().from(encounterCreature).where(and(eq(encounterCreature.encounterId, encounterId), eq(encounterCreature.status, 'active'))).all()
+      for (const id of entityIds) {
+        const row = rows.find((r) => r.entityId === id)
+        const c = this.entityRow(id)
+        const sb = readStatBlock(c.attributes.statblock)
+        const i = sb ? crStep(sb.cr) : null
+        const to = i == null ? undefined : CR_STEPS[i + step]
+        if (!row || !sb || !to) continue
+        const abilities = this.db.select().from(ability).where(and(eq(ability.entityId, id), eq(ability.status, 'active'))).all().sort((a, b) => a.sort - b.sort)
+        const r = scaleToCr(sb, abilities, to)
+        const base = typeof c.attributes.adjusted_from_name === 'string' ? c.attributes.adjusted_from_name : c.name
+        const name = `${base} (CR ${to})`
+        if (c.attributes.adjusted_for === encounterId) {
+          w.update('entity', id, { name, attributes: { ...c.attributes, statblock: r.statblock } })
+          for (const a of r.abilities) {
+            const old = abilities.find((x) => x.id === a.id)!
+            if (old.description !== a.description || old.macroText !== a.macroText) w.update('ability', a.id, { description: a.description, macroText: a.macroText })
+          }
+        } else {
+          const { source: _source, ...rest } = c.attributes as Record<string, unknown>
+          const copyId = this.insertEntity(w, {
+            boardId: this.globalBoard().id, type: c.type as EntityType, name, position: this.freeGlobalSpot(), status: 'stashed', tags: c.tags,
+            attributes: { ...rest, statblock: r.statblock, adjusted_for: encounterId, adjusted_from_name: c.name },
+            abilities: abilities.map((a, k) => ({ name: a.name, kind: a.kind as AbilityKind, description: r.abilities[k].description, macroText: r.abilities[k].macroText, showTokenAction: a.showTokenAction, showMacroBar: a.showMacroBar }))
+          })
+          w.update('encounter_creature', row.id, { entityId: copyId })
+        }
+      }
+      this.syncFight(w, encounterId)
+    })
+  }
+
+  /** An NPC or item line of an encounter's story made into a card (items go on the board). One undo step; returns the card. */
+  encounterStoryCard(encounterId: string, kind: 'npc' | 'item', rowId: string): string {
+    const e = this.entityRow(encounterId)
+    const story = readStory(e.attributes.story)
+    const row = kind === 'npc' ? story.npcs.find((x) => x.id === rowId) : story.items.find((x) => x.id === rowId)
+    if (!row) throw new Error('That line is no longer in the encounter')
+    if (row.entityId) return row.entityId
+    const n = 'count' in row ? Number(row.count) : 1
+    const count = n > 1 ? `${n} × ` : ''
+    let id = ''
+    this.log.run(`Made a card for ${row.name} (${e.name})`, (w) => {
+      id = this.insertEntity(w, {
+        boardId: this.globalBoard().id, type: kind === 'npc' ? 'NPC' : 'ITEM', name: row.name || (kind === 'npc' ? 'Someone' : 'Something'), position: this.freeGlobalSpot(),
+        attributes: { summary: `${count}${row.notes}`.trim() || `From the encounter ${e.name}` }
+      })
+      const next = kind === 'npc'
+        ? { ...story, npcs: story.npcs.map((x) => (x.id === rowId ? { ...x, entityId: id } : x)) }
+        : { ...story, items: story.items.map((x) => (x.id === rowId ? { ...x, entityId: id } : x)) }
+      w.update('entity', encounterId, { attributes: { ...e.attributes, story: next } })
+    })
+    return id
+  }
+
+  /**
+   * Keeps a built encounter (themed roll or AI draft): the encounter card with its place, scene, story and
+   * tactics; SRD monsters (the card already copied, or a new copy) and the DM's included cards in it.
+   * Put on the board = active cards; Save for later = stashed. One undo step; returns the encounter.
+   */
+  keepEncounterDraft(d: { name: string; scene: string; difficulty: 'low' | 'moderate' | 'high'; locationId: string | null; groups: Array<{ key: string; count: number; notes: string }>; include: Array<{ entityId: string; count: number }>; story: EncounterStory | null; tactics: string }, stash: boolean, copy: (key: string) => SrdCopy): string {
+    const cards = this.db.select().from(entity).all().filter((x) => x.status !== 'defunct')
+    const status: EntityStatus = stash ? 'stashed' : 'active'
+    let id = ''
+    this.log.run(`${stash ? 'Saved for later' : 'Put on the board'}: ${d.name}`, (w) => {
+      id = this.insertEntity(w, {
+        boardId: this.globalBoard().id, type: 'SCENE', name: d.name, position: this.freeGlobalSpot(), status,
+        attributes: { encounter: true, target: d.difficulty, tactics: d.tactics, summary: '', scene: d.scene, ...(d.story ? { story: d.story } : {}), generated: true }
+      })
+      if (d.locationId && cards.some((x) => x.id === d.locationId)) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: d.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
+      for (const g of d.groups) {
+        let cid = cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === g.key)?.id
+        if (!cid) {
+          const c = copy(g.key)
+          cid = this.insertEntity(w, { boardId: this.globalBoard().id, type: c.type, name: c.name, position: this.freeGlobalSpot(), status, attributes: c.attributes, abilities: c.abilities })
+        }
+        this.putCreature(w, id, cid, g.count)
+        if (g.notes) {
+          const row = this.db.select().from(encounterCreature).where(and(eq(encounterCreature.encounterId, id), eq(encounterCreature.entityId, cid), eq(encounterCreature.status, 'active'))).get()
+          if (row) w.update('encounter_creature', row.id, { notes: g.notes })
+        }
+      }
+      for (const inc of d.include) if (cards.some((x) => x.id === inc.entityId)) this.putCreature(w, id, inc.entityId, inc.count)
+    })
+    return id
   }
 
   // ---- run encounter (combat tracker)

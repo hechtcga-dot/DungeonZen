@@ -21,6 +21,8 @@ import { BattlePlanner } from '../components/BattlePlanner'
 import { SketchPad } from '../components/SketchPad'
 import { BATTLE_TOOLS } from '../../shared/sketch'
 import { ExampleBattleMap } from '../art/battlemap'
+import { EncounterBuilder } from '../components/EncounterBuilder'
+import { EncounterStoryEditor } from '../components/EncounterStory'
 
 // Battle map sketch: a small square on the left until the DM opens it in the middle; kept while the app runs.
 let sketchBigKept = false
@@ -77,15 +79,8 @@ export function EncountersScreen() {
                   </div>
                 ))
               )}
-              {current && !sketchBig && (
-                <div className="enc-mini-map">
-                  <h3 className="side-h">Battle map sketch</h3>
-                  <button className="enc-mini-thumb" title="Open the battle map sketch in the middle" onClick={() => setSketchBig(true)}>
-                    <ExampleBattleMap />
-                  </button>
-                  <button className="ink-button primary-ink" onClick={() => setSketchBig(true)}>✦ Draw battle map</button>
-                </div>
-              )}
+              <EncounterBuilder className="enc-builder-card" onKept={(id) => openEncounter(id)} />
+              {current && <BattleMapBox e={current} onSketch={() => setSketchBig(true)} />}
             </nav>
             {current ? <Editor key={current.id} e={current} v={v} sketchBig={sketchBig} onSketchSmall={() => setSketchBig(false)} /> : <div className="parchment-sheet enc-editor"><p className="ink-muted">Choose or plan an encounter.</p></div>}
             <PartyPanel v={v} grip={side.grip} />
@@ -93,6 +88,25 @@ export function EncountersScreen() {
         )}
       </main>
     </DeskFrame>
+  )
+}
+
+/** Encounters › left: the battle map of the open encounter: import one, sketch one here (in the middle), or generate one. */
+function BattleMapBox({ e, onSketch }: { e: EncounterView; onSketch(): void }) {
+  const { act, say, setBattleMapOpen } = useBoard()
+  const up = (patch: Parameters<typeof call<'encounter:update'>>[1]['patch']) => void act('encounter:update', { id: e.id, patch })
+  return (
+    <div className="enc-mini-map">
+      <h3 className="side-h">Battle map</h3>
+      <button className="enc-mini-thumb" title="Sketch the map in the middle" onClick={onSketch}><ExampleBattleMap /></button>
+      <button className="ink-button" title="Use a battle map picture you already have" onClick={async () => {
+        const m = await act('battlemap:importDialog', { cols: 20 })
+        if (m) { up({ battleMapId: m.id }); say(`Imported ${m.name} with a 20-square grid (change it on the Map under Scale and grid).`) }
+      }}>Import battle map</button>
+      <button className="ink-button" title="Draw the layout square by square in the middle; ⇲ puts it back here" onClick={onSketch}>Sketch a map here</button>
+      <button className="ink-button primary-ink" title="The map service draws it from the scene (and your sketch)"
+        onClick={() => setBattleMapOpen({ name: `${e.name} battle map`, description: e.scene, sketch: e.sketch, follow: e.follow, onFollow: (follow) => up({ follow }), onKept: (mapId) => up({ battleMapId: mapId }) })}>✦ Generate a map</button>
+    </div>
   )
 }
 
@@ -108,6 +122,9 @@ function groupByPlace(v: EncountersView): Array<[string, EncounterView[]]> {
 function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: EncountersView; sketchBig: boolean; onSketchSmall(): void }) {
   const { act, openSheet, openCombat, say, setBattleMapOpen, setAiSettingsOpen } = useBoard()
   const up = (patch: Parameters<typeof call<'encounter:update'>>[1]['patch']) => void act('encounter:update', { id: e.id, patch })
+  const [ticked, setTicked] = useState<Set<string>>(new Set())
+  const sel = e.creatures.filter((c) => ticked.has(c.entityId)).map((c) => c.entityId)
+  const crStepAll = (ids: string[], step: 1 | -1) => { if (ids.length) void act('encounter:adjustCr', { encounterId: e.id, entityIds: ids, step }).then(() => setTicked(new Set())) }
   const [pick, setPick] = useState('')
   const [pickCount, setPickCount] = useState(1)
   const [rating, setRating] = useState<AiSuggestion | null>(null)
@@ -201,17 +218,28 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
       <BattlePlanner encounterId={e.id} stamp={e} />
 
       <h3 className="side-h">Who fights</h3>
-      {e.creatures.length === 0 ? <p className="ink-muted">Nobody yet. Add cards, SRD monsters or a suggestion below.</p> : (
+      {e.creatures.length === 0 ? <p className="ink-muted">Nobody yet. Add cards, SRD monsters or a suggestion below.</p> : (<>
+        <div className="row tight wrap enc-bulk">
+          <label><input type="checkbox" checked={sel.length === e.creatures.length} onChange={(ev) => setTicked(new Set(ev.target.checked ? e.creatures.map((c) => c.entityId) : []))} /> All</label>
+          <span className="ink-muted">{sel.length} selected</span>
+          <span>CR of selected</span>
+          <button className="ink-button" disabled={!sel.length} onClick={() => crStepAll(sel, -1)}>▼ lower</button>
+          <button className="ink-button" disabled={!sel.length} onClick={() => crStepAll(sel, 1)}>▲ raise</button>
+          <span className="ink-muted">one step a click; a copy for this encounter only (the card stays as it is)</span>
+        </div>
         <table className="enc-table">
-          <thead><tr><th>Creature</th><th>CR</th><th>XP each</th><th>How many</th><th>XP</th><th>Notes</th><th /></tr></thead>
+          <thead><tr><th /><th>Creature</th><th>CR</th><th>XP each</th><th>How many</th><th>XP</th><th>Notes</th><th /></tr></thead>
           <tbody>
             {e.creatures.map((c) => (
               <tr key={c.entityId}>
+                <td><input type="checkbox" aria-label={`Select ${c.name}`} checked={ticked.has(c.entityId)} onChange={() => setTicked((t) => { const n = new Set(t); if (n.has(c.entityId)) n.delete(c.entityId); else n.add(c.entityId); return n })} /></td>
                 <td><button className="ledger-name" onClick={() => void openSheet(c.entityId)}>{c.name}</button>
                   {c.aiMade && <span className="ai-badge enc-ai">AI</span>}
                   {c.statLine && <div className="ink-muted enc-stat">{c.statLine}</div>}
                   {c.stashed && <div className="enc-stash"><span className="ink-muted">Only in this encounter.</span> <button className="link-button" onClick={() => void act('entity:setStatus', { id: c.entityId, status: 'active' })}>Put on board</button></div>}</td>
-                <td>{c.cr || '—'}</td>
+                <td className="enc-cr">{c.cr ? <><button className="ink-button icon" aria-label={`Lower the CR of ${c.name}`} title="Lower the CR one step (a copy for this encounter)" disabled={c.cr === '0'} onClick={() => crStepAll([c.entityId], -1)}>▼</button>
+                  <span className="mono">{c.cr}</span>
+                  <button className="ink-button icon" aria-label={`Raise the CR of ${c.name}`} title="Raise the CR one step (a copy for this encounter)" disabled={c.cr === '30'} onClick={() => crStepAll([c.entityId], 1)}>▲</button></> : '—'}</td>
                 <td>{c.xpEach || '—'}</td>
                 <td>
                   <div className="row tight count">
@@ -230,8 +258,9 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
             ))}
           </tbody>
         </table>
-      )}
+      </>)}
 
+      <h3 className="side-h">Add monsters</h3>
       <div className="enc-add">
         <div className="field">
           <label htmlFor="enc-pick">Add a card</label>
@@ -248,6 +277,8 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         <Suggest e={e} />
       </div>
       <BuildWithAi e={e} />
+
+      <EncounterStoryEditor e={e} v={v} />
 
       <div className="prep-row-fields two">
         <CommitField id="enc-tactics" label="Tactics" multiline rows={3} value={e.tactics} placeholder="Archers stay on the ledge; the leader flees at half HP…" onCommit={(tactics) => up({ tactics })} />
@@ -400,16 +431,16 @@ function Suggest({ e }: { e: EncounterView }) {
   const act = useBoard((s) => s.act)
   const [type, setType] = useState('')
   const [s, setS] = useState<Suggestion | null | undefined>(undefined)
-  const roll = async () => setS(await call('encounter:suggest', { difficulty: e.target, creatureType: type || undefined }).catch(() => null))
+  const roll = async () => setS(await call('encounter:suggest', { difficulty: e.target, creatureType: type || undefined, locationId: e.locationId }).catch(() => null))
   return (
     <div className="field">
       <label htmlFor="enc-type">Suggest from the SRD for {e.target}</label>
       <div className="row tight">
-        <input id="enc-type" value={type} placeholder="Anything: undead, swim, fire, goblin… (empty = whole SRD)"
+        <input id="enc-type" value={type} placeholder={`Anything: undead, swim, fire, goblin… (empty = a themed group${e.locationName ? ` for ${e.locationName}` : ''})`}
           onChange={(ev) => setType(ev.target.value)} onKeyDown={(ev) => { if (ev.key === 'Enter') void roll() }} />
         <button className="ink-button" onClick={() => void roll()}>{s ? 'Again' : 'Suggest'}</button>
       </div>
-      <span className="hint">A random roll from every SRD monster that fits the XP budget; words pick monsters whose stat block mentions them. The budget comes from the party's level and size.</span>
+      <span className="hint">Empty: one creature family with a leader that lives at the encounter's place. Words: a random roll over monsters whose stat block mentions them. The budget comes from the party's level and size.</span>
       {s === null && <span className="hint">No SRD monsters fit that budget.</span>}
       {s && s.note && <span className="hint">{s.note}</span>}
       {s && !s.note && (

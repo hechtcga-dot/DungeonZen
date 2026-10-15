@@ -719,3 +719,22 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   Save for later (`generate:keep` and `encounter:addSrd` groups now up to 50).
 - Fix (owner, 2026-10-15): Live generator cards (Roll a character, Fill a tavern, Draw a battle map) on hover keep their
   solid parchment and get a deeper shadow (the general desk button hover made them see-through).
+- Next build (owner, 2026-10-15): encounter builder.
+  - Suggest an encounter (Live › On the fly, and Encounters left column under Planned; `EncounterBuilder.tsx`): Where
+    (party location first, "(party location)"; every place; Custom location… typed), difficulty, creature type, Include
+    these cards (NPC/monster cards with counts), What happens here (for the AI). Suggest = offline themed roll
+    (`encounter:roll`, `suggestThemed` in generators.ts, themes in `src/main/encounterThemes.ts`: one family, a leader
+    ≤60 % of what is left, troops; land from the place's biome/kind or typed words, included cards pick the theme).
+    ✦ Build with AI (`ai:draftEncounter`): SRD creatures + scene + story, AI suggestion. Put on the board / Save for later
+    = `encounter:keepDraft` (encounter card with place, scene, story, tactics; creatures as rows; one undo step).
+  - Encounter story (`attributes.story`, `src/shared/encounterStory.ts`): NPCs (card or one-time, Make a card), Items on
+    the ground (things inside things, + inside, right-click Put on the board = Item card, the line stays), Checks (skill
+    drop-down, Perception default, DC rows), Rewards (gold, items, secrets/clues from the campaign). ✦ Write it up with AI
+    (`ai:writeEncounter`): Keep fills empty parts / Keep and replace everything.
+  - Who fights: ticks + All, ▼/▲ CR per row and for the selected (`encounter:adjustCr`): an adjusted copy only in this
+    encounter ("Goblin Boss (CR 2)", stashed, `adjusted_for`), later steps change that copy; original card unchanged.
+    Add monsters heading under the list; Suggest with empty words = themed group for the encounter's place.
+  - Encounters left: Battle map box (Import battle map, Sketch a map here = sketch in the middle with ⇲ back, ✦ Generate
+    a map). Scene keeps its title (owner). Save / Run encounter buttons unchanged.
+  - Defaults picked: the builder also sits on Encounters (left); AI picks SRD monsters only; story removals are undoable
+    (Change log), not History rows.
