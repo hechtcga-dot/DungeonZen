@@ -734,7 +734,7 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   - Who fights: ticks + All, ▼/▲ CR per row and for the selected (`encounter:adjustCr`): an adjusted copy only in this
     encounter ("Goblin Boss (CR 2)", stashed, `adjusted_for`), later steps change that copy; original card unchanged.
     Add monsters heading under the list; Suggest with empty words = themed group for the encounter's place.
-  - Encounters left: Battle map box (Import battle map, Sketch a map here = sketch in the middle with ⇲ back, ✦ Generate
-    a map). Scene keeps its title (owner). Save / Run encounter buttons unchanged.
+  - Encounters left: Battle map box (drop-down of battle maps / No battle map yet, Import battle map, Sketch a map here = sketch in the middle with ⇲ back, ✦ Generate
+    a map); the Battle map row in the editor is gone (owner). Scene keeps its title (owner). Save / Run encounter buttons unchanged.
   - Defaults picked: the builder also sits on Encounters (left); AI picks SRD monsters only; story removals are undoable
     (Change log), not History rows.

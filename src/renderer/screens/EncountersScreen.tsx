@@ -80,7 +80,7 @@ export function EncountersScreen() {
                 ))
               )}
               <EncounterBuilder className="enc-builder-card" onKept={(id) => openEncounter(id)} />
-              {current && <BattleMapBox e={current} onSketch={() => setSketchBig(true)} />}
+              {current && <BattleMapBox e={current} maps={v.battleMaps} onSketch={() => setSketchBig(true)} />}
             </nav>
             {current ? <Editor key={current.id} e={current} v={v} sketchBig={sketchBig} onSketchSmall={() => setSketchBig(false)} /> : <div className="parchment-sheet enc-editor"><p className="ink-muted">Choose or plan an encounter.</p></div>}
             <PartyPanel v={v} grip={side.grip} />
@@ -92,12 +92,16 @@ export function EncountersScreen() {
 }
 
 /** Encounters › left: the battle map of the open encounter: import one, sketch one here (in the middle), or generate one. */
-function BattleMapBox({ e, onSketch }: { e: EncounterView; onSketch(): void }) {
+function BattleMapBox({ e, maps, onSketch }: { e: EncounterView; maps: EncountersView['battleMaps']; onSketch(): void }) {
   const { act, say, setBattleMapOpen } = useBoard()
   const up = (patch: Parameters<typeof call<'encounter:update'>>[1]['patch']) => void act('encounter:update', { id: e.id, patch })
   return (
     <div className="enc-mini-map">
       <h3 className="side-h">Battle map</h3>
+      <select aria-label="Battle map for this encounter" value={e.battleMapId ?? ''} onChange={(ev) => up({ battleMapId: ev.target.value || null })}>
+        <option value="">No battle map yet</option>
+        {maps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+      </select>
       <button className="enc-mini-thumb" title="Sketch the map in the middle" onClick={onSketch}><ExampleBattleMap /></button>
       <button className="ink-button" title="Use a battle map picture you already have" onClick={async () => {
         const m = await act('battlemap:importDialog', { cols: 20 })
@@ -162,20 +166,6 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
           <select id="enc-target" value={e.target} onChange={(ev) => up({ target: ev.target.value as 'low' | 'moderate' | 'high' })}>
             <option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option>
           </select>
-        </div>
-        <div className="field enc-map-field">
-          <label htmlFor="enc-map">Battle map</label>
-          <div className="row tight">
-            <select id="enc-map" value={e.battleMapId ?? ''} onChange={(ev) => up({ battleMapId: ev.target.value || null })}>
-              <option value="">None</option>
-              {v.battleMaps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-            <button className="ink-button" onClick={drawMap}>Draw…</button>
-            <button className="ink-button" title="Use a battle map picture you already have" onClick={async () => {
-              const m = await act('battlemap:importDialog', { cols: 20 })
-              if (m) { up({ battleMapId: m.id }); say(`Imported ${m.name} with a 20-square grid (change it on the Map under Scale and grid).`) }
-            }}>Import…</button>
-          </div>
         </div>
       </div>
 
