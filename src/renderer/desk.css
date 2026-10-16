@@ -1639,12 +1639,12 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .side-fold:hover, .side-unfold:hover { opacity: 1; background: #3a2412; color: var(--gold); }
 
 /* DM screen, compact (owner, 2026-10-15): same pictures, side by side with their text; the Session box takes the room. */
-.dm-screen { grid-template-columns: minmax(250px, 1.05fr) minmax(170px, 0.7fr) minmax(220px, 1fr) minmax(320px, 1.7fr); gap: 10px; padding: 10px; }
+.dm-screen { grid-template-columns: minmax(280px, 1.15fr) minmax(190px, 0.75fr) minmax(220px, 1fr) minmax(320px, 1.6fr); gap: 10px; padding: 10px; }
 .dm-screen .dm-panel { padding: 8px 12px; gap: 4px; }
 .dm-screen .panel-title { font-size: 19px; line-height: 1.2; }
 .dm-panel-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.dm-panel-row .clock-dial { width: 120px; flex: 0 0 120px; max-height: 72px; }
-.dm-panel-row .moon-disc { width: 64px; height: 64px; flex: 0 0 64px; }
+.dm-panel-row .clock-dial { width: 136px; flex: 0 0 136px; max-height: 84px; }
+.dm-panel-row .moon-disc { width: 84px; height: 84px; flex: 0 0 84px; }
 .dm-screen .moon-panel { align-items: stretch; text-align: left; }
 .dm-screen .moon-name { font-size: 18px; }
 .clock-side { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -1691,6 +1691,17 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 /* The hour: buttons wrap under the clock text instead of running past the panel. */
 .clock-side { flex: 1; }
 .clock-side .row.tight { flex-wrap: wrap; }
+/* −1 h, +1 h and Set… on one row, small (owner, 2026-10-16). */
+.dm-screen .clock-side .row.tight { flex-wrap: nowrap; gap: 3px; }
+.dm-screen .clock-side .ink-button { min-height: 22px; padding: 0 6px; font-size: 12px; }
+/* The moon: picture and words centred in the box. */
+.dm-screen .moon-panel .dm-panel-row { flex: 1; justify-content: center; gap: 14px; }
+.dm-screen .moon-panel .moon-name { line-height: 1.15; }
+/* The DM screen's own − ↑ ↓ (on The hour's title, they fold and move the whole screen) sit at its top right corner. */
+.dm-screen { position: relative; }
+.dm-screen .clock-panel { position: static; }
+.dm-screen .clock-panel > .panel-title > .box-tools { position: absolute; top: 18px; right: 22px; margin: 0; z-index: 4; }
+.dm-screen > .session-panel > :first-child { padding-right: 72px; }
 .chest-choice { display: flex; flex-direction: column; gap: 6px; padding-left: 14px; }
 /* The card behind linked words outside sheets with their own side panel. */
 .linked-card-note { position: fixed; right: 16px; bottom: 16px; z-index: 900; width: 300px; max-height: 40vh; overflow: auto; padding: 10px 12px; box-shadow: 0 6px 18px rgba(30, 18, 6, 0.4); }
