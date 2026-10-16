@@ -2,9 +2,6 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import { useBoard } from '../store'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
-import { Candle } from '../art/props'
-import { useLightingPref } from '../art/TableLighting'
-import { lightingAt } from '../../shared/sky'
 import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { providerById } from '../../shared/aiProviders'
 import { RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
@@ -29,34 +26,31 @@ const LINK_WORDS: Record<string, string> = {
  * session), and Import: the AI reads notes and proposes cards; you choose what to keep (rule 2).
  */
 export function ImportScreen() {
-  const info = useBoard((s) => s.info)
-  const [lighting] = useLightingPref()
   const [draft, setDraft] = useState<ImportDraft | null>(null)
   const [tab, setTab] = useState<'notes' | 'import'>(() => {
     const first = useBoard.getState().notesTab
     useBoard.setState({ notesTab: 'notes' })
     return first
   })
+  // Your notes: the book look, no desk (owner, 2.8.0). Import and its review keep the desk.
+  if (!draft && tab === 'notes') {
+    return (
+      <DeskFrame>
+        <main className="notes-screen" aria-label="Notes"><NotesLibrary onOpen={setDraft} onImport={() => setTab('import')} /></main>
+      </DeskFrame>
+    )
+  }
   return (
     <DeskFrame>
       <main className="desk import-screen" aria-label="Notes">
         <header className="desk-head">
-          <Candle className="desk-candle" lit={!lighting || lightingAt(info?.clockMin ?? 0).candlesLit} />
           <div className="desk-title">
             <span className="desk-eyebrow">DM prep · your notes; the AI reads, you decide</span>
-            <h1>{draft ? `Import: ${draft.title}` : 'Notes'}</h1>
+            <h1>{draft ? `Import: ${draft.title}` : 'Import notes'}</h1>
           </div>
-          {draft
-            ? <div className="desk-head-actions"><button className="brass" onClick={() => setDraft(null)}>Back to notes</button></div>
-            : (
-              <div className="desk-head-actions segmented" role="tablist" aria-label="Notes">
-                <button role="tab" aria-selected={tab === 'notes'} aria-pressed={tab === 'notes'} onClick={() => setTab('notes')}>Your notes</button>
-                <button role="tab" aria-selected={tab === 'import'} aria-pressed={tab === 'import'} onClick={() => setTab('import')}>Import notes</button>
-              </div>
-            )}
+          <div className="desk-head-actions"><button className="brass" onClick={() => (draft ? setDraft(null) : setTab('notes'))}>Back to your notes</button></div>
         </header>
-        {draft ? <Review key={draft.id} initial={draft} onDone={() => setDraft(null)} />
-          : tab === 'notes' ? <NotesLibrary onOpen={setDraft} onImport={() => setTab('import')} /> : <Start onOpen={setDraft} />}
+        {draft ? <Review key={draft.id} initial={draft} onDone={() => setDraft(null)} /> : <Start onOpen={setDraft} />}
       </main>
     </DeskFrame>
   )

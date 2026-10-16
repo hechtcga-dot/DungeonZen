@@ -890,7 +890,18 @@ export interface NoteDocView {
   versions: Array<{ file: string; at: string }>
   /** The DM's folder in the Notes list ('' = none). */
   folder: string
+  /** Book view choices (2.8.0): banner, pictures taken out or moved left, names not to offer as cards. */
+  meta: NoteMeta
 }
+export interface NoteMeta {
+  /** card id, a picture file (assets path), none, or unset = the first place mentioned */
+  banner?: { card?: string; file?: string; none?: boolean }
+  hide?: string[]
+  left?: string[]
+  ignore?: string[]
+}
+/** A place a card (or note) shows up in the notes: note, heading (index, -1 = before the first) and a bit of text. */
+export interface NoteMentionView { docId: string; title: string; heading: number; headingText: string; text: string }
 /** Notes screen: DM notes kept per session (the desk journal while that session runs). */
 export interface SessionNotesView { id: string; number: number; startedAt: string; running: boolean; dmNotes: string; recap: string }
-export interface NotesScreenView { docs: NoteDocView[]; sessions: SessionNotesView[]; dmNotes: string }
+export interface NotesScreenView { docs: NoteDocView[]; sessions: SessionNotesView[]; dmNotes: string; starred: string[] }

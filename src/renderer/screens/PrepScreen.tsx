@@ -143,7 +143,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
             <button className="ink-button primary-ink" title="Writes this sheet to Notes as a Word file; saving again adds a new version of the same file" onClick={() => void saveNote()}>
               {p.noteDocId ? 'Save to the notes file again' : 'Save as notes file'}
             </button>
-            {p.noteDocId && <button className="link-button" onClick={() => { useBoard.setState({ notesTab: 'notes', notesOpenId: p.noteDocId }); goTo('import') }}>Open it in Notes</button>}
+            {p.noteDocId && <button className="link-button" onClick={() => { useBoard.setState({ notesTab: 'notes', notesOpenId: p.noteDocId, notesOpenHeading: null }); goTo('import') }}>Open it in Notes</button>}
           </div>
         </section>}
 

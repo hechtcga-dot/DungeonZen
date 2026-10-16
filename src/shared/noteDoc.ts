@@ -1,19 +1,25 @@
 import { z } from 'zod'
 
 // A note's text with the formatting Dungeon Zen keeps: headings, bold, italic, underline,
-// bullet and numbered lists, and tables. Word files are read into this and saved from it.
+// bullet and numbered lists, tables, read-aloud boxes, sidebars, pictures and links to cards.
+// Word files are read into this and saved from it.
 
 export const Run = z.object({
   text: z.string().max(100000),
   b: z.boolean().optional(),
   i: z.boolean().optional(),
-  u: z.boolean().optional()
+  u: z.boolean().optional(),
+  /** The DM's own link: a card id, `note:<id>` for another note, or '' = never link these words. */
+  link: z.string().max(80).optional()
 })
 export type Run = z.infer<typeof Run>
 
 export const Block = z.union([
-  z.object({ kind: z.enum(['p', 'h1', 'h2', 'h3', 'bullet', 'number']), runs: z.array(Run).max(2000) }),
-  z.object({ kind: z.literal('table'), rows: z.array(z.array(z.array(Run).max(500)).max(60)).max(1000) })
+  // read = read-aloud box, side = DM sidebar box (book style, 2.8.0)
+  z.object({ kind: z.enum(['p', 'h1', 'h2', 'h3', 'bullet', 'number', 'read', 'side']), runs: z.array(Run).max(2000) }),
+  z.object({ kind: z.literal('table'), rows: z.array(z.array(z.array(Run).max(500)).max(60)).max(1000) }),
+  /** A picture the DM put in: a card's picture or a file in the campaign (assets path). */
+  z.object({ kind: z.literal('pic'), card: z.string().max(80).optional(), file: z.string().max(300).optional(), side: z.enum(['left', 'right']) })
 ])
 export type Block = z.infer<typeof Block>
 export const Blocks = z.array(Block).max(20000)
@@ -21,7 +27,7 @@ export const Blocks = z.array(Block).max(20000)
 /** One line of plain text per block (table rows as cells separated by " | "). */
 export function blockLines(blocks: Block[]): string[] {
   const runText = (runs: Run[]) => runs.map((r) => r.text).join('')
-  return blocks.map((b) => (b.kind === 'table'
+  return blocks.map((b) => (b.kind === 'pic' ? '' : b.kind === 'table'
     ? b.rows.map((row) => row.map(runText).join(' | ')).join('\n')
     : `${b.kind === 'bullet' ? '• ' : b.kind === 'number' ? '- ' : ''}${runText(b.runs)}`)).filter((l) => l.trim())
 }

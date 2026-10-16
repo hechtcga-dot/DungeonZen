@@ -75,6 +75,8 @@ interface BoardState {
   goBack(): Promise<void>
   /** A card to bring into view the next time the board shows. */
   focusEntityId: string | null
+  /** Map screen opens with this place's region selected (Notes › Show on map). */
+  mapFocusId: string | null
   panel: BoardPanel
   selection: Selection
   search: string
@@ -86,6 +88,8 @@ interface BoardState {
   notesTab: 'notes' | 'import'
   /** A notes file to open when the Notes screen opens (e.g. after Save as notes file). */
   notesOpenId: string | null
+  /** …and the heading to jump to (index, as in the note's contents). */
+  notesOpenHeading: number | null
   /** Getting started: the step on show (kept so Back returns to it). */
   guideStep: 'map' | 'regions' | 'notes'
   /** The battle map dialog is open; a request carries a sketch (blueprint), a name and where to keep the result. */
@@ -162,6 +166,7 @@ export const useBoard = create<BoardState>((set, get) => ({
   setAiSettingsOpen(open) { set({ aiSettingsOpen: open }) },
   notesTab: 'notes',
   notesOpenId: null,
+  notesOpenHeading: null,
   guideStep: 'map',
   battleMapOpen: false,
   setBattleMapOpen(open) { set({ battleMapOpen: open }) },
@@ -175,6 +180,7 @@ export const useBoard = create<BoardState>((set, get) => ({
     await get().refresh()
   },
   focusEntityId: null,
+  mapFocusId: null,
   panel: 'inspector',
   selection: null,
   search: '',

@@ -33,6 +33,7 @@ import { renderJpg, renderPdf } from './exporters/render'
 import { chunkBlocks, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
 import { writeDocx } from './importers/docx'
 import { blockLines, changedLines, headingsOf, textToBlocks, type Block } from '../shared/noteDoc'
+import { blockRuns, cardMentions, makeMatcher, snippet } from '../shared/noteLinks'
 import { prepBlocks } from '../shared/prepDoc'
 import { buildDraft, NOTES_SYSTEM, notesPrompt, parseChunkReply, type ChunkAnswer } from './importers/notes'
 import type { ImportDraft } from '../shared/notesImport'
@@ -123,7 +124,7 @@ function markedCopy(bytes: Buffer, marksPng: Buffer): { bytes: Buffer; mime: str
 }
 
 export function registerIpc(getWindow: () => BrowserWindow | null, profile: ProfileStore, keys: KeyStore, openJournal: () => void, openPrepWindow: (number: number, part: string) => void,
-  screens: { pop(screen: string): void; focus(screen: string): void; popped(): string[]; closeAll(): void }): void {
+  screens: { pop(screen: string): void; focus(screen: string): void; popped(): string[]; closeAll(): void; popNote(id: string): void }): void {
   let campaign: Campaign | null = null
 
   const current = (): Campaign => {
@@ -776,8 +777,65 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const c = current()
     const doc = c.notesScreen().docs.find((d) => d.id === id)
     const before = doc ? await noteBlocks(c.noteFile(id), doc.kind).catch(() => []) : []
-    c.saveNoteVersion(id, writeDocx(blocks))
+    c.saveNoteVersion(id, writeDocx(blocks, Object.fromEntries(c.cardBriefs().map((x) => [x.id, x.name]))))
     return { changed: changedLines(before, blocks) }
+  })
+  handle('notedoc:setMeta', ({ id, meta }) => current().setNoteMeta(id, meta))
+  handle('notes:star', ({ id, on }) => current().starNote(id, on))
+  handle('notedoc:pickPicture', async () => {
+    const win = getWindow()
+    const options = { title: 'Choose a picture for the note', buttonLabel: 'Use this picture', properties: ['openFile'] as Array<'openFile'>, filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'jfif', 'webp'] }] }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return result.canceled || !result.filePaths.length ? null : current().addNotePicture(result.filePaths[0])
+  })
+  handle('notes:popNote', ({ id }) => screens.popNote(id))
+  // Search every notes file: each matching paragraph with the heading it sits under.
+  handle('notes:search', async ({ q }) => {
+    const c = current()
+    const low = q.toLowerCase()
+    const out: IpcOutputs['notes:search'] = []
+    for (const d of c.notesScreen().docs) {
+      if (d.kind === 'picture') continue
+      if (d.title.toLowerCase().includes(low)) out.push({ docId: d.id, title: d.title, heading: -1, headingText: '', text: '' })
+      let heading = -1, headingText = ''
+      for (const b of await noteBlocks(c.noteFile(d.id), d.kind).catch(() => [])) {
+        const line = blockLines([b])[0] ?? ''
+        if ((b.kind === 'h1' || b.kind === 'h2' || b.kind === 'h3') && line.trim()) { heading++; headingText = line.trim() }
+        const i = line.toLowerCase().indexOf(low)
+        if (i >= 0 && out.length < 200) out.push({ docId: d.id, title: d.title, heading, headingText, text: snippet(line, i, i + low.length) })
+      }
+    }
+    return out
+  })
+  // Sheets, the board panel and Encounters: where a card shows up in the notes files (2.8.0).
+  handle('notes:mentions', async ({ entityId }) => {
+    const c = current()
+    const w = c.wordLinks()
+    const m = makeMatcher(w.cards, w.own, w.off, [])
+    const out: IpcOutputs['notes:mentions'] = []
+    for (const d of c.notesScreen().docs) {
+      if (d.kind === 'picture') continue
+      const blocks = await noteBlocks(c.noteFile(d.id), d.kind).catch(() => [])
+      const heads = headingsOf(blocks)
+      const seen = new Set<number>()
+      for (const x of cardMentions(blocks, m)) {
+        if (x.target !== entityId || seen.has(x.heading)) continue
+        seen.add(x.heading)
+        out.push({ docId: d.id, title: d.title, heading: x.heading, headingText: heads[x.heading]?.text ?? '', text: x.text })
+      }
+    }
+    return out
+  })
+  // Notes › Linked from: prep sheets saved as this note, and other notes that link to it.
+  handle('notes:linkedFrom', async ({ id }) => {
+    const c = current()
+    const notes: Array<{ id: string; title: string }> = []
+    for (const d of c.notesScreen().docs) {
+      if (d.id === id || d.kind === 'picture') continue
+      const blocks = await noteBlocks(c.noteFile(d.id), d.kind).catch(() => [])
+      if (blocks.some((b) => blockRuns(b).some((runs) => runs.some((r) => r.link === `note:${id}`)))) notes.push({ id: d.id, title: d.title })
+    }
+    return { preps: c.prepsOfNote(id), notes }
   })
   handle('notedoc:rename', ({ id, title }) => current().renameNoteDoc(id, title))
   handle('notedoc:setStatus', ({ id, status }) => current().setNoteDocStatus(id, status))

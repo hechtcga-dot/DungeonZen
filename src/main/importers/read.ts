@@ -57,7 +57,7 @@ export function docxParagraphs(file: Buffer): string[] {
   const body = xml.toString('utf8')
   const out: string[] = []
   for (const m of body.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)) {
-    const p = m[0]
+    const p = m[0].replace(/<w:r[ >](?:(?!<\/w:r>)[\s\S])*?<w:vanish\/>[\s\S]*?<\/w:r>/g, '') // hidden text (picture details)
       .replace(/<w:tab\/>/g, '\t').replace(/<w:br[^>]*\/>/g, '\n')
       .match(/<w:t(?:\s[^>]*)?>[^<]*<\/w:t>|\t|\n/g)?.map((t) => (t.startsWith('<') ? unxml(t.replace(/<[^>]+>/g, '')) : t)).join('') ?? ''
     if (p.trim()) out.push(p.trim())

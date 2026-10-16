@@ -36,6 +36,11 @@ const Name = z.string().trim().min(1).max(200)
 /** Screens that can open in a window of their own (rail right-click). */
 export const POP_SCREENS = ['board', 'encounters', 'prep', 'library', 'import'] as const
 const PopScreen = z.enum(POP_SCREENS)
+const IdList = z.array(z.string().max(80)).max(2000)
+const NoteMetaInput = z.object({
+  banner: z.object({ card: z.string().max(80).optional(), file: z.string().max(300).optional(), none: z.boolean().optional() }).optional(),
+  hide: IdList.optional(), left: IdList.optional(), ignore: z.array(z.string().max(200)).max(2000).optional()
+})
 const AbilityFields = z.object({
   name: Name,
   kind: AbilityKind,
@@ -288,6 +293,13 @@ export const ipcInputs = {
   'notedoc:content': z.object({ id: Id }),
   'notedoc:create': z.object({ title: Name }),
   'notedoc:save': z.object({ id: Id, blocks: Blocks }),
+  'notedoc:setMeta': z.object({ id: Id, meta: NoteMetaInput }),
+  'notes:star': z.object({ id: Id, on: z.boolean() }),
+  'notedoc:pickPicture': z.void(),
+  'notes:search': z.object({ q: z.string().trim().min(1).max(200) }),
+  'notes:mentions': z.object({ entityId: Id }),
+  'notes:linkedFrom': z.object({ id: Id }),
+  'notes:popNote': z.object({ id: Id }),
   'notedoc:rename': z.object({ id: Id, title: Name }),
   'notedoc:setStatus': z.object({ id: Id, status: RowStatus }),
   'notedoc:restore': z.object({ id: Id, file: z.string().max(300) }),
@@ -659,6 +671,13 @@ export interface IpcOutputs {
   'notedoc:content': { blocks: Block[]; url: string | null }
   'notedoc:create': string
   'notedoc:save': { changed: string[] }
+  'notedoc:setMeta': void
+  'notes:star': void
+  'notedoc:pickPicture': string | null
+  'notes:search': Array<{ docId: string; title: string; heading: number; headingText: string; text: string }>
+  'notes:mentions': import('./types').NoteMentionView[]
+  'notes:linkedFrom': { preps: Array<{ number: number; title: string }>; notes: Array<{ id: string; title: string }> }
+  'notes:popNote': void
   'notedoc:rename': void
   'notedoc:setStatus': void
   'notedoc:restore': void

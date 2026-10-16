@@ -1,3 +1,4 @@
+import { InYourNotes } from '../components/InYourNotes'
 import { useEffect, useState, type FormEvent } from 'react'
 import { BackButton } from '../components/BackButton'
 import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
@@ -198,6 +199,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                 hint="Private to you. Never shown to players."
                 onCommit={(notes) => update({ attributes: { notes } })} />
             </section>
+            <section className="panel"><InYourNotes entityId={e.id} /></section>
             {Array.isArray(e.attributes.provenance) && e.attributes.provenance.length > 0 && (
               <section className="panel provenance">
                 <h2 className="panel-heading">Where this came from</h2>

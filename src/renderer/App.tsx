@@ -27,6 +27,7 @@ const CombatScreen = lazy(() => import('./screens/CombatScreen').then((m) => ({ 
 const GuideScreen = lazy(() => import('./screens/GuideScreen').then((m) => ({ default: m.GuideScreen })))
 const GeneratorsScreen = lazy(() => import('./screens/GeneratorsScreen').then((m) => ({ default: m.GeneratorsScreen })))
 const PrepWindow = lazy(() => import('./screens/PrepScreen').then((m) => ({ default: m.PrepWindow })))
+const NoteWindow = lazy(() => import('./components/NoteWindow').then((m) => ({ default: m.NoteWindow })))
 const JournalWindow = lazy(() => import('./screens/JournalWindow').then((m) => ({ default: m.JournalWindow })))
 
 export function App() {
@@ -35,6 +36,8 @@ export function App() {
   const prep = /^#prep\/(\d+)\/(.+)$/.exec(hash)
   const pop = /^#screen\/(\w+)$/.exec(hash)
   if (pop) return <ScreenWindow screen={pop[1] as Screen} />
+  const note = /^#note\/([\w-]+)$/.exec(hash)
+  if (note) return <Suspense fallback={null}><NoteWindow id={note[1]} /></Suspense>
   if (prep) return <Suspense fallback={null}><PrepWindow number={Number(prep[1])} part={decodeURIComponent(prep[2])} /></Suspense>
   return hash === '#journal' ? <Suspense fallback={null}><JournalWindow /></Suspense> : <MainApp />
 }

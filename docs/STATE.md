@@ -755,3 +755,39 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   growing here, small uppercase labels, small buttons and icon tools, bordered boxes (CR bar, Add monsters, checks,
   Battle planner), stat line on the creature's row, NPC and item rows on one grid (name / count / notes / button / ×,
   things inside indent only in the name column), NPC "Make a card" reads "Card".
+- 2.8.0 (owner, mockup v2 with the original colours, 2026-10-16): Notes screen in a book look (`NotesLibrary.tsx`,
+  `NoteReader.tsx`, `notes.css`, no desk header or candle; Import notes keeps the desk). Three columns:
+  - Left: ▤ Notes / ★ Starred (right-click › Star, setting `notes_starred`) / ◷ Recent (this computer); Search all notes
+    (`notes:search`, each matching paragraph under its heading, click jumps there); the tree has notes files first
+    (folders, A–Z with numbers in order), then DM notes (Master notes, Between sessions, sessions); right-click as before
+    plus Open in a new tab / Open in its own window / Star. « hides the list. New note, Import a character sheet, Open notes folder.
+  - Top: « ← → (back/forward), tabs (× closes, middle-click closes, ⧉ opens the note in its own window `#note/<id>`,
+    `NoteWindow.tsx`, `notes:popNote`; + new tab), Import notes…, Page Light / Dark (this computer).
+  - Middle (notes files): folder path, ✎ Edit, File ▾ (Open in Word, Open file location, Save a copy as Word, Re-import,
+    Read again with AI, Make a character card, Find headings, Earlier versions, Delete), ⧉, ‹ previous / next › in the
+    folder. Banner = the first Location/Building mentioned with a picture (hover shows where from; right-click: a place's
+    picture, another card's, your own picture, back to automatic, remove). Book styles: small-capital red headings, read-aloud
+    box, sidebar, striped tables. DM notes, session notes and Master notes keep their own views inside the paper.
+  - Links (`src/shared/noteLinks.ts`, tested): card names (an NPC/PC's first name too when unique and capitalised), spells
+    (SRD list minus everyday words) and conditions/senses (`rulesTerms.ts`, short own summaries) link at their first mention in
+    each paragraph; headings are not linked. Card links in the card's colour (encounters amber), conditions green, spells
+    purple italic, senses dotted. Hover = note (picture, type, place, summary / rule / spell); click = Peek; Ctrl+click = sheet.
+    Right-click a link: Open the sheet, Show in the side panel, Show its picture here, Insert your own picture here, Stop
+    linking here (`Run.link = ''`), Stop linking everywhere (setting `word_links` off), Link to another card or note.
+  - Pictures: each card's picture (NPC, PC, monster, place, building, item, faction, handout, other) at its first mention in
+    the note, one per paragraph, a heading's under it; the banner's card skipped. Hover ⇄ other side / × take out
+    (`note_meta`); right-click a paragraph: Insert a card's picture / your own picture here, Make this a read-aloud box /
+    sidebar / plain text. Placed pictures are `pic` blocks in the file.
+  - ✎ Edit types into the same book page: B I U, Title, Heading, Subheading, Text, lists, Read-aloud, Sidebar, Table, Card
+    picture, Own picture, [[ Link (or type [[: card or note picker, makes a new NPC card); ✓ Done (or Ctrl+Enter) saves a
+    Word version (Ctrl+Z undoes); Cancel drops the changes; leaving the note while editing keeps the words.
+  - Right: Contents; Peek (picture, Open sheet, Show on board, Show on map for places (`mapFocusId` selects the region),
+    Open / Run encounter, Add to an encounter for monsters and NPCs; stat block in book colours; summary, motivation, flaws,
+    who is here, description, secrets, DM notes; spells and rules in full); Links (by type, counts; notes; rules);
+    Mentions (names not cards yet: Make a card ▾ type / Ignore; other notes named: Link to the note / Ignore);
+    Linked from (Session prep sheets saved as this note, other notes linking here).
+  - Elsewhere: "In your notes" (`InYourNotes.tsx`, `notes:mentions`: note › heading and a bit of text, click opens the note
+    there) on the card sheet's Notes tab, the board side panel (Inspector) and the open encounter.
+  - Defaults picked: first mention per paragraph (owner's example); page Light by default; the note window has Open sheet
+    (in the main window) and Add to an encounter, not Show on board/map or Run; Make a card from [[ makes an NPC (type
+    changeable on the sheet); stat blocks are not inserted into the text (Peek shows them).

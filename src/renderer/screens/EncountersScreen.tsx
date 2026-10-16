@@ -1,3 +1,4 @@
+import { InYourNotes } from '../components/InYourNotes'
 import { useEffect, useRef, useState } from 'react'
 import { useBoard } from '../store'
 import { call } from '../api'
@@ -277,6 +278,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
       </div>
 
       <BattlePlanner encounterId={e.id} stamp={e} />
+      <InYourNotes entityId={e.id} />
 
       {e.runs.length > 0 && (
         <>

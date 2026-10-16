@@ -132,7 +132,13 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
   const units = useUnits()
   const side = useSidePanel('map-side', 'right', 300)
   const { act, query, info, say } = useBoard()
-  const [selected, setSelected] = useState<string | null>(view.party?.locationId ? view.regions.find((r) => r.locationId === view.party?.locationId)?.id ?? null : null)
+  const [selected, setSelected] = useState<string | null>(() => {
+    // Notes › Show on map: that place's region first, else where the party is.
+    const focus = useBoard.getState().mapFocusId
+    if (focus) useBoard.setState({ mapFocusId: null })
+    const at = focus ?? view.party?.locationId
+    return at ? view.regions.find((r) => r.locationId === at)?.id ?? null : null
+  })
   const [detail, setDetail] = useState<RegionDetail | null>(null)
   const [draw, setDraw] = useState<Point[]>([])
   const [finishing, setFinishing] = useState<Point[] | null>(null)

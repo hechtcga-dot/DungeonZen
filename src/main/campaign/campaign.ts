@@ -30,7 +30,7 @@ import type { CombatView, PcToken, SecretKind, SecretView,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
   LibraryFilters, LibrarySearch, LiveView, LogView, MapScreenView, MapView, PartyMarker, PendingImageView, StyleExampleView, PrepScreenView, PrepView, WordLinksView, PrepItemView, WhereView, PlayersView, EncountersView, EncounterView, EncounterCreatureView, RegionDetail, RegionView,
   RelationshipView, ReviewConflict, ReviewProposal, ReviewView, TravelEstimateView,
-  SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView, LibraryPictureView, PicturesView, StyleUse, NoteDocView, NotesScreenView
+  SessionView, SheetView, TimelineView, TriggerEffectView, WhatIfView, LibraryPictureView, PicturesView, StyleUse, NoteDocView, NotesScreenView, NoteMeta
 } from '../../shared/types'
 import { STYLE_USES } from '../../shared/types'
 import { advise } from '../advisor'
@@ -96,7 +96,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates' | 'word_links'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates' | 'word_links' | 'note_meta' | 'notes_starred'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -3746,12 +3746,51 @@ export class Campaign {
       // A note whose file is gone (Delete file for good, then an undo past it) is not shown.
       docs: this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all().filter((r) => existsSync(join(this.folder, ASSETS_DIR, r.file)))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        .map((r) => ({ id: r.id, title: r.title, kind: r.kind as NoteDocView['kind'], originalName: r.originalName, updatedAt: r.updatedAt, versions: r.versions, folder: r.folder })),
+        .map((r) => ({ id: r.id, title: r.title, kind: r.kind as NoteDocView['kind'], originalName: r.originalName, updatedAt: r.updatedAt, versions: r.versions, folder: r.folder, meta: this.noteMetas()[r.id] ?? {} })),
       sessions: this.db.select().from(session).where(eq(session.status, 'active')).all()
         .sort((a, b) => b.number - a.number)
         .map((r) => ({ id: r.id, number: r.number, startedAt: r.startedAt, running: r.id === open?.id, dmNotes: r.dmNotes, recap: r.recap })),
-      dmNotes: String(this.setting('dm_notes') ?? '')
+      dmNotes: String(this.setting('dm_notes') ?? ''),
+      starred: this.starredNotes()
     }
+  }
+
+  private noteMetas(): Record<string, NoteMeta> {
+    const v = this.setting('note_meta')
+    return v && typeof v === 'object' ? v as Record<string, NoteMeta> : {}
+  }
+
+  /** Notes book view (2.8.0): banner, pictures taken out or moved, names not offered as cards; undoable. */
+  setNoteMeta(id: string, meta: NoteMeta): void {
+    const r = this.noteRow(id)
+    this.setSetting('note_meta', { ...this.noteMetas(), [id]: meta }, `Changed the pictures of the note ${r.title}`)
+  }
+
+  private starredNotes(): string[] {
+    const v = this.setting('notes_starred')
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+  }
+
+  starNote(id: string, on: boolean): void {
+    const r = this.noteRow(id)
+    const rest = this.starredNotes().filter((x) => x !== id)
+    this.setSetting('notes_starred', on ? [...rest, id] : rest, `${on ? 'Starred' : 'Unstarred'} the note ${r.title}`)
+  }
+
+  /** A picture the DM chose for a note (copied into the campaign). */
+  addNotePicture(sourceFile: string): string {
+    const ext = extname(sourceFile).toLowerCase()
+    if (!STYLE_EXTENSIONS.includes(ext)) throw new Error(`A picture must be PNG, JPEG or WebP (got ${ext || 'no extension'})`)
+    const rel = `notes/pictures/${randomUUID()}${storedExt(ext)}`
+    mkdirSync(join(this.folder, ASSETS_DIR, 'notes', 'pictures'), { recursive: true })
+    copyFileSync(sourceFile, join(this.folder, ASSETS_DIR, rel))
+    return rel
+  }
+
+  /** Session prep sheets saved as this note. */
+  prepsOfNote(id: string): Array<{ number: number; title: string }> {
+    return this.db.select().from(sessionPrep).where(eq(sessionPrep.status, 'active')).all().filter((p) => p.noteDocId === id)
+      .map((p) => ({ number: p.number, title: p.title }))
   }
 
   setSessionNotes(id: string, text: string): void {

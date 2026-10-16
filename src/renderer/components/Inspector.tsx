@@ -1,3 +1,4 @@
+import { InYourNotes } from './InYourNotes'
 import { useEffect, useState } from 'react'
 import { LocationPick } from './LocationPick'
 import { useReactFlow } from '@xyflow/react'
@@ -115,6 +116,7 @@ function EntityInspector({ entity }: { entity: EntityView }) {
         <div className="hint">Resolved cards stay on the board, greyed, until their storyline ends.</div>
       </fieldset>
 
+      <InYourNotes entityId={entity.id} />
       <details className="inspector-more">
         <summary>More: type, location, tags, storylines</summary>
         <div className="field">

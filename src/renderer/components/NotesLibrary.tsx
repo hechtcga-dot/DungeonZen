@@ -3,14 +3,13 @@ import { call } from '../api'
 import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import { NoteEditor, type NoteEditorHandle } from './NoteEditor'
-import { useSidePanel } from './Splitter'
-import { CharSheetDialog } from './CharSheetDialog'
+import { NoteReader, UpdateCards } from './NoteReader'
 import type { ImportDraft } from '../../shared/notesImport'
 import type { NoteDocView, NotesScreenView } from '../../shared/types'
 import { OpenFolder } from './OpenFolder'
 import { ImportCharSheet } from './ImportCharSheet'
 import { ContextMenu, type MenuItem } from './ContextMenu'
-import { blockLines, guessHeadings, headingLevel, type Block, type HeadingLevel } from '../../shared/noteDoc'
+import { blockLines, headingLevel, type Block, type HeadingLevel } from '../../shared/noteDoc'
 import type { IpcOutputs } from '../../shared/ipc'
 import { PopOut } from './PopOut'
 
@@ -25,21 +24,31 @@ const keyOf = (o: Open) => (o.kind === 'session' ? `session:${o.id}` : o.kind ==
 const words = (t: string) => (t.trim() ? `${t.trim().split(/\s+/).length} words` : '')
 const COLLAPSE_KEY = 'dz-notes-list-collapsed'
 
+const THEME_KEY = 'dz-notes-theme'
+const byTitle = (a: NoteDocView, b: NoteDocView) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
+/** Open tabs and back/forward, kept while the app runs. */
+const nav: { tabs: Open[]; cur: number; back: Open[]; fwd: Open[] } = { tabs: [{ kind: 'dm' }], cur: 0, back: [], fwd: [] }
+const same = (a: Open, b: Open) => keyOf(a) === keyOf(b)
+
+/** Light or dark book (owner, 2.8.0); this computer only. */
+export function useNotesTheme(): ['light' | 'dark', (t: 'light' | 'dark') => void] {
+  const [t, setT] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light' } catch { return 'light' } })
+  return [t, (v) => { setT(v); try { localStorage.setItem(THEME_KEY, v) } catch { /* this session only */ } }]
+}
+
 /**
- * Notes › Your notes (Campfire-style list, owner 1.7.0): Master notes, the DM notes, each session's notes and
- * every notes file, in the DM's folders. Each note opens out to its headings (click to jump). Notes files:
- * Ctrl/Shift+click to select several, right-click for Open file location, Rename, Duplicate, Combine, folders, Delete.
+ * Notes (owner, 2.8.0; Obsidian and the official books): notes tree with search, starred and recent on the left; tabs
+ * with back / forward on top; notes files as book pages in the middle (NoteReader), with Contents, Peek, Links,
+ * Mentions and Linked from on the right. DM notes, session notes and Master notes keep their own views.
+ * Notes files: Ctrl/Shift+click selects several; right-click for Open file location, Rename, Duplicate, Combine, folders, Delete.
  */
 export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): void; onImport(): void }) {
-  const side = useSidePanel('notes-list', 'left', 300)
   const { query, act, view, say } = useBoard()
+  const info = useBoard((s) => s.info)
+  const [theme, setTheme] = useNotesTheme()
   const [data, setData] = useState<NotesScreenView | null>(null)
   const [outline, setOutline] = useState<Outline>({})
-  const [open, setOpen] = useState<Open>(() => {
-    const id = useBoard.getState().notesOpenId
-    useBoard.setState({ notesOpenId: null })
-    return id ? { kind: 'doc', id } : { kind: 'dm' }
-  })
+  const [, rerender] = useState(0)
   const [jump, setJump] = useState<Jump>(null)
   const [edited, setEdited] = useState<Array<{ id: string; title: string }>>([])
   const [newTitle, setNewTitle] = useState<string | null>(null)
@@ -51,7 +60,12 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null)
   const [naming, setNaming] = useState<{ title: string; value: string; onDone(v: string): void } | null>(null)
   const [combining, setCombining] = useState<string[] | null>(null)
+  const [left, setLeft] = useState<'notes' | 'starred' | 'recent'>('notes')
+  const [q, setQ] = useState('')
+  const [hits, setHits] = useState<IpcOutputs['notes:search'] | null>(null)
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(COLLAPSE_KEY) === '1' } catch { return false } })
+  const recentKey = `dz-notes-recent:${info?.globalBoardId ?? ''}`
+  const [recent, setRecent] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(recentKey) ?? '[]') as string[] } catch { return [] } })
   const load = useCallback(() => {
     void query('notes:screen', undefined).then((d) => { if (d) setData(d) })
     void query('notedoc:edited', undefined).then((e) => setEdited(e ?? []))
@@ -60,6 +74,42 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
   useEffect(load, [load, view?.undo])
   // Coming back from Word: look for changes.
   useEffect(() => { window.addEventListener('focus', load); return () => window.removeEventListener('focus', load) }, [load])
+  // Another screen asked for a note (a sheet's "In your notes", Session prep): open it in the current tab.
+  useEffect(() => {
+    const st = useBoard.getState()
+    if (!st.notesOpenId) return
+    go({ kind: 'doc', id: st.notesOpenId }, st.notesOpenHeading ?? -1)
+    useBoard.setState({ notesOpenId: null, notesOpenHeading: null })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!q.trim()) { setHits(null); return }
+    const t = setTimeout(() => void call('notes:search', { q: q.trim() }).then(setHits).catch(() => setHits([])), 250)
+    return () => clearTimeout(t)
+  }, [q])
+
+  const open = nav.tabs[nav.cur] ?? { kind: 'dm' }
+  /** Open a note in the current tab (back remembers where you were). */
+  function go(o: Open, n = -1, newTab = false) {
+    const curr = nav.tabs[nav.cur]
+    if (newTab) { nav.tabs.splice(nav.cur + 1, 0, o); nav.cur++ }
+    else if (!curr || !same(curr, o)) { if (curr) nav.back.push(curr); nav.fwd = []; nav.tabs[nav.cur] = o }
+    setJump(n < 0 ? null : { n, nonce: Date.now() })
+    if (o.kind === 'doc') {
+      const next = [o.id, ...recent.filter((x) => x !== o.id)].slice(0, 15)
+      setRecent(next)
+      try { localStorage.setItem(recentKey, JSON.stringify(next)) } catch { /* this session only */ }
+    } else setSelected(new Set())
+    rerender((x) => x + 1)
+  }
+  const goBack = () => { const o = nav.back.pop(); if (!o) return; nav.fwd.push(nav.tabs[nav.cur]); nav.tabs[nav.cur] = o; setJump(null); rerender((x) => x + 1) }
+  const goFwd = () => { const o = nav.fwd.pop(); if (!o) return; nav.back.push(nav.tabs[nav.cur]); nav.tabs[nav.cur] = o; setJump(null); rerender((x) => x + 1) }
+  const closeTab = (i: number) => {
+    nav.tabs.splice(i, 1)
+    if (!nav.tabs.length) nav.tabs.push({ kind: 'dm' })
+    nav.cur = Math.min(nav.cur > i ? nav.cur - 1 : nav.cur, nav.tabs.length - 1)
+    nav.back = []; nav.fwd = []
+    rerender((x) => x + 1)
+  }
 
   const collapse = (v: boolean) => { setCollapsed(v); try { localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0') } catch { /* per-viewer convenience only */ } }
   const create = async () => {
@@ -67,18 +117,22 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
     if (!title) return
     const id = await act('notedoc:create', { title })
     setNewTitle(null)
-    if (id) { load(); setOpen({ kind: 'doc', id }) }
+    if (id) { load(); go({ kind: 'doc', id }) }
   }
   if (!data) return <p className="ink-muted page-pad">Loading…</p>
   const doc = open.kind === 'doc' ? data.docs.find((d) => d.id === open.id) : undefined
   const sess = open.kind === 'session' ? data.sessions.find((x) => x.id === open.id) : undefined
+  const tabTitle = (o: Open) => (o.kind === 'master' ? 'Master notes' : o.kind === 'dm' ? 'DM notes' : o.kind === 'session'
+    ? `Session ${data.sessions.find((x) => x.id === o.id)?.number ?? ''}` : data.docs.find((d) => d.id === o.id)?.title ?? 'Gone')
 
   const folders = [...new Set(data.docs.map((d) => d.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-  const groups: Array<[string, NoteDocView[]]> = [...folders.map((f) => [f, data.docs.filter((d) => d.folder === f)] as [string, NoteDocView[]]), ['', data.docs.filter((d) => !d.folder)]]
+  const groups: Array<[string, NoteDocView[]]> = [...folders.map((f) => [f, data.docs.filter((d) => d.folder === f).sort(byTitle)] as [string, NoteDocView[]]), ['', data.docs.filter((d) => !d.folder).sort(byTitle)]]
   const flat = groups.flatMap(([f, docs]) => (f && closedFolders.has(f) ? [] : docs))
+  const inFolder = doc ? groups.find(([f]) => f === doc.folder)?.[1] ?? [] : []
+  const at = doc ? inFolder.findIndex((d) => d.id === doc.id) : -1
   const toggle = (set: Set<string>, key: string) => { const n = new Set(set); if (n.has(key)) n.delete(key); else n.add(key); return n }
-  const openAt = (o: Open, n = -1) => { setOpen(o); setJump(n < 0 ? null : { n, nonce: Date.now() }); if (o.kind !== 'doc') setSelected(new Set()) }
   const ids = (id: string) => (selected.has(id) ? [...selected] : [id])
+  const starred = new Set(data.starred)
   const remove = async (list: string[]) => {
     for (const id of list) await act('notedoc:setStatus', { id, status: 'defunct' })
     setSelected(new Set()); load()
@@ -105,11 +159,14 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
         'separator',
         { label: `Delete ${list.length} notes (to History)`, danger: true, onClick: () => void remove(list) }
       ] : [
-        { label: 'Open', onClick: () => openAt({ kind: 'doc', id: d.id }) },
+        { label: 'Open', onClick: () => go({ kind: 'doc', id: d.id }) },
+        { label: 'Open in a new tab', onClick: () => go({ kind: 'doc', id: d.id }, -1, true) },
+        { label: 'Open in its own window', onClick: () => void call('notes:popNote', { id: d.id }) },
+        { label: starred.has(d.id) ? 'Unstar' : 'Star', onClick: () => void act('notes:star', { id: d.id, on: !starred.has(d.id) }).then(load) },
         { label: 'Open file location', hint: 'Shows the file in Windows Explorer', onClick: () => void act('notedoc:showInFolder', { id: d.id }) },
         'separator',
         { label: 'Rename', onClick: () => setRenaming({ id: d.id, title: d.title }) },
-        { label: 'Duplicate', onClick: () => void act('notedoc:duplicate', { id: d.id }).then((id) => { load(); if (id) openAt({ kind: 'doc', id }) }) },
+        { label: 'Duplicate', onClick: () => void act('notedoc:duplicate', { id: d.id }).then((id) => { load(); if (id) go({ kind: 'doc', id }) }) },
         ...(d.kind !== 'picture' ? [{ label: 'Save a copy as Word…', onClick: () => void act('notedoc:saveCopy', { id: d.id }).then((p) => { if (p) say(`Saved ${p}`) }) }] : []),
         { label: 'Move to folder', items: folderItems(list) },
         'separator',
@@ -134,7 +191,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
       const b = flat.findIndex((x) => x.id === d.id)
       if (a >= 0 && b >= 0) { setSelected(new Set(flat.slice(Math.min(a, b), Math.max(a, b) + 1).map((x) => x.id))); return }
     }
-    setSelected(new Set([d.id])); setAnchor(d.id); openAt({ kind: 'doc', id: d.id })
+    setSelected(new Set([d.id])); setAnchor(d.id); go({ kind: 'doc', id: d.id })
   }
   const drag = (e: DragEvent, id: string) => { e.dataTransfer.setData('text/x-dz-notes', JSON.stringify(ids(id))); e.dataTransfer.effectAllowed = 'move' }
   const dropOn = (folder: string) => ({
@@ -143,133 +200,163 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
   })
 
   /** One note in the list, with its headings when opened out. */
-  const entry = (o: Open, title: string, sub: string, extra: Partial<{ doc: NoteDocView }> = {}) => {
+  const entry = (o: Open, title: string, sub: string, d?: NoteDocView) => {
     const key = keyOf(o)
     const heads = outline[key] ?? []
-    const d = extra.doc
     return (
-      <li key={key} className={`tree-item${d && selected.has(d.id) ? ' is-selected' : ''}`} draggable={!!d}
-        onDragStart={d ? (e) => drag(e, d.id) : undefined} onContextMenu={d ? (e) => docMenu(e, d) : undefined}>
-        <div className="tree-row">
+      <li key={key} draggable={!!d} onDragStart={d ? (e) => drag(e, d.id) : undefined} onContextMenu={d ? (e) => docMenu(e, d) : undefined}
+        onAuxClick={(e) => { if (e.button === 1) go(o, -1, true) }}>
+        <div className={`nb-row${same(open, o) ? ' is-cur' : ''}${d && selected.has(d.id) && selected.size > 1 ? ' is-sel' : ''}`}>
           {heads.length > 0
-            ? <button className="tree-toggle" aria-expanded={expanded.has(key)} aria-label={`${expanded.has(key) ? 'Close' : 'Open out'} the headings of ${title}`}
+            ? <button className="nb-tog" aria-expanded={expanded.has(key)} aria-label={`${expanded.has(key) ? 'Close' : 'Open out'} the headings of ${title}`}
                 onClick={() => setExpanded(toggle(expanded, key))}>{expanded.has(key) ? '▾' : '▸'}</button>
-            : <span className="tree-toggle" aria-hidden="true" />}
+            : <span className="nb-tog" aria-hidden="true">{d ? '▤' : '·'}</span>}
           {d && renaming?.id === d.id
             ? <input autoFocus className="tree-rename" value={renaming.title} maxLength={200} aria-label="Note title"
                 onChange={(e) => setRenaming({ id: d.id, title: e.target.value })}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setRenaming(null) }}
                 onBlur={() => { const t = renaming.title.trim(); if (t && t !== d.title) void act('notedoc:rename', { id: d.id, title: t }).then(load); setRenaming(null) }} />
-            : <button aria-current={keyOf(open) === key} aria-selected={d ? selected.has(d.id) : undefined}
-                onClick={(e) => (d ? clickDoc(e, d) : openAt(o))}>{title}<span className="ink-muted">{sub}</span></button>}
+            : <button className="nb-open" aria-current={same(open, o)} aria-selected={d ? selected.has(d.id) : undefined}
+                onClick={(e) => (d ? clickDoc(e, d) : go(o))}>{title}{sub && <span className="nb-sub">{sub}</span>}</button>}
+          {d && starred.has(d.id) && <span className="nb-star" title="Starred">★</span>}
         </div>
         {expanded.has(key) && heads.length > 0 && (
-          <ol className="tree-heads">
-            {heads.map((h, i) => <li key={i} className={`toc-${h.level}`}><button className="link-button" onClick={() => openAt(o, i)}>{h.text}</button></li>)}
-          </ol>
+          <ul className="nb-heads">
+            {heads.map((h, i) => <li key={i}><button className={h.level} onClick={() => go(o, i)}>{h.text}</button></li>)}
+          </ul>
         )}
       </li>
     )
   }
+  const docEntry = (d: NoteDocView) => entry({ kind: 'doc', id: d.id }, d.title, d.kind === 'word' ? '' : KIND_LABEL[d.kind], d)
   const running = data.sessions.some((x) => x.running)
 
-  if (collapsed) {
-    return (
-      <div className="notes-lib is-collapsed">
-        <aside className="parchment-note notes-list notes-list-collapsed">
-          <button className="ink-button" title="Show the notes list" aria-label="Show the notes list" onClick={() => collapse(false)}>»</button>
-        </aside>
-        <section className="notes-view">{view2()}</section>
-      </div>
-    )
-  }
-  function view2() {
-    return (
-      <>
-        {open.kind === 'master' && <MasterNotes onOpen={(o) => setOpen(o)} />}
-        {open.kind === 'dm' && (
-          <TextNote key="dm" title="DM notes between sessions" text={data!.dmNotes} jump={jump}
-            hint={running ? 'A session is running: the desk journal writes to that session’s notes.' : 'The desk journal shows these while no session runs.'}
-            popout={!running} onSave={(text) => act('notes:set', { text }).then(load)} />
-        )}
-        {sess && (
-          <TextNote key={sess.id} title={`Session ${sess.number} · ${when(sess.startedAt)}`} text={sess.dmNotes} popout={sess.running} jump={jump}
-            hint={sess.running ? 'This session is running: the desk journal is these notes.' : 'DM notes from this session.'}
-            recap={sess.recap} onSave={(text) => act('session:notes', { id: sess.id, text }).then(load)} />
-        )}
-        {doc && <DocNote key={doc.id} doc={doc} docs={data!.docs} jump={jump} onOpenDraft={onOpen} onChanged={load} />}
-        {open.kind === 'doc' && !doc && <p className="ink-muted">That note is gone (moved to History or undone).</p>}
-      </>
-    )
+  const tree = (
+    <ul aria-multiselectable="true" aria-label="Notes" onKeyDown={(e) => { if (e.key === 'Delete' && selected.size && !renaming) void remove([...selected]) }}>
+      <li className="nb-lsec" {...dropOn('')} title="Drop notes here to take them out of their folder">Notes files</li>
+      {data.docs.length === 0 && <li className="nb-muted" style={{ padding: '0 6px' }}>None yet. Import notes or make a new one below.</li>}
+      {groups.map(([f, docs]) => {
+        const items = docs.map(docEntry)
+        if (!f) return items
+        return (
+          <li key={`folder:${f}`}>
+            <button className="nb-folder" aria-expanded={!closedFolders.has(f)} onClick={() => setClosedFolders(toggle(closedFolders, f))}
+              onContextMenu={(e) => folderMenu(e, f)} {...dropOn(f)}>
+              <span aria-hidden="true">{closedFolders.has(f) ? '▸' : '▾'}</span>{f}<span className="nb-muted" style={{ marginLeft: 'auto' }}>{docs.length}</span>
+            </button>
+            {!closedFolders.has(f) && <ul className="nb-in">{items}</ul>}
+          </li>
+        )
+      })}
+      <li className="nb-lsec">DM notes</li>
+      {entry({ kind: 'master' }, 'Master notes', 'every note in one document')}
+      {entry({ kind: 'dm' }, 'Between sessions', words(data.dmNotes) || 'empty')}
+      {data.sessions.map((x) => entry({ kind: 'session', id: x.id }, `Session ${x.number} · ${when(x.startedAt)}`, x.running ? 'running now · on the desk' : words(x.dmNotes) || 'no notes'))}
+    </ul>
+  )
+  const listOf = (idList: string[], empty: string) => {
+    const list = idList.map((id) => data.docs.find((d) => d.id === id)).filter((d): d is NoteDocView => !!d)
+    return list.length ? <ul>{list.map(docEntry)}</ul> : <p className="nb-muted" style={{ padding: '0 6px' }}>{empty}</p>
   }
 
   return (
-    <div className="notes-lib" style={side.style}>
-      <aside className="parchment-note notes-list">
-        {side.grip}
-        <div className="row spread">
-          <h2 className="panel-title">Your notes</h2>
-          <button className="ink-button" title="Hide the notes list" aria-label="Hide the notes list" onClick={() => collapse(true)}>«</button>
+    <div className={`nb${collapsed ? ' no-left' : ''}${doc ? '' : ' no-right'}`} data-nb-theme={theme}>
+      <div className="nb-top">
+        <div className="nb-nav">
+          <button title={collapsed ? 'Show the notes list' : 'Hide the notes list'} aria-label={collapsed ? 'Show the notes list' : 'Hide the notes list'} onClick={() => collapse(!collapsed)}>{collapsed ? '»' : '«'}</button>
+          <button title="Back" aria-label="Back" disabled={!nav.back.length} onClick={goBack}>←</button>
+          <button title="Forward" aria-label="Forward" disabled={!nav.fwd.length} onClick={goFwd}>→</button>
         </div>
+        <div className="nb-tabs" role="tablist" aria-label="Open notes">
+          {nav.tabs.map((o, i) => (
+            <div key={`${keyOf(o)}-${i}`} className={`nb-tab${i === nav.cur ? ' is-on' : ''}`} role="tab" aria-selected={i === nav.cur}
+              onClick={() => { nav.cur = i; setJump(null); rerender((x) => x + 1) }} onAuxClick={(e) => { if (e.button === 1) closeTab(i) }}>
+              <span>{tabTitle(o)}</span>
+              {o.kind === 'doc' && <button title="Open in its own window" aria-label="Open in its own window" onClick={(e) => { e.stopPropagation(); void call('notes:popNote', { id: o.id }) }}>⧉</button>}
+              <button title="Close tab" aria-label="Close tab" onClick={(e) => { e.stopPropagation(); closeTab(i) }}>×</button>
+            </div>
+          ))}
+          <button className="nb-tab" title="New tab (then pick a note on the left)" aria-label="New tab" onClick={() => go(open, -1, true)}>+</button>
+        </div>
+        <div className="nb-topr">
+          <button className="nb-btn" onClick={onImport}>Import notes…</button>
+          <span>Page</span>
+          <div className="nb-seg" role="group" aria-label="Page colours">
+            <button aria-pressed={theme === 'light'} onClick={() => setTheme('light')}>Light</button>
+            <button aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}>Dark</button>
+          </div>
+        </div>
+      </div>
+
+      <aside className="nb-left" aria-label="Notes list">
+        <div className="nb-ltools">
+          <button aria-pressed={left === 'notes'} onClick={() => setLeft('notes')}>▤ Notes</button>
+          <button aria-pressed={left === 'starred'} onClick={() => setLeft('starred')}>★ Starred</button>
+          <button aria-pressed={left === 'recent'} onClick={() => setLeft('recent')}>◷ Recent</button>
+        </div>
+        <label className="nb-search"><span aria-hidden="true">⌕</span>
+          <input type="search" value={q} placeholder="Search all notes" aria-label="Search all notes" onChange={(e) => setQ(e.target.value)} /></label>
         {edited.map((e) => (
-          <div key={e.id} className="notes-edited" role="status">
-            <strong>{e.title}</strong> changed in Word.
-            <TakeEdit id={e.id} onDone={(changed) => { load(); setOpen({ kind: 'doc', id: e.id }); if (changed.length) useBoard.setState({ message: { text: `${changed.length} changed part${changed.length === 1 ? '' : 's'} brought in.`, isError: false } }) }} onOpen={onOpen} />
+          <div key={e.id} className="nb-edited" role="status">
+            <strong>{e.title}</strong> changed in Word.{' '}
+            <TakeEdit id={e.id} onDone={(changed) => { load(); go({ kind: 'doc', id: e.id }); if (changed.length) useBoard.setState({ message: { text: `${changed.length} changed part${changed.length === 1 ? '' : 's'} brought in.`, isError: false } }) }} onOpen={onOpen} />
           </div>
         ))}
-        <ul className="notes-items">
-          <li><button aria-current={open.kind === 'master'} onClick={() => setOpen({ kind: 'master' })}>Master notes<span className="ink-muted">every note in one document, with contents and search</span></button></li>
-        </ul>
-        <h3 className="tree-h">DM notes</h3>
-        <ul className="notes-items">
-          {entry({ kind: 'dm' }, 'Between sessions', words(data.dmNotes) || 'empty')}
-          {data.sessions.map((x) => entry({ kind: 'session', id: x.id }, `Session ${x.number} · ${when(x.startedAt)}`,
-            x.running ? 'running now · on the desk' : words(x.dmNotes) || 'no notes'))}
-        </ul>
-        <h3 className="tree-h" {...dropOn('')} title="Drop notes here to take them out of their folder">Notes files</h3>
-        {data.docs.length === 0 && <p className="ink-muted">None yet. Files you import from now on are kept here, and you can write new ones.</p>}
-        <ul className="notes-items" aria-multiselectable="true" aria-label="Notes files"
-          onKeyDown={(e) => { if (e.key === 'Delete' && selected.size && !renaming) void remove([...selected]) }}>
-          {groups.map(([f, docs]) => {
-            const items = docs.map((d) => entry({ kind: 'doc', id: d.id }, d.title,
-              `${KIND_LABEL[d.kind]} · ${when(d.updatedAt)}${d.versions.length ? ` · ${d.versions.length + 1} versions` : ''}`, { doc: d }))
-            if (!f) return items
-            return (
-              <li key={`folder:${f}`} className="tree-folder">
-                <button className="tree-folder-h" aria-expanded={!closedFolders.has(f)} onClick={() => setClosedFolders(toggle(closedFolders, f))}
-                  onContextMenu={(e) => folderMenu(e, f)} {...dropOn(f)}>
-                  <span aria-hidden="true">{closedFolders.has(f) ? '▸' : '▾'} 📁</span> {f} <span className="ink-muted">{docs.length}</span>
-                </button>
-                {!closedFolders.has(f) && <ul className="notes-items tree-in">{items}</ul>}
-              </li>
-            )
-          })}
-        </ul>
-        {selected.size > 1 && (
-          <p className="ink-muted notes-hint" role="status">{selected.size} selected. Right-click for Combine, Move to folder or Delete.
-            <button className="link-button" onClick={() => setSelected(new Set())}>Clear</button></p>
-        )}
-        {newTitle === null ? (
-          <div className="row tight wrap">
-            <button className="ink-button" onClick={() => setNewTitle('')}>New note</button>
-            <button className="ink-button" onClick={onImport}>Import notes…</button>
-            <ImportCharSheet />
-            <OpenFolder sub="notes" label="Open notes folder" />
-          </div>
-        ) : (
-          <form className="row tight" onSubmit={(e) => { e.preventDefault(); void create() }}>
-            <input autoFocus value={newTitle} maxLength={200} placeholder="Note title" aria-label="New note title" onChange={(e) => setNewTitle(e.target.value)} />
-            <button type="submit" className="primary" disabled={!newTitle.trim()}>Add</button>
-            <button type="button" onClick={() => setNewTitle(null)}>Cancel</button>
-          </form>
-        )}
-        <p className="ink-muted notes-hint">Ctrl+click or Shift+click selects several notes files; right-click for more; drag them onto a folder.</p>
+        <div className="nb-tree">
+          {hits ? (
+            hits.length === 0 ? <p className="nb-muted">Nothing found.</p> : hits.map((h, i) => (
+              <button key={i} className="nb-hit" onClick={() => go({ kind: 'doc', id: h.docId }, h.heading)}>
+                <b>{h.title}{h.headingText ? ` › ${h.headingText}` : ''}</b>{h.text && <span>{h.text}</span>}
+              </button>
+            ))
+          ) : left === 'starred' ? listOf(data.starred, 'No starred notes. Right-click a note › Star.')
+            : left === 'recent' ? listOf(recent, 'Notes you open show here.') : tree}
+          {selected.size > 1 && (
+            <p className="nb-muted" role="status">{selected.size} selected. Right-click for Combine, Move to folder or Delete.{' '}
+              <button className="link-button" onClick={() => setSelected(new Set())}>Clear</button></p>
+          )}
+        </div>
+        <div className="nb-lfoot">
+          {newTitle === null ? (
+            <>
+              <button className="nb-btn" onClick={() => setNewTitle('')}>New note</button>
+              <ImportCharSheet />
+              <OpenFolder sub="notes" label="Open notes folder" />
+            </>
+          ) : (
+            <form className="row tight" onSubmit={(e) => { e.preventDefault(); void create() }}>
+              <input autoFocus value={newTitle} maxLength={200} placeholder="Note title" aria-label="New note title" onChange={(e) => setNewTitle(e.target.value)} />
+              <button type="submit" className="nb-btn is-pri" disabled={!newTitle.trim()}>Add</button>
+              <button type="button" className="nb-btn" onClick={() => setNewTitle(null)}>Cancel</button>
+            </form>
+          )}
+        </div>
       </aside>
-      <section className="notes-view">{view2()}</section>
+
+      {doc ? (
+        <NoteReader key={doc.id} doc={doc} docs={data.docs} jump={jump} folder={doc.folder} onChanged={load} onOpenDraft={onOpen}
+          prev={at > 0 ? inFolder[at - 1] : undefined} next={at >= 0 && at < inFolder.length - 1 ? inFolder[at + 1] : undefined}
+          onOpenDoc={(id, n = -1) => go({ kind: 'doc', id }, n)} />
+      ) : (
+        <section className="nb-mid nb-oldview">
+          {open.kind === 'master' && <MasterNotes onOpen={(o) => go(o)} />}
+          {open.kind === 'dm' && (
+            <TextNote key="dm" title="DM notes between sessions" text={data.dmNotes} jump={jump}
+              hint={running ? 'A session is running: the desk journal writes to that session’s notes.' : 'The desk journal shows these while no session runs.'}
+              popout={!running} onSave={(text) => act('notes:set', { text }).then(load)} />
+          )}
+          {sess && (
+            <TextNote key={sess.id} title={`Session ${sess.number} · ${when(sess.startedAt)}`} text={sess.dmNotes} popout={sess.running} jump={jump}
+              hint={sess.running ? 'This session is running: the desk journal is these notes.' : 'DM notes from this session.'}
+              recap={sess.recap} onSave={(text) => act('session:notes', { id: sess.id, text }).then(load)} />
+          )}
+          {open.kind === 'doc' && <p className="nb-muted">That note is gone (moved to History or undone).</p>}
+        </section>
+      )}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       {naming && <NameDialog {...naming} onClose={() => setNaming(null)} />}
       {combining && <CombineDialog docs={combining.map((id) => data.docs.find((d) => d.id === id)).filter((d): d is NoteDocView => !!d)}
-        onClose={() => setCombining(null)} onDone={(id) => { setCombining(null); setSelected(new Set()); load(); openAt({ kind: 'doc', id }) }} />}
+        onClose={() => setCombining(null)} onDone={(id) => { setCombining(null); setSelected(new Set()); load(); go({ kind: 'doc', id }) }} />}
     </div>
   )
 }
@@ -381,31 +468,6 @@ function TakeEdit({ id, onDone, onOpen }: { id: string; onDone(changed: string[]
   )
 }
 
-/** "Notes changed: update cards?" The AI reads only the changed parts and proposes card changes (nothing changes until approved). */
-function UpdateCards({ id, lines, onClose, onOpen }: { id: string; lines: string[]; onClose(): void; onOpen(d: ImportDraft): void }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [progress, setProgress] = useState('')
-  useEffect(() => window.dungeonzen.onImportProgress((p) => setProgress(p.message)), [])
-  return (
-    <Dialog title="Notes changed: update cards?" open onClose={onClose}>
-      <p>{lines.length} part{lines.length === 1 ? '' : 's'} of this note changed or are new. The writing AI can read just those and propose changes to your cards: new cards, and details for the ones you have.</p>
-      <ul className="notes-changed">{lines.slice(0, 6).map((l, i) => <li key={i}>{l.length > 160 ? `${l.slice(0, 160)}…` : l}</li>)}{lines.length > 6 && <li className="ink-muted">and {lines.length - 6} more</li>}</ul>
-      <p className="hint">You review every proposal side by side with the card it would change; nothing changes until you approve, and Ctrl+Z undoes it.</p>
-      {busy && <p role="status">{progress || 'Reading…'}</p>}
-      {error && <p className="field-error" role="alert">{error}</p>}
-      <div className="dz-actions">
-        <button onClick={onClose}>Not now</button>
-        <button className="primary" disabled={busy} onClick={async () => {
-          setBusy(true); setError('')
-          try { const d = await call('notedoc:updateCards', { id, lines }); onClose(); onOpen(d) } catch (e) { setError((e as Error).message) }
-          setBusy(false)
-        }}>{busy ? 'Reading…' : 'Yes, propose card changes'}</button>
-      </div>
-    </Dialog>
-  )
-}
-
 function TextNote({ title, text, hint, recap, popout, jump, onSave }: {
   title: string; text: string; hint: string; recap?: string; popout: boolean; jump: Jump; onSave(text: string): Promise<unknown>
 }) {
@@ -461,88 +523,11 @@ function TextNote({ title, text, hint, recap, popout, jump, onSave }: {
   )
 }
 
-function DocNote({ doc, docs, jump, onOpenDraft, onChanged }: { doc: NoteDocView; docs: NoteDocView[]; jump: Jump; onOpenDraft(d: ImportDraft): void; onChanged(): void }) {
-  const { act, say } = useBoard()
-  const [content, setContent] = useState<{ blocks: Block[]; url: string | null } | null>(null)
-  const [error, setError] = useState('')
-  const [dirty, setDirty] = useState(false)
-  const [changed, setChanged] = useState<string[] | null>(null)
-  const [title, setTitle] = useState(doc.title)
-  const [making, setMaking] = useState(false)
-  const [heads, setHeads] = useState<Array<{ level: HeadingLevel; text: string }>>([])
-  const [finding, setFinding] = useState<Array<{ key: number; text: string; level: HeadingLevel }> | null>(null)
-  const editor = useRef<NoteEditorHandle>(null)
-  const wrap = useRef<HTMLDivElement>(null)
-  useEffect(() => { void call('notedoc:content', { id: doc.id }).then(setContent).catch((e) => setError((e as Error).message)) }, [doc.id, doc.updatedAt])
-  useEffect(() => setTitle(doc.title), [doc.title])
-  const headEls = () => [...(wrap.current?.querySelectorAll<HTMLElement>('.note-page h1, .note-page h2, .note-page h3') ?? [])]
-  const readHeads = () => setHeads(headEls().map((h) => ({ level: h.tagName.toLowerCase() as HeadingLevel, text: h.textContent?.trim() ?? '' })).filter((h) => h.text))
-  const jumpTo = (n: number) => headEls().filter((h) => h.textContent?.trim())[n]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  useEffect(() => { if (!content) return; readHeads(); if (jump) requestAnimationFrame(() => jumpTo(jump.n)) }, [content, jump]) // eslint-disable-line react-hooks/exhaustive-deps
-  const save = async (blocks = editor.current?.blocks() ?? []) => {
-    const r = await act('notedoc:save', { id: doc.id, blocks })
-    if (!r) return
-    setDirty(false)
-    onChanged()
-    if (r.changed.length) setChanged(r.changed)
-    else say('Saved. Nothing new for the cards.')
-  }
-  const isText = doc.kind !== 'picture'
-  return (
-    <div className="notes-with-toc">
-      <div className="parchment-sheet notes-doc">
-        <div className="notes-head">
-          <input className="notes-title" value={title} aria-label="Note title" maxLength={200} onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => { if (title.trim() && title.trim() !== doc.title) void act('notedoc:rename', { id: doc.id, title: title.trim() }).then(onChanged); else setTitle(doc.title) }} />
-          <span className="row tight wrap">
-            {isText && <button className="primary" disabled={!dirty} onClick={() => void save()} title="Saves a Word version; earlier versions stay below">Save</button>}
-            <button className="ink-button" onClick={() => void act('notedoc:openInWord', { id: doc.id }).then(() => {
-              if (doc.kind === 'word') say('Opened in Word. Save there; when you come back, Dungeon Zen offers to bring the changes in.')
-            })}>{doc.kind === 'word' ? 'Open in Word' : doc.kind === 'pdf' ? 'Open the PDF' : doc.kind === 'picture' ? 'Open the picture' : 'Open the file'}</button>
-            <button className="ink-button" title="Shows the file in Windows Explorer" onClick={() => void act('notedoc:showInFolder', { id: doc.id })}>Open file location</button>
-            <button className="ink-button" title="A new copy of the file; this one stays under Earlier versions" onClick={async () => { const r = await act('notedoc:reimport', { id: doc.id }); if (r) { onChanged(); if (r.changed.length) setChanged(r.changed); else say('Re-imported. Nothing new for the cards.') } }}>Re-import file…</button>
-            {isText && <button className="ink-button" title="The AI reads the whole note again and proposes card changes" onClick={async () => { const l = await act('notedoc:allLines', { id: doc.id }); if (l?.length) setChanged(l) }}>Read again with AI…</button>}
-            <button className="ink-button" title="The AI copies a character sheet (and its other files) into a character card" onClick={() => setMaking(true)}>Make a character card…</button>
-            {isText && <button className="ink-button" onClick={async () => { const p = await act('notedoc:saveCopy', { id: doc.id }); if (p) say(`Saved ${p}`) }}>Save a copy as Word…</button>}
-            <button className="ink-button danger-ink" onClick={() => void act('notedoc:setStatus', { id: doc.id, status: 'defunct' }).then(onChanged)}>Delete (to History)</button>
-          </span>
-        </div>
-        <p className="ink-muted">From {doc.originalName}. {doc.kind === 'word' || doc.kind === 'text' ? 'Edit it here (Save writes a Word file) or in Word.' : doc.kind === 'pdf' ? 'The PDF’s text: edit it here and Save to make a Word version.' : ''}</p>
-        {error && <p className="field-error" role="alert">{error}</p>}
-        <div ref={wrap}>
-          {content && (doc.kind === 'picture'
-            ? <img className="notes-picture" src={content.url ?? ''} alt={doc.title} />
-            : <NoteEditor ref={editor} initial={content.blocks} label={doc.title} onDirty={() => { setDirty(true); readHeads() }} />)}
-        </div>
-        {doc.versions.length > 0 && (
-          <details className="notes-versions">
-            <summary>Earlier versions ({doc.versions.length})</summary>
-            <ul>
-              {doc.versions.map((v) => (
-                <li key={v.file}>{new Date(v.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                  <button className="link-button" onClick={() => void act('notedoc:restore', { id: doc.id, file: v.file }).then(onChanged)}>Bring back</button></li>
-              ))}
-            </ul>
-          </details>
-        )}
-        {making && <CharSheetDialog doc={doc} docs={docs} onClose={() => setMaking(false)} />}
-        {changed && <UpdateCards id={doc.id} lines={changed} onClose={() => setChanged(null)} onOpen={onOpenDraft} />}
-      </div>
-      {isText && <Contents heads={heads} onJump={jumpTo}
-        onFind={() => setFinding(guessHeadings(editor.current?.blocks() ?? []).map((g) => ({ key: g.index, text: g.text, level: g.level })))} />}
-      {finding && <FindHeadings found={finding} onClose={() => setFinding(null)} onApply={(chosen) => {
-        const blocks = (editor.current?.blocks() ?? []).map((b, k) => { const lv = chosen.get(k); return lv && b.kind !== 'table' ? { ...b, kind: lv } : b })
-        void save(blocks)
-      }} />}
-    </div>
-  )
-}
-
 type Section = IpcOutputs['notes:master'][number]
 
 /** Blocks back to the plain text the DM and session notes keep ("# " headings, "- " lists). */
 const blocksToText = (blocks: Block[]) => blocks.map((b) => {
-  if (b.kind === 'table') return blockLines([b]).join('\n')
+  if (b.kind === 'table' || b.kind === 'pic') return blockLines([b]).join('\n')
   const t = b.runs.map((r) => r.text).join('')
   return b.kind === 'h1' ? `# ${t}` : b.kind === 'h2' ? `## ${t}` : b.kind === 'h3' ? `### ${t}` : b.kind === 'bullet' ? `- ${t}` : b.kind === 'number' ? `1. ${t}` : t
 }).join('\n\n')
@@ -564,7 +549,7 @@ function MasterNotes({ onOpen }: { onOpen(o: Open): void }) {
   const lower = q.trim().toLowerCase()
   const shown = lower ? secs.filter((s) => `${s.title}\n${blockLines(s.blocks).join('\n')}`.toLowerCase().includes(lower)) : secs
   const headings = (s: Section) => s.blocks.filter((b) => b.kind === 'h1' || b.kind === 'h2' || b.kind === 'h3')
-    .map((b) => ({ level: b.kind, text: b.kind === 'table' ? '' : b.runs.map((r) => r.text).join('') }))
+    .map((b) => ({ level: b.kind, text: 'runs' in b ? b.runs.map((r) => r.text).join('') : '' }))
   const jump = (id: string, n = -1) => {
     const el = document.getElementById(`m-${id}`)
     const target = n < 0 ? el : el?.querySelectorAll('.note-page h1, .note-page h2, .note-page h3')[n]

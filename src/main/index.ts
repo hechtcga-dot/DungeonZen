@@ -127,11 +127,30 @@ function popScreen(screen: string): void {
   else void w.loadFile(join(__dirname, '../renderer/index.html'), { hash })
 }
 
+/** One notes file in a window of its own (Notes tab ⧉, 2.8.0); one window per note. */
+const noteWindows = new Map<string, BrowserWindow>()
+function popNote(id: string): void {
+  const open = noteWindows.get(id)
+  if (open) { open.focus(); return }
+  const w = new BrowserWindow({
+    width: 980, height: 820, minWidth: 480, minHeight: 360, backgroundColor: '#fdf8ee', title: 'Dungeon Zen · Notes',
+    autoHideMenuBar: true,
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  })
+  noteWindows.set(id, w)
+  w.on('closed', () => noteWindows.delete(id))
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  const hash = `note/${id}`
+  if (process.env.ELECTRON_RENDERER_URL) void w.loadURL(`${process.env.ELECTRON_RENDERER_URL}#${hash}`)
+  else void w.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+}
+
 const screens = {
   pop: popScreen,
+  popNote,
   focus: (screen: string) => { const w = screenWindows.get(screen); if (w) { if (w.isMinimized()) w.restore(); w.focus() } },
   popped: () => [...screenWindows.keys()],
-  closeAll: () => { for (const w of screenWindows.values()) w.close() }
+  closeAll: () => { for (const w of [...screenWindows.values(), ...noteWindows.values()]) w.close() }
 }
 
 app.whenReady().then(() => {

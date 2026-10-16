@@ -1,24 +1,34 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import type { Block, Run } from '../../shared/noteDoc'
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const runHtml = (r: Run) => {
   let h = esc(r.text).replace(/\n/g, '<br>').replace(/\t/g, '&emsp;')
   if (r.u) h = `<u>${h}</u>`
   if (r.i) h = `<i>${h}</i>`
   if (r.b) h = `<b>${h}</b>`
+  // The DM's own link (or '' = never link these words here) rides on a span the editor keeps.
+  if (r.link !== undefined) h = `<span class="${r.link ? 'nb-own' : 'nb-nolink'}" data-link="${esc(r.link)}">${h}</span>`
   return h
 }
 
+/** A picture block in the editor: kept whole (not typed into); `src` gives its picture's address. */
+export const picHtml = (b: Extract<Block, { kind: 'pic' }>, src?: (b: Extract<Block, { kind: 'pic' }>) => string) =>
+  `<figure class="nb-pic${b.side === 'left' ? ' is-left' : ''}" contenteditable="false" data-pic="${esc(JSON.stringify(b))}"><img src="${esc(src?.(b) ?? '')}" alt=""></figure>`
+
 /** Blocks as HTML for the editor (consecutive list items share one list). */
-export function blocksToHtml(blocks: Block[]): string {
+export function blocksToHtml(blocks: Block[], picSrc?: (b: Extract<Block, { kind: 'pic' }>) => string): string {
   let out = ''
   let list: 'ul' | 'ol' | null = null
   for (const b of blocks) {
     const want = b.kind === 'bullet' ? 'ul' : b.kind === 'number' ? 'ol' : null
     if (list && want !== list) { out += `</${list}>`; list = null }
     if (want && !list) { out += `<${want}>`; list = want }
-    if (b.kind === 'table') {
+    if (b.kind === 'pic') {
+      out += picHtml(b, picSrc)
+    } else if (b.kind === 'read' || b.kind === 'side') {
+      out += `<div class="nb-${b.kind}">${b.runs.map(runHtml).join('') || '<br>'}</div>`
+    } else if (b.kind === 'table') {
       out += `<table><tbody>${b.rows.map((row) => `<tr>${row.map((cell) => `<td>${cell.map(runHtml).join('') || '<br>'}</td>`).join('')}</tr>`).join('')}</tbody></table>`
     } else {
       const inner = b.runs.map(runHtml).join('') || '<br>'
@@ -31,13 +41,13 @@ export function blocksToHtml(blocks: Block[]): string {
 
 /** Reads the editor back into blocks: headings, paragraphs, lists, tables, bold/italic/underline. */
 export function htmlToBlocks(root: HTMLElement): Block[] {
-  const runsOf = (node: Node, fmt: { b?: boolean; i?: boolean; u?: boolean } = {}): Run[] => {
+  const runsOf = (node: Node, fmt: { b?: boolean; i?: boolean; u?: boolean; link?: string } = {}): Run[] => {
     const out: Run[] = []
     const push = (text: string, f: typeof fmt) => {
       if (!text) return
       const last = out.at(-1)
-      if (last && !!last.b === !!f.b && !!last.i === !!f.i && !!last.u === !!f.u) last.text += text
-      else out.push({ text, ...(f.b ? { b: true } : {}), ...(f.i ? { i: true } : {}), ...(f.u ? { u: true } : {}) })
+      if (last && !!last.b === !!f.b && !!last.i === !!f.i && !!last.u === !!f.u && last.link === f.link) last.text += text
+      else out.push({ text, ...(f.b ? { b: true } : {}), ...(f.i ? { i: true } : {}), ...(f.u ? { u: true } : {}), ...(f.link !== undefined ? { link: f.link } : {}) })
     }
     node.childNodes.forEach((child) => {
       if (child.nodeType === Node.TEXT_NODE) { push((child.textContent ?? '').replace(/ /g, '\t'), fmt); return }
@@ -47,7 +57,8 @@ export function htmlToBlocks(root: HTMLElement): Block[] {
       const f = {
         b: fmt.b || ['B', 'STRONG'].includes(child.tagName) || st.fontWeight === 'bold' || Number(st.fontWeight) >= 600,
         i: fmt.i || ['I', 'EM'].includes(child.tagName) || st.fontStyle === 'italic',
-        u: fmt.u || child.tagName === 'U' || st.textDecoration.includes('underline')
+        u: fmt.u || child.tagName === 'U' || st.textDecoration.includes('underline'),
+        link: child.dataset.link ?? fmt.link
       }
       for (const r of runsOf(child, f)) push(r.text, r)
       if (['DIV', 'P'].includes(child.tagName) && child.nextSibling) push('\n', fmt)
@@ -65,6 +76,15 @@ export function htmlToBlocks(root: HTMLElement): Block[] {
     }
     if (!(node instanceof HTMLElement)) return
     const tag = node.tagName
+    if (tag === 'FIGURE' && node.dataset.pic) {
+      try { blocks.push(JSON.parse(node.dataset.pic) as Block) } catch { /* not ours */ }
+      return
+    }
+    if (tag === 'DIV' && (node.classList.contains('nb-read') || node.classList.contains('nb-side'))) {
+      const runs = runsOf(node)
+      if (runs.some((r) => r.text.trim())) blocks.push({ kind: node.classList.contains('nb-read') ? 'read' : 'side', runs })
+      return
+    }
     if (tag === 'UL' || tag === 'OL') {
       node.querySelectorAll(':scope > li').forEach((li) => blocks.push({ kind: tag === 'UL' ? 'bullet' : 'number', runs: runsOf(li) }))
     } else if (tag === 'TABLE') {
