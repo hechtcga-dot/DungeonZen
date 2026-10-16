@@ -30,7 +30,8 @@ html, body { background: #2e1c0e; }
 button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 /* ---- buttons and inputs everywhere in the theme ---- */
-.desk-theme button:hover:not(:disabled) { background: rgba(255, 240, 200, 0.12); border-color: var(--border-strong); }
+/* Hover keeps the button's own face, slightly shadowed (owner, 2026-10-16: no see-through wood). */
+.desk-theme button:hover:not(:disabled) { filter: brightness(0.92); box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.35); border-color: var(--border-strong); }
 .desk-theme button:disabled { color: #8a7a5c; }
 .desk-theme button[aria-pressed='true'], .desk-theme .viewbar button[aria-pressed='true'] {
   color: #2a1806; font-weight: 600; border-color: #3b2608;

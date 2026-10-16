@@ -30,7 +30,7 @@ button {
   min-height: var(--control); padding: 0 14px; background: var(--ground); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
 }
-button:hover:not(:disabled) { border-color: var(--border-strong); background: #20252c; }
+button:not(.desk-theme *):hover:not(:disabled) { border-color: var(--border-strong); background: #20252c; }
 button:disabled { color: #5d6570; cursor: default; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--selection); outline-offset: 2px;
