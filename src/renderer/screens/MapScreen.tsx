@@ -25,7 +25,7 @@ import { fmtSquares, fmtTrip, KM_PER, KM_PER_MILE, kmToShown, LENGTH_UNITS, long
 type Mode = 'view' | 'draw' | 'edit' | 'scale'
 
 export function MapScreen() {
-  const { desk, info, act, mapScreen, setBattleMapOpen } = useBoard()
+  const { desk, info, act, mapScreen, goTo } = useBoard()
   const current = desk?.map ?? null
   const minutes = info?.clockMin ?? 0
   const [lighting] = useLightingPref()
@@ -33,8 +33,6 @@ export function MapScreen() {
   const [scaleOpen, setScaleOpen] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
   const [mode, setMode] = useState<Mode>('view')
-  // A new map: offer the AI region finder straight away.
-  const importMap = async () => { if (await act('map:importDialog', undefined)) { setMode('view'); setFindOpen(true) } }
   const view = mapScreen && current && mapScreen.map.id === current.id ? mapScreen : null
   return (
     <DeskFrame>
@@ -70,8 +68,7 @@ export function MapScreen() {
                 <button className="brass" onClick={() => setEditOpen(true)}>Rename or remove</button>
               </>
             )}
-            <button className="brass" onClick={() => setBattleMapOpen(true)}>Draw a battle map</button>
-            <button className="brass" onClick={importMap}>Import map</button>
+            <button className="brass" onClick={() => goTo('guide')} title="Import a picture, make a world map here, or have an AI draw one">New map</button>
             {current && findOpen && (
               <Dialog title={`Regions of ${current.name}`} open wide onClose={() => setFindOpen(false)}>
                 <FindRegions inMap map={current} onNext={() => setFindOpen(false)} onDraw={() => { setFindOpen(false); setMode('draw') }} />
@@ -87,8 +84,8 @@ export function MapScreen() {
               <div className="map-empty">
                 <CompassRose className="map-empty-rose" />
                 <h2>{current ? 'Unrolling the map…' : 'No map yet'}</h2>
-                {!current && <p>Import a map image (PNG, JPEG or WebP). Large maps are fine: zoom in with the mouse wheel.</p>}
-                {!current && <button className="wax" onClick={importMap}>Import a map</button>}
+                {!current && <p>Import a picture, make a world map here, or have an AI draw one.</p>}
+                {!current && <button className="wax" onClick={() => goTo('guide')}>New map</button>}
               </div>
             </div>
           </div>

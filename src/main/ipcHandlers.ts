@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell } from 'electron'
 import { ASSETS_DIR, Campaign, MAP_EXTENSIONS, storedExt } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import type { KeyStore } from './ai/keys'
@@ -67,6 +67,15 @@ const SHARED_WRITES = new Set<IpcChannel>(['notes:set', 'notes:append', 'session
 // DM ticks "Send smaller copies".
 const prepared = new Map<string, { bytes: Buffer; mime: string }>()
 /** The chosen part of a map or picture, enlarged to 1536 px on its long side (smoothly) so the AI sees its shapes clearly. */
+/**
+ * Windows "hide pointer while typing": after typing a name and pressing Enter the pointer stays hidden
+ * over the folder window that opens (owner, 2026-10-16). A mouse move where the pointer is shows it again.
+ */
+function showCursor(win: BrowserWindow): void {
+  const p = screen.getCursorScreenPoint(), b = win.getContentBounds()
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: p.x - b.x, y: p.y - b.y })
+}
+
 function cropSource(c: Campaign, f: { mapId?: string; path?: string; crop: { x: number; y: number; w: number; h: number } }): { bytes: Buffer; mime: string } {
   const file = f.mapId ? c.mapImage(f.mapId).file : f.path ? c.assetFile(f.path) : null
   if (!file) throw new Error('The picture to follow is missing from the campaign folder. Choose it again.')
@@ -202,6 +211,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
 
   handle('campaign:create', async ({ name }) => {
     const win = getWindow()
+    if (win) showCursor(win)
     const options = {
       title: 'Choose where to keep the campaign folder',
       buttonLabel: 'Create campaign here',
