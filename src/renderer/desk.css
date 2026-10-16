@@ -1804,3 +1804,13 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .encounters-screen .enc-write { padding: 8px 12px; }
 .encounters-screen textarea.grow.line { line-height: 22px; }
 .encounters-screen .enc-add .hint { font-size: 11.5px; }
+
+/* Board side panel › Find a card. */
+.card-finder { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.card-finder input { flex: 1; min-width: 0; }
+.card-finder select { flex: 0 0 auto; max-width: 120px; }
+.card-finder-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.card-finder-list button { width: 100%; text-align: left; min-height: 28px; padding: 2px 8px; font-size: 13px; }
+.card-finder-list .type-pill { display: inline-block; min-width: 64px; font-size: 11px; opacity: 0.75; }
+@keyframes card-found { 0%, 100% { filter: none; } 30%, 70% { filter: drop-shadow(0 0 10px #f6c945) drop-shadow(0 0 4px #f6c945); } }
+.react-flow__node.is-found { animation: card-found 0.8s ease-in-out 2; }

@@ -18,7 +18,7 @@ type Preview = Awaited<ReturnType<typeof call<'import:preview'>>>
 
 const GROUPS: Array<[string, EntityType[]]> = [
   ['People and creatures', ['NPC', 'MONSTER']], ['Places', ['LOCATION', 'BUILDING']], ['Factions', ['FACTION']],
-  ['Quests and clues', ['QUEST', 'CLUE']], ['Items and handouts', ['ITEM', 'HANDOUT']], ['Scenes', ['SCENE']]
+  ['Quests and clues', ['QUEST', 'CLUE']], ['Items and handouts', ['ITEM', 'HANDOUT']], ['Scenes', ['SCENE']], ['Other', ['OTHER']]
 ]
 const LINK_WORDS: Record<string, string> = {
   KNOWS: 'knows', HOSTILE_TO: 'is hostile to', ALLIED_WITH: 'is allied with', LOCATED_AT: 'is at', TIED_TO_QUEST: 'is tied to quest', MEMBER_OF: 'is a member of'

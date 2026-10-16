@@ -288,7 +288,7 @@ function BoardLayout() {
       select({ kind: 'entity', id: entity.id })
       freshCard(entity.id)
       setPanel('inspector')
-      setTimeout(() => document.getElementById(`entity-${entity.id}-name`)?.focus(), 50)
+      setTimeout(() => { const el = document.getElementById(`entity-${entity.id}-name`) as HTMLInputElement | null; el?.focus(); el?.select() }, 50)
     }
   }, [act, view.board.id, centre, select, setPanel])
 
@@ -346,6 +346,11 @@ function BoardLayout() {
     useBoard.setState({ focusEntityId: null })
     setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === item.id })))
     setTimeout(() => void setCenter(item.x, item.y, { zoom: 1, duration: 300 }), 0)
+    // A short glow so the eye finds it (board search, Show on board).
+    setTimeout(() => {
+      const el = document.querySelector(`.react-flow__node[data-id="${item.id}"]`)
+      el?.classList.remove('is-found'); void (el as HTMLElement | null)?.offsetWidth; el?.classList.add('is-found')
+    }, 350)
   }, [focusEntityId, view.items, setCenter, regionSpots])
 
   const createStoryline = async (e: FormEvent) => {
@@ -723,6 +728,7 @@ function BoardLayout() {
             <button role="tab" aria-selected={panel === 'storylines'} aria-pressed={panel === 'storylines'} onClick={() => setPanel('storylines')}>Story</button>
             <button role="tab" aria-selected={panel === 'history'} aria-pressed={panel === 'history'} onClick={() => setPanel('history')}>History</button>
           </div>
+          <CardFinder view={view} onPick={(id) => { useBoard.setState({ focusEntityId: id, selection: { kind: 'entity', id } }); setPanel('inspector') }} />
           <div className="side-body">
             {panel === 'inspector' ? <Inspector /> : panel === 'connections' ? <ConnectionsPanel cardId={!linksAll && selection?.kind === 'entity' ? selection.id : null} /> : panel === 'storylines' ? <StorylinesPanel /> : <HistoryPanel />}
           </div>
@@ -783,5 +789,37 @@ function ViewStrip({ activeId, children }: { activeId: string; children: ReactNo
       <div className="view-strip" ref={ref} onScroll={measure}>{children}</div>
       {more.right && <button className="ghost view-arrow" aria-label="More storylines to the right" onClick={() => step(1)}>›</button>}
     </>
+  )
+}
+
+/** Side panel › Find a card (owner, 2026-10-16): by name and type, among the cards on this board; picking one centres and highlights it. */
+function CardFinder({ view, onPick }: { view: BoardView; onPick(id: string): void }) {
+  const [q, setQ] = useState('')
+  const [type, setType] = useState<EntityType | ''>('')
+  const t = q.trim().toLowerCase()
+  const onBoard = new Set(view.items.map((i) => i.entityId).filter(Boolean))
+  const found = t || type
+    ? Object.values(view.entities).filter((e) => onBoard.has(e.id) && e.status !== 'defunct' && (!type || e.type === type) && (!t || e.name.toLowerCase().includes(t)))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    : []
+  return (
+    <div className="card-finder">
+      <div className="row tight">
+        <label htmlFor="card-find" className="visually-hidden">Find a card</label>
+        <input id="card-find" type="search" placeholder="Find a card…" value={q} onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && found[0]) onPick(found[0].id) }} />
+        <select aria-label="Card type" value={type} onChange={(e) => setType(e.target.value as EntityType | '')}>
+          <option value="">All types</option>
+          {ENTITY_TYPES.map((x) => <option key={x} value={x}>{ENTITY_LABELS[x]}</option>)}
+        </select>
+      </div>
+      {(t || type) && (found.length === 0 ? <p className="ink-muted">No card on this board matches.</p> : (
+        <ul className="card-finder-list">
+          {found.slice(0, 50).map((e) => (
+            <li key={e.id}><button onClick={() => onPick(e.id)}><span className="type-pill">{ENTITY_LABELS[e.type]}</span> {e.name}</button></li>
+          ))}
+        </ul>
+      ))}
+    </div>
   )
 }

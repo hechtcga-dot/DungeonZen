@@ -17,7 +17,7 @@ Reply with ONE JSON object and nothing else, in this shape:
  "questions": [{"text": "a question for the DM where the notes are unclear or contradict", "about": "c1" or null, "options": ["..."]}]
 }
 Rules:
-- People are NPC (or MONSTER for creatures to fight); towns, regions and rooms are LOCATION; taverns, inns, shops and other single buildings are BUILDING; groups are FACTION; jobs and hooks are QUEST; secrets and leads are CLUE; objects are ITEM; documents the players can read are HANDOUT; set pieces and encounters are SCENE.
+- People are NPC (or MONSTER for creatures to fight); towns, regions and rooms are LOCATION; taverns, inns, shops and other single buildings are BUILDING; groups are FACTION; jobs and hooks are QUEST; secrets and leads are CLUE; objects are ITEM; documents the players can read are HANDOUT; set pieces and encounters are SCENE; anything that fits none of these is OTHER.
 - "basis" is "stated" when the notes say it outright and "inferred" when you are guessing. Never present a guess as stated.
 - Every card, storyline and link needs a short exact "quote" from the notes. Leave details out rather than invent them.
 - "secret": true when the players should not know the link yet.
@@ -102,7 +102,7 @@ const TYPE_WORDS: Record<string, string> = {
   PLACE: 'LOCATION', LOCATION: 'LOCATION', TOWN: 'LOCATION', CITY: 'LOCATION', BUILDING: 'BUILDING', TAVERN: 'BUILDING', INN: 'BUILDING', SHOP: 'BUILDING', ROOM: 'LOCATION', REGION: 'LOCATION',
   GROUP: 'FACTION', FACTION: 'FACTION', ORGANIZATION: 'FACTION', ORGANISATION: 'FACTION', GUILD: 'FACTION', CULT: 'FACTION',
   QUEST: 'QUEST', HOOK: 'QUEST', JOB: 'QUEST', CLUE: 'CLUE', SECRET: 'CLUE', LEAD: 'CLUE', ITEM: 'ITEM', OBJECT: 'ITEM', ARTIFACT: 'ITEM',
-  SCENE: 'SCENE', ENCOUNTER: 'SCENE', EVENT: 'SCENE', HANDOUT: 'HANDOUT', LETTER: 'HANDOUT', DOCUMENT: 'HANDOUT'
+  SCENE: 'SCENE', ENCOUNTER: 'SCENE', EVENT: 'SCENE', HANDOUT: 'HANDOUT', LETTER: 'HANDOUT', DOCUMENT: 'HANDOUT', OTHER: 'OTHER'
 }
 export function cardType(t: string): CardProposal['type'] {
   return (TYPE_WORDS[t.trim().toUpperCase()] ?? 'NPC') as CardProposal['type']

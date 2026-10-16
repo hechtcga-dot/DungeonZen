@@ -16,7 +16,7 @@ import { PicturesTab } from '../components/Pictures'
 const TEMPLATES: Array<[EntityType, string]> = [
   ['NPC', 'NPC'], ['PC', 'Player character'], ['MONSTER', 'Monster'], ['LOCATION', 'Location or region'], ['BUILDING', 'Building (tavern, shop…)'],
   ['QUEST', 'Quest'], ['SCENE', 'Scene'], ['CLUE', 'Clue'], ['FACTION', 'Faction'], ['ITEM', 'Item or treasure'],
-  ['HANDOUT', 'Letter or bulletin board']
+  ['HANDOUT', 'Letter or bulletin board'], ['OTHER', 'Other']
 ]
 
 type SrdKind = 'monsters' | 'items'

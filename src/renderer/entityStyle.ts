@@ -14,12 +14,13 @@ export const ENTITY_COLOURS: Record<EntityType, string> = {
   SCENE: '#4a4f57',
   ITEM: '#9c4f1f',
   HANDOUT: '#6b5a3a',
-  BUILDING: '#5c6b73'
+  BUILDING: '#5c6b73',
+  OTHER: '#7a7464' // owner, 2026-10-16: anything that fits no other type
 }
 
 export const ENTITY_LABELS: Record<EntityType, string> = {
   NPC: 'NPC', PC: 'PC', MONSTER: 'Monster', LOCATION: 'Location', QUEST: 'Quest', ITEM: 'Item',
-  SCENE: 'Scene', CLUE: 'Clue', FACTION: 'Faction', HANDOUT: 'Handout', BUILDING: 'Building'
+  SCENE: 'Scene', CLUE: 'Clue', FACTION: 'Faction', HANDOUT: 'Handout', BUILDING: 'Building', OTHER: 'Other'
 }
 
 /** The colour of each card type in this campaign: the DM's choice (board › Card, right-click a type) or the standard one. */

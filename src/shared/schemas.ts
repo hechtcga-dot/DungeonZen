@@ -3,7 +3,7 @@ import { z } from 'zod'
 // Enums are stored as strings in SQLite and checked here (CLAUDE.md rule 6).
 
 export const ENTITY_TYPES = [
-  'NPC', 'PC', 'MONSTER', 'LOCATION', 'QUEST', 'ITEM', 'SCENE', 'CLUE', 'FACTION', 'HANDOUT', 'BUILDING'
+  'NPC', 'PC', 'MONSTER', 'LOCATION', 'QUEST', 'ITEM', 'SCENE', 'CLUE', 'FACTION', 'HANDOUT', 'BUILDING', 'OTHER'
 ] as const
 export const EntityType = z.enum(ENTITY_TYPES)
 export type EntityType = z.infer<typeof EntityType>
