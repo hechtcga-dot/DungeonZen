@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
+import { freshCard } from '../fresh'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
 import { ExportDialog } from '../components/ExportDialog'
@@ -62,7 +63,7 @@ export function LibraryScreen() {
   const createFromTemplate = async (t: EntityType, label: string) => {
     if (!info) return
     const e = await act('entity:create', { boardId: info.globalBoardId, type: t, name: `New ${label}` })
-    if (e) await openSheet(e.id)
+    if (e) { await openSheet(e.id); freshCard(e.id) }
   }
 
   const [browse, setBrowse] = useState(false)

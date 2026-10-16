@@ -148,6 +148,7 @@ export const ipcInputs = {
   'app:uninstall': z.void(),
   'board:view': z.object({ boardId: Id }),
   'entity:create': z.object({ boardId: Id, type: EntityType, name: Name, position: Position.optional() }),
+  'blank:discard': z.object({ id: Id }),
   'entity:duplicate': z.object({ id: Id }),
   'sheet:view': z.object({ entityId: Id }),
   'places:list': z.void(),
@@ -562,6 +563,7 @@ export interface IpcOutputs {
   'app:uninstall': void
   'board:view': BoardView
   'entity:create': EntityView
+  'blank:discard': boolean
   'entity:duplicate': EntityView
   'sheet:view': SheetView
   'prep:popout': void

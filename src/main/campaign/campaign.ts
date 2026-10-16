@@ -7,7 +7,7 @@ import { basename, extname, join } from 'node:path'
 import { and, asc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm'
 import { openDatabase, type OpenedDb } from '../db/open'
 import { classesOf, hitDice, usesOf } from '../../shared/charsheet'
-import { combat, noteDoc, secret, tracked, type TableName,
+import { combat, command, noteDoc, secret, tracked, type RowChange, type TableName,
   ability, act, actOutcome, board, boardItem, campaignSetting, entity, knowledge, logEntry, map, partyPosition, regionShape,
   actEntity, relationship, relationshipKnown, reviewDecision, session, styleExample, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, encounterCreature, type RegionRow, storyline, storylineEntity, storyTrigger, type AbilityRow, type ActRow, type LogRow, type MapRow, type OutcomeRow,
   type SessionRow, type TriggerRow, type BoardItemRow, type BoardRow, type EntityRow, type RelationshipRow
@@ -503,6 +503,30 @@ export class Campaign {
       if (input.type === 'PC') this.joinFights(w, id)
     })
     return this.entityView(id)
+  }
+
+  /**
+   * Something made empty by a New… / Add button (a card, a board note, a prep row) and left untouched goes
+   * away for good: no History, no change log, no undo step (owner, 2026-10-16). Untouched = the step that
+   * made it is the only one that touched any row it made, apart from moving a board card or note.
+   * The renderer asks only for things it made empty. Returns whether it went.
+   */
+  discardIfBlank(id: string): boolean {
+    const touching = (rowId: string) => this.db.select().from(command)
+      .where(sql`${command.state} != 'discarded' AND ${command.payload} LIKE ${`%${rowId}%`}`).all()
+    const made = touching(id).find((c) => c.payload.some((x) => x.id === id && x.before === null))
+    if (!made || made.payload.some((x) => x.before !== null)) return false
+    const moveOnly = (x: RowChange) => x.table === 'board_item' && x.before !== null && x.after !== null &&
+      Object.keys(x.after).every((k) => ['x', 'y', 'w', 'h'].includes(k) || JSON.stringify(x.before![k]) === JSON.stringify(x.after![k]))
+    const steps = new Map<string, typeof made>()
+    for (const x of made.payload) for (const c of touching(x.id)) steps.set(c.id, c)
+    if ([...steps.values()].some((c) => c.id !== made.id && !c.payload.every(moveOnly))) return false
+    this.db.transaction((tx) => {
+      for (const x of [...made.payload].reverse()) tx.delete(tracked[x.table].table).where(eq(tracked[x.table].pk, x.id)).run()
+      for (const c of steps.values()) tx.delete(command).where(eq(command.id, c.id)).run()
+    })
+    this.log.writes++
+    return true
   }
 
   /** Creates an entity and its card(s) inside an open command, so several can be one undo step. */

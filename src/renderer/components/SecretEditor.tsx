@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBoard, useView } from '../store'
+import { freshRow } from '../fresh'
 import { CardPicker } from './LinkField'
 import { ContextMenu } from './ContextMenu'
 import { call } from '../api'
@@ -196,7 +197,7 @@ export function AddSecretMenu({ prepId, secrets }: { prepId: string; secrets: Se
     <>
       <select className="ink-button primary-ink" value="" aria-label="Add new" onChange={(e) => {
         const v = e.target.value
-        if (v === 'existing') { setQ(''); setPicking(true) } else if (v) void act('prepItem:addSecret', { prepId, kind: v as SecretKind })
+        if (v === 'existing') { setQ(''); setPicking(true) } else if (v) void act('prepItem:addSecret', { prepId, kind: v as SecretKind }).then((id) => id && freshRow(id))
       }}>
         <option value="">Add new…</option>
         {(['connection', 'secret', 'clue'] as const).map((k) => <option key={k} value={k}>{SECRET_LABEL[k]}</option>)}

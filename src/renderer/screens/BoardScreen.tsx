@@ -5,6 +5,7 @@ import {
   applyNodeChanges, useReactFlow, useStore, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams, type Viewport
 } from '@xyflow/react'
 import { useBoard, useView } from '../store'
+import { freshCard, freshNote } from '../fresh'
 import { CardNode, roman, type CardNodeType } from '../components/CardNode'
 import { NoteNode, type NoteNodeType } from '../components/NoteNode'
 import { ImageNode, type ImageNodeType } from '../components/ImageNode'
@@ -285,6 +286,7 @@ function BoardLayout() {
     })
     if (entity) {
       select({ kind: 'entity', id: entity.id })
+      freshCard(entity.id)
       setPanel('inspector')
       setTimeout(() => document.getElementById(`entity-${entity.id}-name`)?.focus(), 50)
     }
@@ -294,6 +296,7 @@ function BoardLayout() {
     const item = await act('note:create', { boardId: view.board.id, position: at ?? centre(), text: '' })
     if (item) {
       select({ kind: 'note', id: item.id })
+      freshNote(item.id)
       setPanel('inspector')
       setTimeout(() => document.getElementById(`note-${item.id}`)?.focus(), 50)
     }
@@ -655,7 +658,7 @@ function BoardLayout() {
               if ((n.type === 'card' || n.type === 'region') && n.data.entity.id !== linking.entity.id) { setConfirmLink({ a: linking.entity, b: n.data.entity }); setLinkChoice(DEFAULT_LINK) }
               setLinking(null)
             }}
-            onPaneClick={() => setLinking(null)}
+            onPaneClick={() => { setLinking(null); select(null) }}
             onMouseMove={(e) => { if (linking) setMouse({ x: e.clientX, y: e.clientY }) }}
             onNodeContextMenu={(e, n: BoardNode) => {
               // Several cards selected and one of them right-clicked: the menu changes all of them.

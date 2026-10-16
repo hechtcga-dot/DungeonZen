@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { TitleField } from '../components/fields'
 import { useBoard } from '../store'
+import { freshCard } from '../fresh'
 import { call } from '../api'
 import { Candle, CompassRose, Leaf, Potion, Quill } from '../art/props'
 import { EggCandle, EggDice } from '../art/DeskEggs'
@@ -53,7 +54,7 @@ function Desk({ desk }: { desk: DeskView }) {
   const newCard = async (type: 'NPC' | 'PC') => {
     if (!info) return
     const e = await act('entity:create', { boardId: info.globalBoardId, type, name: type === 'PC' ? 'New player character' : 'New NPC' })
-    if (e) await openSheet(e.id)
+    if (e) { await openSheet(e.id); freshCard(e.id) }
   }
 
   return (

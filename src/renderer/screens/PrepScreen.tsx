@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useBoard } from '../store'
+import { freshRow } from '../fresh'
 import { DeskFrame } from '../components/DeskFrame'
 import { CommitField } from '../components/fields'
 import { Candle } from '../art/props'
@@ -499,14 +500,14 @@ function PrepSection({ p, kind, n, title, hint, add, extra, children, pop }: {
         <h2 id={`prep-${kind}`} className="panel-title"><span className="prep-n" data-n={n} /> {title} {pop}</h2>
         <div className="row tight wrap">
           {extra}
-          {add && <button className="ink-button primary-ink" onClick={() => void act('prepItem:add', { prepId: p.id, kind })}>{add}</button>}
+          {add && <button className="ink-button primary-ink" onClick={() => void act('prepItem:add', { prepId: p.id, kind }).then((id) => id && freshRow(id))}>{add}</button>}
         </div>
       </div>
       <p className="ink-muted prep-hint">{hint}</p>
       {list.length === 0 ? <p className="ink-muted">None yet.</p> : (
         <ol className="prep-list">
           {list.map((i, k) => (
-            <li key={i.id} className={`prep-item${i.done ? ' is-done' : ''}`}>
+            <li key={i.id} data-row={i.id} className={`prep-item${i.done ? ' is-done' : ''}`}>
               <div className="prep-item-body">{children(i, k, list.length)}</div>
               {kind !== 'npc' && <div className="prep-item-tools">
                 {DONE_LABEL[kind] && (
