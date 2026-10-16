@@ -77,13 +77,39 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
       {dialog === 'export' && <ExportDialog onClose={() => setDialog(null)} />}
 
       <Dialog title="About Dungeon Zen" open={dialog === 'about'} onClose={() => setDialog(null)}>
-        <p><strong>Dungeon Zen {about?.version}</strong>: campaign boards, storylines and time for Dungeon Masters.</p>
-        <p className="hint">Everything stays on this computer; only AI services you choose and the rules library go online.</p>
+        <p><strong>Dungeon Zen {about?.version}</strong></p>
+        <p className="about-welcome">Welcome, Dungeon Master. Dungeon Zen was crafted with love to make your job easier: before the session starts, and on the fly when the players go somewhere you never planned.</p>
         <dl className="about-list">
           <dt>This campaign</dt><dd>{about?.campaignFolder ?? 'None open'}</dd>
           <dt>Settings and AI keys</dt><dd>{about?.dataFolder}</dd>
         </dl>
-        <p className="hint">Rules content: System Reference Document 5.2 by Wizards of the Coast, CC-BY-4.0, via the Open5e project.</p>
+        <details className="about-fold">
+          <summary>Terms of use</summary>
+          <p>By using Dungeon Zen you agree to these terms.</p>
+          <ul>
+            <li>Dungeon Zen is provided "as is", without warranty of any kind. Use it at your own risk; keep backups of campaigns you care about (Setup › Backups).</li>
+            <li>Your campaigns, notes, maps and pictures are yours. Dungeon Zen claims no rights over anything you make with it.</li>
+            <li>You are responsible for what you import and for following the terms of any AI service you connect, including what you may do with the text and pictures it makes.</li>
+            <li>To the extent the law allows, the makers of Dungeon Zen are not liable for any loss of data, profit or play time arising from its use.</li>
+            <li>These terms may change with a new version; the version you use shows its own terms here.</li>
+          </ul>
+        </details>
+        <details className="about-fold">
+          <summary>Licensing</summary>
+          <p>Dungeon Zen © 2026. All rights reserved. You may install and use it on your own computers for your own games; you may not sell or redistribute it.</p>
+          <p>This work includes material from the System Reference Document 5.2 ("SRD 5.2") by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode. Rules content is copied in through the Open5e project.</p>
+          <p>Dungeon Zen is not affiliated with, endorsed by or sponsored by Wizards of the Coast. Dungeons &amp; Dragons is a trademark of Wizards of the Coast LLC.</p>
+          <p>Dungeon Zen is built with open-source software, including Electron, React, SQLite, Drizzle, Zustand, React Flow and Zod, each under its own licence (mostly MIT); their licence texts ship with the program.</p>
+        </details>
+        <details className="about-fold">
+          <summary>Privacy</summary>
+          <ul>
+            <li>No account, no tracking, no analytics. Dungeon Zen does not collect or send any information about you or how you use it.</li>
+            <li>Everything you make stays in your campaign folder on this computer.</li>
+            <li>Only two things go online, and only when you ask: AI services you choose (the text, notes or pictures you send them, under that service's own privacy policy) and the Open5e rules library (searches for rules content).</li>
+            <li>AI keys are kept encrypted by Windows on this computer, never in a campaign folder, and are sent only to the service they belong to.</li>
+          </ul>
+        </details>
         <div className="dz-actions"><button className="primary" onClick={() => setDialog(null)}>Close</button></div>
       </Dialog>
 

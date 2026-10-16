@@ -973,6 +973,11 @@ p.meter-text { background: transparent !important; margin: 0; font-size: 14px; }
 .about-list { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 10px 0; }
 .about-list dt { font-weight: 600; }
 .about-list dd { margin: 0; word-break: break-all; user-select: text; }
+.about-welcome { font-family: var(--display); font-size: 18px; line-height: 1.4; margin: 0 0 4px; }
+.about-fold { border-top: 1px solid rgba(42, 31, 18, 0.25); padding: 6px 0; font-size: 13px; }
+.about-fold summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.about-fold p, .about-fold ul { margin: 6px 0; user-select: text; }
+.about-fold ul { padding-left: 18px; }
 
 /* Board layers: what a drag moves (cards or background pictures) */
 .react-flow__node.is-passive, .react-flow__edge.is-passive { pointer-events: none !important; }
