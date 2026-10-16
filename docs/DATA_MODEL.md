@@ -237,6 +237,13 @@ commands. `group_id` lets a session or an import undo as one step.
   sessions). Card attributes: `secret` (Secrets tab), `history`, `sights`, `sounds`, `smells`, `ideals`, `bonds`,
   `flaws`, `background`, `lore`, `stakes` (per type, `src/shared/cardFields.ts`), PC `level`, `temp_hp`,
   `conditions` (text). Import drafts: `overwrite` (fields a merge replaces).
+- 2.8.0 (no migration): notes files keep more in the Word file (`src/main/importers/docx.ts`): the DM's own links
+  are hyperlinks to `dz-card:<id>`, `dz-note:<id>` or `dz-nolink:` (words never linked); read-aloud boxes and
+  sidebars are paragraph styles `ReadAloud` / `Sidebar`; a picture is a `DzPicture` paragraph "[Picture: name]" and a
+  stat block a `DzStatBlock` paragraph "[Stat block: name]", their details (`{card, file, side}`, `{card, layout, side}`)
+  in hidden text. Block kinds `read`, `side`, `pic`, `stat`; `Run.link`. Settings `note_meta` (per note id: `banner`
+  {card | file | none}, `hide` card ids with no automatic picture, `left` pictures on the left, `ignore` names not
+  offered as cards) and `notes_starred` (note ids). Own pictures under `assets/notes/pictures/`.
 - 1.4.0 (no migration): `combat.state` JSON gains `effects` and per combatant `rounds`, `legendaryUsed`, `used`,
   `mirror`, `displacement`, `death`, `stable`, `shrink` (all defaulted when an older fight is read). Card
   attributes `spell_slots` (most per level 1–9), `slots_used`.
