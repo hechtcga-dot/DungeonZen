@@ -387,9 +387,6 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
               <li>Scroll to zoom, drag to move around, 0 fits the whole map.</li>
             </ul>
             {view.regions.length === 0 && <p className="ink-muted">No regions on this map yet.</p>}
-            {view.unplacedLocations.length > 0 && (
-              <p className="ink-muted">Locations not drawn yet: {view.unplacedLocations.map((l) => l.name).join(', ')}.</p>
-            )}
           </>
           </>
         )}
