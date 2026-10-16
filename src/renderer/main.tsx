@@ -19,6 +19,7 @@ document.addEventListener('focusout', (ev) => { if (ev.target instanceof HTMLInp
 // Every campaign picture drags out of the app as its real file, e.g. into Roll20 (owner, 2026-10-15).
 document.addEventListener('dragstart', (ev) => {
   const t = ev.target
+  if (t instanceof Element && t.closest('.mapview-frame')) { ev.preventDefault(); return } // dragging a map pans it
   const img = t instanceof HTMLImageElement ? t : t instanceof Element ? t.querySelector('img') : null
   if (!img?.src.startsWith('dz-asset://')) return
   ev.preventDefault()

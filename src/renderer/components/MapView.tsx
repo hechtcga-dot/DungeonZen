@@ -85,7 +85,12 @@ export function MapView(props: {
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    // No text selection or native drag (double-click zoom used to select the map, and the next press dragged it out as a file instead of panning).
+    e.preventDefault()
+    window.getSelection()?.removeAllRanges()
+    const el = e.currentTarget as HTMLElement
+    el.focus({ preventScroll: true })
+    el.setPointerCapture(e.pointerId)
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, tx: t.x, ty: t.y, moved: false }
   }
   const onPointerMove = (e: PointerEvent) => {
