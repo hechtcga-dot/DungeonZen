@@ -26,11 +26,11 @@ describe('map geometry', () => {
 
   it('estimates travel from the map scale, or uses a saved time', () => {
     // 1000 px wide map is 30 km across; 400 px = 12 km; at 3 km/h = 4 h.
-    expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: 30, kmh: 3 }))
+    expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: 30, kmh: 3, units: 'metric' }))
       .toEqual({ minutes: 240, km: 12, basis: 'about 12 km in a straight line at 3 km/h' })
     expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: 30, kmh: 4.828032, units: 'imperial' }).basis)
       .toBe('about 7.5 miles in a straight line at 3 mph')
-    expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: 30, kmh: 3, savedMinutes: 180 }).minutes).toBe(180)
+    expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: 30, kmh: 3, savedMinutes: 180 })).toMatchObject({ minutes: 180, km: 12, saved: true })
     expect(estimateTravel({ from: [0, 0], to: [1, 0], imageWidth: 1000, widthKm: 1, kmh: 3 }).minutes).toBe(10)
     expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: null, kmh: 3 }).minutes).toBeNull()
   })

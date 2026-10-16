@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { convertText, fmtDistance, fmtSpeed, fmtSquares, kmToShown, shownToKm } from '../src/shared/units'
+import { convertText, DEFAULT_UNITS, fmtDistance, fmtSpeed, fmtSquares, fmtTrip, kmToShown, niceStep, PACES, paceKmh, roundDown, shownToKm } from '../src/shared/units'
 
 describe('units', () => {
   it('shows stored metric values either way', () => {
@@ -17,5 +17,18 @@ describe('units', () => {
     expect(convertText('range 30/90 ft. 8 (1d10 + 3)', 'metric')).toBe('range 9/27 m 8 (1d10 + 3)')
     expect(convertText('30 ft.', 'imperial')).toBe('30 ft.')
     expect(convertText('fifty feet', 'metric')).toBe('fifty feet')
+  })
+
+  it('map scale and travel: trip lengths in one system, tidy bar steps, paces', () => {
+    expect(DEFAULT_UNITS).toBe('imperial')
+    expect(fmtTrip(1.609344 * 1.34, 'imperial')).toBe('1.3 mi')
+    expect(fmtTrip(0.1, 'imperial')).toBe('330 ft')
+    expect(fmtTrip(0.8, 'metric')).toBe('800 m')
+    expect(fmtTrip(25, 'metric')).toBe('25 km')
+    expect([1, 3, 999, 0.6].map(niceStep)).toEqual([0.1, 0.5, 100, 0.1])
+    expect([0.62, 3, 999, 7].map(roundDown)).toEqual([0.5, 2.5, 500, 5])
+    const walk = PACES.find((p) => p.name === 'Normal walk')!
+    expect(paceKmh(walk, 'imperial')).toBeCloseTo(4.828, 3)
+    expect(paceKmh(walk, 'metric')).toBe(5)
   })
 })

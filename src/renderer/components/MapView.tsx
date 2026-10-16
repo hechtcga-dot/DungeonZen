@@ -7,6 +7,8 @@ export interface MapLayerContext {
   scale: number
   /** Converts a screen point (clientX, clientY) to image pixel coordinates. */
   toImage(clientX: number, clientY: number): [number, number]
+  /** The part of the image on screen now, in image pixels. */
+  visible(): { x: number; y: number; w: number; h: number }
 }
 
 /**
@@ -80,6 +82,15 @@ export function MapView(props: {
     return [(clientX - rect.left - cur.x) / cur.scale, (clientY - rect.top - cur.y) / cur.scale]
   }, [])
 
+  const visible = useCallback(() => {
+    // The frame clipped to the window: a tall page can push part of the map below the screen.
+    const cur = tRef.current, r = frame.current?.getBoundingClientRect()
+    if (!r) return { x: 0, y: 0, w: 0, h: 0 }
+    const left = Math.max(r.left, 0), top = Math.max(r.top, 0)
+    const right = Math.min(r.right, window.innerWidth), bottom = Math.min(r.bottom, window.innerHeight)
+    return { x: (left - r.left - cur.x) / cur.scale, y: (top - r.top - cur.y) / cur.scale, w: Math.max(0, right - left) / cur.scale, h: Math.max(0, bottom - top) / cur.scale }
+  }, [])
+
   // Ctrl + drag moves the map even over regions and tokens, without clicking them.
   useCtrlPan(frame, useCallback((dx: number, dy: number) => setT((c) => ({ ...c, x: c.x + dx, y: c.y + dy })), []))
 
@@ -150,7 +161,7 @@ export function MapView(props: {
           />
           {natural && props.layer && (
             <svg className="mapview-svg" width={natural.w} height={natural.h} viewBox={`0 0 ${natural.w} ${natural.h}`}>
-              {props.layer({ scale: t.scale, toImage })}
+              {props.layer({ scale: t.scale, toImage, visible })}
             </svg>
           )}
         </div>

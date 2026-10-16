@@ -134,6 +134,11 @@ export const map = sqliteTable('map', {
   status: text('status').notNull(),
   widthKm: real('width_km'), // how many km the image is across (map scale)
   travelKmh: real('travel_kmh').notNull().default(4.8),
+  scaleLen: real('scale_len'), // the scale bar's length as the DM typed it
+  scaleUnit: text('scale_unit'), // ft | mi | m | km
+  scaleKey: integer('scale_key', { mode: 'boolean' }).notNull().default(true), // scale key shown on the map
+  scaleKeyX: real('scale_key_x'), // its top-left corner, image pixels (null = bottom left)
+  scaleKeyY: real('scale_key_y'),
   kind: text('kind').notNull().default('world'), // world | battle
   gridCols: integer('grid_cols'), // squares across, when the map has a grid (5 ft each)
   gridShown: integer('grid_shown', { mode: 'boolean' }).notNull().default(false), // draw the grid lines over it

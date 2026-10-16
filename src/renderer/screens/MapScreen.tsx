@@ -3,7 +3,7 @@ import { useBoard, useUnits } from '../store'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
 import { MapView, type MapLayerContext } from '../components/MapView'
-import { MapOverlay, PartyToken, PcTokenMark } from '../components/MapOverlay'
+import { MapOverlay, PartyToken, PcTokenMark, ScaleBar, scaleKeyLayout } from '../components/MapOverlay'
 import { Candle, CompassRose } from '../art/props'
 import { useLightingPref } from '../art/TableLighting'
 import { Dialog } from '../components/Dialog'
@@ -20,9 +20,9 @@ import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { encounterTableFor, findTable, rollOn, travelChecks } from '../../shared/rolltables'
-import { fmtSquares, kmToShown, longUnit, shownToKm, speedUnit } from '../../shared/units'
+import { fmtSquares, fmtTrip, KM_PER, KM_PER_MILE, kmToShown, LENGTH_UNITS, longUnit, PACES, paceKmh, shownToKm, speedUnit, type LengthUnit } from '../../shared/units'
 
-type Mode = 'view' | 'draw' | 'edit'
+type Mode = 'view' | 'draw' | 'edit' | 'scale'
 
 export function MapScreen() {
   const { desk, info, act, mapScreen, setBattleMapOpen } = useBoard()
@@ -145,6 +145,31 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
   const centre: Point = [(view.map.width ?? 1000) / 2, (view.map.height ?? 1000) / 2]
   const [pending, setPending] = useState<{ to: Point; estimate: TravelEstimateView } | null>(null)
   const ctxRef = useRef<MapLayerContext | null>(null)
+  // Set map scale: the bar (image pixels) and the length the DM types for it.
+  const [bar, setBar] = useState<{ x: number; y: number; w: number } | null>(null)
+  const [barLen, setBarLen] = useState('1')
+  const [barUnit, setBarUnit] = useState<LengthUnit>(units === 'imperial' ? 'mi' : 'km')
+  const [keyAt, setKeyAt] = useState<Point | null>(null)
+  const lenKm = Number(barLen) * KM_PER[barUnit]
+  const barOk = Number(barLen) >= 1 && Number(barLen) <= 999 && !!bar && !!view.map.width
+  const barMapKm = barOk ? (lenKm * view.map.width!) / bar!.w : null
+  // Change… / Set map scale…: the bar starts in the middle of what is on screen, at its saved length.
+  const startScale = () => {
+    const v = ctxRef.current?.visible()
+    if (!v || !view.map.width) return
+    const len = view.map.scaleLen ?? 1
+    const unit = view.map.scaleUnit ?? (units === 'imperial' ? 'mi' : 'km')
+    const w = view.map.widthKm ? (len * KM_PER[unit] * view.map.width) / view.map.widthKm : v.w / 3
+    setBarLen(String(len)); setBarUnit(unit)
+    setBar({ x: v.x + (v.w - w) / 2, y: v.y + v.h / 2 - 27 / (ctxRef.current?.scale ?? 1), w })
+    setMode('scale')
+  }
+  const saveScale = async () => {
+    if (!barOk || barMapKm == null) return
+    await act('map:setScale', { mapId: view.map.id, widthKm: Math.min(200000, barMapKm), bar: { len: Number(barLen), unit: barUnit } })
+    setMode('view')
+    if (pending) void askTravel(pending.to)
+  }
   const region = view.regions.find((r) => r.id === selected) ?? null
 
   // Load the selected region's details whenever the data changes.
@@ -155,7 +180,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
     return () => { live = false }
   }, [selected, view, query])
 
-  useEffect(() => { if (mode !== 'draw') setDraw([]); if (mode !== 'edit') setEditPts(null) }, [mode])
+  useEffect(() => { if (mode !== 'draw') setDraw([]); if (mode !== 'edit') setEditPts(null); if (mode !== 'scale') setBar(null) }, [mode])
 
   const askTravel = async (to: Point) => {
     const estimate = await query('party:estimate', { mapId: view.map.id, x: to[0], y: to[1] })
@@ -198,6 +223,23 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             <button className="ink-button" onClick={() => setMode('view')}>Cancel (Esc)</button>
           </div>
         )}
+        {mode === 'scale' && (
+          <div className="map-toolbar" role="group" aria-label="Set map scale">
+            <strong>Set map scale:</strong> stretch the bar over something you know the length of, such as the map's own scale bar or a road.
+            <span className="row tight">
+              <label htmlFor="scale-len">The bar is</label>
+              <input id="scale-len" className="short" inputMode="decimal" value={barLen} onChange={(e) => setBarLen(e.target.value)} />
+              <select id="scale-unit" aria-label="Unit" value={barUnit} onChange={(e) => setBarUnit(e.target.value as LengthUnit)}>
+                {(units === 'imperial' ? LENGTH_UNITS : (['m', 'km', 'ft', 'mi'] as LengthUnit[])).map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <span>long.</span>
+            </span>
+            {barMapKm != null ? <span>The whole map is <strong>{fmtTrip(barMapKm, units)}</strong> across.</span>
+              : <span className="danger-text">Type a length from 1 to 999.</span>}
+            <button className="ink-button" onClick={() => setMode('view')}>Cancel (Esc)</button>
+            <button className="ink-button primary-ink" disabled={!barOk} onClick={() => void saveScale()}>Save scale</button>
+          </div>
+        )}
         {mode === 'edit' && region && (
           <div className="map-toolbar" role="status">
             <strong>Editing {region.name}:</strong> drag the corners.
@@ -211,6 +253,11 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         <MapView src={view.map.url} alt={`Map of ${view.map.name}`} className="full-mapview"
           onMapClick={onMapClick} noDoubleClickZoom={mode === 'draw'}
           onKeyDown={(e) => {
+            if (mode === 'scale') {
+              if (e.key === 'Enter') { void saveScale(); return true }
+              if (e.key === 'Escape') { setMode('view'); return true }
+              return
+            }
             if (mode !== 'draw') return
             if (e.key === 'Enter') { finishDrawing(); return true }
             if (e.key === 'Escape') { setMode('view'); return true }
@@ -223,7 +270,51 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             return (
               <>
                 <MapOverlay view={mode === 'edit' && region ? { ...view, regions: view.regions.filter((r) => r.id !== region.id) } : view}
-                  ctx={ctx} selectedRegionId={selected} hideParty />
+                  ctx={ctx} selectedRegionId={selected} hideParty scaleKey={false} />
+                {mode !== 'scale' && (() => {
+                  // The scale key: drag it anywhere; its place is saved with the map.
+                  const k = scaleKeyLayout(view.map, ctx.scale, units, keyAt)
+                  return k && (
+                    <g className="scale-key" onPointerDown={(e) => {
+                      const [sx, sy] = ctx.toImage(e.clientX, e.clientY), ox = k.x - sx, oy = k.y - sy
+                      const to = (p: Point): Point => [p[0] + ox, p[1] + oy]
+                      startDrag(e, (p) => setKeyAt(to(p)), (p) => {
+                        const [x, y] = to(p)
+                        if (Math.hypot(x - k.x, y - k.y) > 0.5) void act('map:setScaleKey', { mapId: view.map.id, x, y }).then(() => setKeyAt(null))
+                        else setKeyAt(null)
+                      })
+                    }}>
+                      <title>Scale key: drag to move it</title>
+                      <ScaleBar {...k} units={units} />
+                    </g>
+                  )
+                })()}
+                {mode === 'scale' && bar && (() => {
+                  // The scale bar being set: drag the middle to move it, the yellow ends to stretch it.
+                  const km = barOk ? lenKm : KM_PER[barUnit]
+                  const grab = (e: React.PointerEvent, end: 'l' | 'r' | 'move') => {
+                    const [sx, sy] = ctx.toImage(e.clientX, e.clientY), o = bar
+                    startDrag(e, ([px, py]) => {
+                      const dx = px - sx, dy = py - sy, min = 30 * s
+                      if (end === 'r') setBar({ ...o, w: Math.max(min, o.w + dx) })
+                      else if (end === 'l') { const w = Math.max(min, o.w - dx); setBar({ ...o, x: o.x + o.w - w, w }) }
+                      else setBar({ ...o, x: o.x + dx, y: o.y + dy })
+                    }, () => undefined)
+                  }
+                  return (
+                    <g className="scale-setter">
+                      <g className="scale-move" onPointerDown={(e) => grab(e, 'move')}><ScaleBar x={bar.x} y={bar.y} km={km} pxPerKm={bar.w / km} s={s} units={units} /></g>
+                      {(['l', 'r'] as const).map((end) => (
+                        <rect key={end} className="scale-end" x={(end === 'l' ? bar.x : bar.x + bar.w) - 3 * s} y={bar.y + 14 * s} width={6 * s} height={26 * s} rx={2 * s}
+                          onPointerDown={(e) => grab(e, end)}><title>Drag to stretch the bar</title></rect>
+                      ))}
+                    </g>
+                  )
+                })()}
+                {pending && mode === 'view' && view.party && (
+                  <line x1={view.party.x} y1={view.party.y} x2={pending.to[0]} y2={pending.to[1]} stroke="#8f2a21" strokeWidth={3 * s}
+                    strokeDasharray={`${8 * s} ${6 * s}`} pointerEvents="none" />
+                )}
                 {shape && (
                   <>
                     <polygon points={shape.map((p) => p.join(',')).join(' ')} fill="#8f2a21" fillOpacity="0.15" stroke="#8f2a21" strokeWidth={3 * s} />
@@ -257,8 +348,8 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             )
           }}
         />
-        {pending && (
-          <ConfirmTravel view={view} pending={pending} onDone={() => setPending(null)} />
+        {pending && mode !== 'scale' && (
+          <ConfirmTravel key={`${pending.to.join(',')}-${view.map.widthKm}`} view={view} pending={pending} onDone={() => setPending(null)} onSetScale={startScale} />
         )}
         {view.map.kind === 'battle' ? (
           <div className="ink-muted map-foot">
@@ -341,12 +432,28 @@ function PartyTokens({ view, onPlace }: { view: MapScreenView; onPlace(): void }
   )
 }
 
-function ConfirmTravel({ view, pending, onDone }: { view: MapScreenView; pending: { to: Point; estimate: TravelEstimateView }; onDone(): void }) {
+const TRAVEL_POS = 'dz-confirm-travel-pos' // where the DM last dragged the window (this computer)
+
+function ConfirmTravel({ view, pending, onDone, onSetScale }: { view: MapScreenView; pending: { to: Point; estimate: TravelEstimateView }; onDone(): void; onSetScale(): void }) {
   const act = useBoard((s) => s.act)
+  const units = useUnits()
   const est = pending.estimate
   const first = !view.party
-  const [hours, setHours] = useState(est.minutes != null ? String(Math.floor(est.minutes / 60)) : '')
-  const [mins, setMins] = useState(est.minutes != null ? String(est.minutes % 60) : '')
+  // Pace starts at Normal walk every time (owner, 2026-10-16); Own speed… is typed in mph or km/h.
+  const [pace, setPace] = useState('Normal walk')
+  const [own, setOwn] = useState(units === 'imperial' ? '3' : '5')
+  const kmhFor = (p: string, o: string) => {
+    const known = PACES.find((x) => x.name === p)
+    return known ? paceKmh(known, units) : Number(o) * (units === 'imperial' ? KM_PER_MILE : 1)
+  }
+  const minutesAt = (kmh: number) => (est.km != null && kmh > 0 ? Math.max(1, Math.round((est.km / kmh) * 60)) : est.minutes)
+  const start = est.saved ? est.minutes : minutesAt(kmhFor(pace, own))
+  const [hours, setHours] = useState(start != null ? String(Math.floor(start / 60)) : '')
+  const [mins, setMins] = useState(start != null ? String(start % 60) : '')
+  const fill = (p: string, o: string) => {
+    const m = minutesAt(kmhFor(p, o))
+    if (m != null) { setHours(String(Math.floor(m / 60))); setMins(String(m % 60)) }
+  }
   const [remember, setRemember] = useState(false)
   const total = (Number(hours) || 0) * 60 + (Number(mins) || 0)
   const valid = first || (hours !== '' || mins !== '') && total >= 0
@@ -356,20 +463,61 @@ function ConfirmTravel({ view, pending, onDone }: { view: MapScreenView; pending
     await act('party:move', { mapId: view.map.id, x: pending.to[0], y: pending.to[1], minutes: first ? 0 : total, rememberTime: remember })
     onDone()
   }
+  // The window moves by its title; the place is kept for next time.
+  const box = useRef<HTMLFormElement>(null)
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(() => {
+    try { return JSON.parse(localStorage.getItem(TRAVEL_POS) ?? 'null') } catch { return null }
+  })
+  const place = (left: number, top: number) => {
+    const el = box.current, parent = el?.offsetParent as HTMLElement | null
+    if (!el || !parent) return { left, top }
+    return { left: Math.max(0, Math.min(parent.clientWidth - el.offsetWidth, left)), top: Math.max(0, Math.min(parent.clientHeight - 40, top)) }
+  }
+  const dragTitle = (e: React.PointerEvent<HTMLHeadingElement>) => {
+    const el = box.current
+    if (!el || e.button !== 0) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const sx = e.clientX, sy = e.clientY, ox = el.offsetLeft, oy = el.offsetTop
+    let last = { left: ox, top: oy }
+    const h = e.currentTarget
+    h.onpointermove = (m) => { last = place(ox + m.clientX - sx, oy + m.clientY - sy); setPos(last) }
+    h.onpointerup = () => {
+      h.onpointermove = null; h.onpointerup = null
+      try { localStorage.setItem(TRAVEL_POS, JSON.stringify(last)) } catch { /* kept for this window only */ }
+    }
+  }
+  useEffect(() => { if (pos) setPos(place(pos.left, pos.top)) }, []) // fit a saved place into a smaller window, once
+  const from = est.fromName ?? 'Start', to = est.toName ?? 'Destination'
+  const world = view.map.kind !== 'battle'
   return (
-    <form className="confirm-travel" onSubmit={submit} aria-label="Confirm travel">
-      <h3>{first ? 'Place the party' : 'Confirm travel'}</h3>
+    <form ref={box} className="confirm-travel" onSubmit={submit} aria-label="Confirm travel" style={pos ? { left: pos.left, top: pos.top, right: 'auto' } : undefined}>
+      <h3 className="drag-title" onPointerDown={dragTitle} title="Drag to move this window">{first ? 'Place the party' : 'Confirm travel'}</h3>
       <p>{first ? <>The party starts at <strong>{est.toName ?? 'this spot'}</strong>.</>
-        : <>From <strong>{est.fromName ?? 'where they are'}</strong> to <strong>{est.toName ?? 'a spot outside any region'}</strong>.</>}</p>
+        : <>{est.km != null ? <><strong>{fmtTrip(est.km, units)}</strong> from</> : 'From'} <strong>{from}</strong> to <strong>{to}</strong>.</>}</p>
       {!first && (
         <>
-          <p className="ink-muted">{est.minutes != null ? `Estimate: ${Math.floor(est.minutes / 60)} h ${est.minutes % 60} min, from ${est.basis}.` : `No estimate: ${est.basis}.`}</p>
+          {est.km != null && (
+            <div className="row tight">
+              <label htmlFor="tr-pace">Pace</label>
+              <select id="tr-pace" value={pace} onChange={(e) => { setPace(e.target.value); fill(e.target.value, own) }}>
+                {PACES.map((p) => <option key={p.name} value={p.name}>{p.name} ({units === 'imperial' ? p.mph : p.kmh} {speedUnit(units)})</option>)}
+                <option value="own">Own speed…</option>
+              </select>
+              {pace === 'own' && <>
+                <input id="tr-own" className="short" inputMode="decimal" aria-label="Own speed" value={own}
+                  onChange={(e) => { setOwn(e.target.value); fill('own', e.target.value) }} />
+                <span>{speedUnit(units)}</span>
+              </>}
+            </div>
+          )}
           <div className="row tight">
             <label htmlFor="tr-h">Hours</label>
             <input id="tr-h" className="short" type="number" min={0} value={hours} onChange={(e) => setHours(e.target.value)} autoFocus />
             <label htmlFor="tr-m">Minutes</label>
             <input id="tr-m" className="short" type="number" min={0} max={59} value={mins} onChange={(e) => setMins(e.target.value)} />
           </div>
+          {est.saved && <p className="ink-muted">The time you remembered for this route.</p>}
           {est.fromName && est.toName && (
             <div className="field checkbox">
               <input id="tr-remember" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
@@ -384,6 +532,18 @@ function ConfirmTravel({ view, pending, onDone }: { view: MapScreenView; pending
       </div>
       {!first && total >= 60 && <TravelChecks view={view} minutes={total} toLocationId={est.toLocationId} />}
       {!first && <p className="ink-muted">The clock moves on by the travel time{view.sessionRunning ? ' and the trip goes in the session log' : ''}. Undo puts it all back.</p>}
+      {world && (
+        <div className="travel-scale">
+          {view.map.widthKm ? <>
+            <span>Map scale: the map is {fmtTrip(view.map.widthKm, units)} across · <button type="button" className="link-button" onClick={onSetScale}>Change…</button></span>
+            <div className="field checkbox">
+              <input id="tr-key" type="checkbox" checked={view.map.scaleKey}
+                onChange={(e) => void act('map:setScaleKey', { mapId: view.map.id, shown: e.target.checked })} />
+              <label htmlFor="tr-key">Show the scale key on the map</label>
+            </div>
+          </> : <span><button type="button" className="link-button" onClick={onSetScale}>Set map scale…</button> <span className="ink-muted">to work out distance and time</span></span>}
+        </div>
+      )}
     </form>
   )
 }
@@ -573,20 +733,19 @@ function ScaleDialog({ view, onClose }: { view: MapScreenView; onClose(): void }
   const act = useBoard((s) => s.act)
   const units = useUnits()
   const [miles, setMiles] = useState(view.map.widthKm != null ? String(kmToShown(view.map.widthKm, units)) : '')
-  const [mph, setMph] = useState(String(kmToShown(view.map.travelKmh, units)))
   const [cols, setCols] = useState(view.map.gridCols != null ? String(view.map.gridCols) : '')
   const [shown, setShown] = useState(view.map.gridShown)
   const m = miles.trim() === '' ? null : Number(miles)
   const g = cols.trim() === '' ? null : Number(cols)
   const gridOk = g === null || (Number.isInteger(g) && g >= GRID_MIN && g <= GRID_MAX)
-  const valid = (m === null || (Number.isFinite(m) && m > 0)) && Number(mph) > 0 && gridOk
+  const valid = (m === null || (Number.isFinite(m) && m > 0)) && gridOk
   return (
     <Dialog title="Map scale and grid" open onClose={onClose}>
       <form className="dz-form" onSubmit={async (e) => {
         e.preventDefault()
         if (!valid) return
-        if (m !== (view.map.widthKm == null ? null : kmToShown(view.map.widthKm, units)) || Number(mph) !== kmToShown(view.map.travelKmh, units)) {
-          await act('map:setScale', { mapId: view.map.id, widthKm: m === null ? null : shownToKm(m, units), travelKmh: shownToKm(Number(mph), units) })
+        if (m !== (view.map.widthKm == null ? null : kmToShown(view.map.widthKm, units))) {
+          await act('map:setScale', { mapId: view.map.id, widthKm: m === null ? null : shownToKm(m, units) })
         }
         if (g !== view.map.gridCols) await act('map:setGrid', { mapId: view.map.id, cols: g })
         if (shown !== view.map.gridShown) await act('map:setGridShown', { mapId: view.map.id, shown })
@@ -601,12 +760,7 @@ function ScaleDialog({ view, onClose }: { view: MapScreenView; onClose(): void }
         <div className="field">
           <label htmlFor="sc-miles">How many {longUnit(units)} is the map across (left to right)?</label>
           <input id="sc-miles" className="short" inputMode="decimal" value={miles} onChange={(e) => setMiles(e.target.value)} />
-          <div className="hint">A city map might be {units === 'imperial' ? '2 miles' : '3 km'} across, a kingdom {units === 'imperial' ? '300' : '500'}. Leave empty for no estimates.</div>
-        </div>
-        <div className="field">
-          <label htmlFor="sc-mph">Travel pace ({speedUnit(units)})</label>
-          <input id="sc-mph" className="short" inputMode="decimal" value={mph} onChange={(e) => setMph(e.target.value)} />
-          <div className="hint">On foot: {units === 'imperial' ? '3 at a normal pace, 4 fast, 2 slow' : '4.8 at a normal pace, 6.4 fast, 3.2 slow'}. Mounted or by cart is usually faster over a day.</div>
+          <div className="hint">A city map might be {units === 'imperial' ? '2 miles' : '3 km'} across, a kingdom {units === 'imperial' ? '300' : '500'}. Leave empty for no estimates. Or set it with a scale bar on the map: Confirm travel › Set map scale…; the pace is picked per trip there.</div>
         </div>
         <div className="dz-actions">
           <button type="button" onClick={onClose}>Cancel</button>

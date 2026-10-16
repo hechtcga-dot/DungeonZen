@@ -55,6 +55,18 @@ describe('map regions and the party token', () => {
     expect(d.plotPoints.map((e) => e.name)).toEqual(['Find the bell'])
   })
 
+  it('saves the scale bar and the scale key with the map, each an undo step', () => {
+    c.setMapScale(mapId, 8, undefined, { len: 2, unit: 'mi' })
+    expect(c.mapScreen(mapId).map).toMatchObject({ widthKm: 8, travelKmh: 4.8, scaleLen: 2, scaleUnit: 'mi', scaleKey: true, scaleKeyX: null })
+    c.setMapScaleKey(mapId, { x: 40, y: 60 })
+    c.setMapScaleKey(mapId, { shown: false })
+    expect(c.mapScreen(mapId).map).toMatchObject({ scaleKey: false, scaleKeyX: 40, scaleKeyY: 60 })
+    c.undo()
+    expect(c.mapScreen(mapId).map.scaleKey).toBe(true)
+    c.undo(); c.undo()
+    expect(c.mapScreen(mapId).map).toMatchObject({ widthKm: null, scaleLen: null, scaleKeyX: null })
+  })
+
   it('estimates travel from the scale, moves the party with the clock, logs it, and remembers a route time', () => {
     c.createRegion({ mapId, polygon: sq(0, 0, 200), newName: 'District A' })
     c.createRegion({ mapId, polygon: sq(600, 0, 200), newName: 'District C' })

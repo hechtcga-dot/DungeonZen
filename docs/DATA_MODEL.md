@@ -217,6 +217,7 @@ commands. `group_id` lets a session or an import undo as one step.
   `imports/<id>.json` (`src/shared/notesImport.ts`), not database rows, until
   committed. Imported cards carry `attributes.provenance` (file, locator, quote,
   basis stated | inferred, import, ai) and `attributes.imported` (ai, basis, import).
+- 2.7.0 migration: `map.scale_len`, `scale_unit` (ft | mi | m | km: the scale bar the DM set), `scale_key` (bool, default on), `scale_key_x`, `scale_key_y` (image pixels, null = bottom left).
 - 1.2.0 migrations: `entity.hidden`, `relationship.hidden`, `relationship.board_id` (per-board strings),
   `board_item.hidden`, `board_item.content` JSON (text, image, name, opacity, locked), `storyline.colour`,
   `act_entity` (act_id, entity_id, status: act marks); `map.width_km` and `map.travel_kmh` replace

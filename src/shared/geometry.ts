@@ -51,6 +51,8 @@ export interface TravelEstimate {
   km: number | null
   /** How it was worked out, in plain words. */
   basis: string
+  /** The minutes are the DM's remembered time for this route. */
+  saved?: boolean
 }
 
 /**
@@ -63,13 +65,17 @@ export function estimateTravel(input: {
   from: Point; to: Point; imageWidth: number | null; widthKm: number | null; kmh: number; savedMinutes?: number | null; units?: Units
 }): TravelEstimate {
   const units = input.units ?? DEFAULT_UNITS
-  if (input.savedMinutes != null) return { minutes: input.savedMinutes, km: null, basis: 'the time you set for this route' }
+  const scaled = !!input.imageWidth && !!input.widthKm
+  if (input.savedMinutes != null) {
+    const km = scaled ? Math.round((distance(input.from, input.to) / input.imageWidth!) * input.widthKm! * 1000) / 1000 : null
+    return { minutes: input.savedMinutes, km, basis: 'the time you set for this route', saved: true }
+  }
   if (!input.imageWidth || !input.widthKm || input.kmh <= 0) {
     return { minutes: null, km: null, basis: `no map scale yet: set how many ${longUnit(units)} the map is across` }
   }
   const km = (distance(input.from, input.to) / input.imageWidth) * input.widthKm
   const minutes = Math.max(10, Math.round(((km / input.kmh) * 60) / 10) * 10)
-  return { minutes, km: Math.round(km * 10) / 10, basis: `about ${fmtDistance(km, units)} in a straight line at ${fmtSpeed(input.kmh, units)}` }
+  return { minutes, km: Math.round(km * 1000) / 1000, basis: `about ${fmtDistance(km, units)} in a straight line at ${fmtSpeed(input.kmh, units)}` }
 }
 
 /** A map picture on a board: where it sits (board units) and the map's own size and regions (map pixels). */

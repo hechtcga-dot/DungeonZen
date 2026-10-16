@@ -439,7 +439,11 @@ export const ipcInputs = {
   }),
   'region:update': z.object({ id: Id, patch: z.object({ polygon: Polygon.optional(), locationId: Id.optional(), parentLocationId: Id.nullable().optional() }) }),
   'region:setStatus': z.object({ id: Id, status: RowStatus }),
-  'map:setScale': z.object({ mapId: Id, widthKm: z.number().positive().max(200000).nullable(), travelKmh: z.number().positive().max(1000) }),
+  'map:setScale': z.object({
+    mapId: Id, widthKm: z.number().positive().max(200000).nullable(), travelKmh: z.number().positive().max(1000).optional(),
+    bar: z.object({ len: z.number().min(1).max(999), unit: z.enum(['ft', 'mi', 'm', 'km']) }).optional()
+  }),
+  'map:setScaleKey': z.object({ mapId: Id, shown: z.boolean().optional(), x: z.number().finite().optional(), y: z.number().finite().optional() }),
   'pc:move': z.object({ entityId: Id, mapId: Id, x: z.number().finite().optional(), y: z.number().finite().optional(), joined: z.boolean().optional() }),
   'party:estimate': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite() }),
   'party:move': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite(), minutes: z.number().int().min(0).max(525600), rememberTime: z.boolean().optional() }),
@@ -763,6 +767,7 @@ export interface IpcOutputs {
   'region:update': void
   'region:setStatus': void
   'map:setScale': void
+  'map:setScaleKey': void
   'pc:move': void
   'party:estimate': TravelEstimateView
   'party:move': void

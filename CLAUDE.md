@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.6.1 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.7.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -148,3 +148,8 @@ Storyline buttons on the board view bar: right-click Edit / Delete (to History);
 Defaults picked: one-line boxes (names, titles) do not auto-link; outside Prep/Timeline the linked card shows in a corner note; stopping a name's auto link applies everywhere; Timeline sizes/folds kept while the app runs; existing links = board links not yet in a secret.
 2.6.1 (2026-10-15): Timeline without the storyline tick bar, rows resized by their bottom edge; every campaign picture drags out as its file (Roll20); picture files dropped on the board become background pictures; Session box ⧉ opens the whole Session prep window; Live › Where they are links card names in every text; Today so far − / +; encounter builder (themed Suggest with Where incl. party location / custom, include cards, description, Build with AI; story: NPCs, items in items with right-click Put on the board, checks with skill drop-down, rewards with campaign secrets; Write it up with AI; CR ▼▲ = copy for the encounter; Battle map box on the left; compact two-column Encounters look, owner's mockup v5); fixes: encounters with more than 10 kinds kept, generator card hover solid. Details in `docs/STATE.md`.
 Defaults picked: v2.6.0 already released, so this is 2.6.1 (owner asked for "2.6"); On the fly Suggest an encounter card opens Encounters; AI builds pick SRD monsters only.
+
+## 2.7.0 (built 2026-10-16)
+Map scale and travel (owner's mockup, 4 rounds): Confirm travel shows the distance first ("1.3 mi from Old City to Southern Farmlands", Start/Destination outside regions), no estimate box, Pace drop-down (walk/jog/run/mounted/cart, Own speed…) fills the time, window drags by its title; Set map scale… / Change… lays a two-row scale bar (1–999 ft/mi/m/km) in the middle of the visible map, stretch it over a known length, saved with the map; scale key on the map, on by default, draggable, tick to hide. Whole program defaults to imperial. Fix: map drag always pans. Details in `docs/STATE.md`.
+Owner's decisions: imperial default, metric by choice; one system shown (no conversions next to speeds); pace Normal walk every trip; mounted and cart paces; key stays after saving, on by default; Change… recentres the bar.
+Defaults picked: paces 2/3/4/5/7.5/8/2.5 mph, 3/5/6.5/8/12/13/4 km/h; bar starts 1 mi (1 km); straight-line distance (region centres when both ends are regions); window place kept on this computer; key length about 200 px on screen at any zoom; Scale and grid keeps "how many miles across", loses Travel pace.

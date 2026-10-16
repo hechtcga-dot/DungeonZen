@@ -1,6 +1,6 @@
 import type { Outline } from './outline'
 import type { CombatantInfo, CombatState } from './combat'
-import type { Units } from './units'
+import type { LengthUnit, Units } from './units'
 import type { StatBlock } from './statblock'
 import type { StyleTags } from './styleTags'
 // Plain data the main process sends to the renderer over IPC.
@@ -278,6 +278,13 @@ export interface MapView {
   /** How many km the image is across (map scale); stored metric. */
   widthKm: number | null
   travelKmh: number
+  /** The scale bar the DM set it with: its length and unit (shown again on Change…). */
+  scaleLen: number | null
+  scaleUnit: LengthUnit | null
+  /** The scale key on the map: shown or not, and its top-left corner in image pixels (null = bottom left). */
+  scaleKey: boolean
+  scaleKeyX: number | null
+  scaleKeyY: number | null
   /** A world map, or a battle map with a square grid (5 ft squares). */
   kind: 'world' | 'battle'
   gridCols: number | null
@@ -630,6 +637,7 @@ export interface TravelEstimateView {
   minutes: number | null
   km: number | null
   basis: string
+  saved?: boolean
   fromName: string | null
   toName: string | null
   toLocationId: string | null

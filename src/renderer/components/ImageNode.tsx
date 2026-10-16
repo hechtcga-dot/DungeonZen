@@ -23,7 +23,7 @@ function ImageNodeImpl({ id, data, selected, width }: NodeProps<ImageNodeType>) 
       <img src={data.src} alt={data.name} draggable={false} style={{ opacity: data.opacity }} />
       {data.map && m?.width && m.height && (
         <svg className="board-image-regions" viewBox={`0 0 ${m.width} ${m.height}`} preserveAspectRatio="none" aria-hidden="true">
-          <MapOverlay view={data.map} ctx={{ scale: (width ?? 1200) / m.width, toImage: () => [0, 0] }} hideParty outlines={data.outlines} names={false} />
+          <MapOverlay view={data.map} ctx={{ scale: (width ?? 1200) / m.width, toImage: () => [0, 0], visible: () => ({ x: 0, y: 0, w: 0, h: 0 }) }} scaleKey={false} hideParty outlines={data.outlines} names={false} />
         </svg>
       )}
       {data.locked && selected && <span className="board-image-lock" aria-hidden="true">🔒</span>}

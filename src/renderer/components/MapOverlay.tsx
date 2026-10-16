@@ -2,6 +2,8 @@ import { placeLabels } from '../../shared/labels'
 import { placeColour } from '../../shared/places'
 import type { MapScreenView, RegionView } from '../../shared/types'
 import type { MapLayerContext } from './MapView'
+import { KM_PER_MILE, niceStep, roundDown, type Units } from '../../shared/units'
+import { useUnits } from '../store'
 
 /** The party's banner token: a flag in a gold ring. Size stays the same on screen at any zoom. */
 export function PartyToken({ x, y, scale, onPointerDown, dragging }: {
@@ -73,7 +75,7 @@ export const isSpot = (r: RegionView) => r.kind === 'city' || r.kind === 'town' 
 /** Regions (dashed ink outlines with labels), the route and the party, drawn over a map image. */
 // Clicks are handled by the map (MapView onMapClick + regionAt), because the map
 // captures the pointer for panning.
-export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = true, outlines = true, names = true }: {
+export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = true, outlines = true, names = true, scaleKey = true }: {
   view: MapScreenView
   ctx: MapLayerContext
   selectedRegionId?: string | null
@@ -83,6 +85,8 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
   outlines?: boolean
   /** False: markers only; the board draws the names (and who is there) as region cards. */
   names?: boolean
+  /** False: no scale key (the board, or the Map screen drawing its own movable one). */
+  scaleKey?: boolean
 }) {
   const s = 1 / ctx.scale
   const sorted = [...view.regions].sort((a, b) => area(b) - area(a)) // big regions first, sub-regions on top
@@ -134,10 +138,63 @@ export function MapOverlay({ view, ctx, selectedRegionId, hideParty, labels = tr
         <polyline points={view.route.map((p) => p.join(',')).join(' ')} fill="none" stroke="#8f2a21" strokeWidth={4 * s}
           strokeDasharray={`${2 * s} ${10 * s}`} strokeLinecap="round" pointerEvents="none" />
       )}
+      {scaleKey && <ScaleKey view={view} scale={ctx.scale} />}
       {!hideParty && view.party && <PartyToken x={view.party.x} y={view.party.y} scale={ctx.scale} />}
       {!hideParty && view.pcs?.filter((p) => p.split?.mapId === view.map.id).map((p) => <PcTokenMark key={p.entityId} x={p.split!.x} y={p.split!.y} name={p.name} scale={ctx.scale} />)}
     </>
   )
+}
+
+const BAR_H = 54 // scale bar height, screen pixels
+
+/**
+ * A printed-style scale bar in image pixels: alternating black and white steps, the DM's system on the top row
+ * and the other one underneath; text and line widths stay the same size on screen (s = 1 / zoom).
+ */
+export function ScaleBar({ x, y, km, pxPerKm, s, units }: { x: number; y: number; km: number; pxPerKm: number; s: number; units: Units }) {
+  const w = km * pxPerKm
+  const row = (metric: boolean, ry: number, top: boolean) => {
+    const total = metric ? km : km / KM_PER_MILE
+    const small = metric ? total <= 1 : total < 0.25 // metres up to 1 km, feet under a quarter mile
+    const shown = small ? total * (metric ? 1000 : 5280) : total
+    const step = niceStep(shown), n = Math.floor(shown / step + 1e-9), per = w / shown, every = n > 5 ? 2 : 1
+    const parts: React.ReactNode[] = []
+    for (let i = 0; i < n; i++) parts.push(<rect key={`r${i}`} x={i * step * per} y={ry} width={step * per} height={7 * s} fill={i % 2 ? '#fff' : '#111'} stroke="#111" strokeWidth={s} />)
+    if (n * step < shown - 1e-9) parts.push(<rect key="rest" x={n * step * per} y={ry} width={(shown - n * step) * per} height={7 * s} fill="none" stroke="#111" strokeWidth={s} />)
+    for (let i = 0; i <= n; i += every) {
+      parts.push(<text key={`t${i}`} x={i * step * per} y={top ? ry - 4 * s : ry + 19 * s} fontSize={11 * s} textAnchor="middle" fill="#111">{Math.round(i * step * 100) / 100}</text>)
+    }
+    parts.push(<text key="u" x={w + 8 * s} y={ry + 7 * s} fontSize={10 * s} fontWeight={700} fill="#111">{metric ? (small ? 'm' : 'km') : (small ? 'ft' : 'mi')}</text>)
+    return parts
+  }
+  const imperial = units === 'imperial'
+  return (
+    <g className="scale-bar" transform={`translate(${x} ${y})`} fontFamily="system-ui, sans-serif">
+      <rect x={-8 * s} y={-2 * s} width={w + 34 * s} height={(BAR_H + 2) * s} rx={3 * s} fill="rgba(241,230,198,.92)" className="scale-bar-ground" />
+      {row(!imperial, 18 * s, true)}
+      {row(imperial, 25 * s, false)}
+    </g>
+  )
+}
+
+/** The map's scale key: a round length about 200 screen pixels long at the current zoom. */
+export function scaleKeyLayout(map: MapScreenView['map'], scale: number, units: Units, at?: [number, number] | null) {
+  if (!map.widthKm || !map.width || !map.height || !map.scaleKey) return null
+  const pxPerKm = map.width / map.widthKm
+  const maxKm = 200 / (pxPerKm * scale)
+  const km = units === 'imperial'
+    ? (maxKm / KM_PER_MILE >= 0.25 ? roundDown(maxKm / KM_PER_MILE) * KM_PER_MILE : roundDown((maxKm / KM_PER_MILE) * 5280) * (KM_PER_MILE / 5280))
+    : (maxKm >= 1 ? roundDown(maxKm) : roundDown(maxKm * 1000) / 1000)
+  const s = 1 / scale
+  const x = at?.[0] ?? map.scaleKeyX ?? map.width * 0.03
+  const y = at?.[1] ?? map.scaleKeyY ?? map.height - map.width * 0.03 - BAR_H * s
+  return { x, y, km, pxPerKm, s }
+}
+
+function ScaleKey({ view, scale }: { view: MapScreenView; scale: number }) {
+  const units = useUnits()
+  const k = scaleKeyLayout(view.map, scale, units)
+  return k && <g pointerEvents="none"><ScaleBar {...k} units={units} /></g>
 }
 
 /** A square grid (1.5 m / 5 ft squares) drawn by the app over a battle map, so it always lines up. */

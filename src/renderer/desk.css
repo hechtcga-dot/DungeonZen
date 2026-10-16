@@ -343,6 +343,15 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
 .confirm-travel h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 21px; }
 .confirm-travel p { margin: 0; font-size: 14px; }
 .confirm-travel input.short { width: 64px; }
+.confirm-travel .drag-title { cursor: move; user-select: none; touch-action: none; }
+.travel-scale { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px dashed #a8916a; font-size: 13px; }
+.map-toolbar .row.tight > * { white-space: nowrap; }
+.mapview-svg .scale-key, .mapview-svg .scale-move { cursor: move; }
+.mapview-svg .scale-key:hover .scale-bar-ground { stroke: #f6c945; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.mapview-svg .scale-end { fill: #f6c945; stroke: #2a1f12; stroke-width: 1px; vector-effect: non-scaling-stroke; cursor: ew-resize; }
+.map-toolbar .row.tight { display: inline-flex; align-items: center; gap: 6px; }
+.map-toolbar input.short { width: 64px; }
+.map-toolbar .danger-text { color: #8f2a21; }
 .region-panel { display: flex; flex-direction: column; gap: 8px; }
 .region-name { word-break: break-word; }
 .side-h {

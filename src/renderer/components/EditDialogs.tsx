@@ -27,7 +27,7 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
   const offset = desk?.moonOffsetDays ?? 0
   const [name, setName] = useState(info?.name ?? '')
   const [edition, setEdition] = useState<RulesEdition>(info?.rulesEdition ?? '2024')
-  const [units, setUnits] = useState<Units>(info?.units ?? 'metric')
+  const [units, setUnits] = useState<Units>(info?.units ?? 'imperial')
   const [prices, setPrices] = useState(String(info?.priceScale ?? 100))
   const [day, setDay] = useState(String(clock.day))
   const [hour, setHour] = useState(String(clock.hour))
@@ -65,8 +65,8 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
       <div className="field">
         <label htmlFor="cs-units">Measurements</label>
         <select id="cs-units" value={units} onChange={(e) => setUnits(e.target.value as Units)}>
-          <option value="metric">Metric: metres, km, km/h</option>
           <option value="imperial">Imperial: feet, miles, mph</option>
+          <option value="metric">Metric: metres, km, km/h</option>
         </select>
         <div className="hint">Only changes what the screens show; stat block text keeps its words, and feet or miles in it show converted.</div>
       </div>

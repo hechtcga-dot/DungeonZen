@@ -247,6 +247,14 @@ export const MIGRATIONS: string[] = [
     WHERE is_secret = 1 OR id IN (SELECT relationship_id FROM prep_item WHERE relationship_id IS NOT NULL);
   UPDATE relationship SET secret_id = 'sg-' || id WHERE id IN (SELECT substr(id, 4) FROM secret);
   UPDATE prep_item SET secret_id = 'sg-' || relationship_id WHERE relationship_id IS NOT NULL;
+  `,
+  // 2.7.0: the map's scale bar (length and unit the DM typed) and its scale key (shown, place in image pixels).
+  `
+  ALTER TABLE map ADD COLUMN scale_len REAL;
+  ALTER TABLE map ADD COLUMN scale_unit TEXT;
+  ALTER TABLE map ADD COLUMN scale_key INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE map ADD COLUMN scale_key_x REAL;
+  ALTER TABLE map ADD COLUMN scale_key_y REAL;
   `
 ]
 

@@ -1,4 +1,5 @@
 import type { PromptTemplate, StyleTags, TemplateUse } from '../../shared/styleTags'
+import { LENGTH_UNITS, type LengthUnit } from '../../shared/units'
 import { randomUUID } from 'node:crypto'
 import { cp } from 'node:fs/promises'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -283,7 +284,7 @@ export class Campaign {
       rulesEdition: (settings.get('rules_edition') as RulesEdition) ?? DEFAULT_RULES_EDITION,
       clockMin: Number(settings.get('clock_min') ?? 0),
       globalBoardId: this.globalBoard().id,
-      units: settings.get('units') === 'imperial' ? 'imperial' : 'metric',
+      units: settings.get('units') === 'metric' ? 'metric' : 'imperial',
       gettingStarted: settings.get('getting_started') === 'pending',
       artStyle: String(settings.get('art_style') ?? ''),
       priceScale: typeof settings.get('price_scale') === 'number' ? settings.get('price_scale') as number : 100,
@@ -2373,9 +2374,21 @@ export class Campaign {
       (w) => { w.update('region_shape', id, { status }) })
   }
 
-  setMapScale(mapId: string, widthKm: number | null, travelKmh: number): void {
+  /** The map's scale; `bar` = the scale bar it was set with (length and unit, shown again on Change…). */
+  setMapScale(mapId: string, widthKm: number | null, travelKmh?: number, bar?: { len: number; unit: LengthUnit }): void {
     const m = this.mapRow(mapId)
-    this.log.run(`Set the scale of ${m.name}`, (w) => { w.update('map', mapId, { widthKm, travelKmh }) })
+    this.log.run(`Set the scale of ${m.name}`, (w) => {
+      w.update('map', mapId, { widthKm, ...(travelKmh != null && { travelKmh }), ...(bar && { scaleLen: bar.len, scaleUnit: bar.unit }) })
+    })
+  }
+
+  /** The scale key on the map: shown or not, and where (image pixels). */
+  setMapScaleKey(mapId: string, patch: { shown?: boolean; x?: number; y?: number }): void {
+    const m = this.mapRow(mapId)
+    const label = patch.shown === undefined ? `Moved the scale key on ${m.name}` : `${patch.shown ? 'Showed' : 'Hid'} the scale key on ${m.name}`
+    this.log.run(label, (w) => {
+      w.update('map', mapId, { ...(patch.shown !== undefined && { scaleKey: patch.shown }), ...(patch.x !== undefined && { scaleKeyX: patch.x }), ...(patch.y !== undefined && { scaleKeyY: patch.y }) })
+    })
   }
 
   /** Grid lines drawn over the map, or not. */
@@ -4624,6 +4637,8 @@ function toMapView(r: MapRow): MapView {
   return {
     id: r.id, name: r.name, url: ASSET_URL_PREFIX + r.imagePath, width: r.width, height: r.height,
     widthKm: r.widthKm, travelKmh: r.travelKmh,
+    scaleLen: r.scaleLen, scaleUnit: (LENGTH_UNITS as string[]).includes(r.scaleUnit ?? '') ? r.scaleUnit as LengthUnit : null,
+    scaleKey: r.scaleKey, scaleKeyX: r.scaleKeyX, scaleKeyY: r.scaleKeyY,
     kind: r.kind === 'battle' ? 'battle' : 'world',
     gridCols: r.gridCols,
     gridRows: r.gridCols && r.width && r.height ? rowsFor(r.gridCols, r.width, r.height) : null,

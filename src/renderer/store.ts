@@ -328,7 +328,7 @@ export const useBoard = create<BoardState>((set, get) => ({
 
 /** Current board view; components below the board screen can rely on it being loaded. */
 /** What the screens show: metric (default) or imperial (Campaign settings). */
-export const useUnits = (): Units => useBoard((s) => s.info?.units ?? 'metric')
+export const useUnits = (): Units => useBoard((s) => s.info?.units ?? 'imperial')
 
 export function useView(): BoardView {
   const view = useBoard((s) => s.view)
