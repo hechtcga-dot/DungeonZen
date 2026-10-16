@@ -201,3 +201,25 @@ figure.nb-pic .ctl button { width: 26px; height: 26px; background: rgba(20, 16, 
 @media (prefers-reduced-motion: reduce) { .nb * { transition: none !important; } }
 .notes-screen { flex: 1; min-height: 0; height: 100%; display: flex; flex-direction: column; }
 .notes-screen > .nb { flex: 1; }
+
+/* a card's stat block in the note (starts full width; beside the text or folded by choice) */
+.nb-stat { position: relative; margin: 6px 0 14px; font-size: 13.5px; }
+.nb-stat.is-beside { float: right; clear: both; width: min(300px, 100%); margin: 4px 0 12px 18px; }
+.nb-stat.is-beside.is-left { float: left; margin: 4px 18px 12px 0; }
+.nb-stat .statblock { margin: 0; max-width: none; width: auto; }
+.nb-stat .statblock p { margin: 2px 0; }
+.nb-stat .statblock .sb-head { margin: 10px 0 4px; }
+.nb-stat .statblock .sb-core { gap: 8px; margin: 6px 0; }
+.nb-stat-pic { position: absolute; top: 14px; right: 14px; width: 72px; height: 72px; object-fit: cover; border-radius: 3px; z-index: 1; }
+.nb-stat .ctl { position: absolute; top: 8px; right: 96px; z-index: 2; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.nb-stat:hover > .ctl, .nb-stat:focus-within > .ctl { opacity: 1; }
+.nb-stat .ctl button { min-width: 26px; height: 24px; background: rgba(20, 16, 12, 0.75); color: #f3ead8; font-size: 12px; }
+.nb-stat .sb-name { cursor: pointer; }
+.nb-statline { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 70px 6px 10px !important; text-align: left; background: var(--nb-sbbg) !important;
+  border-top: 3px solid var(--nb-sbline) !important; border-bottom: 3px solid var(--nb-sbline) !important; border-radius: 0 !important; font-family: var(--nb-f-ui); }
+.nb-statline img { width: 34px; height: 34px; object-fit: cover; border-radius: 3px; }
+.nb-statline b { font-family: var(--nb-f-head); color: var(--nb-head); font-size: 17px; }
+.nb-statline .nums { margin-left: auto; color: var(--nb-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nb-statline .chev { color: var(--nb-head); }
+.nb-stat.is-fold .ctl { top: 9px; right: 8px; }
+.nb-statph { margin: 8px 0; padding: 8px 12px; background: var(--nb-sbbg); border-top: 3px solid var(--nb-sbline); border-bottom: 3px solid var(--nb-sbline); font-family: var(--nb-f-head); color: var(--nb-head); user-select: none; }

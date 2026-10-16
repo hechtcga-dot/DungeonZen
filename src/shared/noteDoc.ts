@@ -19,7 +19,9 @@ export const Block = z.union([
   z.object({ kind: z.enum(['p', 'h1', 'h2', 'h3', 'bullet', 'number', 'read', 'side']), runs: z.array(Run).max(2000) }),
   z.object({ kind: z.literal('table'), rows: z.array(z.array(z.array(Run).max(500)).max(60)).max(1000) }),
   /** A picture the DM put in: a card's picture or a file in the campaign (assets path). */
-  z.object({ kind: z.literal('pic'), card: z.string().max(80).optional(), file: z.string().max(300).optional(), side: z.enum(['left', 'right']) })
+  z.object({ kind: z.literal('pic'), card: z.string().max(80).optional(), file: z.string().max(300).optional(), side: z.enum(['left', 'right']) }),
+  /** A card's stat block shown in the note (always the card's current one): full width, beside the text, or folded. */
+  z.object({ kind: z.literal('stat'), card: z.string().min(1).max(80), layout: z.enum(['full', 'beside', 'fold']), side: z.enum(['left', 'right']) })
 ])
 export type Block = z.infer<typeof Block>
 export const Blocks = z.array(Block).max(20000)
@@ -27,7 +29,7 @@ export const Blocks = z.array(Block).max(20000)
 /** One line of plain text per block (table rows as cells separated by " | "). */
 export function blockLines(blocks: Block[]): string[] {
   const runText = (runs: Run[]) => runs.map((r) => r.text).join('')
-  return blocks.map((b) => (b.kind === 'pic' ? '' : b.kind === 'table'
+  return blocks.map((b) => (b.kind === 'pic' || b.kind === 'stat' ? '' : b.kind === 'table'
     ? b.rows.map((row) => row.map(runText).join(' | ')).join('\n')
     : `${b.kind === 'bullet' ? '• ' : b.kind === 'number' ? '- ' : ''}${runText(b.runs)}`)).filter((l) => l.trim())
 }

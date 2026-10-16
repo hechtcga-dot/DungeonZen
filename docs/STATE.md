@@ -778,6 +778,11 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     the note, one per paragraph, a heading's under it; the banner's card skipped. Hover ⇄ other side / × take out
     (`note_meta`); right-click a paragraph: Insert a card's picture / your own picture here, Make this a read-aloud box /
     sidebar / plain text. Placed pictures are `pic` blocks in the file.
+  - Stat blocks in the text (owner, after mockup; starts full width): right-click a paragraph › Insert a stat block here…
+    (or ✎ Edit › Stat block) → a Monster, NPC or PC card; `stat` block {card, layout full | beside | fold, side} placed after
+    the paragraph, always the card's current stat block with its picture (`InlineStat`). Hover: ⇄ other side (beside), ▭ full
+    width / beside the text, − fold to one line (name, AC, HP, CR; click opens it) / + open, × take out (Ctrl+Z). The name opens
+    the sheet. A card with a stat block gets no automatic picture too. In ✎ Edit it shows as a "⚔ Stat block: name" line.
   - ✎ Edit types into the same book page: B I U, Title, Heading, Subheading, Text, lists, Read-aloud, Sidebar, Table, Card
     picture, Own picture, [[ Link (or type [[: card or note picker, makes a new NPC card); ✓ Done (or Ctrl+Enter) saves a
     Word version (Ctrl+Z undoes); Cancel drops the changes; leaving the note while editing keeps the words.
@@ -790,4 +795,4 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     there) on the card sheet's Notes tab, the board side panel (Inspector) and the open encounter.
   - Defaults picked: first mention per paragraph (owner's example); page Light by default; the note window has Open sheet
     (in the main window) and Add to an encounter, not Show on board/map or Run; Make a card from [[ makes an NPC (type
-    changeable on the sheet); stat blocks are not inserted into the text (Peek shows them).
+    changeable on the sheet); a stat block goes after the paragraph right-clicked.

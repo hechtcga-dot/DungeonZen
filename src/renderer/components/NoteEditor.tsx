@@ -16,15 +16,21 @@ const runHtml = (r: Run) => {
 export const picHtml = (b: Extract<Block, { kind: 'pic' }>, src?: (b: Extract<Block, { kind: 'pic' }>) => string) =>
   `<figure class="nb-pic${b.side === 'left' ? ' is-left' : ''}" contenteditable="false" data-pic="${esc(JSON.stringify(b))}"><img src="${esc(src?.(b) ?? '')}" alt=""></figure>`
 
+/** A stat block in the editor: a kept-whole line naming the card (the book view shows the block itself). */
+export const statHtml = (b: Extract<Block, { kind: 'stat' }>, name: string) =>
+  `<div class="nb-statph" contenteditable="false" data-stat="${esc(JSON.stringify(b))}">⚔ Stat block: ${esc(name)}</div>`
+
 /** Blocks as HTML for the editor (consecutive list items share one list). */
-export function blocksToHtml(blocks: Block[], picSrc?: (b: Extract<Block, { kind: 'pic' }>) => string): string {
+export function blocksToHtml(blocks: Block[], picSrc?: (b: Extract<Block, { kind: 'pic' }>) => string, cardName: (id: string) => string = () => 'a card'): string {
   let out = ''
   let list: 'ul' | 'ol' | null = null
   for (const b of blocks) {
     const want = b.kind === 'bullet' ? 'ul' : b.kind === 'number' ? 'ol' : null
     if (list && want !== list) { out += `</${list}>`; list = null }
     if (want && !list) { out += `<${want}>`; list = want }
-    if (b.kind === 'pic') {
+    if (b.kind === 'stat') {
+      out += statHtml(b, cardName(b.card))
+    } else if (b.kind === 'pic') {
       out += picHtml(b, picSrc)
     } else if (b.kind === 'read' || b.kind === 'side') {
       out += `<div class="nb-${b.kind}">${b.runs.map(runHtml).join('') || '<br>'}</div>`
@@ -76,6 +82,10 @@ export function htmlToBlocks(root: HTMLElement): Block[] {
     }
     if (!(node instanceof HTMLElement)) return
     const tag = node.tagName
+    if (node.dataset.stat) {
+      try { blocks.push(JSON.parse(node.dataset.stat) as Block) } catch { /* not ours */ }
+      return
+    }
     if (tag === 'FIGURE' && node.dataset.pic) {
       try { blocks.push(JSON.parse(node.dataset.pic) as Block) } catch { /* not ours */ }
       return

@@ -527,7 +527,7 @@ type Section = IpcOutputs['notes:master'][number]
 
 /** Blocks back to the plain text the DM and session notes keep ("# " headings, "- " lists). */
 const blocksToText = (blocks: Block[]) => blocks.map((b) => {
-  if (b.kind === 'table' || b.kind === 'pic') return blockLines([b]).join('\n')
+  if (b.kind === 'table' || b.kind === 'pic' || b.kind === 'stat') return blockLines([b]).join('\n')
   const t = b.runs.map((r) => r.text).join('')
   return b.kind === 'h1' ? `# ${t}` : b.kind === 'h2' ? `## ${t}` : b.kind === 'h3' ? `### ${t}` : b.kind === 'bullet' ? `- ${t}` : b.kind === 'number' ? `1. ${t}` : t
 }).join('\n\n')

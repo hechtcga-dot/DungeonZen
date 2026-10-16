@@ -110,7 +110,7 @@ export function segments(runs: Run[], hits: Hit[]): Segment[] {
 }
 
 /** The text pieces of a block (a table gives one per cell; a picture none). */
-export const blockRuns = (b: Block): Run[][] => (b.kind === 'pic' ? [] : b.kind === 'table' ? b.rows.flat() : [b.runs])
+export const blockRuns = (b: Block): Run[][] => (b.kind === 'pic' || b.kind === 'stat' ? [] : b.kind === 'table' ? b.rows.flat() : [b.runs])
 
 /** Card types that show a picture at their first mention. */
 const PICTURE_TYPES = new Set<EntityType>(['NPC', 'PC', 'MONSTER', 'LOCATION', 'BUILDING', 'ITEM', 'FACTION', 'HANDOUT', 'OTHER'])
@@ -121,11 +121,11 @@ const PICTURE_TYPES = new Set<EntityType>(['NPC', 'PC', 'MONSTER', 'LOCATION', '
  */
 export function autoPictures(blocks: Block[], m: Matcher, cards: LinkCard[], hidden: string[]): Map<number, string> {
   const byId = new Map(cards.map((c) => [c.id, c]))
-  const done = new Set([...hidden, ...blocks.flatMap((b) => (b.kind === 'pic' && b.card ? [b.card] : []))])
+  const done = new Set([...hidden, ...blocks.flatMap((b) => ((b.kind === 'pic' || b.kind === 'stat') && b.card ? [b.card] : []))])
   const out = new Map<number, string>()
   let waiting: string[] = [] // mentioned in a heading: placed with the next paragraph
   blocks.forEach((b, i) => {
-    if (b.kind === 'pic') return
+    if (b.kind === 'pic' || b.kind === 'stat') return
     const ids = blockRuns(b).flatMap((runs) => paragraphLinks(runs, m).map((h) => h.target))
     if (b.kind === 'h1' || b.kind === 'h2' || b.kind === 'h3') { waiting = [...waiting, ...ids]; return }
     const id = [...waiting, ...ids].find((x) => !done.has(x) && byId.get(x)?.picture && PICTURE_TYPES.has(byId.get(x)!.type))

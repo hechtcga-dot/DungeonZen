@@ -18,12 +18,14 @@ describe('Word files for notes', () => {
       { kind: 'p', runs: [{ text: 'Ask ' }, { text: 'Maren', link: 'card-1' }, { text: ' or ' }, { text: 'Chapter 3', link: 'note:doc-9' }, { text: '. Not ' }, { text: 'Maren', link: '' }, { text: ' here.' }] },
       { kind: 'pic', card: 'card-1', side: 'left' },
       { kind: 'pic', file: 'notes/pictures/a.png', side: 'right' },
+      { kind: 'stat', card: 'card-1', layout: 'beside', side: 'left' },
       { kind: 'side', runs: [{ text: 'Running the bell', b: true }] }
     ]
     const file = writeDocx(book, { 'card-1': 'Maren Holloway' })
     expect(readDocxBlocks(file)).toEqual(book)
     expect(docxParagraphs(file).join('\n')).toContain('[Picture: Maren Holloway]')
     expect(docxParagraphs(file).join('\n')).not.toContain('dz:')
+    expect(docxParagraphs(file).join('\n')).toContain('[Stat block: Maren Holloway]')
   })
   it('writes a .docx and reads it back with headings, bold, italic, underline, lists and tables', () => {
     const file = writeDocx(doc)

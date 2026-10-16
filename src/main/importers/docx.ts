@@ -72,6 +72,14 @@ export function readDocxBlocks(file: Buffer): Block[] {
       continue
     }
     const style = /<w:pStyle w:val="([^"]+)"/.exec(part)?.[1] ?? ''
+    if (style === 'DzStatBlock') {
+      const hidden = /<w:t(?:\s[^>]*)?>dz:([^<]*)<\/w:t>/.exec(part)?.[1]
+      try {
+        const v = JSON.parse(unxml(hidden ?? '')) as { card?: unknown; layout?: unknown; side?: unknown }
+        if (typeof v.card === 'string') blocks.push({ kind: 'stat', card: v.card, layout: v.layout === 'beside' || v.layout === 'fold' ? v.layout : 'full', side: v.side === 'left' ? 'left' : 'right' })
+      } catch { /* typed over in Word: dropped */ }
+      continue
+    }
     if (style === 'DzPicture') {
       // The picture's details ride in hidden text: dz:{"card":…,"file":…,"side":…}
       const hidden = /<w:t(?:\s[^>]*)?>dz:([^<]*)<\/w:t>/.exec(part)?.[1]
@@ -112,11 +120,12 @@ function paraXml(kind: string, runs: Run[], links: Links): string {
   return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${runs.map((r) => runXml(r, links)).join('')}</w:p>`
 }
 
-/** A picture line: "[Picture: …]" for Word readers, the details in hidden text for Dungeon Zen. */
-function picXml(b: Extract<Block, { kind: 'pic' }>, label: string): string {
-  const data = JSON.stringify({ ...(b.card ? { card: b.card } : {}), ...(b.file ? { file: b.file } : {}), side: b.side })
-  return `<w:p><w:pPr><w:pStyle w:val="DzPicture"/></w:pPr><w:r><w:t xml:space="preserve">${xml(`[Picture: ${label}]`)}</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t xml:space="preserve">dz:${xml(data)}</w:t></w:r></w:p>`
+/** A picture or stat block line: "[Picture: …]" for Word readers, the details in hidden text for Dungeon Zen. */
+function markerXml(style: string, label: string, data: object): string {
+  return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t xml:space="preserve">${xml(label)}</w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t xml:space="preserve">dz:${xml(JSON.stringify(data))}</w:t></w:r></w:p>`
 }
+const picXml = (b: Extract<Block, { kind: 'pic' }>, label: string) =>
+  markerXml('DzPicture', `[Picture: ${label}]`, { ...(b.card ? { card: b.card } : {}), ...(b.file ? { file: b.file } : {}), side: b.side })
 
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
 const R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
@@ -130,6 +139,7 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="720"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="ReadAloud"><w:name w:val="Read aloud"/><w:basedOn w:val="Normal"/><w:pPr><w:pBdr><w:left w:val="single" w:sz="24" w:space="8" w:color="7A5A3A"/></w:pBdr><w:shd w:val="clear" w:color="auto" w:fill="EFE6D2"/><w:ind w:left="284" w:right="284"/></w:pPr><w:rPr><w:i/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Sidebar"><w:name w:val="Sidebar"/><w:basedOn w:val="Normal"/><w:pPr><w:pBdr><w:top w:val="single" w:sz="12" w:space="4" w:color="55703A"/><w:bottom w:val="single" w:sz="12" w:space="4" w:color="55703A"/></w:pBdr><w:shd w:val="clear" w:color="auto" w:fill="E8EEDB"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="DzStatBlock"><w:name w:val="Dungeon Zen stat block"/><w:basedOn w:val="Normal"/><w:rPr><w:color w:val="9A2B1D"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="DzPicture"><w:name w:val="Dungeon Zen picture"/><w:basedOn w:val="Normal"/><w:rPr><w:color w:val="7A6650"/></w:rPr></w:style>
 <w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr></w:style>
 </w:styles>`
@@ -156,7 +166,8 @@ const DOC_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 /** A Word document (.docx) of these blocks. `names` gives picture lines their card names (Word readers only). */
 export function writeDocx(blocks: Block[], names: Record<string, string> = {}): Buffer {
   const links: Links = new Map()
-  const body = blocks.map((b) => (b.kind === 'pic' ? picXml(b, (b.card && names[b.card]) || (b.file ? b.file.split('/').pop() ?? 'picture' : 'picture'))
+  const body = blocks.map((b) => (b.kind === 'stat' ? markerXml('DzStatBlock', `[Stat block: ${names[b.card] ?? 'a card'}]`, { card: b.card, layout: b.layout, side: b.side })
+    : b.kind === 'pic' ? picXml(b, (b.card && names[b.card]) || (b.file ? b.file.split('/').pop() ?? 'picture' : 'picture'))
     : b.kind === 'table'
     ? `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/></w:tblPr>${b.rows.map((row) =>
       `<w:tr>${row.map((cell) => `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${paraXml('p', cell, links)}</w:tc>`).join('')}</w:tr>`).join('')}</w:tbl>`

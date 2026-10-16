@@ -15,7 +15,7 @@ import { ContextMenu, type MenuItem } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { StatBlockView } from './FightSummary'
 import { CharSheetDialog } from './CharSheetDialog'
-import { blocksToHtml, htmlToBlocks, picHtml } from './NoteEditor'
+import { blocksToHtml, htmlToBlocks, picHtml, statHtml } from './NoteEditor'
 import { readStatBlock } from '../../shared/statblock'
 import { guessHeadings, headingsOf, type Block, type HeadingLevel, type Run } from '../../shared/noteDoc'
 import { autoBanner, autoPictures, blockRuns, findAll, makeMatcher, paragraphLinks, setLinkRange, unknownNames, type Hit, type LinkCard, type Matcher } from '../../shared/noteLinks'
@@ -27,6 +27,7 @@ import type { EntityType } from '../../shared/schemas'
 
 type Card = WordLinksView['cards'][number]
 type Pic = Extract<Block, { kind: 'pic' }>
+type Stat = Extract<Block, { kind: 'stat' }>
 /** Where a link sits: block, table cell (0 outside tables), characters. */
 type At = { block: number; cell: number; from: number; to: number }
 
@@ -72,6 +73,48 @@ function Figure({ src, caption, side, wide, onSide, onRemove, onOpen, onMenu }: 
       </div>
     </figure>
   )
+}
+
+/**
+ * A card's stat block in the note (owner, 2.8.0; starts full width): always the card's current one, with its picture.
+ * Hover: ⇄ other side, ▭ full width / beside the text, − fold, × take out. The name opens the sheet.
+ */
+function InlineStat({ b, card, onChange, onRemove }: { b: Stat; card: Card | undefined; onChange(b: Stat): void; onRemove(): void }) {
+  const { query, openSheet } = useBoard()
+  const stamp = useBoard((s) => s.view?.undo)
+  const [sheet, setSheet] = useState<SheetView | null>(null)
+  const [open, setOpen] = useState(false)
+  useEffect(() => { if (card) void query('sheet:view', { entityId: card.id }).then((s) => setSheet(s ?? null)) }, [card?.id, stamp]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!card) return <div className="nb-stat"><p className="nb-muted">That card is gone (History brings it back). <button className="link-button" onClick={onRemove}>Take this out</button></p></div>
+  const sb = sheet ? readStatBlock(sheet.entity.attributes.statblock) : null
+  const tools = (
+    <div className="ctl">
+      {b.layout === 'beside' && <button title="Move to the other side" aria-label="Move to the other side" onClick={() => onChange({ ...b, side: b.side === 'left' ? 'right' : 'left' })}>⇄</button>}
+      {b.layout !== 'fold' && <button title={b.layout === 'full' ? 'Beside the text' : 'Full width'} aria-label={b.layout === 'full' ? 'Beside the text' : 'Full width'} onClick={() => onChange({ ...b, layout: b.layout === 'full' ? 'beside' : 'full' })}>▭</button>}
+      <button title={b.layout === 'fold' ? 'Open out (stays open)' : 'Fold to one line'} aria-label={b.layout === 'fold' ? 'Open out' : 'Fold'} onClick={() => onChange({ ...b, layout: b.layout === 'fold' ? 'full' : 'fold' })}>{b.layout === 'fold' ? '+' : '−'}</button>
+      <button title="Take it out (Ctrl+Z brings it back)" aria-label="Take the stat block out" onClick={onRemove}>×</button>
+    </div>
+  )
+  const whole = (
+    <div onClick={(e) => { if ((e.target as HTMLElement).closest('.sb-name')) void openSheet(card.id) }}>
+      {card.picture && b.layout !== 'fold' && <img className="nb-stat-pic" src={asset(card.picture, 256)} alt="" />}
+      {sb && sheet ? <StatBlockView name={card.name} sb={sb} actions={sheet.abilities} />
+        : <div className="statblock"><h2 className="sb-name">{card.name}</h2><p className="nb-muted">{sheet ? 'No stat block on this card yet. Click the name to open its sheet.' : 'Loading…'}</p></div>}
+    </div>
+  )
+  if (b.layout === 'fold') {
+    return (
+      <div className="nb-stat is-fold">
+        <button className="nb-statline" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {card.picture && <img src={asset(card.picture, 96)} alt="" />}<b>{card.name}</b>
+          {sb && <span className="nums">AC {sb.ac || '?'} · HP {sb.hp || '?'} · CR {sb.cr || '?'}</span>}<span className="chev">{open ? '▾' : '▸'}</span>
+        </button>
+        {open && whole}
+        {tools}
+      </div>
+    )
+  }
+  return <div className={`nb-stat${b.layout === 'beside' ? ` is-beside${b.side === 'left' ? ' is-left' : ''}` : ''}`}>{whole}{tools}</div>
 }
 
 /** Choose a card (cards with a picture only, or every card and note), or make a new card. */
@@ -161,7 +204,7 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
   const [peek, setPeek] = useState<string | null>(null)
   const [tip, setTip] = useState<{ target: string; x: number; top: number; bottom: number } | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
-  const [picker, setPicker] = useState<{ title: string; withPictures: boolean; notes?: boolean; at?: { x: number; y: number }; onPick(target: string, name: string): void; onMake?(name: string): void } | null>(null)
+  const [picker, setPicker] = useState<{ title: string; withPictures: boolean; notes?: boolean; stats?: boolean; at?: { x: number; y: number }; onPick(target: string, name: string): void; onMake?(name: string): void } | null>(null)
   const [changed, setChanged] = useState<string[] | null>(null)
   const [making, setMaking] = useState(false)
   const [finding, setFinding] = useState<Array<{ key: number; text: string; level: HeadingLevel }> | null>(null)
@@ -238,7 +281,7 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
   const picSrc = (b: Pic) => (b.card ? cardPicture(b.card) : b.file ? asset(b.file, 1024) : '')
   const removeAuto = (id: string) => { void setMeta({ hide: [...new Set([...(meta.hide ?? []), id])] }); say('Picture taken out. Ctrl+Z brings it back.') }
   const flipAuto = (id: string) => { const left = new Set(meta.left ?? []); if (left.has(id)) left.delete(id); else left.add(id); void setMeta({ left: [...left] }) }
-  const insertPic = (at: number, pic: Pic) => {
+  const insertPic = (at: number, pic: Pic | Stat) => {
     if (!blocks) return
     if (pic.card && meta.hide?.includes(pic.card)) void setMeta({ hide: meta.hide.filter((x) => x !== pic.card) })
     void save([...blocks.slice(0, at), pic, ...blocks.slice(at)], true)
@@ -248,7 +291,8 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
   const pictureMenu = (at: number, extra: MenuItem[] = []): MenuItem[] => [
     ...extra,
     { label: 'Insert a card’s picture here…', onClick: () => setPicker({ title: 'Insert a card’s picture', withPictures: true, onPick: (id) => { setPicker(null); insertPic(at, { kind: 'pic', card: id, side: 'right' }) } }) },
-    { label: 'Insert your own picture here…', onClick: () => void pickOwnPicture().then((file) => { if (file) insertPic(at, { kind: 'pic', file, side: 'right' }) }) }
+    { label: 'Insert your own picture here…', onClick: () => void pickOwnPicture().then((file) => { if (file) insertPic(at, { kind: 'pic', file, side: 'right' }) }) },
+    { label: 'Insert a stat block here…', onClick: () => setPicker({ title: 'Insert a stat block', withPictures: false, stats: true, onPick: (id) => { setPicker(null); insertPic(at + 1, { kind: 'stat', card: id, layout: 'full', side: 'right' }) } }) }
   ]
 
   // ---- banner: the DM's choice, else the first place mentioned
@@ -334,7 +378,7 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
   useLayoutEffect(() => {
     const el = ed.current
     if (!editing || !el || !blocks) return
-    el.innerHTML = blocksToHtml(blocks, picSrc)
+    el.innerHTML = blocksToHtml(blocks, picSrc, (id) => byId.get(id)?.name ?? 'a card')
     dirty.current = false
     el.focus()
     return () => {
@@ -389,6 +433,13 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
     if (own) void pickOwnPicture().then((file) => { if (file) put({ kind: 'pic', file, side: 'right' }) })
     else setPicker({ title: 'Insert a card’s picture', withPictures: true, onPick: (id) => { setPicker(null); put({ kind: 'pic', card: id, side: 'right' }) } })
   }
+  const editStat = () => {
+    keepRange()
+    setPicker({ title: 'Insert a stat block', withPictures: false, stats: true, onPick: (id, name) => {
+      setPicker(null); backToRange()
+      document.execCommand('insertHTML', false, statHtml({ kind: 'stat', card: id, layout: 'full', side: 'right' }, name)); dirty.current = true
+    } })
+  }
   const done = async () => {
     if (!ed.current) return
     const next = htmlToBlocks(ed.current)
@@ -409,6 +460,12 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
       body.push(<Figure key={`a${i}`} src={cardPicture(auto)} caption={c.name} wide={WIDE.has(c.type)} side={meta.left?.includes(auto) ? 'left' : 'right'}
         onSide={() => flipAuto(auto)} onRemove={() => removeAuto(auto)} onOpen={() => showPeek(auto)}
         onMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, items: [{ label: 'Move to the other side', onClick: () => flipAuto(auto) }, ...pictureMenu(i).map((x) => x), 'separator', { label: 'Take this picture out', danger: true, onClick: () => removeAuto(auto) }] }) }} />)
+    }
+    if (b.kind === 'stat') {
+      body.push(<div key={i} data-block={i} className="nb-stat-wrap"><InlineStat b={b} card={byId.get(b.card)}
+        onChange={(nb) => void save(blocks!.map((x, j) => (j === i ? nb : x)), true)}
+        onRemove={() => { void save(blocks!.filter((_, j) => j !== i), true); say('Stat block taken out. Ctrl+Z brings it back.') }} /></div>)
+      continue
     }
     if (b.kind === 'pic') {
       const c = b.card ? byId.get(b.card) : undefined
@@ -501,6 +558,7 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
               <button title="A table of 3 columns" onClick={() => cmd('insertHTML', '<table><tbody><tr><td>d6</td><td>Heading</td><td>Heading</td></tr><tr><td>1</td><td><br></td><td><br></td></tr><tr><td>2</td><td><br></td><td><br></td></tr></tbody></table><p><br></p>')}>Table</button>
               <button title="A card’s picture at the cursor" onClick={() => editPicture(false)}>Card picture</button>
               <button title="A picture file of your own at the cursor" onClick={() => editPicture(true)}>Own picture</button>
+              <button title="A monster or NPC card’s stat block at the cursor" onClick={editStat}>Stat block</button>
               <button title="Link the selected words, or type [[ in the text" onClick={() => linkPicker(false)}>[[ Link</button>
             </div>
           )}
@@ -548,7 +606,8 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
         }} />
       {tip && <Tip tip={tip} byId={byId} spells={spells} docs={docs} />}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
-      {picker && <CardPicker title={picker.title} at={picker.at} cards={picker.withPictures ? cardsWithPictures.filter((c) => picker.notes !== false || c.type === 'LOCATION' || c.type === 'BUILDING') : cards}
+      {picker && <CardPicker title={picker.title} at={picker.at} cards={picker.stats ? cards.filter((c) => c.type === 'MONSTER' || c.type === 'NPC' || c.type === 'PC')
+        : picker.withPictures ? cardsWithPictures.filter((c) => picker.notes !== false || c.type === 'LOCATION' || c.type === 'BUILDING') : cards}
         notes={picker.notes ? docs.filter((d) => d.id !== doc.id) : []} onPick={picker.onPick} onMake={picker.onMake} onClose={() => setPicker(null)} />}
       {changed && onOpenDraft && <UpdateCards id={doc.id} lines={changed} onClose={() => setChanged(null)} onOpen={onOpenDraft} />}
       {making && <CharSheetDialog doc={doc} docs={docs} onClose={() => setMaking(false)} />}
