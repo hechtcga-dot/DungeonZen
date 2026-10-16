@@ -791,6 +791,16 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     who is here, description, secrets, DM notes; spells and rules in full); Links (by type, counts; notes; rules);
     Mentions (names not cards yet: Make a card ▾ type / Ignore; other notes named: Link to the note / Ignore);
     Linked from (Session prep sheets saved as this note, other notes linking here).
+  - Folders (owner, mockup 3, 2026-10-16): nested to any depth (`note_doc.folder` = path "A/B/C"; empty folders kept in
+    setting `notes_folders`); ＋ Folder / ＋ Note by the Notes files heading; right-click a folder: New note in this folder,
+    New folder inside, Link to a card / Open the sheet / Unlink, Rename, Move to folder (top level or another), Take the notes
+    out (into the parent), Delete folder (its notes to History; one undo step; `notes:folder`). Drag notes or folders onto a
+    folder (or the Notes files heading = top level). One card per note (File ▾ › Link to a card, right-click a note; `note_meta.card`)
+    and per folder (setting `note_folder_links`); the list shows the card's icon in its colour (person, crowned PC, pin, house,
+    diamond), others a page / folder; the page shows a "Linked to the card …" chip. Card sheets list linked notes first
+    ("Linked to this card"), and "＋ New note" there makes a note linked to the card, in the folder linked to it.
+  - Headings (owner chose B): Cinzel titles, Alegreya Sans SC headings, bars that fade out to the right, a diamond before
+    main headings; panel and stat block names in the heading face.
   - Elsewhere: "In your notes" (`InYourNotes.tsx`, `notes:mentions`: note › heading and a bit of text, click opens the note
     there) on the card sheet's Notes tab, the board side panel (Inspector) and the open encounter.
   - Defaults picked: first mention per paragraph (owner's example); page Light by default; the note window has Open sheet

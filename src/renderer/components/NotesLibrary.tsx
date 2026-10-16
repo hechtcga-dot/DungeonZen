@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import { NoteEditor, type NoteEditorHandle } from './NoteEditor'
-import { NoteReader, UpdateCards } from './NoteReader'
+import { CardIcon, CardPicker, NoteReader, UpdateCards } from './NoteReader'
+import type { IpcInput } from '../../shared/ipc'
 import type { ImportDraft } from '../../shared/notesImport'
 import type { NoteDocView, NotesScreenView } from '../../shared/types'
 import { OpenFolder } from './OpenFolder'
@@ -25,7 +26,14 @@ const words = (t: string) => (t.trim() ? `${t.trim().split(/\s+/).length} words`
 const COLLAPSE_KEY = 'dz-notes-list-collapsed'
 
 const THEME_KEY = 'dz-notes-theme'
-const byTitle = (a: NoteDocView, b: NoteDocView) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
+const natural = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+const byTitle = (a: NoteDocView, b: NoteDocView) => natural(a.title, b.title)
+
+/** A plain folder. */
+function FolderIcon() {
+  return <svg className="nb-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4 H6 L7.5 5.5 H15 V13.5 H1Z" fill="var(--nb-head)" /></svg>
+}
+
 /** Open tabs and back/forward, kept while the app runs. */
 const nav: { tabs: Open[]; cur: number; back: Open[]; fwd: Open[] } = { tabs: [{ kind: 'dm' }], cur: 0, back: [], fwd: [] }
 const same = (a: Open, b: Open) => keyOf(a) === keyOf(b)
@@ -58,7 +66,9 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
   const [anchor, setAnchor] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null)
-  const [naming, setNaming] = useState<{ title: string; value: string; onDone(v: string): void } | null>(null)
+  const [naming, setNaming] = useState<{ title: string; label?: string; value: string; onDone(v: string): void } | null>(null)
+  const [linking, setLinking] = useState<{ onPick(id: string | null): void } | null>(null)
+  const wordLinks = useBoard((s) => s.wordLinks)
   const [combining, setCombining] = useState<string[] | null>(null)
   const [left, setLeft] = useState<'notes' | 'starred' | 'recent'>('notes')
   const [q, setQ] = useState('')
@@ -125,10 +135,18 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
   const tabTitle = (o: Open) => (o.kind === 'master' ? 'Master notes' : o.kind === 'dm' ? 'DM notes' : o.kind === 'session'
     ? `Session ${data.sessions.find((x) => x.id === o.id)?.number ?? ''}` : data.docs.find((d) => d.id === o.id)?.title ?? 'Gone')
 
-  const folders = [...new Set(data.docs.map((d) => d.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-  const groups: Array<[string, NoteDocView[]]> = [...folders.map((f) => [f, data.docs.filter((d) => d.folder === f).sort(byTitle)] as [string, NoteDocView[]]), ['', data.docs.filter((d) => !d.folder).sort(byTitle)]]
-  const flat = groups.flatMap(([f, docs]) => (f && closedFolders.has(f) ? [] : docs))
-  const inFolder = doc ? groups.find(([f]) => f === doc.folder)?.[1] ?? [] : []
+  // Folders nest ("A/B/C", 2.8.0); sorted by name with numbers in order, then the notes in them.
+  const folders = [...data.folders].sort(natural)
+  const parentOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '')
+  const leaf = (p: string) => p.split('/').pop() ?? p
+  const subFolders = (p: string) => folders.filter((f) => parentOf(f) === p).sort((a, b) => natural(leaf(a), leaf(b)))
+  const docsIn = (p: string) => data.docs.filter((d) => d.folder === p).sort(byTitle)
+  const countIn = (p: string): number => docsIn(p).length + subFolders(p).reduce((n, f) => n + countIn(f), 0)
+  const flatIn = (p: string): NoteDocView[] => [...subFolders(p).flatMap((f) => (closedFolders.has(f) ? [] : flatIn(f))), ...docsIn(p)]
+  const flat = flatIn('')
+  const inFolder = doc ? docsIn(doc.folder) : []
+  const cardById = new Map((wordLinks?.cards ?? []).map((c) => [c.id, c]))
+  const pathLabel = (p: string) => p.split('/').join(' › ')
   const at = doc ? inFolder.findIndex((d) => d.id === doc.id) : -1
   const toggle = (set: Set<string>, key: string) => { const n = new Set(set); if (n.has(key)) n.delete(key); else n.add(key); return n }
   const ids = (id: string) => (selected.has(id) ? [...selected] : [id])
@@ -139,13 +157,26 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
     say(`${list.length === 1 ? 'Note' : `${list.length} notes`} moved to History. Ctrl+Z brings ${list.length === 1 ? 'it' : 'the last one'} back.`)
   }
   const moveTo = (list: string[], folder: string) => void act('notedoc:setFolder', { ids: list, folder }).then(load)
-  const newFolder = (list: string[]) => setNaming({ title: 'New folder', value: '', onDone: (v) => moveTo(list, v) })
+  const newFolder = (list: string[]) => setNaming({ title: 'New folder', label: 'Folder name', value: '', onDone: (v) => moveTo(list, v.replace(/\//g, '-')) })
   const folderItems = (list: string[]): MenuItem[] => [
-    ...folders.map((f) => ({ label: f, onClick: () => moveTo(list, f) })),
+    ...folders.map((f) => ({ label: pathLabel(f), onClick: () => moveTo(list, f) })),
     ...(folders.length ? ['separator' as const] : []),
     { label: 'New folder…', onClick: () => newFolder(list) },
-    { label: 'No folder', onClick: () => moveTo(list, ''), disabled: list.every((id) => !data.docs.find((d) => d.id === id)?.folder) }
+    { label: 'No folder (top level)', onClick: () => moveTo(list, ''), disabled: list.every((id) => !data.docs.find((d) => d.id === id)?.folder) }
   ]
+  const folder = (a: IpcInput<'notes:folder'>) => void act('notes:folder', a).then(load)
+  const newNoteIn = (path: string) => setNaming({ title: path ? `New note in ${leaf(path)}` : 'New note', label: 'Note title', value: '',
+    onDone: (title) => void act('notedoc:create', { title, folder: path }).then((id) => { load(); if (id) go({ kind: 'doc', id }) }) })
+  const newFolderIn = (path: string) => setNaming({ title: path ? `New folder in ${leaf(path)}` : 'New folder', label: 'Folder name', value: '',
+    onDone: (v) => folder({ action: 'create', path: path ? `${path}/${v.replace(/\//g, '-')}` : v.replace(/\//g, '-') }) })
+  /** Link to a card / Open the card / Unlink, for a note or a folder (one card each). */
+  const linkItems = (card: string | undefined, setCard: (id: string | null) => void): MenuItem[] => {
+    const c = card ? cardById.get(card) : undefined
+    return [
+      { label: c ? `Linked to ${c.name} · Change…` : 'Link to a card…', hint: 'Shows the card’s icon here; the card’s sheet lists it under Notes', onClick: () => setLinking({ onPick: setCard }) },
+      ...(c ? [{ label: `Open ${c.name}’s sheet`, onClick: () => void useBoard.getState().openSheet(c.id) }, { label: 'Unlink from the card', onClick: () => setCard(null) }] : [])
+    ]
+  }
   const docMenu = (e: ReactMouseEvent, d: NoteDocView) => {
     e.preventDefault()
     const many = selected.has(d.id) && selected.size > 1
@@ -170,17 +201,32 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
         ...(d.kind !== 'picture' ? [{ label: 'Save a copy as Word…', onClick: () => void act('notedoc:saveCopy', { id: d.id }).then((p) => { if (p) say(`Saved ${p}`) }) }] : []),
         { label: 'Move to folder', items: folderItems(list) },
         'separator',
+        ...linkItems(d.meta.card, (card) => void act('notedoc:setMeta', { id: d.id, meta: { ...d.meta, card: card ?? undefined } }).then(load)),
+        'separator',
         { label: 'Delete (to History)', danger: true, onClick: () => void remove(list) }
       ]
     })
   }
   const folderMenu = (e: ReactMouseEvent, f: string) => {
     e.preventDefault()
-    const list = data.docs.filter((d) => d.folder === f).map((d) => d.id)
+    const list = docsIn(f).map((d) => d.id)
+    const up = parentOf(f)
+    const into = (to: string) => folder({ action: 'rename', from: f, to: to ? `${to}/${leaf(f)}` : leaf(f) })
     setMenu({
       x: e.clientX, y: e.clientY, items: [
-        { label: 'Rename folder…', onClick: () => setNaming({ title: `Rename the folder ${f}`, value: f, onDone: (v) => moveTo(list, v) }) },
-        { label: 'Take the notes out of this folder', onClick: () => moveTo(list, '') }
+        { label: 'New note in this folder…', onClick: () => newNoteIn(f) },
+        { label: 'New folder inside…', onClick: () => newFolderIn(f) },
+        'separator',
+        ...linkItems(data.folderLinks[f], (card) => folder({ action: 'link', path: f, card })),
+        'separator',
+        { label: 'Rename folder…', onClick: () => setNaming({ title: `Rename the folder ${leaf(f)}`, label: 'Folder name', value: leaf(f), onDone: (v) => folder({ action: 'rename', from: f, to: up ? `${up}/${v.replace(/\//g, '-')}` : v.replace(/\//g, '-') }) }) },
+        { label: 'Move to folder', items: [
+          { label: 'Top level', disabled: !up, onClick: () => into('') },
+          ...folders.filter((x) => x !== up && x !== f && !x.startsWith(`${f}/`)).map((x) => ({ label: pathLabel(x), onClick: () => into(x) }))
+        ] },
+        { label: up ? `Take the notes out (into ${leaf(up)})` : 'Take the notes out (top level)', disabled: !list.length, onClick: () => moveTo(list, up) },
+        'separator',
+        { label: `Delete folder${countIn(f) ? ` (${countIn(f)} notes to History)` : ''}`, danger: true, hint: 'Ctrl+Z brings it back', onClick: () => folder({ action: 'delete', path: f }) }
       ]
     })
   }
@@ -194,9 +240,15 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
     setSelected(new Set([d.id])); setAnchor(d.id); go({ kind: 'doc', id: d.id })
   }
   const drag = (e: DragEvent, id: string) => { e.dataTransfer.setData('text/x-dz-notes', JSON.stringify(ids(id))); e.dataTransfer.effectAllowed = 'move' }
-  const dropOn = (folder: string) => ({
-    onDragOver: (e: DragEvent) => { if (e.dataTransfer.types.includes('text/x-dz-notes')) e.preventDefault() },
-    onDrop: (e: DragEvent) => { e.preventDefault(); try { moveTo(JSON.parse(e.dataTransfer.getData('text/x-dz-notes')) as string[], folder) } catch { /* not ours */ } }
+  // Drop notes or a folder onto a folder (or the Notes files heading = top level).
+  const dropOn = (target: string) => ({
+    onDragOver: (e: DragEvent) => { if (e.dataTransfer.types.includes('text/x-dz-notes') || e.dataTransfer.types.includes('text/x-dz-folder')) e.preventDefault() },
+    onDrop: (e: DragEvent) => {
+      e.preventDefault()
+      const f = e.dataTransfer.getData('text/x-dz-folder')
+      if (f) { if (f !== target && !target.startsWith(`${f}/`) && parentOf(f) !== target) folder({ action: 'rename', from: f, to: target ? `${target}/${leaf(f)}` : leaf(f) }); return }
+      try { moveTo(JSON.parse(e.dataTransfer.getData('text/x-dz-notes')) as string[], target) } catch { /* not ours */ }
+    }
   })
 
   /** One note in the list, with its headings when opened out. */
@@ -210,7 +262,8 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
           {heads.length > 0
             ? <button className="nb-tog" aria-expanded={expanded.has(key)} aria-label={`${expanded.has(key) ? 'Close' : 'Open out'} the headings of ${title}`}
                 onClick={() => setExpanded(toggle(expanded, key))}>{expanded.has(key) ? '▾' : '▸'}</button>
-            : <span className="nb-tog" aria-hidden="true">{d ? '▤' : '·'}</span>}
+            : <span className="nb-tog" aria-hidden="true" />}
+          {d && <CardIcon card={d.meta.card ? cardById.get(d.meta.card) : undefined} />}
           {d && renaming?.id === d.id
             ? <input autoFocus className="tree-rename" value={renaming.title} maxLength={200} aria-label="Note title"
                 onChange={(e) => setRenaming({ id: d.id, title: e.target.value })}
@@ -231,23 +284,30 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
   const docEntry = (d: NoteDocView) => entry({ kind: 'doc', id: d.id }, d.title, d.kind === 'word' ? '' : KIND_LABEL[d.kind], d)
   const running = data.sessions.some((x) => x.running)
 
+  /** A folder's folders, then its notes; each folder opens and closes, right-click for more, drag to move. */
+  const folderTree = (p: string): ReactNode[] => [
+    ...subFolders(p).map((f) => {
+      const card = data.folderLinks[f] ? cardById.get(data.folderLinks[f]) : undefined
+      return (
+        <li key={`folder:${f}`}>
+          <button className="nb-folder" aria-expanded={!closedFolders.has(f)} onClick={() => setClosedFolders(toggle(closedFolders, f))} title={card ? `Linked to ${card.name}` : undefined}
+            onContextMenu={(e) => folderMenu(e, f)} draggable onDragStart={(e) => { e.dataTransfer.setData('text/x-dz-folder', f); e.dataTransfer.effectAllowed = 'move' }} {...dropOn(f)}>
+            <span className="nb-chev" aria-hidden="true">{closedFolders.has(f) ? '▸' : '▾'}</span>{card ? <CardIcon card={card} /> : <FolderIcon />}<span className="nb-fname">{leaf(f)}</span>
+            <span className="nb-muted" style={{ marginLeft: 'auto' }}>{countIn(f)}</span>
+          </button>
+          {!closedFolders.has(f) && <ul className="nb-in">{folderTree(f)}</ul>}
+        </li>
+      )
+    }),
+    ...docsIn(p).map(docEntry)
+  ]
   const tree = (
     <ul aria-multiselectable="true" aria-label="Notes" onKeyDown={(e) => { if (e.key === 'Delete' && selected.size && !renaming) void remove([...selected]) }}>
-      <li className="nb-lsec" {...dropOn('')} title="Drop notes here to take them out of their folder">Notes files</li>
-      {data.docs.length === 0 && <li className="nb-muted" style={{ padding: '0 6px' }}>None yet. Import notes or make a new one below.</li>}
-      {groups.map(([f, docs]) => {
-        const items = docs.map(docEntry)
-        if (!f) return items
-        return (
-          <li key={`folder:${f}`}>
-            <button className="nb-folder" aria-expanded={!closedFolders.has(f)} onClick={() => setClosedFolders(toggle(closedFolders, f))}
-              onContextMenu={(e) => folderMenu(e, f)} {...dropOn(f)}>
-              <span aria-hidden="true">{closedFolders.has(f) ? '▸' : '▾'}</span>{f}<span className="nb-muted" style={{ marginLeft: 'auto' }}>{docs.length}</span>
-            </button>
-            {!closedFolders.has(f) && <ul className="nb-in">{items}</ul>}
-          </li>
-        )
-      })}
+      <li className="nb-lsec nb-lsec-row" {...dropOn('')} title="Drop notes or folders here to put them at the top level">Notes files
+        <button title="New folder at the top level" onClick={() => newFolderIn('')}>＋ Folder</button>
+        <button title="New note at the top level" onClick={() => newNoteIn('')}>＋ Note</button></li>
+      {data.docs.length === 0 && folders.length === 0 && <li className="nb-muted" style={{ padding: '0 6px' }}>None yet. Import notes or make a new one.</li>}
+      {folderTree('')}
       <li className="nb-lsec">DM notes</li>
       {entry({ kind: 'master' }, 'Master notes', 'every note in one document')}
       {entry({ kind: 'dm' }, 'Between sessions', words(data.dmNotes) || 'empty')}
@@ -355,6 +415,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
       )}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       {naming && <NameDialog {...naming} onClose={() => setNaming(null)} />}
+      {linking && <CardPicker title="Link to a card" cards={wordLinks?.cards ?? []} onClose={() => setLinking(null)} onPick={(id) => { linking.onPick(id); setLinking(null) }} />}
       {combining && <CombineDialog docs={combining.map((id) => data.docs.find((d) => d.id === id)).filter((d): d is NoteDocView => !!d)}
         onClose={() => setCombining(null)} onDone={(id) => { setCombining(null); setSelected(new Set()); load(); go({ kind: 'doc', id }) }} />}
     </div>
@@ -362,13 +423,13 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
 }
 
 /** Asks for a folder name (new folder, rename folder). */
-function NameDialog({ title, value, onDone, onClose }: { title: string; value: string; onDone(v: string): void; onClose(): void }) {
+function NameDialog({ title, label = 'Folder name', value, onDone, onClose }: { title: string; label?: string; value: string; onDone(v: string): void; onClose(): void }) {
   const [v, setV] = useState(value)
   return (
     <Dialog title={title} open onClose={onClose}>
       <form onSubmit={(e) => { e.preventDefault(); if (v.trim()) { onDone(v.trim()); onClose() } }}>
-        <div className="field"><label htmlFor="dz-folder-name">Folder name</label>
-          <input id="dz-folder-name" autoFocus value={v} maxLength={80} onChange={(e) => setV(e.target.value)} /></div>
+        <div className="field"><label htmlFor="dz-folder-name">{label}</label>
+          <input id="dz-folder-name" autoFocus value={v} maxLength={200} onChange={(e) => setV(e.target.value)} /></div>
         <div className="dz-actions"><button type="button" onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={!v.trim()}>OK</button></div>
       </form>
     </Dialog>

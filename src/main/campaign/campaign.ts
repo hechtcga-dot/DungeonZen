@@ -96,7 +96,7 @@ export interface Position { x: number; y: number }
 
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
-  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates' | 'word_links' | 'note_meta' | 'notes_starred'
+  | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates' | 'word_links' | 'note_meta' | 'notes_starred' | 'notes_folders' | 'note_folder_links'
 
 interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string
@@ -3751,8 +3751,80 @@ export class Campaign {
         .sort((a, b) => b.number - a.number)
         .map((r) => ({ id: r.id, number: r.number, startedAt: r.startedAt, running: r.id === open?.id, dmNotes: r.dmNotes, recap: r.recap })),
       dmNotes: String(this.setting('dm_notes') ?? ''),
-      starred: this.starredNotes()
+      starred: this.starredNotes(),
+      folders: this.allNoteFolders(),
+      folderLinks: this.folderLinks()
     }
+  }
+
+  /** Folders the DM made (paths "A/B/C"; 2.8.0), kept even when empty. */
+  private madeFolders(): string[] {
+    const v = this.setting('notes_folders')
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+  }
+
+  private folderLinks(): Record<string, string> {
+    const v = this.setting('note_folder_links')
+    return v && typeof v === 'object' ? v as Record<string, string> : {}
+  }
+
+  /** Every folder: the ones made, and every folder (and parent) a note sits in. */
+  private allNoteFolders(): string[] {
+    const out = new Set<string>()
+    const add = (p: string) => { const parts = p.split('/'); for (let i = 1; i <= parts.length; i++) out.add(parts.slice(0, i).join('/')) }
+    for (const f of this.madeFolders()) if (f) add(f)
+    for (const r of this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all()) if (r.folder) add(r.folder)
+    return [...out]
+  }
+
+  /**
+   * Notes folders (2.8.0, owner): make, rename or move (a new path; notes and folders inside go along), delete (its notes
+   * go to History), link to a card. One undo step each.
+   */
+  noteFolder(a: { action: 'create'; path: string } | { action: 'rename'; from: string; to: string } | { action: 'delete'; path: string } | { action: 'link'; path: string; card: string | null }): void {
+    const within = (f: string, p: string) => f === p || f.startsWith(`${p}/`)
+    const set = (w: Parameters<Parameters<typeof this.log.run>[1]>[0], key: SettingKey, value: unknown) => {
+      if (w.get('campaign_settings', key)) w.update('campaign_settings', key, { value }); else w.insert('campaign_settings', { key, value })
+    }
+    const made = this.madeFolders(), links = this.folderLinks()
+    const docs = this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all()
+    const name = (p: string) => p.split('/').pop()
+    if (a.action === 'create') {
+      if (this.allNoteFolders().includes(a.path)) return
+      this.log.run(`New notes folder ${name(a.path)}`, (w) => set(w, 'notes_folders', [...made, a.path]))
+    } else if (a.action === 'rename') {
+      if (a.from === a.to || within(a.to, a.from)) return
+      const move = (f: string) => (within(f, a.from) ? a.to + f.slice(a.from.length) : f)
+      this.log.run(name(a.from) === name(a.to) ? `Moved the folder ${name(a.from)}` : `Renamed the folder ${name(a.from)} to ${name(a.to)}`, (w) => {
+        for (const r of docs) if (r.folder && within(r.folder, a.from)) w.update('note_doc', r.id, { folder: move(r.folder) })
+        set(w, 'notes_folders', [...new Set([...made.map(move), a.to])])
+        set(w, 'note_folder_links', Object.fromEntries(Object.entries(links).map(([k, v]) => [move(k), v])))
+      })
+    } else if (a.action === 'delete') {
+      const gone = docs.filter((r) => r.folder && within(r.folder, a.path))
+      this.log.run(`Deleted the folder ${name(a.path)}${gone.length ? ` (${gone.length} notes to History)` : ''}`, (w) => {
+        for (const r of gone) w.update('note_doc', r.id, { status: 'defunct' })
+        set(w, 'notes_folders', made.filter((f) => !within(f, a.path)))
+        set(w, 'note_folder_links', Object.fromEntries(Object.entries(links).filter(([k]) => !within(k, a.path))))
+      })
+    } else {
+      const next = { ...links }
+      if (a.card) next[a.path] = a.card; else delete next[a.path]
+      this.log.run(a.card ? `Linked the folder ${name(a.path)} to a card` : `Unlinked the folder ${name(a.path)}`, (w) => set(w, 'note_folder_links', next))
+    }
+  }
+
+  /** Notes linked to this card: by the note itself, or by a folder it sits in. */
+  notesLinkedTo(entityId: string): string[] {
+    const folders = Object.entries(this.folderLinks()).filter(([, v]) => v === entityId).map(([k]) => k)
+    const metas = this.noteMetas()
+    return this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all()
+      .filter((r) => metas[r.id]?.card === entityId || folders.some((f) => r.folder === f || r.folder.startsWith(`${f}/`))).map((r) => r.id)
+  }
+
+  /** The folder linked to this card ('' = none): where its new notes go. */
+  folderOfCard(entityId: string): string {
+    return Object.entries(this.folderLinks()).find(([, v]) => v === entityId)?.[0] ?? ''
   }
 
   private noteMetas(): Record<string, NoteMeta> {
@@ -3840,12 +3912,16 @@ export class Campaign {
     return id
   }
 
-  createNoteDoc(title: string, bytes: Buffer): string {
+  createNoteDoc(title: string, bytes: Buffer, folder = '', card?: string): string {
     const rel = this.storeNoteFile({ bytes, ext: '.docx' })
     const id = randomUUID()
     const now = new Date().toISOString()
     this.log.run(`New note ${title}`, (w) => {
-      w.insert('note_doc', { id, title, kind: 'word', file: rel, originalName: `${title}.docx`, versions: [], status: 'active', createdAt: now, updatedAt: now })
+      w.insert('note_doc', { id, title, kind: 'word', file: rel, originalName: `${title}.docx`, versions: [], folder, status: 'active', createdAt: now, updatedAt: now })
+      if (card) {
+        const value = { ...this.noteMetas(), [id]: { card } }
+        if (w.get('campaign_settings', 'note_meta')) w.update('campaign_settings', 'note_meta', { value }); else w.insert('campaign_settings', { key: 'note_meta', value })
+      }
     })
     return id
   }

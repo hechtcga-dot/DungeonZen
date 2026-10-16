@@ -36,10 +36,12 @@ const Name = z.string().trim().min(1).max(200)
 /** Screens that can open in a window of their own (rail right-click). */
 export const POP_SCREENS = ['board', 'encounters', 'prep', 'library', 'import'] as const
 const PopScreen = z.enum(POP_SCREENS)
+/** A notes folder path "A/B/C" (2.8.0): no empty parts. */
+const FolderPath = z.string().trim().min(1).max(300).refine((p) => p.split('/').every((x) => x.trim().length > 0), 'A folder name cannot be empty')
 const IdList = z.array(z.string().max(80)).max(2000)
 const NoteMetaInput = z.object({
   banner: z.object({ card: z.string().max(80).optional(), file: z.string().max(300).optional(), none: z.boolean().optional() }).optional(),
-  hide: IdList.optional(), left: IdList.optional(), ignore: z.array(z.string().max(200)).max(2000).optional()
+  hide: IdList.optional(), left: IdList.optional(), card: z.string().max(80).optional(), ignore: z.array(z.string().max(200)).max(2000).optional()
 })
 const AbilityFields = z.object({
   name: Name,
@@ -291,7 +293,7 @@ export const ipcInputs = {
   'notes:popout': z.void(),
   'session:notes': z.object({ id: Id, text: z.string().max(100000) }),
   'notedoc:content': z.object({ id: Id }),
-  'notedoc:create': z.object({ title: Name }),
+  'notedoc:create': z.object({ title: Name, folder: FolderPath.or(z.literal('')).optional(), card: Id.optional(), forCard: Id.optional() }),
   'notedoc:save': z.object({ id: Id, blocks: Blocks }),
   'notedoc:setMeta': z.object({ id: Id, meta: NoteMetaInput }),
   'notes:star': z.object({ id: Id, on: z.boolean() }),
@@ -310,7 +312,13 @@ export const ipcInputs = {
   'notedoc:updateCards': z.object({ id: Id, lines: z.array(z.string().max(20000)).min(1).max(5000) }),
   'notedoc:named': z.object({ names: z.array(z.string().max(300)).max(50) }),
   'notes:outline': z.void(),
-  'notedoc:setFolder': z.object({ ids: z.array(Id).min(1).max(1000), folder: z.string().trim().max(80) }),
+  'notedoc:setFolder': z.object({ ids: z.array(Id).min(1).max(1000), folder: FolderPath.or(z.literal('')) }),
+  'notes:folder': z.discriminatedUnion('action', [
+    z.object({ action: z.literal('create'), path: FolderPath }),
+    z.object({ action: z.literal('rename'), from: FolderPath, to: FolderPath }),
+    z.object({ action: z.literal('delete'), path: FolderPath }),
+    z.object({ action: z.literal('link'), path: FolderPath, card: Id.nullable() })
+  ]),
   'notedoc:showInFolder': z.object({ id: Id }),
   'notedoc:duplicate': z.object({ id: Id }),
   'notedoc:combine': z.object({ ids: z.array(Id).min(2).max(200), title: Name, removeOriginals: z.boolean() }),
@@ -690,6 +698,7 @@ export interface IpcOutputs {
   /** Headings per note, keyed like the master notes sections: 'dm', 'session:<id>', 'doc:<id>'. */
   'notes:outline': Record<string, Array<{ level: 'h1' | 'h2' | 'h3'; text: string }>>
   'notedoc:setFolder': void
+  'notes:folder': void
   'notedoc:showInFolder': void
   'notedoc:duplicate': string
   'notedoc:combine': string

@@ -7,6 +7,8 @@ import '@fontsource/alegreya-sc/700.css'
 import '@fontsource/alegreya-sans/400.css'
 import '@fontsource/alegreya-sans/500.css'
 import '@fontsource/alegreya-sans/700.css'
+import '@fontsource/alegreya-sans-sc/800.css'
+import '@fontsource/cinzel/700.css'
 import '../notes.css'
 import { call } from '../api'
 import { useBoard } from '../store'
@@ -75,6 +77,19 @@ function Figure({ src, caption, side, wide, onSide, onRemove, onOpen, onMenu }: 
   )
 }
 
+/** A note or folder's icon: the linked card's kind in its colour (person, place, thing), else a page. */
+export function CardIcon({ card }: { card?: { type: EntityType; colour?: string; name: string } }) {
+  const typeColour = useTypeColour()
+  if (!card) return <svg className="nb-ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="1.5" width="10" height="13" rx="1" fill="none" stroke="var(--nb-head)" strokeWidth="1.4" /><path d="M5.5 5h5M5.5 8h5M5.5 11h3" stroke="var(--nb-head)" strokeWidth="1.2" /></svg>
+  const c = card.colour ?? typeColour(card.type)
+  const shape = ['NPC', 'PC', 'MONSTER'].includes(card.type)
+    ? <><circle cx="8" cy="5.5" r="3" fill={c} /><path d="M2.5 15 Q3 9.5 8 9.5 Q13 9.5 13.5 15Z" fill={c} />{card.type === 'PC' && <path d="M5 2.2 L8 0.6 L11 2.2" stroke="#c9a34a" strokeWidth="1.5" fill="none" />}</>
+    : card.type === 'LOCATION' ? <><path d="M8 15 Q2 8 2 6 A6 6 0 0 1 14 6 Q14 8 8 15Z" fill={c} /><circle cx="8" cy="6" r="2.2" fill="var(--nb-panel)" /></>
+    : card.type === 'BUILDING' ? <path d="M2 7 L8 2 L14 7 V14.5 H2Z" fill={c} />
+    : <path d="M8 1.5 L14.5 8 L8 14.5 L1.5 8Z" fill={c} />
+  return <svg className="nb-ico" viewBox="0 0 16 16" role="img" aria-label={`Linked to ${card.name}`}><title>{`Linked to ${card.name}`}</title>{shape}</svg>
+}
+
 /**
  * A card's stat block in the note (owner, 2.8.0; starts full width): always the card's current one, with its picture.
  * Hover: ⇄ other side, ▭ full width / beside the text, − fold, × take out. The name opens the sheet.
@@ -118,7 +133,7 @@ function InlineStat({ b, card, onChange, onRemove }: { b: Stat; card: Card | und
 }
 
 /** Choose a card (cards with a picture only, or every card and note), or make a new card. */
-function CardPicker({ title, cards, notes = [], onPick, onMake, onClose, at }: {
+export function CardPicker({ title, cards, notes = [], onPick, onMake, onClose, at }: {
   title: string; cards: Card[]; notes?: NoteDocView[]; onPick(target: string, name: string): void; onMake?(name: string): void; onClose(): void; at?: { x: number; y: number }
 }) {
   const [q, setQ] = useState('')
@@ -519,6 +534,10 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
       { label: 'Re-import file…', hint: 'A new copy of the file; this one stays under Earlier versions', onClick: () => void act('notedoc:reimport', { id: doc.id }).then((r) => { if (r) { onChanged(); if (r.changed.length && onOpenDraft) setChanged(r.changed); else say('Re-imported. Nothing new for the cards.') } }) },
       ...(isText && onOpenDraft ? [{ label: 'Read again with AI…', hint: 'The AI reads the whole note again and proposes card changes', onClick: () => void act('notedoc:allLines', { id: doc.id }).then((l) => { if (l?.length) setChanged(l) }) }] : []),
       { label: 'Make a character card…', hint: 'The AI copies a character sheet into a character card', onClick: () => setMaking(true) },
+      meta.card && byId.get(meta.card) ? { label: `Linked to ${byId.get(meta.card)!.name}`, items: [
+        { label: 'Link to another card…', onClick: () => setPicker({ title: 'Link this note to a card', withPictures: false, onPick: (id) => { setPicker(null); void setMeta({ card: id }) } }) },
+        { label: 'Unlink from the card', onClick: () => void setMeta({ card: undefined }) }] }
+        : { label: 'Link to a card…', hint: 'The card’s sheet lists this note; the notes list shows its icon', onClick: () => setPicker({ title: 'Link this note to a card', withPictures: false, onPick: (id) => { setPicker(null); void setMeta({ card: id }) } }) },
       ...(isText ? [{ label: 'Find headings…', hint: 'Lines that read like headings; you tick which', onClick: () => setFinding(guessHeadings(blocks ?? []).map((g) => ({ key: g.index, text: g.text, level: g.level }))) }] : []),
       ...(doc.versions.length ? [{ label: `Earlier versions (${doc.versions.length})`, items: doc.versions.map((v) => ({ label: `${new Date(v.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · Bring back`, onClick: () => void act('notedoc:restore', { id: doc.id, file: v.file }).then(onChanged) })) }] : []),
       'separator',
@@ -530,7 +549,7 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
     <>
       <section className="nb-mid" aria-label={doc.title}>
         <div className="nb-crumbs">
-          <span>{folder ? `${folder} › ` : ''}<b>{doc.title}</b></span>
+          <span>{folder ? `${folder.split('/').join(' › ')} › ` : ''}<b>{doc.title}</b></span>
           {isText && (editing
             ? <><button className="nb-btn is-pri" onClick={() => void done()}>✓ Done</button><button className="nb-tool" onClick={() => { dirty.current = false; setEditing(false) }} title="Leave without saving the changes">Cancel</button></>
             : <button className="nb-tool" onClick={() => setEditing(true)} title="Type into the page; ✓ Done saves (Ctrl+Z undoes)">✎ Edit</button>)}
@@ -584,6 +603,11 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
                 onClick={(e) => { const el = (e.target as HTMLElement).closest<HTMLElement>('[data-target]'); if (el) openTarget(el.dataset.target!, e) }}>
                 <h1 className="nb-title" onContextMenu={(e) => { if (!bannerSrc && meta.banner?.none) bannerMenu(e) }}>{doc.title}</h1>
                 <div className="nb-byline">From {doc.originalName}{!bannerSrc && <> · <button className="link-button" onClick={bannerMenu}>Banner picture…</button></>}</div>
+                {meta.card && byId.get(meta.card) && (
+                  <button className="nb-linked" onClick={() => showPeek(meta.card!)} title="Show the card in the side panel (File ▾ changes the link)">
+                    <CardIcon card={byId.get(meta.card)} />Linked to the card <b>{byId.get(meta.card)!.name}</b> ({ENTITY_LABELS[byId.get(meta.card)!.type]})
+                  </button>
+                )}
                 {blocks && blocks.length === 0 && <p className="nb-empty">Empty. Click ✎ Edit to write.</p>}
                 {body}
               </article>

@@ -13,6 +13,24 @@ afterEach(() => { c.close(); rmSync(dir, { recursive: true, force: true }) })
 const word = (text: string) => writeDocx([{ kind: 'p', runs: [{ text }] }])
 
 describe('Notes screen', () => {
+  it('nests folders, moves and deletes them with their notes, links them to cards (2.8.0)', () => {
+    const b = c.info().globalBoardId
+    const maren = c.createEntity({ boardId: b, type: 'NPC', name: 'Maren', position: { x: 0, y: 0 } }).id
+    c.noteFolder({ action: 'create', path: 'World/People' })
+    expect(c.notesScreen().folders.sort()).toEqual(['World', 'World/People'])
+    c.noteFolder({ action: 'link', path: 'World/People', card: maren })
+    const id = c.createNoteDoc('Maren', word('Harbourmaster.'), c.folderOfCard(maren))
+    const other = c.createNoteDoc('Bio', word('x'), '', maren)
+    expect(c.notesLinkedTo(maren).sort()).toEqual([id, other].sort())
+    c.noteFolder({ action: 'rename', from: 'World', to: 'Lore/World' })
+    expect(c.notesScreen().docs.find((d) => d.id === id)?.folder).toBe('Lore/World/People')
+    expect(c.notesScreen().folderLinks).toEqual({ 'Lore/World/People': maren })
+    c.noteFolder({ action: 'delete', path: 'Lore' })
+    expect(c.notesScreen().docs.map((d) => d.id)).toEqual([other])
+    expect(c.notesScreen().folders).toEqual([])
+    c.undo()
+    expect(c.notesScreen().docs.find((d) => d.id === id)?.folder).toBe('Lore/World/People')
+  })
   it('keeps an imported file, saves versions, brings one back, and undoes', () => {
     const src = join(dir, 'Plot points.docx')
     writeFileSync(src, word('The dragon sleeps.'))

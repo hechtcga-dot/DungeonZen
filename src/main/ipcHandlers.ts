@@ -772,7 +772,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const rel = file.slice(join(c.folder, 'assets').length + 1).replace(/\\/g, '/')
     return { blocks: await noteBlocks(file, doc.kind), url: doc.kind === 'picture' ? `dz-asset://campaign/${rel}` : null }
   })
-  handle('notedoc:create', ({ title }) => current().createNoteDoc(title, writeDocx([])))
+  // forCard: a new note for this card (goes into the folder linked to it, linked to the card).
+  handle('notedoc:create', ({ title, folder, card, forCard }) => {
+    const c = current()
+    return c.createNoteDoc(title, writeDocx([]), forCard ? c.folderOfCard(forCard) : folder ?? '', forCard ?? card)
+  })
+  handle('notes:folder', (a) => current().noteFolder(a))
   handle('notedoc:save', async ({ id, blocks }) => {
     const c = current()
     const doc = c.notesScreen().docs.find((d) => d.id === id)
@@ -813,11 +818,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const w = c.wordLinks()
     const m = makeMatcher(w.cards, w.own, w.off, [])
     const out: IpcOutputs['notes:mentions'] = []
+    const linked = new Set(c.notesLinkedTo(entityId))
+    for (const d of c.notesScreen().docs) if (linked.has(d.id)) out.push({ docId: d.id, title: d.title, heading: -1, headingText: '', text: 'Linked to this card' })
     for (const d of c.notesScreen().docs) {
       if (d.kind === 'picture') continue
       const blocks = await noteBlocks(c.noteFile(d.id), d.kind).catch(() => [])
       const heads = headingsOf(blocks)
-      const seen = new Set<number>()
+      const seen = new Set<number>(linked.has(d.id) ? [-1] : [])
       for (const x of cardMentions(blocks, m)) {
         if (x.target !== entityId || seen.has(x.heading)) continue
         seen.add(x.heading)

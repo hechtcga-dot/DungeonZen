@@ -898,10 +898,12 @@ export interface NoteMeta {
   banner?: { card?: string; file?: string; none?: boolean }
   hide?: string[]
   left?: string[]
+  /** The card this note is linked to (one card). */
+  card?: string
   ignore?: string[]
 }
 /** A place a card (or note) shows up in the notes: note, heading (index, -1 = before the first) and a bit of text. */
 export interface NoteMentionView { docId: string; title: string; heading: number; headingText: string; text: string }
 /** Notes screen: DM notes kept per session (the desk journal while that session runs). */
 export interface SessionNotesView { id: string; number: number; startedAt: string; running: boolean; dmNotes: string; recap: string }
-export interface NotesScreenView { docs: NoteDocView[]; sessions: SessionNotesView[]; dmNotes: string; starred: string[] }
+export interface NotesScreenView { docs: NoteDocView[]; sessions: SessionNotesView[]; dmNotes: string; starred: string[]; folders: string[]; folderLinks: Record<string, string> }

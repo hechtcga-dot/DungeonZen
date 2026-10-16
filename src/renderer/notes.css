@@ -237,3 +237,26 @@ figure.nb-pic .ctl button { width: 26px; height: 26px; background: rgba(20, 16, 
 .nb .statblock p, .nb .statblock .sb-line { margin: 0; }
 .nb .statblock .sb-entry { margin: 1px 0 3px; }
 .nb .statblock .sb-head { margin: 5px 0 2px; padding-bottom: 1px; font-size: 15px; }
+
+/* 2.8.0 (owner chose mockup 3 B): engraved titles, condensed small-capital headings, bars that fade out */
+.nb { --nb-f-title: 'Cinzel', 'Palatino Linotype', Georgia, serif; --nb-f-h: 'Alegreya Sans SC', 'Segoe UI', sans-serif; }
+.nb-book h1.nb-title { font-family: var(--nb-f-title); letter-spacing: 0.02em; }
+.nb-book h1:not(.nb-title), .nb-book h2, .nb-book h3 { font-family: var(--nb-f-h); font-weight: 800; letter-spacing: 0.02em; position: relative; border-bottom: 0; padding-bottom: 4px; }
+.nb-book h1:not(.nb-title)::after, .nb-book h2::after, .nb-book h3::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+  background: linear-gradient(90deg, var(--nb-rule) 0%, var(--nb-rule) 30%, color-mix(in srgb, var(--nb-rule) 40%, transparent) 70%, transparent 100%); }
+.nb-book h3::after { height: 2px; width: 70%; }
+.nb-book h2::before { content: ''; position: absolute; left: -14px; top: 0.4em; width: 7px; height: 7px; background: var(--nb-rule); transform: rotate(45deg); }
+.nb-tip h5, .nb-peekhead h3, .nb .statblock .sb-name, .nb-statline b { font-family: var(--nb-f-h); font-weight: 800; }
+.nb-linked { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 14px; padding: 2px 10px 2px 6px !important; border: 1px solid var(--nb-line) !important; border-radius: 12px !important; font-family: var(--nb-f-ui); font-size: 12.5px; color: var(--nb-ink); }
+.nb-linked:hover { border-color: var(--nb-head) !important; }
+/* nested folders and icons */
+.nb-ico { width: 15px; height: 15px; flex: none; }
+.nb-row .nb-ico { margin-top: 4px; }
+.nb-folder { align-items: center; }
+.nb-folder .nb-chev { width: 12px; text-align: center; font-size: 10px; }
+.nb-folder .nb-fname { overflow: hidden; text-overflow: ellipsis; }
+.nb-lsec-row { display: flex; align-items: center; gap: 4px; }
+.nb-lsec-row button { margin-left: auto; padding: 1px 6px !important; font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--nb-head); }
+.nb-lsec-row button + button { margin-left: 0; }
+.nb-lsec-row button:hover { background: var(--nb-hover); }
+.nb-in { padding-left: 12px !important; }
