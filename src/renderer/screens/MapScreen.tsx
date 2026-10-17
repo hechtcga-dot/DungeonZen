@@ -20,7 +20,7 @@ import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { encounterTableFor, findTable, rollOn, travelChecks } from '../../shared/rolltables'
-import { fmtSquares, fmtTrip, KM_PER, KM_PER_MILE, kmToShown, LENGTH_UNITS, longUnit, PACES, paceKmh, shownToKm, speedUnit, type LengthUnit } from '../../shared/units'
+import { fmtSquares, fmtTrip, KM_PER, KM_PER_MILE, kmToShown, LENGTH_UNITS, longUnit, PACES, paceKmh, shownToKm, speedUnit, type LengthUnit, type Units } from '../../shared/units'
 
 type Mode = 'view' | 'draw' | 'edit' | 'scale'
 
@@ -237,6 +237,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
               </select>
               <span>long.</span>
             </span>
+            <span className="hint">{SCALE_HINT[units]}</span>
             {barMapKm != null ? <span>The whole map is <strong>{fmtTrip(barMapKm, units)}</strong> across.</span>
               : <span className="danger-text">Type a length from 1 to 999.</span>}
             <button className="ink-button" onClick={() => setMode('view')}>Cancel (Esc)</button>
@@ -278,7 +279,8 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
                   // The scale key: drag it anywhere; its place is saved with the map.
                   const k = scaleKeyLayout(view.map, ctx.scale, units, keyAt)
                   return k && (
-                    <g className="scale-key" onPointerDown={(e) => {
+                    <g className="scale-key" onContextMenu={(e) => { e.preventDefault(); void act('map:setScaleKey', { mapId: view.map.id, shown: false }) }} onPointerDown={(e) => {
+                      if (e.button !== 0) return
                       const [sx, sy] = ctx.toImage(e.clientX, e.clientY), ox = k.x - sx, oy = k.y - sy
                       const to = (p: Point): Point => [p[0] + ox, p[1] + oy]
                       startDrag(e, (p) => setKeyAt(to(p)), (p) => {
@@ -287,7 +289,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
                         else setKeyAt(null)
                       })
                     }}>
-                      <title>Scale key: drag to move it</title>
+                      <title>Scale key: drag to move it, right-click to hide it</title>
                       <ScaleBar {...k} units={units} />
                     </g>
                   )
@@ -396,11 +398,39 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
           </>
           </>
         )}
+        {view.map.kind !== 'battle' && <ScaleSection view={view} onSetScale={startScale} />}
         <PartyTokens view={view} onPlace={() => void askTravel(centre)} />
       </aside>
       {finishing && <NewRegionDialog view={view} polygon={finishing} onClose={() => { setFinishing(null); setMode('view') }}
         onCreated={(id) => setSelected(id)} />}
     </div>
+  )
+}
+
+/** Known lengths to set a scale by. */
+const SCALE_HINT: Record<Units, string> = {
+  imperial: 'Known lengths: a town house 20–30 ft wide · a city block about 300 ft · the walled City of London about 1 mi across · a day on foot 24 mi.',
+  metric: 'Known lengths: a town house 6–9 m wide · a city block about 100 m · the walled City of London about 1.6 km across · a day on foot about 38 km.',
+}
+
+/** Map scale and the scale key: show or hide it here; it moves by dragging on the map. */
+function ScaleSection({ view, onSetScale }: { view: MapScreenView; onSetScale(): void }) {
+  const act = useBoard((s) => s.act)
+  const units = useUnits()
+  return (
+    <section aria-label="Map scale">
+      <h3 className="panel-subheading">Scale</h3>
+      {view.map.widthKm ? <>
+        <p>The map is {fmtTrip(view.map.widthKm, units)} across · <button type="button" className="link-button" onClick={onSetScale}>Change…</button></p>
+        <div className="field checkbox">
+          <input id="side-key" type="checkbox" checked={view.map.scaleKey}
+            onChange={(e) => void act('map:setScaleKey', { mapId: view.map.id, shown: e.target.checked })} />
+          <label htmlFor="side-key">Show the scale key on the map</label>
+        </div>
+        <p className="hint">Drag the key to move it; right-click it to hide it.</p>
+      </> : <p><button type="button" className="link-button" onClick={onSetScale}>Set map scale…</button> <span className="ink-muted">to work out distance and time</span></p>}
+      <p className="hint">{SCALE_HINT[units]}</p>
+    </section>
   )
 }
 

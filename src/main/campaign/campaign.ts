@@ -4464,11 +4464,8 @@ export class Campaign {
     const link = (fromId: string, toId: string) =>
       this.db.select().from(travelLink).where(and(eq(travelLink.status, 'active'), eq(travelLink.fromLocationId, fromId), eq(travelLink.toLocationId, toId))).get()
     const saved = party?.locationId && dest ? link(party.locationId, dest.locationId) ?? link(dest.locationId, party.locationId) : undefined
-    // Measure between region centres when both ends are regions, so dropping anywhere inside gives the same answer.
-    const fromRegion = party?.locationId ? regions.find((r) => r.locationId === party.locationId) : undefined
-    const a = fromRegion ? centroid(fromRegion.polygon) : from
-    const b = dest ? centroid(dest.polygon) : to
-    const est = estimateTravel({ from: a, to: b, imageWidth: m.width, widthKm: m.widthKm, kmh: m.travelKmh, savedMinutes: saved?.minutes ?? null, units: this.info().units })
+    // Measured from where the party token stands to where it was dropped (on the travel grid).
+    const est = estimateTravel({ from, to, imageWidth: m.width, widthKm: m.widthKm, kmh: m.travelKmh, savedMinutes: saved?.minutes ?? null, units: this.info().units })
     return { ...est, fromName: party?.locationName ?? null, toName: dest?.name ?? null, toLocationId: dest?.locationId ?? null }
   }
 

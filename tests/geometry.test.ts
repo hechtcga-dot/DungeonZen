@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { centroid, estimateTravel, pointInPolygon, polygonArea, regionAt, regionOnBoard, type Point } from '../src/shared/geometry'
+import { centroid, estimateTravel, gridDistance, pointInPolygon, polygonArea, regionAt, regionOnBoard, type Point } from '../src/shared/geometry'
 
 const square = (x: number, y: number, s: number): Point[] => [[x, y], [x + s, y], [x + s, y + s], [x, y + s]]
 
@@ -33,6 +33,11 @@ describe('map geometry', () => {
     expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: 30, kmh: 3, savedMinutes: 180 })).toMatchObject({ minutes: 180, km: 12, saved: true })
     expect(estimateTravel({ from: [0, 0], to: [1, 0], imageWidth: 1000, widthKm: 1, kmh: 3 }).minutes).toBe(10)
     expect(estimateTravel({ from: [0, 0], to: [400, 0], imageWidth: 1000, widthKm: null, kmh: 3 }).minutes).toBeNull()
+  })
+
+  it('measures on a 200-square travel grid', () => {
+    expect(gridDistance([1, 1], [4, 4], 1000)).toBe(0) // same 5 px square
+    expect(gridDistance([0, 0], [300, 400], 1000)).toBe(500)
   })
 })
 

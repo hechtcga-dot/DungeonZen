@@ -73,8 +73,8 @@ describe('map regions and the party token', () => {
     expect(c.travelEstimate(mapId, [100, 100]).basis).toMatch(/first time/)
     c.moveParty({ mapId, x: 100, y: 100, minutes: 0 })
     expect(c.travelEstimate(mapId, [700, 100]).minutes).toBeNull() // no scale yet
-    c.setMapScale(mapId, 10, 3) // 1000 px = 10 km; centres 600 px apart = 6 km = 2 h
-    const est = c.travelEstimate(mapId, [650, 150])
+    c.setMapScale(mapId, 10, 3) // 1000 px = 10 km; token to drop point 600 px = 6 km = 2 h
+    const est = c.travelEstimate(mapId, [700, 100])
     expect(est).toMatchObject({ minutes: 120, km: 6, fromName: 'District A', toName: 'District C' })
     c.startSession()
     c.moveParty({ mapId, x: 650, y: 150, minutes: 180, rememberTime: true })

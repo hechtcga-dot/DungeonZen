@@ -46,6 +46,13 @@ export function distance(a: Point, b: Point): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1])
 }
 
+/** Travel grid (invisible): 200 squares across the map; each end snaps to its square's centre. */
+const GRID = 200
+export function gridDistance(a: Point, b: Point, imageWidth: number): number {
+  const c = imageWidth / GRID, snap = (v: number) => Math.floor(v / c)
+  return Math.hypot(snap(a[0]) - snap(b[0]), snap(a[1]) - snap(b[1])) * c
+}
+
 export interface TravelEstimate {
   minutes: number | null
   km: number | null
@@ -57,7 +64,7 @@ export interface TravelEstimate {
 
 /**
  * Travel time between two points on a map. A time the DM saved for this route
- * wins; otherwise straight-line distance from the map's scale (its width in
+ * wins; otherwise straight-line distance on the travel grid from the map's scale (its width in
  * km) at the given pace, rounded to 10 minutes. Without a scale there is no
  * estimate and the DM sets the time.
  */
@@ -67,13 +74,13 @@ export function estimateTravel(input: {
   const units = input.units ?? DEFAULT_UNITS
   const scaled = !!input.imageWidth && !!input.widthKm
   if (input.savedMinutes != null) {
-    const km = scaled ? Math.round((distance(input.from, input.to) / input.imageWidth!) * input.widthKm! * 1000) / 1000 : null
+    const km = scaled ? Math.round((gridDistance(input.from, input.to, input.imageWidth!) / input.imageWidth!) * input.widthKm! * 1000) / 1000 : null
     return { minutes: input.savedMinutes, km, basis: 'the time you set for this route', saved: true }
   }
   if (!input.imageWidth || !input.widthKm || input.kmh <= 0) {
     return { minutes: null, km: null, basis: `no map scale yet: set how many ${longUnit(units)} the map is across` }
   }
-  const km = (distance(input.from, input.to) / input.imageWidth) * input.widthKm
+  const km = (gridDistance(input.from, input.to, input.imageWidth) / input.imageWidth) * input.widthKm
   const minutes = Math.max(10, Math.round(((km / input.kmh) * 60) / 10) * 10)
   return { minutes, km: Math.round(km * 1000) / 1000, basis: `about ${fmtDistance(km, units)} in a straight line at ${fmtSpeed(input.kmh, units)}` }
 }
