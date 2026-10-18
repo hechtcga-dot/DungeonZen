@@ -720,6 +720,8 @@ export interface PrepView {
   items: PrepItemView[]
   /** Words on the sheet linked to cards: every place the words appear, in any box, shows the card. */
   links: Array<{ text: string; entityId: string }>
+  /** Real-life date of the session (YYYY-MM-DD), the DM's; labels its notes. */
+  playDate: string | null
 }
 
 export interface PrepScreenView {
@@ -909,5 +911,5 @@ export interface NoteMeta {
 /** A place a card (or note) shows up in the notes: note, heading (index, -1 = before the first) and a bit of text. */
 export interface NoteMentionView { docId: string; title: string; heading: number; headingText: string; text: string }
 /** Notes screen: DM notes kept per session (the desk journal while that session runs). */
-export interface SessionNotesView { id: string; number: number; startedAt: string; running: boolean; dmNotes: string; recap: string }
+export interface SessionNotesView { id: string; number: number; startedAt: string; running: boolean; dmNotes: string; recap: string; title: string; playDate: string | null }
 export interface NotesScreenView { docs: NoteDocView[]; sessions: SessionNotesView[]; dmNotes: string; starred: string[]; folders: string[]; folderLinks: Record<string, string> }

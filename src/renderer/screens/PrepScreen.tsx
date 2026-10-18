@@ -6,7 +6,7 @@ import { CommitField } from '../components/fields'
 import { Candle } from '../art/props'
 import { useLightingPref } from '../art/TableLighting'
 import { lightingAt } from '../../shared/sky'
-import { formatClock } from '../../shared/time'
+import { formatClock, sessionLabel } from '../../shared/time'
 import { ENTITY_TYPES, type EntityType, type PrepKind, type SceneType } from '../../shared/schemas'
 import { ENTITY_LABELS } from '../entityStyle'
 import type { EntityBrief, PrepItemView, PrepScreenView, PrepView, SheetView } from '../../shared/types'
@@ -88,13 +88,13 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
   const items = (k: PrepKind) => p.items.filter((i) => i.kind === k)
   const scenes = items('scene')
   const sceneMins = scenes.length ? Math.round(p.pacingMinutes / scenes.length) : null
-  const up = (patch: { title?: string; premise?: string; pacingMinutes?: number; backupNames?: string; notes?: string; number?: number; wantNext?: string }) =>
+  const up = (patch: { title?: string; premise?: string; pacingMinutes?: number; backupNames?: string; notes?: string; number?: number; wantNext?: string; playDate?: string | null }) =>
     void act('prep:update', { id: p.id, patch })
   const [pacing, setPacing] = useState(hm(p.pacingMinutes))
   const [cardType, setCardType] = useState<EntityType>('NPC')
   const saveNote = async () => {
     const id = await act('prep:saveNote', { id: p.id })
-    if (id) useBoard.setState({ message: { text: `Saved to Notes as “Session ${p.number}${p.title.trim() ? ` - ${p.title.trim()}` : ''}”.`, isError: false } })
+    if (id) useBoard.setState({ message: { text: `Saved to Notes › Sessions as “${sessionLabel(p.number, p.title, p.playDate)}”.`, isError: false } })
   }
 
   // Words linked to cards: the card shows in the side panel while the cursor is in them; a click elsewhere drops it.
@@ -131,6 +131,11 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
               <label htmlFor="prep-number">For session</label>
               <input id="prep-number" className="short" type="number" min={1} defaultValue={p.number} key={p.number}
                 onBlur={(e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n !== p.number) up({ number: n }) }} />
+            </div>
+            <div className="field">
+              <label htmlFor="prep-date">Played on</label>
+              <input id="prep-date" type="date" value={p.playDate ?? ''} title="The real-life date of this session; it labels the session's notes"
+                onChange={(e) => up({ playDate: e.target.value || null })} />
             </div>
             <div className="field">
               <label htmlFor="prep-pacing">Pacing target (hours:minutes)</label>

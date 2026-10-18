@@ -39,3 +39,16 @@ describe('encounters on the board (owner, 2026-10-18)', () => {
     expect(c.prepView(prepId).items.some((i) => i.id === rowId)).toBe(false)
   })
 })
+
+describe('session dates (owner, 2026-10-18)', () => {
+  it('a session date sits on its prep sheet, made if missing; Save as notes file goes to Sessions with the label', () => {
+    c.setSessionDate(2, '2026-10-24')
+    const p = c.prepFor(2)!
+    expect(p.playDate).toBe('2026-10-24')
+    c.updatePrep(p.id, { title: 'The Drowned Bell' })
+    const id = c.savePrepNote(p.id, 'Session 2 · The Drowned Bell · Oct 24, 2026', Buffer.from('x'))
+    expect(c.notesScreen().docs.find((d) => d.id === id)).toMatchObject({ folder: 'Sessions', title: 'Session 2 · The Drowned Bell · Oct 24, 2026' })
+    c.undo(); c.undo(); c.undo()
+    expect(c.prepFor(2)).toBeNull()
+  })
+})

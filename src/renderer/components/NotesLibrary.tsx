@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
+import { sessionLabel } from '../../shared/time'
 import { Dialog } from './Dialog'
 import { NoteEditor, type NoteEditorHandle } from './NoteEditor'
 import { CardIcon, CardPicker, NoteReader, UpdateCards } from './NoteReader'
@@ -20,7 +21,6 @@ type Outline = IpcOutputs['notes:outline']
 type Jump = { n: number; nonce: number } | null
 const KIND_LABEL: Record<NoteDocView['kind'], string> = { word: 'Word', pdf: 'PDF', text: 'Text', picture: 'Picture' }
 const LEVEL_LABEL: Record<HeadingLevel, string> = { h1: 'Title', h2: 'Heading', h3: 'Small heading' }
-const when = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })
 const keyOf = (o: Open) => (o.kind === 'session' ? `session:${o.id}` : o.kind === 'doc' ? `doc:${o.id}` : o.kind)
 const words = (t: string) => (t.trim() ? `${t.trim().split(/\s+/).length} words` : '')
 const COLLAPSE_KEY = 'dz-notes-list-collapsed'
@@ -311,7 +311,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
       <li className="nb-lsec">DM notes</li>
       {entry({ kind: 'master' }, 'Master notes', 'every note in one document')}
       {entry({ kind: 'dm' }, 'Between sessions', words(data.dmNotes) || 'empty')}
-      {data.sessions.map((x) => entry({ kind: 'session', id: x.id }, `Session ${x.number} · ${when(x.startedAt)}`, x.running ? 'running now · on the desk' : words(x.dmNotes) || 'no notes'))}
+      {data.sessions.map((x) => entry({ kind: 'session', id: x.id }, sessionLabel(x.number, x.title, x.playDate ?? x.startedAt), x.running ? 'running now · on the desk' : words(x.dmNotes) || 'no notes'))}
     </ul>
   )
   const listOf = (idList: string[], empty: string) => {
@@ -406,7 +406,9 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
               popout={!running} onSave={(text) => act('notes:set', { text }).then(load)} />
           )}
           {sess && (
-            <TextNote key={sess.id} title={`Session ${sess.number} · ${when(sess.startedAt)}`} text={sess.dmNotes} popout={sess.running} jump={jump}
+            <TextNote key={sess.id} title={sessionLabel(sess.number, sess.title, sess.playDate ?? sess.startedAt)} text={sess.dmNotes} popout={sess.running} jump={jump}
+              extra={<label className="row tight nb-date" title="The real-life date of this session (also on its prep sheet)">Played on
+                <input type="date" value={sess.playDate ?? sess.startedAt.slice(0, 10)} onChange={(e) => void act('session:setDate', { number: sess.number, date: e.target.value || null }).then(load)} /></label>}
               hint={sess.running ? 'This session is running: the desk journal is these notes.' : 'DM notes from this session.'}
               recap={sess.recap} onSave={(text) => act('session:notes', { id: sess.id, text }).then(load)} />
           )}
@@ -529,8 +531,8 @@ function TakeEdit({ id, onDone, onOpen }: { id: string; onDone(changed: string[]
   )
 }
 
-function TextNote({ title, text, hint, recap, popout, jump, onSave }: {
-  title: string; text: string; hint: string; recap?: string; popout: boolean; jump: Jump; onSave(text: string): Promise<unknown>
+function TextNote({ title, text, hint, recap, popout, jump, onSave, extra }: {
+  title: string; text: string; hint: string; recap?: string; popout: boolean; jump: Jump; onSave(text: string): Promise<unknown>; extra?: ReactNode
 }) {
   const [draft, setDraft] = useState(text)
   const [finding, setFinding] = useState(false)
@@ -565,6 +567,7 @@ function TextNote({ title, text, hint, recap, popout, jump, onSave }: {
         <div className="notes-head">
           <h2 className="panel-title">{title}</h2>
           <span className="row tight wrap">
+            {extra}
             {popout && <PopOut title="Open these notes in their own window; drag it to another screen" onClick={() => void call('notes:popout', undefined)} />}
             <button className="ink-button" onClick={async () => { const p = await call('file:saveDocx', { name: title.replace(/[^\w\s-]/g, ''), text: draft }).catch(() => null); if (p) useBoard.getState().say(`Saved ${p}`) }}>Save as Word…</button>
           </span>

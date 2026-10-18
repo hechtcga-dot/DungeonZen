@@ -255,6 +255,10 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE map ADD COLUMN scale_key INTEGER NOT NULL DEFAULT 1;
   ALTER TABLE map ADD COLUMN scale_key_x REAL;
   ALTER TABLE map ADD COLUMN scale_key_y REAL;
+  `,
+  // 2.8.x: the real-life date of each session (the DM's, labels its notes).
+  `
+  ALTER TABLE session_prep ADD COLUMN play_date TEXT;
   `
 ]
 

@@ -76,6 +76,7 @@ const PrepItemFields = z.object({
   entityId: Id.nullable(), locationId: Id.nullable(), discoveryId: Id.nullable(), relationshipId: Id.nullable(), secretId: Id.nullable(), description: Text,
   role: z.string().max(300), stats: z.string().max(1000), tactics: z.string().max(2000)
 }).partial()
+const PlayDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()
 const Polygon = z.array(z.tuple([z.number().finite(), z.number().finite()])).min(3).max(500)
 const PlaceShapeInput = z.object({
   name: Name, kind: z.enum(PLACE_KINDS), biome: z.enum(BIOMES).nullable(),
@@ -398,9 +399,11 @@ export const ipcInputs = {
     patch: z.object({
       number: z.number().int().min(1).max(100000), title: z.string().trim().max(300), premise: Text,
       pacingMinutes: z.number().int().min(15).max(1440), backupNames: Text, notes: Text, wantNext: Text,
-      links: z.array(z.object({ text: z.string().trim().min(1).max(300), entityId: Id })).max(500)
+      links: z.array(z.object({ text: z.string().trim().min(1).max(300), entityId: Id })).max(500),
+      playDate: PlayDate
     }).partial()
   }),
+  'session:setDate': z.object({ number: z.number().int().min(1).max(100000), date: PlayDate }),
   'prep:setStatus': z.object({ id: Id, status: RowStatus }),
   'prep:spread': z.object({ prepId: Id }),
   'prep:rollNames': z.object({ count: z.number().int().min(1).max(20) }),
@@ -757,6 +760,7 @@ export interface IpcOutputs {
   'prep:view': PrepView | null
   'prep:create': string
   'prep:update': void
+  'session:setDate': void
   'prep:setStatus': void
   'prep:spread': void
   'prep:bringThreads': number

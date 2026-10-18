@@ -1,3 +1,4 @@
+import { sessionLabel } from '../src/shared/time'
 import { describe, expect, it } from 'vitest'
 import { centroid, estimateTravel, gridDistance, pointInPolygon, polygonArea, regionAt, regionOnBoard, type Point } from '../src/shared/geometry'
 
@@ -55,4 +56,9 @@ describe('regionOnBoard', () => {
     const top = { ...pic, regions: [{ name: 'Top', polygon: square(0, 0, 1000) }] }
     expect(regionOnBoard([150, 150], [pic, top])?.name).toBe('Top')
   })
+})
+
+it('labels session notes with title and real-life date', () => {
+  expect(sessionLabel(3, ' The Drowned Bell ', '2026-10-17')).toBe('Session 3 · The Drowned Bell · Oct 17, 2026')
+  expect(sessionLabel(1, '', null)).toBe('Session 1')
 })

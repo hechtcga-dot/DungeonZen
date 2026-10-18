@@ -1,3 +1,4 @@
+import { sessionLabel } from '../shared/time'
 import { STYLE_TAGS_SYSTEM, parseStyleTags } from '../shared/styleTags'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -1274,8 +1275,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('prep:saveNote', ({ id }) => {
     const c = current()
     const p = c.prepView(id)
-    return c.savePrepNote(id, `Session ${p.number}${p.title.trim() ? ` - ${p.title.trim()}` : ''}`, writeDocx(prepBlocks(p)))
+    return c.savePrepNote(id, sessionLabel(p.number, p.title, p.playDate), writeDocx(prepBlocks(p)))
   })
+  handle('session:setDate', ({ number, date }) => current().setSessionDate(number, date))
   handle('prep:rollNames', ({ count }) => rollNames(seededRng(Date.now() % 2147483647), count))
   handle('prepItem:add', ({ prepId, kind, fields }) => current().addPrepItem(prepId, kind, fields))
   handle('prepItem:update', ({ id, patch }) => current().updatePrepItem(id, patch))

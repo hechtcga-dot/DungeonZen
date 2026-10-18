@@ -326,6 +326,7 @@ export const sessionPrep = sqliteTable('session_prep', {
   notes: text('notes').notNull(),
   wantNext: text('want_next').notNull().default(''), // recap: what the players seem to want next
   noteDocId: text('note_doc_id'), // the notes file "Save as notes file" writes to
+  playDate: text('play_date'), // real-life date of the session, YYYY-MM-DD (the DM's; labels its notes)
   links: text('links', { mode: 'json' }).$type<Array<{ text: string; entityId: string }>>().notNull().default([]), // words on the sheet linked to cards
   status: text('status').notNull()
 })

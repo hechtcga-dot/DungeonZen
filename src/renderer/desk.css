@@ -588,7 +588,7 @@ button.ink-button.primary-ink:disabled { background: #8a7a5c; color: #e8d9b0; }
 .prep-empty { max-width: 720px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .prep-empty p { margin: 0; }
 .prep-head, .prep-section { display: flex; flex-direction: column; gap: 10px; color: var(--ink); }
-.prep-head-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 110px; gap: 12px; }
+.prep-head-grid { display: grid; grid-template-columns: minmax(0, 2fr) 100px 160px 130px; gap: 12px; }
 .prep-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .prep-n::before { content: attr(data-n); }
 .prep-n { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 4px; border-radius: 50%; background: #2a1f12; color: #f6ecd0; font-size: 15px; }

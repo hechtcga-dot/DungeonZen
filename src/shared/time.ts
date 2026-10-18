@@ -27,3 +27,14 @@ export function formatClock(totalMinutes: number): string {
 export function fromClockParts({ day, hour, minute }: ClockParts): number {
   return (day - 1) * MINUTES_PER_DAY + hour * MINUTES_PER_HOUR + minute
 }
+
+/** A real-life date the DM set (YYYY-MM-DD), or an ISO time, as "Oct 17, 2026". */
+export function playDateText(date: string): string {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T12:00:00Z`) : new Date(date)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: /^\d{4}-\d{2}-\d{2}$/.test(date) ? 'UTC' : undefined })
+}
+
+/** How a session's notes are labelled: "Session 3 · The Drowned Bell · Oct 17, 2026" (title and date when there are any). */
+export function sessionLabel(number: number, title: string, date: string | null): string {
+  return [`Session ${number}`, title.trim(), date ? playDateText(date) : ''].filter(Boolean).join(' · ')
+}

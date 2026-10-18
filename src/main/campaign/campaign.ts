@@ -3781,9 +3781,12 @@ export class Campaign {
       docs: this.db.select().from(noteDoc).where(eq(noteDoc.status, 'active')).all().filter((r) => existsSync(join(this.folder, ASSETS_DIR, r.file)))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .map((r) => ({ id: r.id, title: r.title, kind: r.kind as NoteDocView['kind'], originalName: r.originalName, updatedAt: r.updatedAt, versions: r.versions, folder: r.folder, meta: this.noteMetas()[r.id] ?? {} })),
-      sessions: this.db.select().from(session).where(eq(session.status, 'active')).all()
-        .sort((a, b) => b.number - a.number)
-        .map((r) => ({ id: r.id, number: r.number, startedAt: r.startedAt, running: r.id === open?.id, dmNotes: r.dmNotes, recap: r.recap })),
+      sessions: (() => {
+        const preps = new Map(this.db.select().from(sessionPrep).where(eq(sessionPrep.status, 'active')).all().map((p) => [p.number, p]))
+        return this.db.select().from(session).where(eq(session.status, 'active')).all()
+          .sort((a, b) => b.number - a.number)
+          .map((r) => ({ id: r.id, number: r.number, startedAt: r.startedAt, running: r.id === open?.id, dmNotes: r.dmNotes, recap: r.recap, title: preps.get(r.number)?.title ?? '', playDate: preps.get(r.number)?.playDate ?? null }))
+      })(),
       dmNotes: String(this.setting('dm_notes') ?? ''),
       starred: this.starredNotes(),
       folders: this.allNoteFolders(),
@@ -4255,7 +4258,7 @@ export class Campaign {
     return {
       id: p.id, number: p.number, title: p.title, premise: p.premise, pacingMinutes: p.pacingMinutes, backupNames: p.backupNames, notes: p.notes,
       wantNext: p.wantNext, session: sess ? { id: sess.id, recap: sess.recap } : null, noteDocId: doc?.status === 'active' ? doc.id : null, items,
-      links: p.links
+      links: p.links, playDate: p.playDate ?? null
     }
   }
 
@@ -4269,7 +4272,16 @@ export class Campaign {
     return id
   }
 
-  updatePrep(id: string, patch: Partial<Pick<PrepRow, 'number' | 'title' | 'premise' | 'pacingMinutes' | 'backupNames' | 'notes' | 'wantNext' | 'links'>>): void {
+  /** A session's real-life date (Notes › session notes): on its prep sheet, which is started if it has none. One undo step. */
+  setSessionDate(number: number, date: string | null): void {
+    const p = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, number), eq(sessionPrep.status, 'active'))).get()
+    this.log.run(`Set the date of session ${number}`, (w) => {
+      if (p) w.update('session_prep', p.id, { playDate: date })
+      else w.insert('session_prep', { id: randomUUID(), number, title: '', premise: '', pacingMinutes: 180, backupNames: '', notes: '', wantNext: '', noteDocId: null, playDate: date, status: 'active' })
+    })
+  }
+
+  updatePrep(id: string, patch: Partial<Pick<PrepRow, 'number' | 'title' | 'premise' | 'pacingMinutes' | 'backupNames' | 'notes' | 'wantNext' | 'links' | 'playDate'>>): void {
     const p = this.prepRow(id)
     if (patch.number !== undefined && patch.number !== p.number) {
       const taken = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, patch.number), eq(sessionPrep.status, 'active'))).get()
@@ -4449,7 +4461,7 @@ export class Campaign {
     return id
   }
 
-  /** Save as notes file: "Session N - Title" in Notes (a new version of the same file on later saves). */
+  /** Save as notes file: "Session N · Title · date" in Notes › Sessions (a new version of the same file on later saves). */
   savePrepNote(prepId: string, title: string, bytes: Buffer): string {
     const p = this.prepRow(prepId)
     const doc = p.noteDocId ? this.db.select().from(noteDoc).where(eq(noteDoc.id, p.noteDocId)).get() : undefined
@@ -4462,7 +4474,7 @@ export class Campaign {
     const id = randomUUID()
     const now = new Date().toISOString()
     this.log.run(`Saved the prep sheet as the note ${title}`, (w) => {
-      w.insert('note_doc', { id, title, kind: 'word', file: rel, originalName: `${title}.docx`, versions: [], folder: '', status: 'active', createdAt: now, updatedAt: now })
+      w.insert('note_doc', { id, title, kind: 'word', file: rel, originalName: `${title}.docx`, versions: [], folder: 'Sessions', status: 'active', createdAt: now, updatedAt: now })
       w.update('session_prep', prepId, { noteDocId: id })
     })
     return id
