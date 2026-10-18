@@ -66,6 +66,7 @@ export function PrepScreen() {
                 </option>
               ))}
             </select>
+            {prep && <SaveNote p={prep} />}
             {prep && <button className="brass" onClick={() => void act('prep:setStatus', { id: prep.id, status: 'defunct' })}>Remove sheet</button>}
           </div>
         </header>
@@ -82,6 +83,20 @@ export function PrepScreen() {
   )
 }
 
+/** Save as notes file (top of the page, owner 2026-10-18): Notes › Sessions, "Session N · Title · date"; then Open in Notes. */
+function SaveNote({ p }: { p: PrepView }) {
+  const { act, goTo } = useBoard()
+  return (
+    <>
+      <button className="brass" title="Writes this sheet to Notes › Sessions as a Word file; saving again adds a new version of the same file" onClick={async () => {
+        const id = await act('prep:saveNote', { id: p.id })
+        if (id) useBoard.setState({ message: { text: `Saved to Notes › Sessions as “${sessionLabel(p.number, p.title, p.playDate)}”.`, isError: false } })
+      }}>{p.noteDocId ? 'Save to notes again' : 'Save as notes file'}</button>
+      {p.noteDocId && <button className="brass" onClick={() => { useBoard.setState({ notesTab: 'notes', notesOpenId: p.noteDocId, notesOpenHeading: null }); goTo('import') }}>Open in Notes</button>}
+    </>
+  )
+}
+
 function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }) {
   const side = useSidePanel('prep-side', 'right', 300)
   const { act, say, goTo, openEncounter, openSheet } = useBoard()
@@ -92,10 +107,6 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
     void act('prep:update', { id: p.id, patch })
   const [pacing, setPacing] = useState(hm(p.pacingMinutes))
   const [cardType, setCardType] = useState<EntityType>('NPC')
-  const saveNote = async () => {
-    const id = await act('prep:saveNote', { id: p.id })
-    if (id) useBoard.setState({ message: { text: `Saved to Notes › Sessions as “${sessionLabel(p.number, p.title, p.playDate)}”.`, isError: false } })
-  }
 
   // Words linked to cards: the card shows in the side panel while the cursor is in them; a click elsewhere drops it.
   const [shown, setShown] = useState<string | null>(null)
@@ -138,17 +149,11 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
                 onChange={(e) => up({ playDate: e.target.value || null })} />
             </div>
             <div className="field">
-              <label htmlFor="prep-pacing">Pacing target (hours:minutes)</label>
+              <label htmlFor="prep-pacing" title="Pacing target, hours:minutes">Pacing (h:mm)</label>
               <input id="prep-pacing" className="short" value={pacing} onChange={(e) => setPacing(e.target.value)}
                 onBlur={() => { const m = parseHm(pacing); if (m && m >= 15 && m !== p.pacingMinutes) up({ pacingMinutes: m }); else setPacing(hm(p.pacingMinutes)) }} />
               <span className="hint">{scenes.length ? `${scenes.length} scene${scenes.length === 1 ? '' : 's'}, about ${sceneMins} min each` : 'Add scenes below'}</span>
             </div>
-          </div>
-          <div className="row tight wrap">
-            <button className="ink-button primary-ink" title="Writes this sheet to Notes as a Word file; saving again adds a new version of the same file" onClick={() => void saveNote()}>
-              {p.noteDocId ? 'Save to the notes file again' : 'Save as notes file'}
-            </button>
-            {p.noteDocId && <button className="link-button" onClick={() => { useBoard.setState({ notesTab: 'notes', notesOpenId: p.noteDocId, notesOpenHeading: null }); goTo('import') }}>Open it in Notes</button>}
           </div>
         </section>}
 
