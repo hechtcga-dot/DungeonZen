@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SummaryTools } from '../components/SessionSummary'
 import { BackButton } from '../components/BackButton'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
@@ -237,11 +238,11 @@ function Recap({ r }: { r: ReviewView }) {
             if (text !== undefined) { setDraft(text); save(text) }
           }}>Draft from the log</button>
         )}
-        <button disabled={aiBusy} title={playerSafe ? 'The AI only sees the player-safe draft' : 'The AI reads the log, your session notes and this recap'} onClick={async () => {
+        {playerSafe && <button disabled={aiBusy} title="The AI only sees the player-safe draft" onClick={async () => {
           setAiBusy(true); setAiError('')
           try { setAi(await call('ai:recap', { sessionId: s.id, playerSafe })) } catch (e) { setAiError((e as Error).message) }
           setAiBusy(false)
-        }}>{aiBusy ? 'Writing…' : 'Write with AI'}</button>
+        }}>{aiBusy ? 'Writing…' : 'Write with AI'}</button>}
         <button onClick={async () => {
           try { await navigator.clipboard.writeText(draft); say('Copied the recap') } catch { say('Could not copy: select the text and copy it instead', true) }
         }}>Copy</button>
@@ -253,6 +254,7 @@ function Recap({ r }: { r: ReviewView }) {
           say('Added to your DM notes on the desk')
         }}>Save to DM notes</button>
       </div>
+      {!playerSafe && <SummaryTools sessionId={s.id} value={draft} onSave={(t) => { setDraft(t); save(t) }} />}
       {aiError && <p className="field-error" role="alert">{aiError} {/service/i.test(aiError) && <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose one…</button>}</p>}
       {ai && (
         <div className="ai-suggestion" role="region" aria-label="AI recap">

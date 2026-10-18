@@ -1,3 +1,4 @@
+import { factsText, summaryText, type SessionFacts } from '../../shared/sessionSummary'
 import type { PromptTemplate, StyleTags, TemplateUse } from '../../shared/styleTags'
 import { LENGTH_UNITS, type LengthUnit } from '../../shared/units'
 import { randomUUID } from 'node:crypto'
@@ -2184,14 +2185,62 @@ export class Campaign {
   }
 
   /** What the AI recap reads: the log (player-safe draft for the players), the session's DM notes, and the recap so far. */
-  recapSources(sessionId: string, playerSafe: boolean): { number: number; log: string; notes: string; current: string } {
+  /** The plain summary from the session's facts (no AI); the DM keeps or edits it. */
+  summaryDraft(sessionId: string): string {
+    return summaryText(this.sessionFacts(sessionId))
+  }
+
+  /** What the table did this session, for its summary (owner, 2026-10-18): places, people met, clues, scenes, fights, log moments, Live notes. */
+  sessionFacts(sessionId: string): SessionFacts {
+    const s = this.sessionRow(sessionId)
+    const cards = new Map(this.db.select().from(entity).all().map((e) => [e.id, e]))
+    const card = (id: string | null | undefined) => (id ? cards.get(id) : undefined)
+    const brief = (id: string | null | undefined) => {
+      const e = card(id)
+      return e ? { name: e.name, about: typeof e.attributes.summary === 'string' ? e.attributes.summary : '' } : null
+    }
+    const placeOf = (id: string) => {
+      const r = this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).get()
+      return card(r?.targetId)?.name ?? null
+    }
+    const startRow = this.db.select().from(partyPosition).where(eq(partyPosition.status, 'active')).all()
+      .filter((p) => !p.entityId && p.atMin <= s.startMin && p.locationId)
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt)).at(-1)
+    const log = this.db.select().from(logEntry).where(and(eq(logEntry.sessionId, sessionId), eq(logEntry.status, 'active'))).all()
+      .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+    const prep = this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, s.number), eq(sessionPrep.status, 'active'))).get()
+    const items = prep ? this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prep.id), eq(prepItem.status, 'active'), eq(prepItem.done, true))).all().sort((a, b) => a.sort - b.sort) : []
+    const uniq = <T extends { name: string }>(xs: Array<T | null>) => xs.filter((x, i, all): x is T => !!x && all.findIndex((y) => y?.name === x.name) === i)
+    const encounters = new Set(this.encounterCards().map((e) => e.id))
+    const fights = log.filter((l) => l.kind === 'fight').map((l) => {
+      const enc = card(l.encounterId)
+      return { name: enc?.name ?? l.text.split('\n')[0].slice(0, 120), place: enc ? placeOf(enc.id) : null }
+    })
+    for (const i of items.filter((x) => x.kind === 'scene' && x.entityId && encounters.has(x.entityId))) {
+      const enc = card(i.entityId)!
+      if (!fights.some((f) => f.name === enc.name)) fights.push({ name: enc.name, place: placeOf(enc.id) })
+    }
+    return {
+      number: s.number,
+      start: brief(startRow?.locationId),
+      places: uniq(log.filter((l) => l.kind === 'travel' && l.entityId && card(l.entityId)?.type !== 'PC').map((l) => brief(l.entityId))),
+      npcs: uniq([...log.filter((l) => l.kind === 'meeting').map((l) => brief(l.entityId)), ...items.filter((i) => i.kind === 'npc').map((i) => brief(i.entityId) ?? (i.title ? { name: i.title, about: i.description } : null))]),
+      clues: items.filter((i) => i.kind === 'discovery').map((i) => (i.body || i.title).trim()).filter(Boolean),
+      scenes: items.filter((i) => i.kind === 'scene' && !(i.entityId && encounters.has(i.entityId)) && i.title.trim()).map((i) => ({ title: i.title.trim(), place: card(i.locationId)?.name ?? null })),
+      fights,
+      events: log.filter((l) => l.kind === 'note' || l.kind === 'quest' || l.kind === 'rest').map((l) => l.text.trim()).filter(Boolean),
+      notes: s.dmNotes
+    }
+  }
+
+  recapSources(sessionId: string, playerSafe: boolean): { number: number; log: string; notes: string; current: string; facts: string } {
     const s = this.sessionRow(sessionId)
     const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
     const log = playerSafe ? this.draftPlayerRecap(sessionId) : this.db.select().from(logEntry)
       .where(and(eq(logEntry.sessionId, sessionId), eq(logEntry.status, 'active'))).all()
       .sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
       .map((l) => `${formatClock(l.atMin)} (${l.kind}): ${[l.entityId ? names.get(l.entityId) : '', l.text].filter(Boolean).join(': ')}`).join('\n')
-    return { number: s.number, log, notes: playerSafe ? '' : s.dmNotes, current: playerSafe ? s.playerRecap : s.recap }
+    return { number: s.number, log, notes: playerSafe ? '' : s.dmNotes, current: playerSafe ? s.playerRecap : s.recap, facts: playerSafe ? '' : factsText(this.sessionFacts(sessionId)) }
   }
 
   /** Undoes everything since the session started (the session itself included). Redo brings it back. */

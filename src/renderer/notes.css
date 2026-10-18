@@ -283,3 +283,7 @@ figure.nb-pic .ctl button { width: 26px; height: 26px; background: rgba(20, 16, 
 .nb-oldview .note-page { color: var(--nb-ink); font-family: var(--nb-f-body); font-size: 16px; line-height: 1.6; padding: 6px 0; min-height: 0; max-height: none; }
 .nb-oldview .note-page[contenteditable='true'] { border: 1px solid var(--nb-line); border-radius: 4px; padding: 14px 18px; min-height: 240px; }
 .nb-oldview .note-page :is(h1, h2, h3) { font-family: var(--nb-f-head); color: var(--nb-head); font-weight: 700; }
+.nb-oldview .summary-draft { border-color: var(--nb-line); background: var(--nb-panel); }
+.nb-oldview textarea.notes-summary { font-family: var(--nb-f-body); font-size: 15px; line-height: 1.55; }
+.nb-oldview .nb-date { white-space: nowrap; font-size: 12.5px; color: var(--nb-muted); }
+.nb-oldview .session-summary { margin: 0 0 10px; }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEve
 import { call } from '../api'
 import { useBoard } from '../store'
 import { sessionLabel } from '../../shared/time'
+import { SummaryTools } from './SessionSummary'
 import { Dialog } from './Dialog'
 import { NoteEditor, type NoteEditorHandle } from './NoteEditor'
 import { CardIcon, CardPicker, NoteReader, UpdateCards } from './NoteReader'
@@ -410,7 +411,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
               extra={<label className="row tight nb-date" title="The real-life date of this session (also on its prep sheet)">Played on
                 <input type="date" value={sess.playDate ?? sess.startedAt.slice(0, 10)} onChange={(e) => void act('session:setDate', { number: sess.number, date: e.target.value || null }).then(load)} /></label>}
               hint={sess.running ? 'This session is running: the desk journal is these notes.' : 'DM notes from this session.'}
-              recap={sess.recap} onSave={(text) => act('session:notes', { id: sess.id, text }).then(load)} />
+              below={<SessionSummaryBox id={sess.id} recap={sess.recap} onSaved={load} />} onSave={(text) => act('session:notes', { id: sess.id, text }).then(load)} />
           )}
           {open.kind === 'doc' && <p className="nb-muted">That note is gone (moved to History or undone).</p>}
         </section>
@@ -531,8 +532,8 @@ function TakeEdit({ id, onDone, onOpen }: { id: string; onDone(changed: string[]
   )
 }
 
-function TextNote({ title, text, hint, recap, popout, jump, onSave, extra }: {
-  title: string; text: string; hint: string; recap?: string; popout: boolean; jump: Jump; onSave(text: string): Promise<unknown>; extra?: ReactNode
+function TextNote({ title, text, hint, below, popout, jump, onSave, extra }: {
+  title: string; text: string; hint: string; below?: ReactNode; popout: boolean; jump: Jump; onSave(text: string): Promise<unknown>; extra?: ReactNode
 }) {
   const [draft, setDraft] = useState(text)
   const [finding, setFinding] = useState(false)
@@ -573,16 +574,31 @@ function TextNote({ title, text, hint, recap, popout, jump, onSave, extra }: {
           </span>
         </div>
         <p className="ink-muted">{hint} Saved when you click away; Ctrl+Z undoes. Lines starting with # are headings.</p>
+        {below}
+        {below && <h3 className="side-h">DM notes</h3>}
         <textarea ref={area} className="journal-text notes-textarea" value={draft} aria-label={title} onChange={(e) => setDraft(e.target.value)} onBlur={save} />
-        {recap?.trim() && (
-          <details className="notes-recap"><summary>Session recap</summary><p className="selectable">{recap}</p></details>
-        )}
       </div>
       <Contents heads={heads} onJump={jumpTo} onFind={() => setFinding(true)} />
       {finding && <FindHeadings found={found} onClose={() => setFinding(false)} onApply={(chosen) => {
         const next = lines.map((l, k) => { const lv = chosen.get(k); return lv ? `${'#'.repeat(Number(lv[1]))} ${l.trim()}` : l }).join('\n')
         setDraft(next); void onSave(next)
       }} />}
+    </div>
+  )
+}
+
+/** Notes › a session: its summary (the session's "What happened"), editable, with Fill from the session and Write with AI. */
+function SessionSummaryBox({ id, recap, onSaved }: { id: string; recap: string; onSaved(): void }) {
+  const act = useBoard((s) => s.act)
+  const [draft, setDraft] = useState(recap)
+  useEffect(() => setDraft(recap), [recap])
+  const save = (text: string) => { setDraft(text); if (text !== recap) void act('session:update', { id, patch: { recap: text } }).then(onSaved) }
+  return (
+    <div className="session-summary">
+      <h3 className="side-h">Summary</h3>
+      <textarea className="notes-summary" rows={4} value={draft} aria-label="Session summary" placeholder="What happened this session: the same text as in Review and on the prep sheet."
+        onChange={(e) => setDraft(e.target.value)} onBlur={() => save(draft)} />
+      <SummaryTools sessionId={id} value={draft} onSave={save} />
     </div>
   )
 }

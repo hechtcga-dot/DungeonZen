@@ -23,6 +23,7 @@ import { TypeEmblem } from '../art/emblems'
 import { ArtDefs } from '../art/ArtDefs'
 import { PREP_PARTS, prepNumber } from '../prepParts'
 import { PopOut } from '../components/PopOut'
+import { SummaryTools } from '../components/SessionSummary'
 
 /** "1:15" for 75 minutes at the table. */
 export const hm = (min: number | null) => (min == null ? '' : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`)
@@ -229,11 +230,14 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
 
         {show('recap') && <section className="parchment-sheet prep-section" aria-labelledby="prep-recap">
           <h2 id="prep-recap" className="panel-title"><span className="prep-n" data-n={prepNumber('recap')} /> Session recap {pop('recap')}</h2>
-          <p className="ink-muted prep-hint">Write this after the session. “What happened” is the session’s recap (the same text as in Review).</p>
+          <p className="ink-muted prep-hint">Write this after the session. The summary is the session’s “What happened” (the same text in Review and Notes, and first in the notes file).</p>
           {p.session
-            ? <LinkField id="prep-happened" label="What happened" multiline rows={3} value={p.session.recap}
-                onCommit={(v) => void act('session:update', { id: p.session!.id, patch: { recap: v } })} />
-            : <p className="ink-muted">What happened: write it here once session {p.number} has started.</p>}
+            ? <>
+                <LinkField id="prep-happened" label="Summary (what happened)" multiline rows={4} value={p.session.recap}
+                  onCommit={(v) => void act('session:update', { id: p.session!.id, patch: { recap: v } })} />
+                <SummaryTools sessionId={p.session.id} value={p.session.recap} onSave={(v) => void act('session:update', { id: p.session!.id, patch: { recap: v } })} />
+              </>
+            : <p className="ink-muted">Summary: write it here once session {p.number} has started.</p>}
           <LinkField id="prep-want" label="What the players seem to want next" multiline rows={2} value={p.wantNext}
             placeholder="They want to track the escaped smuggler and find out who hired him." onCommit={(v) => up({ wantNext: v })} />
         </section>}

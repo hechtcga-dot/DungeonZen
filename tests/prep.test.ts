@@ -207,8 +207,8 @@ describe('one-page DM tool (1.7.0)', () => {
     const { writeDocx } = await import('../src/main/importers/docx')
     c.updatePrep(two, { title: 'Smugglers', premise: 'A trusted ally is bleeding in the street.' })
     const blocks = prepBlocks(c.prepView(two))
-    expect(blocks.filter((b) => b.kind === 'h2').map((b) => 'runs' in b && b.runs[0].text).slice(0, 7))
-      .toEqual(['1. Session opening', '2. Likely scenes', '3. Secrets & clues', '4. NPCs', '5. Loose threads', '6. Session recap', '7. World bible updates'])
+    expect(blocks.filter((b) => b.kind === 'h2').map((b) => 'runs' in b && b.runs[0].text).slice(0, 8))
+      .toEqual(['Summary', '1. Session opening', '2. Likely scenes', '3. Secrets & clues', '4. NPCs', '5. Loose threads', '6. Session recap', '7. World bible updates'])
     const doc = c.savePrepNote(two, 'Session 2 - Smugglers', writeDocx(blocks))
     expect(c.prepView(two).noteDocId).toBe(doc)
     expect(c.savePrepNote(two, 'Session 2 - The Smugglers', writeDocx(blocks))).toBe(doc) // same file, a new version

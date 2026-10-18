@@ -403,6 +403,7 @@ export const ipcInputs = {
       playDate: PlayDate
     }).partial()
   }),
+  'session:summaryDraft': z.object({ sessionId: Id }),
   'session:setDate': z.object({ number: z.number().int().min(1).max(100000), date: PlayDate }),
   'prep:setStatus': z.object({ id: Id, status: RowStatus }),
   'prep:spread': z.object({ prepId: Id }),
@@ -761,6 +762,7 @@ export interface IpcOutputs {
   'prep:create': string
   'prep:update': void
   'session:setDate': void
+  'session:summaryDraft': string
   'prep:setStatus': void
   'prep:spread': void
   'prep:bringThreads': number

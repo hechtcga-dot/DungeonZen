@@ -13,13 +13,14 @@ export function prepBlocks(p: PrepView): Block[] {
   // Nothing written = nothing printed: the heading stays, the space under it is left blank (owner, 2026-10-18).
   const labelled = (label: string, text: string) => { if (text.trim()) out.push({ kind: 'p', runs: [{ text: `${label} `, b: true }, ...t(text.trim())] }) }
 
+  // The summary of the whole session first: the session's "What happened" (owner, 2026-10-18).
+  h('Summary'); (p.session?.recap ?? '').split(/\n{2,}/).forEach(para)
   h('1. Session opening'); para(p.premise)
   h('2. Likely scenes'); list(items('scene').map((i) => join(i.title, i.locationName, i.body)))
   h('3. Secrets & clues'); list(items('discovery').map((i) => `${join(i.title, i.body, i.locationName && `where: ${i.locationName}`)}${i.done ? ' (revealed)' : ''}`))
   h('4. NPCs'); list(items('npc').map((i) => join(i.title || i.entityName, i.role && `wants ${i.role}`, i.body)))
   h('5. Loose threads'); list(items('thread').map((i) => `${i.body || i.title}${i.done ? ' (followed up)' : ''}`))
   h('6. Session recap')
-  labelled('What happened:', p.session?.recap ?? '')
   labelled('What the players seem to want next:', p.wantNext)
   h('7. World bible updates'); list(items('bible').map((i) => i.body || i.title))
   if (p.backupNames.trim()) { h('Backup names'); list(p.backupNames.split('\n')) }

@@ -1277,6 +1277,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const p = c.prepView(id)
     return c.savePrepNote(id, sessionLabel(p.number, p.title, p.playDate), writeDocx(prepBlocks(p)))
   })
+  handle('session:summaryDraft', ({ sessionId }) => current().summaryDraft(sessionId))
   handle('session:setDate', ({ number, date }) => current().setSessionDate(number, date))
   handle('prep:rollNames', ({ count }) => rollNames(seededRng(Date.now() % 2147483647), count))
   handle('prepItem:add', ({ prepId, kind, fields }) => current().addPrepItem(prepId, kind, fields))

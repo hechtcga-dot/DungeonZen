@@ -159,3 +159,31 @@ describe('map regions and the party token', () => {
     expect(c.boardView(g).settings.typeColours).toEqual({})
   })
 })
+
+describe('session summary facts (owner, 2026-10-18)', () => {
+  it('gathers where the party was and went, who they met, clues, fights and Live notes', () => {
+    const town = c.createRegion({ mapId, polygon: sq(0, 0, 200), newName: 'Frostholm' })
+    const townId = c.mapScreen(mapId).regions.find((r) => r.id === town)!.locationId
+    c.updateEntity(townId, { attributes: { summary: 'A cold and unforgiving snowy town.' } })
+    c.createRegion({ mapId, polygon: sq(600, 0, 200), newName: 'Old Mill' })
+    c.moveParty({ mapId, x: 100, y: 100, minutes: 0 })
+    const s = c.startSession()
+    const dwarf = c.createEntity({ boardId: g, type: 'NPC', name: 'Brannoc', position: { x: 0, y: 0 } }).id
+    c.updateEntity(dwarf, { attributes: { summary: 'A hard and lonely dwarf' } })
+    c.addLog({ kind: 'meeting', text: 'Met Brannoc', entityId: dwarf })
+    const prep = c.prepFor(s.number)?.id ?? c.createPrep(s.number)
+    const clue = c.addPrepItem(prep, 'discovery', { body: 'The iron key opens the mill' })
+    c.setPrepDone(clue, true)
+    c.moveParty({ mapId, x: 700, y: 100, minutes: 60 })
+    const enc = c.createEncounter({ name: 'Pixie swarm' })
+    c.addLog({ kind: 'fight', text: 'Pixie swarm', encounterId: enc })
+    c.setSessionNotes(s.id, 'Mira died to the pixies and was revived.')
+    const text = c.summaryDraft(s.id)
+    expect(text).toContain('The party continues their adventures in Frostholm, a cold and unforgiving snowy town.')
+    expect(text).toContain('They travelled to Old Mill.')
+    expect(text).toContain('They met Brannoc, a hard and lonely dwarf.')
+    expect(text).toContain('They learned the iron key opens the mill.')
+    expect(text).toContain('They fought Pixie swarm.')
+    expect(text.endsWith('Mira died to the pixies and was revived.')).toBe(true)
+  })
+})

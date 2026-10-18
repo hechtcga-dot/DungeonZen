@@ -1816,3 +1816,8 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .card-finder-list .type-pill { display: inline-block; min-width: 64px; font-size: 11px; opacity: 0.75; }
 @keyframes card-found { 0%, 100% { filter: none; } 30%, 70% { filter: drop-shadow(0 0 10px #f6c945) drop-shadow(0 0 4px #f6c945); } }
 .react-flow__node.is-found { animation: card-found 0.8s ease-in-out 2; }
+
+/* Session summary draft (Fill from the session): dashed like a proposal, not blue (no AI). */
+.summary-tools { display: flex; flex-direction: column; gap: 6px; }
+.summary-draft { border: 1px dashed #8a7350; border-radius: 6px; padding: 8px 10px; background: rgba(255, 252, 240, 0.6); }
+.session-summary { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }

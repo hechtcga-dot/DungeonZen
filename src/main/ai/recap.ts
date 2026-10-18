@@ -8,9 +8,10 @@ export const RECAP_SYSTEM = [
   'Reply with the recap text only, no heading.'
 ].join(' ')
 
-export function recapPrompt(input: { number: number; log: string; notes: string; current: string; playerSafe: boolean }): string {
+export function recapPrompt(input: { number: number; log: string; notes: string; current: string; playerSafe: boolean; facts?: string }): string {
   return [
     `Session ${input.number}.`,
+    input.facts?.trim() ? `What the table did (places with what they are like, people with who they are, clues, fights):\n${input.facts}` : '',
     input.playerSafe ? 'This version goes to the players: it may only use what is below (people the party has not named are "a stranger").' : '',
     `Log:\n${input.log || '(empty)'}`,
     input.notes.trim() ? `DM notes for this session:\n${input.notes}` : '',
