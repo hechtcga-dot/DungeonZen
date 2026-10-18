@@ -174,7 +174,6 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         placeholder="A collapsed watchtower in the rain; smugglers unload crates by lantern light…"
         hint="What the place looks like and what is going on. Build with AI works from it." onCommit={(scene) => up({ scene })} />
 
-      {!sketchBig && <EncounterPictures id={e.id} />}
 
       {e.pcs.length > 0 && (
         <div className="enc-pcs" role="group" aria-label="Player characters in this fight">
@@ -317,6 +316,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         <button className="ink-button" onClick={() => void openSheet(e.id)}>Open card</button>
         <button className="ink-button danger-ink" onClick={() => void act('entity:setStatus', { id: e.id, status: 'defunct' })}>Remove encounter</button>
       </div>
+      {!sketchBig && <EncounterPictures id={e.id} />}
       {sketchBig && (
         <section className="enc-sketch" aria-label="Battle map sketch" ref={(el) => { if (el && !sketchShown.current) { sketchShown.current = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }) } }}>
           <h3 className="panel-title side-h">Battle map sketch</h3>
