@@ -10,7 +10,8 @@ export function prepBlocks(p: PrepView): Block[] {
   const list = (lines: string[]) => lines.filter((l) => l.trim()).forEach((l) => out.push({ kind: 'bullet', runs: t(l.trim()) }))
   const items = (k: string) => p.items.filter((i) => i.kind === k)
   const join = (...parts: Array<string | null | undefined>) => parts.map((x) => x?.trim()).filter(Boolean).join(' — ')
-  const labelled = (label: string, text: string) => out.push({ kind: 'p', runs: [{ text: `${label} `, b: true }, ...t(text.trim())] })
+  // Nothing written = nothing printed: the heading stays, the space under it is left blank (owner, 2026-10-18).
+  const labelled = (label: string, text: string) => { if (text.trim()) out.push({ kind: 'p', runs: [{ text: `${label} `, b: true }, ...t(text.trim())] }) }
 
   h('1. Session opening'); para(p.premise)
   h('2. Likely scenes'); list(items('scene').map((i) => join(i.title, i.locationName, i.body)))
