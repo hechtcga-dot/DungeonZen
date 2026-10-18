@@ -340,6 +340,8 @@ export const ipcInputs = {
   'map:saveImage': z.object({ mapId: Id }),
   'encounters:view': z.void(),
   'encounter:create': z.object({ name: Name, locationId: Id.nullable().optional() }),
+  'encounter:toBoard': z.object({ id: Id }),
+  'prep:addEncounter': z.object({ prepId: Id }),
   'encounter:update': z.object({
     id: Id,
     patch: z.object({
@@ -715,6 +717,8 @@ export interface IpcOutputs {
   'map:saveImage': string | null
   'encounters:view': EncountersView
   'encounter:create': string
+  'encounter:toBoard': void
+  'prep:addEncounter': string
   'encounter:update': void
   'encounter:storyCard': string
   'encounter:adjustCr': void

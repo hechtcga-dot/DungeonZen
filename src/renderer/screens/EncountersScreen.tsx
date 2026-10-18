@@ -125,7 +125,7 @@ function groupByPlace(v: EncountersView): Array<[string, EncounterView[]]> {
 }
 
 function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: EncountersView; sketchBig: boolean; onSketchSmall(): void }) {
-  const { act, openSheet, openCombat, say, setBattleMapOpen, setAiSettingsOpen } = useBoard()
+  const { act, openSheet, openCombat, say, setBattleMapOpen, setAiSettingsOpen, showOnBoard } = useBoard()
   const up = (patch: Parameters<typeof call<'encounter:update'>>[1]['patch']) => void act('encounter:update', { id: e.id, patch })
   const [ticked, setTicked] = useState<Set<string>>(new Set())
   const sel = e.creatures.filter((c) => ticked.has(c.entityId)).map((c) => c.entityId)
@@ -307,6 +307,10 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
         {v.sessionRunning
           ? <button className="ink-button primary-ink" onClick={async () => { if (await act('encounter:run', { encounterId: e.id })) say(`Logged the fight: ${e.name}`) }}>Run it now (log the fight)</button>
           : <span className="ink-muted">Start a session to run it as a logged fight.</span>}
+        {e.onBoard
+          ? <button className="ink-button" title="Its card is on the board: link it, and its name links in any text" onClick={() => void showOnBoard(e.id)}>Show on board</button>
+          : <button className="ink-button" title="A card on the board, so you can link it to other cards (encounters stay off the board unless you put them there)"
+              onClick={async () => { await act('encounter:toBoard', { id: e.id }); say(`${e.name} is on the board`) }}>Put on the board</button>}
         <button className="ink-button" disabled={ratingBusy || e.creatures.length === 0} onClick={() => void rate()}>{ratingBusy ? 'Asking…' : 'Ask AI to rate'}</button>
         <button className="ink-button" disabled={e.creatures.length === 0} onClick={() => setRoll20(true)}>Export to Roll20…</button>
         <button className="ink-button" disabled={e.creatures.length === 0} onClick={() => setPdf(true)}>Stat sheets (PDF/JPG)…</button>

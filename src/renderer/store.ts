@@ -254,6 +254,12 @@ export const useBoard = create<BoardState>((set, get) => ({
         set({ view, history, desk, info: info ?? get().info, sheet: null, sheetId: null, screen: 'board' })
         return
       }
+      if (screen === 'sheet' && sheet?.entity.attributes.encounter === true) {
+        // An encounter's page is Encounters (owner, 2026-10-18): its card and its linked name open it there.
+        set({ screen: 'encounters', encounterId: sheet.entity.id, sheetId: null, sheet: null, mode: 'prep' })
+        await get().refresh()
+        return
+      }
       const mapId = screen === 'live' ? live?.map?.id : screen === 'desk' || screen === 'map' ? desk?.map?.id : undefined
       const mapScreen = mapId ? await call('mapscreen:view', { mapId }).catch(() => null) : get().mapScreen
       const [prepScreen, prep] = screen === 'prep'

@@ -155,8 +155,18 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
         </section>}
 
         {show('scene') && <PrepSection pop={pop('scene')} p={p} kind="scene" n={prepNumber('scene')} title="Likely scenes" hint="3–5 possible scenes. Keep each to a location + tension. These are possibilities, not a script."
-          add="Add a scene" extra={scenes.length > 1 && <button className="ink-button" onClick={() => void act('prep:spread', { prepId: p.id })}>Spread times evenly</button>}>
-          {(i, k) => (
+          add={null} extra={<>
+            {scenes.length > 1 && <button className="ink-button" onClick={() => void act('prep:spread', { prepId: p.id })}>Spread times evenly</button>}
+            <select className="ink-button primary-ink" value="" aria-label="Add a scene" onChange={(e) => {
+              if (e.target.value === 'scene') void act('prepItem:add', { prepId: p.id, kind: 'scene' }).then((id) => id && freshRow(id))
+              if (e.target.value === 'encounter') void act('prep:addEncounter', { prepId: p.id })
+            }}>
+              <option value="">Add a scene…</option>
+              <option value="scene">Scene</option>
+              <option value="encounter">Encounter</option>
+            </select>
+          </>}>
+          {(i, k) => i.encounter ? <EncounterScene i={i} n={k + 1} locations={s.locations} /> : (
             <>
               <div className="prep-row-fields">
                 <LinkField id={`s-t-${i.id}`} label={`Scene ${k + 1}: location`} value={i.title} placeholder="Dock at night" onCommit={(v) => upItem(act, i, { title: v })} />
@@ -481,6 +491,33 @@ function NewLinkDialog({ from, cards, onClose }: { from: EntityBrief; cards: Ent
       </div>
       {picking && <CardPicker words="" title="Link to which card?" cards={cards.filter((c) => c.id !== from.id)} onClose={() => setPicking(false)} onPick={(id) => { setTarget(id); setPicking(false) }} />}
     </Dialog>
+  )
+}
+
+/** A likely scene that is an encounter: its main fields here, everything else on Encounters. */
+function EncounterScene({ i, n, locations }: { i: PrepItemView; n: number; locations: EntityBrief[] }) {
+  const { act, openEncounter } = useBoard()
+  const e = i.encounter!
+  const up = (patch: Record<string, unknown>) => void act('encounter:update', { id: i.entityId!, patch })
+  return (
+    <>
+      <div className="prep-row-fields">
+        <CommitField id={`e-n-${i.id}`} label={`Encounter ${n}`} value={e.name} onCommit={(v) => v.trim() && up({ name: v.trim() })} />
+        <CardPick id={`e-loc-${i.id}`} label="Location card" value={e.locationId} cards={locations} onPick={(v) => up({ locationId: v })} />
+        <div className="field">
+          <label htmlFor={`e-t-${i.id}`}>Aim for</label>
+          <select id={`e-t-${i.id}`} value={e.target} onChange={(ev) => up({ target: ev.target.value })}>
+            <option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option>
+          </select>
+        </div>
+        <TimeRange i={i} />
+      </div>
+      <LinkField id={`e-b-${i.id}`} label="What happens" value={e.scene} placeholder="Bandits wait at the ford; they want the cart, not a fight." onCommit={(v) => up({ scene: v })} />
+      <div className="row tight wrap">
+        <span className="ink-muted">{e.creatures ? `${e.creatures} creature${e.creatures === 1 ? '' : 's'}` : 'No creatures yet'}</span>
+        <button className="ink-button" title="Monsters, battle map, story and the rest" onClick={() => openEncounter(i.entityId!)}>Open in Encounters</button>
+      </div>
+    </>
   )
 }
 

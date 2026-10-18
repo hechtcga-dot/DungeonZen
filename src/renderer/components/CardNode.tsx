@@ -1,4 +1,5 @@
 import { memo, type CSSProperties } from 'react'
+import { TypeIcon } from '../art/typeIcons'
 import { Handle, NodeResizer, Position, type Node, type NodeProps, type ResizeParams } from '@xyflow/react'
 import { ENTITY_LABELS } from '../entityStyle'
 import type { EntityView } from '../../shared/types'
@@ -44,6 +45,7 @@ export function onResized(itemId: string) {
 function CardNodeImpl({ id, data, selected, width, height }: NodeProps<CardNodeType>) {
   const { entity, dimmed, match, tints, marks, colour } = data
   const resolved = entity.status === 'resolved'
+  const encounter = entity.attributes.encounter === true
   const location = typeof entity.attributes.location === 'string' ? entity.attributes.location : ''
   const sb = HAS_STATBLOCK.has(entity.type) ? readStatBlock(entity.attributes.statblock) : null
   const summary = (typeof entity.attributes.summary === 'string' ? entity.attributes.summary : '') || (sb ? statLine(sb) : '')
@@ -51,15 +53,16 @@ function CardNodeImpl({ id, data, selected, width, height }: NodeProps<CardNodeT
   const size = height == null ? 'full' : height < 72 ? 'name' : height < 125 ? 'short' : 'full'
   const classes = ['card', `card-${size}`, width != null && 'card-sized', resolved && 'card-resolved', selected && 'is-selected', dimmed && 'is-dimmed', match && 'is-match', entity.hidden && 'is-hidden']
   return (
-    <article className={classes.filter(Boolean).join(' ')} aria-label={`${ENTITY_LABELS[entity.type]}: ${entity.name}${entity.hidden ? ' (hidden)' : ''}`}
+    <article className={classes.filter(Boolean).join(' ')} aria-label={`${encounter ? 'Encounter' : ENTITY_LABELS[entity.type]}: ${entity.name}${entity.hidden ? ' (hidden)' : ''}`}
       title="Double-click to open the sheet; right-click for more" style={resolved ? undefined : { '--type': colour, background: tintBackground(tints) } as CSSProperties}>
       <NodeResizer isVisible={selected} minWidth={110} minHeight={44} onResizeEnd={onResized(id)} color="#6cb6d9" />
       {/* The pin: drag from one pin to another to tie a string. */}
       <Handle type="source" position={Position.Top} id="pin" className="pin" title="Drag to another card's pin to tie a link" />
+      <span className="card-icon" style={resolved ? { background: '#3d434b' } : undefined} aria-hidden="true"><TypeIcon type={entity.type} encounter={encounter} /></span>
       {size !== 'name' && (
         <div className="card-head">
           <span className="badge" style={{ background: resolved ? '#3d434b' : colour }}>
-            {ENTITY_LABELS[entity.type].toUpperCase()}
+            {encounter ? 'ENCOUNTER' : ENTITY_LABELS[entity.type].toUpperCase()}
           </span>
           {resolved && <span className="card-state">Resolved</span>}
           {entity.hidden && <span className="card-state">Hidden</span>}

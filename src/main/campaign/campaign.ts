@@ -533,6 +533,8 @@ export class Campaign {
   private insertEntity(w: Writer, input: {
     boardId: string; type: EntityType; name: string; position: Position; attributes?: EntityAttributes
     tags?: string[]; abilities?: NewAbility[]; status?: EntityStatus
+    /** false: no card on any board (encounters: the DM puts them on the board by choice). */
+    place?: boolean
   }): string {
     const id = randomUUID()
     w.insert('entity', {
@@ -540,6 +542,7 @@ export class Campaign {
       status: input.status ?? 'active', parentId: null, createdAt: new Date().toISOString()
     })
     ;(input.abilities ?? []).forEach((a, i) => this.insertAbility(w, id, a, i))
+    if (input.place === false) return id
     const global = this.globalBoard()
     this.placeCard(w, global.id, id, input.position)
     const target = this.boardRow(input.boardId)
@@ -2999,8 +3002,9 @@ export class Campaign {
     const out = new Set(Array.isArray(a.pcs_out) ? a.pcs_out as string[] : [])
     const pcs = this.partyHealth().map((x) => ({ id: x.id, name: x.name, level: x.level || p.level, hp: x.hp, maxHp: x.maxHp, in: !out.has(x.id) }))
     const levels = pcs.filter((x) => x.in).map((x) => x.level)
+    const onBoard = this.db.select().from(boardItem).where(and(eq(boardItem.entityId, id), eq(boardItem.kind, 'card'), eq(boardItem.status, 'active'))).all().length > 0
     return {
-      id, name: e.name, locationId: at?.targetId ?? null, locationName: at ? byId.get(at.targetId)?.name ?? null : null,
+      id, name: e.name, onBoard, locationId: at?.targetId ?? null, locationName: at ? byId.get(at.targetId)?.name ?? null : null,
       target, tactics: typeof a.tactics === 'string' ? a.tactics : '', notes: typeof a.summary === 'string' ? a.summary : '',
       scene: typeof a.scene === 'string' ? a.scene : '',
       battleMapId: typeof a.battle_map_id === 'string' ? a.battle_map_id : null,
@@ -3015,10 +3019,40 @@ export class Campaign {
     let id = ''
     this.log.run(`Planned encounter ${input.name}`, (w) => {
       id = this.insertEntity(w, {
-        boardId: this.globalBoard().id, type: 'SCENE', name: input.name, position: this.freeGlobalSpot(),
+        boardId: this.globalBoard().id, type: 'SCENE', name: input.name, position: this.freeGlobalSpot(), place: false,
         attributes: { encounter: true, target: 'moderate', tactics: '', summary: '' }
       })
       if (input.locationId) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: input.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
+    })
+    return id
+  }
+
+  /** Encounters stay off the board until the DM puts one there (owner, 2026-10-18): its card, for links. */
+  encounterToBoard(id: string): void {
+    const e = this.entityRow(id)
+    const global = this.globalBoard().id
+    this.log.run(`Put ${e.name} on the board`, (w) => {
+      const old = this.cardItems(global, id, true)[0]
+      if (old) w.update('board_item', old.id, { status: 'active' })
+      else this.placeCard(w, global, id, this.freeGlobalSpot())
+    })
+  }
+
+  /** Prep › Likely scenes › Add an encounter: a new encounter (off the board) and its scene line, one undo step. */
+  addPrepEncounter(prepId: string): string {
+    const p = this.prepRow(prepId)
+    const siblings = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'scene'))).all()
+    const id = randomUUID()
+    this.log.run(`Added an encounter to the prep for session ${p.number}`, (w) => {
+      const enc = this.insertEntity(w, {
+        boardId: this.globalBoard().id, type: 'SCENE', name: 'New encounter', position: this.freeGlobalSpot(), place: false,
+        attributes: { encounter: true, target: 'moderate', tactics: '', summary: '' }
+      })
+      w.insert('prep_item', {
+        id, prepId, kind: 'scene', sort: siblings.reduce((n, x) => Math.max(n, x.sort), 0) + 1, title: '', body: '',
+        sceneType: 'combat', targetStart: null, targetEnd: null, entityId: enc, locationId: null,
+        discoveryId: null, role: '', stats: '', tactics: '', done: false, doneAtMin: null, status: 'active'
+      })
     })
     return id
   }
@@ -3309,7 +3343,7 @@ export class Campaign {
     let id = ''
     this.log.run(`${stash ? 'Saved for later' : 'Put on the board'}: ${d.name}`, (w) => {
       id = this.insertEntity(w, {
-        boardId: this.globalBoard().id, type: 'SCENE', name: d.name, position: this.freeGlobalSpot(), status,
+        boardId: this.globalBoard().id, type: 'SCENE', name: d.name, position: this.freeGlobalSpot(), status, place: false,
         attributes: { encounter: true, target: d.difficulty, tactics: d.tactics, summary: '', scene: d.scene, ...(d.story ? { story: d.story } : {}), generated: true }
       })
       if (d.locationId && cards.some((x) => x.id === d.locationId)) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: d.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
@@ -4199,14 +4233,22 @@ export class Campaign {
   prepView(id: string): PrepView {
     const p = this.prepRow(id)
     const names = new Map(this.db.select({ id: entity.id, name: entity.name }).from(entity).all().map((e) => [e.id, e.name]))
+    const encounters = new Set(this.encounterCards().map((e) => e.id))
+    const encounterOf = (i: PrepItemRow): PrepItemView['encounter'] => {
+      if (i.kind !== 'scene' || !i.entityId || !encounters.has(i.entityId)) return undefined
+      const v = this.encounterView(i.entityId)
+      return { name: v.name, locationId: v.locationId, target: v.target, scene: v.scene, creatures: v.creatures.reduce((n, c) => n + c.count, 0) }
+    }
     const items = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, id), eq(prepItem.status, 'active'))).all()
       .sort((a, b) => a.sort - b.sort)
-      .map((i): PrepItemView => ({
-        id: i.id, kind: i.kind as PrepKind, title: i.title, body: i.body, sceneType: (i.sceneType as SceneType | null) ?? null,
+      .map((i) => ({ i, enc: encounterOf(i) })).map(({ i, enc }): PrepItemView => ({
+        // A scene that is an encounter shows the encounter's name and notes everywhere the scene shows.
+        id: i.id, kind: i.kind as PrepKind, title: enc?.name ?? i.title, body: enc?.scene ?? i.body, sceneType: (i.sceneType as SceneType | null) ?? null,
         targetStart: i.targetStart, targetEnd: i.targetEnd,
         entityId: i.entityId, entityName: i.entityId ? names.get(i.entityId) ?? null : null,
         locationId: i.locationId, locationName: i.locationId ? names.get(i.locationId) ?? null : null,
-        discoveryId: i.discoveryId, relationshipId: i.relationshipId, secretId: i.secretId, description: i.description, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin
+        discoveryId: i.discoveryId, relationshipId: i.relationshipId, secretId: i.secretId, description: i.description, role: i.role, stats: i.stats, tactics: i.tactics, done: i.done, doneAtMin: i.doneAtMin,
+        encounter: enc
       }))
     const sess = this.db.select().from(session).where(and(eq(session.number, p.number), eq(session.status, 'active'))).get()
     const doc = p.noteDocId ? this.db.select().from(noteDoc).where(eq(noteDoc.id, p.noteDocId)).get() : undefined

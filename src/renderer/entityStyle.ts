@@ -18,6 +18,9 @@ export const ENTITY_COLOURS: Record<EntityType, string> = {
   OTHER: '#7a7464' // owner, 2026-10-16: anything that fits no other type
 }
 
+/** Encounter cards (Scene cards made on Encounters): the gold their names link in. */
+export const ENCOUNTER_COLOUR = '#9a6a10'
+
 export const ENTITY_LABELS: Record<EntityType, string> = {
   NPC: 'NPC', PC: 'PC', MONSTER: 'Monster', LOCATION: 'Location', QUEST: 'Quest', ITEM: 'Item',
   SCENE: 'Scene', CLUE: 'Clue', FACTION: 'Faction', HANDOUT: 'Handout', BUILDING: 'Building', OTHER: 'Other'
@@ -31,5 +34,6 @@ export function useTypeColour(): (t: EntityType) => string {
 
 /** A card's colour: its own (sheet › Card colour, or right-click › Card colour), else its type's. */
 export function cardColour(e: { type: EntityType; attributes: Record<string, unknown> }, typeColour: (t: EntityType) => string): string {
-  return typeof e.attributes.colour === 'string' ? e.attributes.colour : typeColour(e.type)
+  if (typeof e.attributes.colour === 'string') return e.attributes.colour
+  return e.attributes.encounter === true ? ENCOUNTER_COLOUR : typeColour(e.type)
 }

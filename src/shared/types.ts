@@ -699,6 +699,8 @@ export interface PrepItemView {
   tactics: string
   done: boolean
   doneAtMin: number | null
+  /** scene: the encounter it is (entityId), filled in here or on Encounters. */
+  encounter?: { name: string; locationId: string | null; target: 'low' | 'moderate' | 'high'; scene: string; creatures: number }
 }
 
 export interface PrepView {
@@ -812,6 +814,8 @@ export type BuiltCreature =
 export interface EncounterView {
   id: string
   name: string
+  /** Its card is on a board (put there by the DM). */
+  onBoard: boolean
   locationId: string | null
   locationName: string | null
   target: 'low' | 'moderate' | 'high'

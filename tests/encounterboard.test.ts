@@ -1,0 +1,41 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { Campaign } from '../src/main/campaign/campaign'
+
+let dir: string
+let c: Campaign
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'dungeonzen-'))
+  c = Campaign.create(join(dir, 'Enc board'), 'Enc board')
+})
+afterEach(() => { c.close(); rmSync(dir, { recursive: true, force: true }) })
+
+const onGlobal = (id: string) => c.boardView(c.boards()[0].id).items.some((i) => i.entityId === id)
+
+describe('encounters on the board (owner, 2026-10-18)', () => {
+  it('stay off the board until put there; undo takes the card back off', () => {
+    const id = c.createEncounter({ name: 'Ambush' })
+    expect(onGlobal(id)).toBe(false)
+    expect(c.encounterView(id).onBoard).toBe(false)
+    c.encounterToBoard(id)
+    expect(onGlobal(id)).toBe(true)
+    expect(c.encounterView(id).onBoard).toBe(true)
+    c.undo()
+    expect(onGlobal(id)).toBe(false)
+  })
+
+  it('prep: Add a scene › Encounter makes an encounter and its scene line, edited from either side', () => {
+    const prepId = c.createPrep(1)
+    const rowId = c.addPrepEncounter(prepId)
+    const row = c.prepView(prepId).items.find((i) => i.id === rowId)!
+    expect(row).toMatchObject({ kind: 'scene', sceneType: 'combat', title: 'New encounter', encounter: { name: 'New encounter', target: 'moderate', creatures: 0 } })
+    expect(c.encountersView().encounters.map((e) => e.id)).toContain(row.entityId)
+    expect(onGlobal(row.entityId!)).toBe(false)
+    c.updateEncounter(row.entityId!, { name: 'Bridge toll', scene: 'Trolls want a song.' })
+    expect(c.prepView(prepId).items.find((i) => i.id === rowId)).toMatchObject({ title: 'Bridge toll', body: 'Trolls want a song.' })
+    c.undo(); c.undo()
+    expect(c.prepView(prepId).items.some((i) => i.id === rowId)).toBe(false)
+  })
+})

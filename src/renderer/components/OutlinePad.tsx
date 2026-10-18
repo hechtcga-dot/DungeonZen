@@ -80,6 +80,7 @@ export function OutlinePad({ value, onChange, ratio, background, labels = true, 
         {tool === 'label' && <input className="sketch-label-input" value={text} maxLength={60} placeholder="Label, then click the spot" aria-label="Label text" onChange={(e) => setText(e.target.value)} />}
       </div>
       <svg ref={svg} className="sketch-paper outline-paper" viewBox={`0 0 1000 ${H}`} role="img" aria-label={label} preserveAspectRatio="none"
+        style={{ width: `min(100%, calc(52vh * ${ratio}))`, aspectRatio: `1000 / ${H}` }}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         {background ? <image href={background} width="1000" height={H} preserveAspectRatio="none" /> : <rect width="1000" height={H} fill="#f4ecd6" />}
         <Strokes strokes={shown} h={H} />
@@ -190,6 +191,14 @@ export function ChangePicture({ drawn, ratio, onChanged, disabled, add }: {
   /** Add to picture: only new things, the sketch always open. */
   add?: boolean
 }) {
+  // The picture's own shape, so it never shows stretched (callers' ratio is only a first guess).
+  const [own, setOwn] = useState<number | null>(null)
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => { if (img.naturalWidth && img.naturalHeight) setOwn(img.naturalWidth / img.naturalHeight) }
+    img.src = drawn.url
+  }, [drawn.url])
+  ratio = own ?? ratio
   const [change, setChange] = useState('')
   const [marking, setMarking] = useState(!!add)
   const [marks, setMarks] = useState<Marks>(emptyOutline())
