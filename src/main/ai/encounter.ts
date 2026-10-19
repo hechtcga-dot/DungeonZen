@@ -123,10 +123,11 @@ export const DRAFT_SYSTEM = [
   'Every encounter has ONE central theme and a small story: creatures of one family or one cause (a goblin war band with its chief and mage,',
   'a cult and its summoned imp), never a random mix. Fit the place and the DM\'s description; follow the house rules.',
   'Checks: EXACTLY 3 checks, each a different skill, chosen to fit THIS encounter, its creatures and its place.',
-  'Perception and Insight are the usual ones; at least one of the three must come from the encounter itself:',
+  'Perception is the most useful check and usually one of the three; the others must come from the encounter itself:',
   'beasts or plants: Nature (or Survival, Animal Handling); cultists, undead or fiends: Religion; ruins, old orders or nobles: History;',
   'marsh, forest or wilderness: Survival, or Medicine for sickness, poison and wounds; magic or strange runes: Arcana;',
-  'a circus, climbing, ropes or water: Athletics or Acrobatics; hidden people or tracks: Investigation or Stealth.',
+  'a circus, climbing, ropes or water: Athletics or Acrobatics; hidden people or tracks: Investigation or Stealth;',
+  'someone lying, bargaining or hiding their fear (a merchant, a captive, a cult recruiter): Insight.',
   'Each check has 2 to 4 results, lowest DC first, each a short text the DM reads to the player who rolled that high; a good last tier gives a real clue.',
   'Items on the ground can hold other items (a cart holds crates, a crate holds wine). Rewards fit the creatures and the place.',
   'Reply with ONE JSON object and nothing else:',
@@ -211,12 +212,12 @@ export function parseDraft(reply: string, index: Array<{ key: string; name: stri
   }
   walk(raw.items, null, 0)
   const skill = (s: string) => CHECK_SKILLS.find((k) => k.toLowerCase().startsWith(s.toLowerCase().split(' ')[0])) ?? (s || 'Perception')
-  // Always three checks with different skills (owner, 2026-10-19): repeats dropped, short lists topped up with empty usual ones.
+  // Always three checks with different skills (owner, 2026-10-19): repeats dropped, short lists topped up with empty Perception / Investigation / Insight.
   const checks = (Array.isArray(raw.checks) ? raw.checks : []).map((c: Record<string, unknown>) => ({
     id: rid(), skill: skill(str(c.skill, 60)),
     tiers: (Array.isArray(c.tiers) ? c.tiers : []).slice(0, 8).map((t: Record<string, unknown>) => ({ dc: String(t.dc ?? '').slice(0, 10), text: str(t.text, 2000) }))
   })).filter((c, i, all) => all.findIndex((x) => x.skill === c.skill) === i).slice(0, 3)
-  for (const k of ['Perception', 'Insight', 'Investigation']) {
+  for (const k of ['Perception', 'Investigation', 'Insight']) {
     if (checks.length < 3 && !checks.some((c) => c.skill === k)) checks.push({ id: rid(), skill: k, tiers: [{ dc: '10', text: '' }, { dc: '15', text: '' }] })
   }
   const rw = (raw.rewards && typeof raw.rewards === 'object' ? raw.rewards : {}) as Record<string, unknown>

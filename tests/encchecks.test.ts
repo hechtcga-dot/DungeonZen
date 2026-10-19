@@ -7,7 +7,7 @@ it('AI checks: always three, different skills, short lists topped up', () => {
     { skill: 'Survival', tiers: [{ dc: '12', text: 'Again' }] }
   ] })
   const d = parseDraft(reply, [], [], [])
-  expect(d.story.checks.map((c) => c.skill)).toEqual(['Survival', 'Perception', 'Insight'])
+  expect(d.story.checks.map((c) => c.skill)).toEqual(['Survival', 'Perception', 'Investigation'])
   const many = JSON.stringify({ name: 'x', checks: ['Nature', 'Religion', 'History', 'Athletics'].map((skill) => ({ skill, tiers: [] })) })
   expect(parseDraft(many, [], [], []).story.checks.map((c) => c.skill)).toEqual(['Nature', 'Religion', 'History'])
 })
