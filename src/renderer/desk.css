@@ -1470,6 +1470,8 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .desk-theme .floor-tab-input { width: 160px; background: var(--parchment-light); color: var(--ink); }
 .floor-bar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 6px 14px; background: var(--parchment); color: var(--ink); border: 1px solid #6b5636; border-radius: 0 8px 8px 8px; }
 .desk-theme .floor-bar .hint { color: #5a4a32; }
+.floor-bar .field.floor-kind { margin: 0; display: flex; gap: 8px; align-items: center; color: var(--ink); font-weight: 700; }
+.floor-bar .field.floor-kind select { width: auto; }
 .floor-bar .field.checkbox { margin: 0; color: var(--ink); font-weight: 700; }
 .desk-theme button.ai-button { border: 1.5px dashed #5aa0e6; color: #bfe0ff; }
 .desk-theme .panel button.ai-button, .floor-bar button.ai-button { border-color: #2f6fb5; color: #1f4f88; background: rgba(220, 235, 255, 0.55); }

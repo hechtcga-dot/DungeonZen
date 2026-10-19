@@ -6,6 +6,7 @@ import { useBoard, useView } from '../store'
 import { CommitField } from './fields'
 import { ENTITY_LABELS } from '../entityStyle'
 import { TypeEmblem } from '../art/emblems'
+import { BUILDING_KINDS, buildingAttrs, KIND_LABELS, readBuilding, type BuildingKind } from '../../shared/building'
 import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
 import type { EntityView } from '../../shared/types'
 import type { IpcInput } from '../../shared/ipc'
@@ -79,6 +80,15 @@ function EntityInspector({ entity }: { entity: EntityView }) {
         title={picture ? 'Open the sheet to change the picture' : 'No picture yet: open the sheet to add or draw one'}>
         {picture ? <img src={`dz-asset://campaign/${picture}?w=512`} alt={entity.name} /> : <TypeEmblem type={entity.type} />}
       </button>
+      {entity.type === 'BUILDING' && (
+        <div className="field">
+          <label htmlFor={`${p}-kind`}>Kind</label>
+          <select id={`${p}-kind`} value={readBuilding(entity.attributes).kind}
+            onChange={(ev) => update({ attributes: buildingAttrs({ kind: ev.target.value as BuildingKind }) })}>
+            {BUILDING_KINDS.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
+          </select>
+        </div>
+      )}
       <CommitField id={`${p}-summary`} label="One-line summary" value={str('summary')}
         placeholder="Shown on the card" hint="Leave empty to show the stat block line (size, type, CR, HP, AC)."
         onCommit={(summary) => update({ attributes: { summary } })} />

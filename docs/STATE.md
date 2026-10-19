@@ -563,7 +563,7 @@ built.
     Card menu › Take off this board (`note:setStatus` on the card item; History lists it as
     "Card: name", Restore puts it back; cards that left with a storyline are not listed).
 - Buildings (1.10.0, owner's list 2026-10-13): new card type BUILDING (slate `#5c6b73`), kind Tavern / Shop /
-  Building (Details › Kind; tab named after the kind). Sheet (`BuildingSheet.tsx`): backdrop drawn in code per kind
+  Building (Kind drop-down on the floor bar and in the board side panel under the picture; tab named after the kind). Sheet (`BuildingSheet.tsx`): backdrop drawn in code per kind
   (`art/buildings.tsx`), floor tabs (main floor only at first; + Floor ▾ names or your own; right-click Rename, Move
   left/right, Move to History; Bring back from the same menu), floor bar with Show layout and ✦ Draw floor map.
   Taverns: Barkeeper & patrons, Layout, Rooms (one row each: number, name, base price, price here, Free / Taken /

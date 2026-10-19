@@ -98,6 +98,12 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
           <strong>{cur.name}</strong>
           <span className="hint">Patrons, rooms, stock and layout below are for this floor. Drag a patron onto a tab to move them.</span>
           <span className="spacer" />
+          <label className="field floor-kind">Kind
+            <select value={kind} onChange={(ev) => void save({ kind: ev.target.value as BuildingKind })}>
+              {BUILDING_KINDS.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
+            </select>
+          </label>
+          <span className="spacer" />
           <label className="field checkbox"><input type="checkbox" checked={showLayout} onChange={(ev) => setShowLayout(ev.target.checked)} /> Show layout</label>
           <button className="ai-button" onClick={drawMap} title={isBlank(cur.layout) ? 'Draw a map of this floor' : 'Draw a map of this floor, following the layout as a blueprint'}>✦ Draw floor map</button>
         </div>
@@ -107,12 +113,6 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
         {side}
         <section className="panel">
           <h2 className="panel-heading">Details</h2>
-          <div className="field">
-            <label htmlFor={`b-${e.id}-kind`}>Kind</label>
-            <select id={`b-${e.id}-kind`} value={kind} onChange={(ev) => void save({ kind: ev.target.value as BuildingKind })}>
-              {BUILDING_KINDS.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
-            </select>
-          </div>
           <p className="hint">Floors: {floors.length} ({floors.map((f) => f.name.toLowerCase()).join(', ')}). Add one with + Floor.</p>
           <LocationPick id={`b-${e.id}-inside`} label="Inside" value={text('location')} exclude={e.id}
             hint="Its region on the map shows who is in here." onChange={(location) => void act('entity:update', { id: e.id, patch: { attributes: { location } } })} />
