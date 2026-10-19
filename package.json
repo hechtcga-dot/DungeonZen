@@ -13,7 +13,8 @@
     "test": "vitest run",
     "icon": "electron scripts/make-icon.cjs",
     "dist:win": "npm run build && electron-builder --win --x64 --publish never",
-    "smoke": "node tests/e2e/smoke.mjs"
+    "smoke": "node tests/e2e/smoke.mjs",
+    "speed": "cross-env DZ_SPEED=1 vitest run tests/speed.test.ts --disableConsoleIntercept"
   },
   "dependencies": {
     "@fontsource/alegreya": "^5.3.0",

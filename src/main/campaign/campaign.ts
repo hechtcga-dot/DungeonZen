@@ -270,12 +270,13 @@ export class Campaign {
       .all()
       .filter((r) => visible.has(r.targetId) && (settings.sharedStrings ? r.boardId === null : r.boardId === boardId))
     const boards = this.boards()
+    const secrets = this.secretMap()
     return {
       board: boards.find((s) => s.id === boardId) ?? { id: b.id, name: b.name, storylineId: b.storylineId, storyline: null },
       boards,
       items: visibleItems.map(toItemView),
       entities: Object.fromEntries(entities.map((e) => [e.id, e])),
-      relationships: relationships.map((r) => toRelationshipView(r, this.secretMap())),
+      relationships: relationships.map((r) => toRelationshipView(r, secrets)),
       undo: this.log.state(),
       settings,
       acts: this.numberedActs()
@@ -313,7 +314,8 @@ export class Campaign {
       .where(and(inArray(storylineEntity.entityId, ids), eq(storylineEntity.status, 'active')))
       .all()
     const marks = this.actMarks(ids)
-    return rows.map((r) => toEntityView(r, links.filter((l) => l.entityId === r.id).map((l) => l.storylineId), marks.get(r.id) ?? []))
+    const storylines = Map.groupBy(links, (l) => l.entityId)
+    return rows.map((r) => toEntityView(r, (storylines.get(r.id) ?? []).map((l) => l.storylineId), marks.get(r.id) ?? []))
   }
 
   entityView(id: string): EntityView {
@@ -1061,11 +1063,12 @@ export class Campaign {
       .from(entity).all().map((e) => [e.id, e as EntityBrief]))
     const knownRels = new Set(this.db.select().from(relationshipKnown)
       .where(eq(relationshipKnown.status, 'active')).all().map((k) => k.relationshipId))
+    const secrets = this.secretMap()
     const connections = rels.flatMap((r) => {
       const outgoing = r.sourceId === entityId
       const other = briefs.get(outgoing ? r.targetId : r.sourceId)
       if (!other || other.status === 'defunct') return []
-      return [{ relationship: toRelationshipView(r, this.secretMap()), other, outgoing, partyKnows: knownRels.has(r.id) }]
+      return [{ relationship: toRelationshipView(r, secrets), other, outgoing, partyKnows: knownRels.has(r.id) }]
     }).sort((a, b) => a.other.name.localeCompare(b.other.name))
     const known = new Set(this.db.select().from(knowledge)
       .where(and(eq(knowledge.entityId, entityId), eq(knowledge.status, 'active'))).all().map((k) => k.field))
