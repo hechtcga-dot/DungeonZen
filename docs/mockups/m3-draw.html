@@ -1,0 +1,96 @@
+<!doctype html><html><head><meta charset='utf-8'><title>M3 mockup: Draw windows</title><style>
+@font-face { font-family: Fell; src: url(file:///home/user/DungeonZen/node_modules/@fontsource/im-fell-english/files/im-fell-english-latin-400-normal.woff2); }
+@font-face { font-family: Fell; font-style: italic; src: url(file:///home/user/DungeonZen/node_modules/@fontsource/im-fell-english/files/im-fell-english-latin-400-italic.woff2); }
+@font-face { font-family: Plex; src: url(file:///home/user/DungeonZen/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2); }
+@font-face { font-family: Plex; font-weight: 600; src: url(file:///home/user/DungeonZen/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2); }
+:root { --ink:#2a1f12; --muted:#5a4a32; --wax:#8f2a21; --parch:#f1e6c6; --stitch:#a8884f; --line:#a8916a; }
+* { box-sizing: border-box; }
+body { margin:0; padding:28px; background: radial-gradient(circle at 30% 20%, #3a2414, #1a0f07 70%); font: 14px Plex, sans-serif; color: var(--ink); width: 1680px; }
+h1 { font: 30px Fell, serif; color: #f1e6c6; margin: 0 0 4px; } .sub { color:#d6c296; margin: 0 0 22px; font-size: 15px; }
+.cols { display:grid; grid-template-columns: 520px 560px 520px; gap: 26px; align-items:start; }
+.cap { color:#f1e6c6; font: italic 19px Fell, serif; margin: 0 0 8px; } .cap b { font-style: normal; color: #f6c945; margin-right: 6px; }
+.note { color:#d6c296; font-size: 13px; margin: 10px 2px 0; line-height: 1.45; } .note b { color:#f1e6c6; }
+.dlg { background: var(--parch); border: 2px solid #3b2a14; border-radius: 6px; box-shadow: 0 20px 50px rgba(0,0,0,.7), inset 0 0 0 4px var(--parch), inset 0 0 0 5px var(--stitch); }
+.head { display:flex; align-items:center; gap:10px; padding: 14px 18px 10px; border-bottom: 1px solid rgba(122,100,64,.35); }
+.head h2 { font: 24px Fell, serif; margin:0; flex:1; } .x { color: var(--muted); font-size: 18px; }
+.body { padding: 14px 18px; display:flex; flex-direction:column; gap: 12px; }
+.chips { display:flex; gap:6px; } .chip { padding: 5px 14px; border:1px solid var(--line); border-radius: 999px; background:#fffaf0; font-size:13px; }
+.chip.on { background: var(--ink); color:#f6ecd0; border-color:#000; font-weight:600; }
+.chip.secret.on { background: var(--wax); }
+label { font-size: 12px; font-weight:600; color: var(--muted); text-transform: uppercase; letter-spacing:.04em; }
+.sel { display:inline-flex; align-items:center; justify-content:space-between; gap:8px; padding: 6px 9px; border:1px solid var(--line); border-radius:4px; background:#fffaf0; }
+.sel::after { content:'▾'; color: var(--muted); font-size: 11px; }
+.pair { display:grid; grid-template-columns: 1fr 150px 1fr 18px; gap: 6px; align-items:center; }
+.dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align: -1px; }
+.swatch { display:inline-block; width:22px; height:4px; border-radius:2px; vertical-align: 3px; margin-right:6px; }
+.dash { background: repeating-linear-gradient(90deg, var(--wax) 0 6px, transparent 6px 10px); }
+.link { color: var(--wax); font-size: 13px; }
+textarea { width:100%; min-height: 78px; padding: 8px 10px; border:1px solid var(--line); border-radius:4px; background:#fffaf0; font: 14px/1.45 Plex, sans-serif; color: var(--ink); resize:none; }
+.tick { display:flex; gap:8px; align-items:center; font-size: 14px; } .box { width:15px; height:15px; border:1.5px solid var(--muted); border-radius:3px; display:inline-grid; place-items:center; font-size:12px; background:#fffaf0; }
+.hint { color: var(--muted); font-size: 12.5px; }
+.foot { display:flex; gap:8px; padding: 12px 18px 16px; border-top: 1px solid rgba(122,100,64,.35); align-items:center; }
+.btn { white-space: nowrap; padding: 6px 14px; border: 1px solid #7a6440; border-radius: 4px; background: #fffaf0; font-size: 13.5px; }
+.btn.primary { background: var(--ink); color:#f6ecd0; border-color:#000; } .btn.danger { color: var(--wax); border-color: var(--wax); background: transparent; }
+.grow { flex:1; }
+.tabs { display:flex; gap: 2px; padding: 0 14px; border-bottom: 2px solid #3b2a14; } .tab { padding: 8px 12px; font: 16px Fell, serif; color: var(--muted); }
+.tab.on { color: var(--ink); border: 2px solid #3b2a14; border-bottom: 2px solid var(--parch); margin-bottom: -2px; border-radius: 5px 5px 0 0; background: var(--parch); }
+.group { font: italic 17px Fell, serif; color: var(--wax); border-bottom: 1px solid rgba(143,42,33,.3); padding-bottom: 2px; margin-top: 4px; }
+.row { display:grid; grid-template-columns: 62px 1fr 22px; gap: 8px; align-items: start; padding: 7px 4px; border-bottom: 1px dashed rgba(122,100,64,.35); }
+.badge { font-size: 10.5px; font-weight:600; text-transform: uppercase; letter-spacing: .05em; text-align:center; padding: 2px 0; border-radius: 3px; color:#f6ecd0; background:#3b6e8f; }
+.badge.s { background: var(--wax); } .badge.c { background:#5a3f8a; }
+.what { font-size: 14px; } .what i { color: var(--muted); font-style: normal; } .words { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.pen { color: var(--muted); }
+.menu { position:absolute; background:#fffaf0; border:1px solid #7a6440; border-radius:4px; box-shadow: 0 8px 22px rgba(0,0,0,.35); padding: 4px 0; font-size: 13.5px; min-width: 210px; }
+.menu div { padding: 5px 14px; } .menu .hd { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing:.05em; }
+.prose { font: 16px/1.6 Georgia, serif; background:#fbf4e2; border:1px solid var(--line); border-radius:4px; padding: 12px 14px; position:relative; }
+.lk { color:#2f5d8a; border-bottom: 1.5px solid #2f5d8a; } .lk.loc { color:#2f6b4f; border-color:#2f6b4f; }
+.no { background: rgba(143,42,33,.08); outline: 1px dashed rgba(143,42,33,.5); border-radius: 2px; }
+.wchips { display:flex; flex-wrap:wrap; gap: 5px; } .wchip { padding: 2px 9px; border:1px solid var(--line); border-radius: 999px; background:#fffaf0; font-size: 12.5px; }
+.stack { display:flex; flex-direction:column; gap: 18px; }
+.num { display:inline-block; width:44px; padding:4px 6px; border:1px solid var(--line); border-radius:4px; background:#fffaf0; text-align:center; }
+
+.dlg .two { display:grid; grid-template-columns: 1fr 200px; gap: 14px; }
+.pic { height: 200px; border:1px dashed var(--line); border-radius:4px; display:grid; place-items:center; color: var(--muted); font: italic 15px Fell, serif; background: #fbf4e2; text-align:center; padding: 8px; }
+.svc { font-size: 12.5px; color: var(--muted); } .svc b { color: var(--ink); }
+.fold { border-top: 1px solid rgba(122,100,64,.35); padding-top: 8px; }
+.fold > .sum { font: 18px Fell, serif; } .fold > .sum span { font: 12.5px Plex, sans-serif; color: var(--muted); }
+.sec { border:1px solid rgba(122,100,64,.4); border-radius:4px; padding: 8px 10px; background: rgba(255,250,240,.5); display:flex; flex-direction:column; gap:6px; }
+.sec h4 { margin:0; font-size: 13px; } .sec h4 small { font-weight: 400; color: var(--muted); }
+.thumbs { display:flex; gap:6px; } .th { width:44px; height:44px; border-radius:3px; background: linear-gradient(135deg,#8a7350,#d9c69a); border:2px solid transparent; }
+.th.on { border-color: var(--wax); }
+.input { padding: 6px 9px; border:1px solid var(--line); border-radius:4px; background:#fffaf0; font-size: 13.5px; }
+.gone { border: 1px dashed rgba(143,42,33,.5); background: rgba(143,42,33,.06); color: var(--wax); border-radius: 4px; padding: 7px 10px; font-size: 12.5px; }
+table.captab { font: 12.5px Plex, sans-serif; border-collapse: collapse; font-size: 12.5px; color:#f1e6c6; margin-top: 18px; }
+table.captab th, table.captab td { border: 1px solid rgba(214,194,150,.35); padding: 4px 8px; text-align:center; } table.captab th:first-child, table.captab td:first-child { text-align:left; }
+.y { color: #9fd18b; } .n { color: #c97a6e; }
+</style></head><body><h1>3.0 · M3 mockup: simpler Draw windows</h1><p class="sub">Simple first; Advanced shows only what the chosen picture service can actually use.</p><div class="cols"><div><p class="cap"><b>A</b>Every Draw window opens simple</p><div class="dlg"><div class="head"><h2>Draw Barliman Butterbur</h2><span class="x">✕</span></div>
+    <div class="body"><div class="two"><div style="display:flex;flex-direction:column;gap:10px">
+      <label>Description</label><div class="input" style="min-height:52px">A stout, red-faced innkeeper with a quick smile and a short memory.</div>
+      <label>Include in the picture (optional)</label><div class="input">a lantern, a ledger, a tankard</div>
+      <label>Look</label><div class="sel" style="width:100%"><span>Template: Inked fantasy portrait</span></div>
+      <div class="svc">Drawn by <b>OpenAI images</b> · <u>Change…</u></div>
+    </div><div class="pic">The drawing appears here</div></div>
+  <div class="fold"><span class="sum">▸ Advanced <span>(examples, style boxes, composition, outline, prompt)</span></span></div></div>
+  <div class="foot"><span class="grow"></span><span class="btn">Cancel</span><span class="btn primary">Draw</span></div></div>
+  <p class="note"><b>Same window</b> for card pictures, battle maps and world maps. Each keeps its own simple fields: a card has Description and Include; a battle map has Setting, Terrain, Size and Include; a world map has What kind of land.<br><b>Advanced</b> starts closed and remembers if you open it (this computer).</p></div><div><p class="cap"><b>B</b>Advanced, with a service that can do everything</p><div class="dlg">
+  <div class="head"><h2>Advanced</h2><span class="svc">for <b>OpenAI images</b></span></div>
+  <div class="body">
+    <div class="sec"><h4>Style examples <small>· ticked pictures are sent for the look (up to 4)</small></h4><div class="thumbs"><span class="th on"></span><span class="th"></span><span class="th on"></span><span class="th"></span><span class="th"></span><span class="link">All examples…</span></div></div>
+    <div class="sec"><h4>Style and composition <small>· words added to the prompt</small></h4><div class="hint">Style · Medium · Palette · Light · Details · Composition (16 sketches) · Other · Templates</div></div>
+    <div class="sec"><h4>Outline <small>· sketch or upload; the AI keeps the layout</small></h4><div class="hint">Draw an outline… · Upload an outline… · Labels</div></div>
+    <div class="sec" style="opacity:.85"><h4>Battle maps only: Follow a picture · Use sketch as blueprint</h4></div>
+    <div class="sec"><h4>Prompt <small>· what is sent, editable</small></h4></div>
+    <div class="sec"><h4>After drawing: Change this picture <small>· words and coloured marks</small></h4></div>
+  </div></div></div><div><p class="cap"><b>C</b>The same fold with a service that can only take words</p><div class="dlg">
+  <div class="head"><h2>Advanced</h2><span class="svc">for <b>Replicate (Flux)</b></span></div>
+  <div class="body">
+    <div class="gone">Replicate (Flux) takes words only, so example pictures, outlines, blueprints, Follow a picture and Change this picture are hidden. <u>Choose another service…</u></div>
+    <div class="sec"><h4>Style and composition <small>· words added to the prompt</small></h4><div class="hint">Style · Medium · Palette · Light · Details · Composition · Other · Templates</div></div>
+    <div class="sec"><h4>Prompt <small>· what is sent, editable</small></h4></div>
+  </div></div>
+  <table class="captab"><tr><th>What each service can take</th><th>OpenAI</th><th>Gemini</th><th>Stability</th><th>Replicate / fal / local SD</th></tr>
+  <tr><td>Words, style boxes, composition, templates</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+  <tr><td>Style example pictures</td><td class="y">up to 4</td><td class="y">up to 4</td><td class="y">1</td><td class="n">–</td></tr>
+  <tr><td>Outline / blueprint / Follow a picture</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓ (no examples with it)</td><td class="n">– (blueprint as a list of words)</td></tr>
+  <tr><td>Change this picture</td><td class="y">words + marks</td><td class="y">words + marks</td><td class="y">words only</td><td class="n">–</td></tr>
+  </table></div></div></body></html>
