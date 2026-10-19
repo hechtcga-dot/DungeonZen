@@ -12,7 +12,8 @@ import '@fontsource/cinzel/700.css'
 import '../notes.css'
 import { call } from '../api'
 import { useBoard } from '../store'
-import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
+import { ENCOUNTER_COLOUR, ENTITY_LABELS, useTypeColour } from '../entityStyle'
+import { TypeIcon } from '../art/typeIcons'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { StatBlockView } from './FightSummary'
@@ -81,13 +82,9 @@ function Figure({ src, caption, side, wide, onSide, onRemove, onOpen, onMenu }: 
 export function CardIcon({ card }: { card?: { type: EntityType; colour?: string; name: string } }) {
   const typeColour = useTypeColour()
   if (!card) return <svg className="nb-ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="1.5" width="10" height="13" rx="1" fill="none" stroke="var(--nb-head)" strokeWidth="1.4" /><path d="M5.5 5h5M5.5 8h5M5.5 11h3" stroke="var(--nb-head)" strokeWidth="1.2" /></svg>
-  const c = card.colour ?? typeColour(card.type)
-  const shape = ['NPC', 'PC', 'MONSTER'].includes(card.type)
-    ? <><circle cx="8" cy="5.5" r="3" fill={c} /><path d="M2.5 15 Q3 9.5 8 9.5 Q13 9.5 13.5 15Z" fill={c} />{card.type === 'PC' && <path d="M5 2.2 L8 0.6 L11 2.2" stroke="#c9a34a" strokeWidth="1.5" fill="none" />}</>
-    : card.type === 'LOCATION' ? <><path d="M8 15 Q2 8 2 6 A6 6 0 0 1 14 6 Q14 8 8 15Z" fill={c} /><circle cx="8" cy="6" r="2.2" fill="var(--nb-panel)" /></>
-    : card.type === 'BUILDING' ? <path d="M2 7 L8 2 L14 7 V14.5 H2Z" fill={c} />
-    : <path d="M8 1.5 L14.5 8 L8 14.5 L1.5 8Z" fill={c} />
-  return <svg className="nb-ico" viewBox="0 0 16 16" role="img" aria-label={`Linked to ${card.name}`}><title>{`Linked to ${card.name}`}</title>{shape}</svg>
+  // The board's type icon (art/typeIcons.tsx) in the card's colour: one icon per type everywhere.
+  return <span className="nb-ico" role="img" aria-label={`Linked to ${card.name}`} title={`Linked to ${card.name}`}
+    style={{ color: card.colour ?? typeColour(card.type) }}><TypeIcon type={card.type} /></span>
 }
 
 /**
@@ -254,7 +251,7 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
     showPeek(target)
   }
   // Encounters are Scene cards (grey): their links get an amber of their own.
-  const linkStyle = (c: Card | undefined): CSSProperties => ({ '--lc': c ? c.colour ?? (c.encounter ? '#9a6a10' : typeColour(c.type)) : 'var(--nb-head)' } as CSSProperties)
+  const linkStyle = (c: Card | undefined): CSSProperties => ({ '--lc': c ? c.colour ?? (c.encounter ? ENCOUNTER_COLOUR : typeColour(c.type)) : 'var(--nb-head)' } as CSSProperties)
 
   /** A paragraph with its links. */
   const renderRuns = (runs: Run[], at: { block: number; cell: number }, links = true): ReactNode => {

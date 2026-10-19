@@ -1739,7 +1739,7 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .enc-builder .row select { flex: 1; width: auto; }
 .enc-builder input.tiny { width: 56px; min-height: 30px; padding: 0 6px; }
 .eb-chip { --c: #6b4a8f; display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 9px; border: 1px solid var(--c); border-radius: 12px; color: var(--c); font-size: 12px; background: rgba(255, 250, 236, 0.7); max-width: 100%; }
-.eb-chip.t-monster { --c: #8f2a21; } .eb-chip.t-npc { --c: #2f5d8a; } .eb-chip.t-clue { --c: #6b5a3a; }
+.eb-chip.t-clue { --c: #6b5a3a; }
 .eb-chip input { width: 40px; min-height: 20px; padding: 0 3px; font-size: 12px; }
 .desk-theme .eb-chip button, .eb-chip button { min-height: 0; height: 18px; padding: 0 4px; border: 0; background: transparent; color: inherit; line-height: 1; }
 .eb-draft { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding: 10px; border: 2px dashed #8a7350; border-radius: 6px; }

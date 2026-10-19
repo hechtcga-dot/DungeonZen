@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useBoard } from '../store'
+import { useTypeColour } from '../entityStyle'
 import { call } from '../api'
 import { itemTree } from '../../shared/encounterStory'
 import type { EncounterDraft, EncountersView } from '../../shared/types'
@@ -13,6 +14,7 @@ const CUSTOM = '__custom'
  * Suggest = an offline themed roll; Build with AI = creatures and story. Nothing is saved until Put on the board / Save for later.
  */
 export function EncounterBuilder({ className, onKept }: { className: string; onKept(id: string, name: string, stash: boolean): void }) {
+  const typeColour = useTypeColour()
   const { act, setAiSettingsOpen } = useBoard()
   const undo = useBoard((s) => s.view?.undo)
   const [v, setV] = useState<EncountersView | null>(null)
@@ -74,7 +76,7 @@ export function EncounterBuilder({ className, onKept }: { className: string; onK
           {include.map((i) => {
             const f = fighter(i.entityId)
             return f && (
-              <span key={i.entityId} className={`eb-chip t-${f.type.toLowerCase()}`}>
+              <span key={i.entityId} className="eb-chip" style={{ '--c': typeColour(f.type) } as React.CSSProperties}>
                 {f.type === 'NPC' ? 'NPC' : 'Monster'} · {f.name}
                 <input aria-label={`How many ${f.name}`} type="number" min={1} max={100} value={i.count}
                   onChange={(e) => setInclude(include.map((x) => (x.entityId === i.entityId ? { ...x, count: Math.max(1, Number(e.target.value) || 1) } : x)))} />
