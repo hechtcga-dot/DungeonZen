@@ -7,6 +7,11 @@ import type { Sketch } from './sketch'
 export const BUILDING_KINDS = ['tavern', 'shop', 'other'] as const
 export type BuildingKind = (typeof BUILDING_KINDS)[number]
 export const KIND_LABELS: Record<BuildingKind, string> = { tavern: 'Tavern', shop: 'Shop', other: 'Building' }
+/** Common D&D shops for a Shop's "What kind of shop" box (attribute `shop_type`, free text; owner, 2026-10-19). */
+export const SHOP_TYPES = [
+  'General store', 'Blacksmith', 'Armorer', 'Weaponsmith', 'Bowyer and fletcher', 'Alchemist', 'Apothecary', 'Herbalist',
+  'Magic shop', 'Bookseller and scribe', 'Jeweler', 'Tailor', 'Leatherworker', 'Tinker', 'Stables', 'Provisioner', 'Pawnshop', 'Curiosity shop'
+]
 
 export const SECRET_KINDS = ['rumour', 'secret', 'clue'] as const
 export type SecretKind = (typeof SECRET_KINDS)[number]

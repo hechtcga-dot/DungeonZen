@@ -462,7 +462,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const sheet = c.sheet(buildingId)
     const e = sheet.entity
     const kind = readBuilding(e.attributes).kind
-    const knownText = ['summary', 'description', 'history', 'notes', 'secret']
+    const knownText = ['shop_type', 'summary', 'description', 'history', 'notes', 'secret']
       .flatMap((k) => (typeof e.attributes[k] === 'string' && (e.attributes[k] as string).trim() ? [`${k}: ${(e.attributes[k] as string).trim().slice(0, 800)}`] : []))
     const cards = c.search({ query: '' }).results
       .filter((x) => ['NPC', 'MONSTER', 'FACTION', 'CLUE', 'LOCATION', 'QUEST', 'ITEM', 'BUILDING'].includes(x.entity.type) && x.entity.id !== buildingId && x.entity.status !== 'defunct')

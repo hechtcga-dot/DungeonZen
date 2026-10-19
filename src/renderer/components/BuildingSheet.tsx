@@ -9,7 +9,7 @@ import { SketchPad } from './SketchPad'
 import { BuildingBackdrop } from '../art/buildings'
 import {
   BUILDING_KINDS, buildingAttrs, byScore, clampScore, FLOOR_NAMES, formatPrice, isRevealed, KIND_LABELS, MAIN_FLOOR, newId, parsePrice,
-  readBuilding, ROOM_LABELS, ROOM_STATUSES, scaledPrice, SECRET_KINDS, SECRET_LABELS,
+  readBuilding, ROOM_LABELS, ROOM_STATUSES, scaledPrice, SECRET_KINDS, SECRET_LABELS, SHOP_TYPES,
   type BSecret, type Building, type BuildingKind, type BuildingProposal, type Patron, type Room, type SecretKind, type StockItem
 } from '../../shared/building'
 import { BUILDING_TOOLS, isBlank, type Sketch } from '../../shared/sketch'
@@ -36,6 +36,22 @@ function Removed<T extends { id: string; removed?: boolean }>({ items, name, onR
       <option value="">In History: {gone.length} · Bring back…</option>
       {gone.map((x) => <option key={x.id} value={x.id}>{name(x) || 'Untitled'}</option>)}
     </select>
+  )
+}
+
+/** What kind of shop (shows when Kind is Shop): common D&D shops or Custom… with your own words. */
+export function ShopTypePick({ id, value, onChange }: { id: string; value: string; onChange(v: string): void }) {
+  const [custom, setCustom] = useState(!!value && !SHOP_TYPES.includes(value))
+  return (
+    <span className="shop-type">
+      <select id={id} aria-label="What kind of shop" value={custom ? '__custom' : value}
+        onChange={(ev) => { const v = ev.target.value; setCustom(v === '__custom'); if (v !== '__custom') onChange(v) }}>
+        <option value="">What kind of shop…</option>
+        {SHOP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        <option value="__custom">Custom…</option>
+      </select>
+      {custom && <CommitField id={`${id}-custom`} label="Your own kind of shop" className="label-hidden" value={value} placeholder="Type your own (e.g. Mapmaker)" onCommit={onChange} />}
+    </span>
   )
 }
 
@@ -91,7 +107,7 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
     <>
       <div className="building-top">
         <BuildingBackdrop kind={kind} title={<TitleField value={e.name} label="Building name" onCommit={(name) => void act('entity:update', { id: e.id, patch: { name } })} />}
-          sub={`${KIND_LABELS[kind]} · ${floors.length} floor${floors.length === 1 ? '' : 's'}${kind === 'tavern' || freeRooms ? ` · ${freeRooms} room${freeRooms === 1 ? '' : 's'} free` : ''} · prices ×${factor.toFixed(2)}`} />
+          sub={`${kind === 'shop' && text('shop_type') ? text('shop_type') : KIND_LABELS[kind]} · ${floors.length} floor${floors.length === 1 ? '' : 's'}${kind === 'tavern' || freeRooms ? ` · ${freeRooms} room${freeRooms === 1 ? '' : 's'} free` : ''} · prices ×${factor.toFixed(2)}`} />
         <FloorTabs b={b} current={cur.id} onPick={setFloor} save={save} setMenu={setMenu}
           onDropPatron={(pid, fid) => void save({ patrons: upd(b.patrons, pid, { floor: fid }) })} />
         <div className="floor-bar">
@@ -103,6 +119,7 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
               {BUILDING_KINDS.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
             </select>
           </label>
+          {kind === 'shop' && <ShopTypePick id={`b-${e.id}-shop`} value={text('shop_type')} onChange={(shop_type) => void act('entity:update', { id: e.id, patch: { attributes: { shop_type } } })} />}
           <span className="spacer" />
           <label className="field checkbox"><input type="checkbox" checked={showLayout} onChange={(ev) => setShowLayout(ev.target.checked)} /> Show layout</label>
           <button className="ai-button" onClick={drawMap} title={isBlank(cur.layout) ? 'Draw a map of this floor' : 'Draw a map of this floor, following the layout as a blueprint'}>✦ Draw floor map</button>

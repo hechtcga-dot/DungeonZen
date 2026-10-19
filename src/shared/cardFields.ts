@@ -92,6 +92,6 @@ export const INTERNAL_KEYS = new Set([
   'ai_filled', 'picture', 'current_hp', 'notes', 'summary', 'bio', 'motivation', 'location', 'reward', 'text', 'from', 'secret',
   'temp_hp', 'conditions', 'picture_source', 'biome', 'place_kind', 'level', 'spell_slots', 'slots_used',
   'prof_bonus', 'initiative', 'spell_ability', 'prepared', 'proficiencies', 'folder',
-  'building_kind', 'floors', 'patrons', 'secrets', 'rooms', 'stock', 'price_scale', 'players_roll', 'sketch',
+  'building_kind', 'shop_type', 'floors', 'patrons', 'secrets', 'rooms', 'stock', 'price_scale', 'players_roll', 'sketch',
   'classes', 'inspiration', 'uses', 'hit_dice_used', 'death_saves', 'exhaustion', 'save_notes', 'skill_adv', 'attacks_per_action', 'xp'
 ])

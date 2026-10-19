@@ -1472,6 +1472,10 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .desk-theme .floor-bar .hint { color: #5a4a32; }
 .floor-bar .field.floor-kind { margin: 0; display: flex; gap: 8px; align-items: center; color: var(--ink); font-weight: 700; }
 .floor-bar .field.floor-kind select { width: auto; }
+.shop-type { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.shop-type select { width: auto; }
+.inspector .shop-type { margin-top: 6px; }
+.inspector .shop-type select { width: 100%; }
 .floor-bar .field.checkbox { margin: 0; color: var(--ink); font-weight: 700; }
 .desk-theme button.ai-button { border: 1.5px dashed #5aa0e6; color: #bfe0ff; }
 .desk-theme .panel button.ai-button, .floor-bar button.ai-button { border-color: #2f6fb5; color: #1f4f88; background: rgba(220, 235, 255, 0.55); }

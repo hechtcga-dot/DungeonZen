@@ -1,4 +1,5 @@
 import { InYourNotes } from './InYourNotes'
+import { ShopTypePick } from './BuildingSheet'
 import { useEffect, useState } from 'react'
 import { LocationPick } from './LocationPick'
 import { useReactFlow } from '@xyflow/react'
@@ -87,6 +88,8 @@ function EntityInspector({ entity }: { entity: EntityView }) {
             onChange={(ev) => update({ attributes: buildingAttrs({ kind: ev.target.value as BuildingKind }) })}>
             {BUILDING_KINDS.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
           </select>
+          {readBuilding(entity.attributes).kind === 'shop' &&
+            <ShopTypePick id={`${p}-shop`} value={str('shop_type')} onChange={(shop_type) => update({ attributes: { shop_type } })} />}
         </div>
       )}
       <CommitField id={`${p}-summary`} label="One-line summary" value={str('summary')}
