@@ -35,7 +35,7 @@ Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen;
 - Advanced shows only what the chosen service can do: capability flags per service in `shared/aiProviders.ts` (references, update/change, marks, outline/blueprint, follow a picture, sizes). Unsupported options hidden, not greyed.
 - Same for Fill with AI / Build with AI: one button first, options folded.
 
-## M4 Everyday use
+## M4 Everyday use — built 2026-10-19 (owner chose one rail, mockup B)
 - Backspace no longer goes back (Alt+← and the Back button stay).
 - Ctrl+F (owner, 2026-10-19; not Ctrl+K): find and go to anything (card, note, encounter, session, screen, map region).
 - Empty new card/row removed on click-away shows "Removed – Undo" for a few seconds.

@@ -46,7 +46,7 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 - Map zooms and pans (`MapView.tsx`).
 - Roll20: paste-in macros and API script.
 - Battle maps: AI image service + local rules + DM's style examples; many settings, prefilled, all editable.
-- Modes: Prep (everything), Live (table, from where the party is), Players (only what players know).
+- One rail with every screen (owner, 2026-10-19, replaces the Prep / Live / Players switch); What they know stays the safe players' view (locked rail, Esc or Back leaves).
 - Session prep follows owner's one-page template (reference, use where it fits).
 - AI services: DM picks writing and map service from drop-downs, switch any time.
 - Card colours: Item `#9c4f1f`, Handout `#6b5a3a`, Building `#5c6b73` (`entityStyle.ts`).

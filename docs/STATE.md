@@ -900,4 +900,8 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     a character, import data, API script). Changing it = `vitest -u` on purpose.
   - Speed (`npm run speed`, + 200 notes): a card's notes mentions 2.6 s → 0.4 s (plain text search in `findAll`;
     `notes:mentions` skips notes that never name the card and uses the linking rules).
-  - Screens review: mockup `docs/mockups/m4-screens.png` (one rail instead of the Prep/Live switch) waiting for the owner.
+  - Screens review: mockup `docs/mockups/m4-screens.png`; owner chose B (below).
+  - One rail (owner chose B of `docs/mockups/m4-screens.png`): no Prep / Live / Players switch. The rail always shows Desk,
+    Session prep, Encounters, Board, Library, Notes, then "At the table" Live desk, "For the players" What they know,
+    then Setup, AI, Close. While What they know shows, the rail shows only it and Back (or Leave); Esc leaves too, and
+    Ctrl+F is off. `mode` stays in the store, set by the screen (`modeFor`); `setMode`/`MODE_HOME` are gone.

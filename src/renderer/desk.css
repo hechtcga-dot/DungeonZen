@@ -62,15 +62,7 @@
 .popped-out:hover { color: rgba(246, 236, 208, 0.7); background: rgba(20, 12, 4, 0.35); }
 .popped-icon svg { width: 120px; height: 120px; stroke-width: 1; opacity: 0.35; }
 .popped-text { font-family: 'IM Fell English', serif; font-size: 20px; }
-.rail-modes { display: flex; flex-direction: column; gap: 3px; padding: 4px; margin-bottom: 8px; border: 1px solid #4a3216; border-radius: 6px; background: rgba(0, 0, 0, 0.35); }
-.rail-mode {
-  min-height: 28px; padding: 2px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.03em; color: #cdb98f;
-  background: transparent; border: 1px solid transparent; border-radius: 4px;
-}
-.rail .rail-mode:hover:not(:disabled) { background: rgba(246, 201, 69, 0.1); border-color: #4a3216; color: var(--parchment-light); }
-.rail .rail-mode[aria-pressed='true'], .rail .rail-mode[aria-pressed='true']:hover:not(:disabled) {
-  color: #1b1007; background: linear-gradient(180deg, #fbe0a4, #c89539 55%, #93692a); border-color: #3b2608;
-}
+.rail-group { margin: 8px 4px 0; padding-top: 6px; border-top: 1px solid rgba(214, 194, 150, 0.22); font-family: var(--display); font-style: italic; font-size: 12px; color: #cdb68a; }
 
 /* ---- page scaffold ---- */
 .desk {

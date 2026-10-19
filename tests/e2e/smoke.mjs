@@ -66,9 +66,9 @@ try {
   await click('Board'); await click('Map'); await shot('map')
   await click('Board'); await click('Timeline'); await shot('timeline')
   for (const [label, name] of [['Library', 'library'], ['Notes', 'notes']]) { await click(label); await shot(name) }
-  await click('Live'); await shot('live')
-  await click('Players'); await shot('players')
-  await click('Prep'); await shot('back-to-prep')
+  await click('Live desk'); await shot('live')
+  await click('What they know'); await shot('players')
+  await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'Session prep', exact: true }).waitFor(); await click('Session prep'); await shot('back-to-prep')
   await page.keyboard.press('Control+f'); await page.getByRole('searchbox', { name: 'Find' }).fill('Barl'); await shot('find')
   await page.keyboard.press('Enter'); await page.getByRole('tab', { name: /Links & secrets/ }).waitFor(); await shot('find-opened-sheet')
   await click('Setup'); await page.getByText('Tidy campaign folder…').click(); await shot('tidy')

@@ -23,7 +23,6 @@ export const SCREEN_NAMES: Record<Screen, string> = {
   sheet: 'the previous card', library: 'the library', prep: 'session prep', players: 'player preview', encounters: 'encounters',
   import: 'notes', guide: 'getting started', combat: 'the fight', generators: 'generators'
 }
-export const MODE_HOME: Record<Mode, Screen> = { prep: 'desk', live: 'live', players: 'players' }
 /** The map belongs to every mode; other screens belong to one. */
 const modeFor = (screen: Screen, current: Mode): Mode =>
   screen === 'map' || screen === 'generators' ? current : screen === 'live' || screen === 'review' ? 'live' : screen === 'players' ? 'players' : 'prep'
@@ -44,8 +43,8 @@ interface BoardState {
   live: LiveView | null
   review: ReviewView | null
   mapScreen: MapScreenView | null
+  /** Which part the screen belongs to (follows the screen; the Prep/Live switch went in 3.0, owner chose one rail). */
   mode: Mode
-  setMode(mode: Mode): void
   prepScreen: PrepScreenView | null
   /** Live desk: where the party is and what is around them. */
   where: WhereView | null
@@ -147,7 +146,6 @@ export const useBoard = create<BoardState>((set, get) => ({
   review: null,
   mapScreen: null,
   mode: 'prep',
-  setMode(mode) { set({ mode, screen: MODE_HOME[mode], backStack: pushed(get(), MODE_HOME[mode]) }); void get().refresh() },
   prepScreen: null,
   where: null,
   players: null,

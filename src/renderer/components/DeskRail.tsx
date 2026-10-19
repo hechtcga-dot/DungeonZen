@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { call } from '../api'
 import { ContextMenu } from './ContextMenu'
-import { SCREEN_NAMES, useBoard, type Mode } from '../store'
+import { SCREEN_NAMES, useBoard } from '../store'
 import { isTyping } from './TopBar'
 import { SetupMenu } from './SetupMenu'
 
@@ -39,6 +39,11 @@ export function useRailKeys() {
   const { undo, redo, goBack } = useBoard()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && useBoard.getState().screen === 'players' && !document.querySelector('dialog[open]')) {
+        const st = useBoard.getState()
+        if (st.backStack.length) void goBack(); else st.goTo('desk')
+        return
+      }
       if (isTyping(e.target)) return
       const mod = e.ctrlKey || e.metaKey
       const key = e.key.toLowerCase()
@@ -56,7 +61,7 @@ export function useRailKeys() {
 }
 
 export function DeskRail() {
-  const { screen, goTo, closeCampaign, setAiSettingsOpen, mode, setMode, goBack } = useBoard()
+  const { screen, goTo, closeCampaign, setAiSettingsOpen, goBack } = useBoard()
   const prev = useBoard((s) => s.backStack.at(-1))
   const popped = useBoard((s) => s.popped)
   const [menu, setMenu] = useState<{ x: number; y: number; id: PopScreen } | null>(null)
@@ -72,9 +77,6 @@ export function DeskRail() {
       </button>
     )
   }
-  const modeButton = (m: Mode, label: string, title: string) => (
-    <button className="rail-mode" aria-pressed={mode === m} title={title} onClick={() => setMode(m)}>{label}</button>
-  )
   return (
     <nav className="rail" aria-label="Screens">
       <div className="rail-mark" aria-hidden="true">DZ</div>
@@ -83,12 +85,13 @@ export function DeskRail() {
           <Icon name="back" /><span>Back</span>
         </button>
       )}
-      <div className="rail-modes" role="group" aria-label="Mode">
-        {modeButton('prep', 'Prep', 'DM prep: every screen and option')}
-        {modeButton('live', 'Live', 'Live session: what you need at the table, for where the party is')}
-        {modeButton('players', 'Players', 'Player preview: only what the players know, safe to show them')}
-      </div>
-      {mode === 'prep' && (
+      {screen === 'players' ? (
+        // The players' view (3.0, owner chose one rail): nothing else is reachable from it; Back or Esc leaves it.
+        <>
+          {item('players', 'What they know', 'players')}
+          {!prev && <button className="rail-item" onClick={() => goTo('desk')} title="Leave the players' view (Esc)"><Icon name="back" /><span>Leave</span></button>}
+        </>
+      ) : (
         <>
           {item('desk', 'Desk')}
           {item('prep', 'Session prep', 'prep')}
@@ -96,22 +99,20 @@ export function DeskRail() {
           {item('board', 'Board')}
           {item('library', 'Library')}
           {item('import', 'Notes', 'notes')}
-        </>
-      )}
-      {mode === 'live' && (
-        <>
+          <span className="rail-group">At the table</span>
           {item('live', 'Live desk', 'live')}
+          <span className="rail-group">For the players</span>
+          {item('players', 'What they know', 'players')}
+          <span className="spacer" />
+          <SetupMenu icon={<Icon name="setup" />} />
+          <button className="rail-item" onClick={() => setAiSettingsOpen(true)} title="Choose AI services for writing and battle maps">
+            <Icon name="ai" /><span>AI</span>
+          </button>
+          <button className="rail-item" onClick={() => void closeCampaign()} title="Close this campaign">
+            <Icon name="close" /><span>Close</span>
+          </button>
         </>
       )}
-      {mode === 'players' && item('players', 'What they know', 'players')}
-      <span className="spacer" />
-      <SetupMenu icon={<Icon name="setup" />} />
-      <button className="rail-item" onClick={() => setAiSettingsOpen(true)} title="Choose AI services for writing and battle maps">
-        <Icon name="ai" /><span>AI</span>
-      </button>
-      <button className="rail-item" onClick={() => void closeCampaign()} title="Close this campaign">
-        <Icon name="close" /><span>Close</span>
-      </button>
       {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
         popped.includes(menu.id)
           ? { label: 'Bring its window forward', onClick: () => void call('window:focusScreen', { screen: menu.id }) }
