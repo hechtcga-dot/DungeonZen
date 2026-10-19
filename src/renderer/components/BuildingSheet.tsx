@@ -109,7 +109,9 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
         hint="Says how the place got its name." onCommit={(history) => void act('entity:update', { id: e.id, patch: { attributes: { history } } })} />
     </section>
   )
-  const order = kind === 'shop' ? [stock, words, people, rooms, layout] : [people, words, rooms, stock, layout] // layout always last (owner, 2026-10-14); description and history in the centre, after patrons/inventory (owner, 2026-10-19)
+  const secrets = <SecretsFolders key="secrets" sheet={sheet} b={b} save={save} setMenu={setMenu} />
+  // Layout always last (owner, 2026-10-14); description, history and Secrets & clues in the centre after patrons/inventory (owner, 2026-10-19).
+  const order = kind === 'shop' ? [stock, words, secrets, people, rooms, layout] : [people, words, secrets, rooms, stock, layout]
 
   return (
     <>
@@ -143,7 +145,6 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
             hint="Its region on the map shows who is in here." onChange={(location) => void act('entity:update', { id: e.id, patch: { attributes: { location } } })} />
           {factions}
         </section>
-        <SecretsFolders sheet={sheet} b={b} save={save} setMenu={setMenu} />
         {rest}
         <details className="panel price-settings">
           <summary><span className="panel-heading">Price settings</span> <span className="hint">campaign {campaignPct}% · this {KIND_LABELS[kind].toLowerCase()} {b.priceScale}%</span></summary>

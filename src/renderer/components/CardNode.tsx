@@ -54,7 +54,7 @@ function CardNodeImpl({ id, data, selected, width, height }: NodeProps<CardNodeT
   const classes = ['card', `card-${size}`, width != null && 'card-sized', resolved && 'card-resolved', selected && 'is-selected', dimmed && 'is-dimmed', match && 'is-match', entity.hidden && 'is-hidden']
   return (
     <article className={classes.filter(Boolean).join(' ')} aria-label={`${encounter ? 'Encounter' : ENTITY_LABELS[entity.type]}: ${entity.name}${entity.hidden ? ' (hidden)' : ''}`}
-      title="Double-click to open the sheet; right-click for more" style={resolved ? undefined : { '--type': colour, background: tintBackground(tints) } as CSSProperties}>
+      title="Double-click to open the sheet; right-click for more" style={{ ...(resolved ? {} : { '--type': colour, background: tintBackground(tints) }), ...(size === 'name' ? { '--sq': `${height}px` } : {}) } as CSSProperties}>
       <NodeResizer isVisible={selected} minWidth={110} minHeight={44} onResizeEnd={onResized(id)} color="#6cb6d9" />
       {/* The pin: drag from one pin to another to tie a string. */}
       <Handle type="source" position={Position.Top} id="pin" className="pin" title="Drag to another card's pin to tie a link" />
