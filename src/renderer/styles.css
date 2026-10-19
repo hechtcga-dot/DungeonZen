@@ -386,3 +386,5 @@ input.short { width: 84px; }
 textarea.grow { field-sizing: content; min-height: calc(var(--rows, 1) * 1lh + 22px); max-height: calc(10lh + 22px); }
 textarea.grow.line { padding-top: 8px; padding-bottom: 8px; min-height: var(--control); }
 textarea.grow[style*="height"] { max-height: none; }
+
+.toast-action { margin-left: 12px; min-height: 0; padding: 2px 10px; font-weight: 600; }

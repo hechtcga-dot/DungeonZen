@@ -322,7 +322,7 @@ function BoardLayout() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setLinking(null)
       if (isTyping(e.target)) return
-      // Backspace with nothing selected is left for Back.
+      // Delete or Backspace removes the selection (Back is Alt+Left).
       if ((e.key === 'Delete' || e.key === 'Backspace') && (nodes.some((n) => n.selected) || edges.some((x) => x.selected))) { e.preventDefault(); void removeSelected() }
     }
     window.addEventListener('keydown', onKey)

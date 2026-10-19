@@ -52,3 +52,17 @@ describe('things made empty and left untouched go away for good (owner, 2026-10-
     expect(c.prepView(p).items.map((i) => i.id)).toEqual([b])
   })
 })
+
+describe('Undo on "Empty card removed" (3.0)', () => {
+  it('puts the card back where it was, with the step that made it', () => {
+    const e = c.createEntity({ boardId: c.info().globalBoardId, type: 'NPC', name: 'New NPC', position: at })
+    const card = c.boardView(c.info().globalBoardId).items.find((i) => i.entityId === e.id)!
+    c.moveItems([{ itemId: card.id, x: 50, y: 60 }])
+    const steps = c.log.state()
+    expect(c.discardIfBlank(e.id)).toBe(true)
+    expect(c.restoreDiscarded(e.id)).toBe(true)
+    expect(c.boardView(c.info().globalBoardId).items.find((i) => i.entityId === e.id)).toMatchObject({ x: 50, y: 60 })
+    expect(c.log.state()).toEqual(steps)
+    expect(c.restoreDiscarded(e.id)).toBe(false) // only once
+  })
+})

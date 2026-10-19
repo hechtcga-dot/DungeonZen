@@ -81,7 +81,7 @@ interface BoardState {
   panel: BoardPanel
   selection: Selection
   search: string
-  message: { text: string; isError: boolean } | null
+  message: { text: string; isError: boolean; action?: { label: string; run(): void } } | null
   /** Settings › AI services is open. */
   aiSettingsOpen: boolean
   setAiSettingsOpen(open: boolean): void
@@ -116,7 +116,8 @@ interface BoardState {
   setPanel(panel: BoardPanel): void
   select(selection: Selection): void
   setSearch(text: string): void
-  say(text: string, isError?: boolean): void
+  /** A note at the bottom; `action` adds a button (e.g. Undo) and keeps the note a little longer. */
+  say(text: string, isError?: boolean, action?: { label: string; run(): void }): void
 }
 
 export interface BattleMapRequest {
@@ -341,8 +342,8 @@ export const useBoard = create<BoardState>((set, get) => ({
     set({ search })
   },
 
-  say(text, isError = false) {
-    set({ message: { text, isError } })
+  say(text, isError = false, action) {
+    set({ message: { text, isError, action } })
   }
 }))
 

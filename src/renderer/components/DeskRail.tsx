@@ -34,7 +34,7 @@ export function Icon({ name }: { name: keyof typeof ICONS }) {
 }
 
 /** The dark iron-and-wood rail down the left of the desk style screens. */
-/** Ctrl+Z / Ctrl+Y undo and redo; Backspace / Alt+Left go back (main window and popped-out screens). */
+/** Ctrl+Z / Ctrl+Y undo and redo; Alt+Left goes back (main window and popped-out screens; not Backspace since 3.0). */
 export function useRailKeys() {
   const { undo, redo, goBack } = useBoard()
   useEffect(() => {
@@ -44,8 +44,8 @@ export function useRailKeys() {
       const key = e.key.toLowerCase()
       if (mod && key === 'z' && !e.shiftKey) { e.preventDefault(); void undo() }
       else if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); void redo() }
-      else if ((e.key === 'Backspace' && !mod && !e.altKey) || (e.altKey && e.key === 'ArrowLeft')) {
-        // Back, unless a pop-up is open or the screen used the key (the board's Backspace removes a selection).
+      else if (e.altKey && e.key === 'ArrowLeft') {
+        // Back, unless a pop-up is open or the screen used the key.
         if (document.querySelector('dialog[open]') || !useBoard.getState().backStack.length) return
         setTimeout(() => { if (!e.defaultPrevented) void goBack() })
       }
@@ -79,7 +79,7 @@ export function DeskRail() {
     <nav className="rail" aria-label="Screens">
       <div className="rail-mark" aria-hidden="true">DZ</div>
       {prev && (
-        <button className="rail-item" onClick={() => void goBack()} title={`Back to ${SCREEN_NAMES[prev.screen]} (Backspace)`}>
+        <button className="rail-item" onClick={() => void goBack()} title={`Back to ${SCREEN_NAMES[prev.screen]} (Alt+←)`}>
           <Icon name="back" /><span>Back</span>
         </button>
       )}

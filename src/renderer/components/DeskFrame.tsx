@@ -30,7 +30,7 @@ function PopRail() {
         <Icon name="dock" /><span>Close window</span>
       </button>
       {prev && (
-        <button className="rail-item" onClick={() => void goBack()} title={`Back to ${SCREEN_NAMES[prev.screen]} (Backspace)`}>
+        <button className="rail-item" onClick={() => void goBack()} title={`Back to ${SCREEN_NAMES[prev.screen]} (Alt+←)`}>
           <Icon name="back" /><span>Back</span>
         </button>
       )}

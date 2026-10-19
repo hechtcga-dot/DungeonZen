@@ -63,7 +63,7 @@ function MainApp() {
   // Messages fade after a few seconds; errors stay a little longer.
   useEffect(() => {
     if (!message) return
-    const t = setTimeout(() => useBoard.setState({ message: null }), message.isError ? 8000 : 3000)
+    const t = setTimeout(() => useBoard.setState({ message: null }), message.isError ? 8000 : message.action ? 7000 : 3000)
     return () => clearTimeout(t)
   }, [message])
 
@@ -98,6 +98,7 @@ function MainApp() {
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
           {message.text}
+          {message.action && <button className="toast-action" onClick={() => { message.action!.run(); useBoard.setState({ message: null }) }}>{message.action.label}</button>}
         </div>
       )}
     </>
@@ -139,7 +140,7 @@ function ScreenWindow({ screen }: { screen: Screen }) {
   }, [screen])
   useEffect(() => {
     if (!message) return
-    const t = setTimeout(() => useBoard.setState({ message: null }), message.isError ? 8000 : 3000)
+    const t = setTimeout(() => useBoard.setState({ message: null }), message.isError ? 8000 : message.action ? 7000 : 3000)
     return () => clearTimeout(t)
   }, [message])
   if (none) return <main className="journal-window"><p>Open a campaign in Dungeon Zen first.</p></main>
@@ -166,7 +167,8 @@ function ScreenWindow({ screen }: { screen: Screen }) {
       <LinkedCardNote />
       <LinkWindow />
       <AiSettingsDialog />
-      {message && <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>{message.text}</div>}
+      {message && <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>{message.text}
+        {message.action && <button className="toast-action" onClick={() => { message.action!.run(); useBoard.setState({ message: null }) }}>{message.action.label}</button>}</div>}
     </>
   )
 }

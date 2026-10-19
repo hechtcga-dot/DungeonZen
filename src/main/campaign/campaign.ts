@@ -484,10 +484,33 @@ export class Campaign {
     const steps = new Map<string, typeof made>()
     for (const x of made.payload) for (const c of touching(x.id)) steps.set(c.id, c)
     if ([...steps.values()].some((c) => c.id !== made.id && !c.payload.every(moveOnly))) return false
+    // Kept for a moment so the DM's Undo on the "removed" note can put it back (3.0); never written anywhere.
+    const rows = made.payload.flatMap((x) => {
+      const row = this.db.select().from(tracked[x.table].table).where(eq(tracked[x.table].pk, x.id)).get()
+      return row ? [{ table: x.table, row }] : []
+    })
+    const cmds = [...steps.values()].map((c) => this.db.select().from(command).where(eq(command.id, c.id)).get()).filter((c) => !!c)
+    this.discarded.set(id, { rows, cmds })
     this.db.transaction((tx) => {
       for (const x of [...made.payload].reverse()) tx.delete(tracked[x.table].table).where(eq(tracked[x.table].pk, x.id)).run()
       for (const c of steps.values()) tx.delete(command).where(eq(command.id, c.id)).run()
     })
+    this.log.writes++
+    return true
+  }
+
+  /** Empty things dropped this session, by id: what Undo on the "removed" note puts back. */
+  discarded = new Map<string, { rows: Array<{ table: TableName; row: object }>; cmds: object[] }>()
+
+  /** Undo on "Empty card removed": the rows and the step that made them come back as they were. */
+  restoreDiscarded(id: string): boolean {
+    const d = this.discarded.get(id)
+    if (!d) return false
+    this.db.transaction((tx) => {
+      for (const c of d.cmds) tx.insert(command).values(c as never).run()
+      for (const r of d.rows) tx.insert(tracked[r.table].table).values(r.row as never).run()
+    })
+    this.discarded.delete(id)
     this.log.writes++
     return true
   }

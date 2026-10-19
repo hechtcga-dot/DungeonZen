@@ -321,6 +321,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
 
   handle('board:view', ({ boardId }) => current().boardView(boardId))
   handle('blank:discard', ({ id }) => current().discardIfBlank(id))
+  handle('blank:restore', ({ id }) => current().restoreDiscarded(id))
   handle('entity:create', ({ position, ...rest }) =>
     current().createEntity({ ...rest, position: position ?? current().freeGlobalSpot() }))
   handle('entity:duplicate', ({ id }) => current().duplicateEntity(id))
