@@ -103,6 +103,7 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
                 {[...new Set([...CHECK_SKILLS, c.skill])].map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
               <span className="spacer" />
+              <CheckAi e={e} check={c} onKeep={(tiers) => setCheck(c.id, { tiers })} />
               <button className="ink-button icon" aria-label={`Remove the ${c.skill} check`} onClick={() => save({ ...s, checks: s.checks.filter((x) => x.id !== c.id) })}>×</button>
             </div>
             {c.tiers.map((t, i) => (
@@ -143,6 +144,57 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
       </section>
 
       <WriteItUp e={e} />
+    </>
+  )
+}
+
+type Check = EncounterStory['checks'][number]
+
+/** ✦ Build with AI on one check: the AI writes what each DC finds; nothing changes until Keep (rule 2). */
+function CheckAi({ e, check, onKeep }: { e: EncounterView; check: Check; onKeep(tiers: Check['tiers']): void }) {
+  const { setAiSettingsOpen } = useBoard()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [got, setGot] = useState<{ tiers: Check['tiers']; source: string } | null>(null)
+  const run = async () => {
+    setBusy(true); setError(null)
+    const s = e.story
+    const dcs = check.tiers.map((t) => t.dc).filter(Boolean).join(', ') || '10, 15'
+    const ask = [
+      `Only one thing matters here: write the "${check.skill}" check, one result for each DC (${dcs}), each saying what a roll that high finds or learns in this encounter.`,
+      s.npcs.length ? `NPCs: ${s.npcs.map((n) => `${n.name}${n.notes ? ` (${n.notes})` : ''}`).join('; ')}.` : '',
+      s.items.length ? `On the ground: ${s.items.map((x) => x.name).filter(Boolean).join(', ')}.` : ''
+    ].filter(Boolean).join(' ').slice(0, 2000)
+    try {
+      const r = await call('ai:writeEncounter', { encounterId: e.id, ask })
+      const cs = r?.story.checks ?? []
+      const c = cs.find((x) => x.skill.toLowerCase() === check.skill.toLowerCase()) ?? cs[0]
+      if (c?.tiers.length) setGot({ tiers: c.tiers, source: r!.source })
+      else setError('The AI sent no results for this check. Try again.')
+    } catch (err) { setError((err as Error).message) }
+    setBusy(false)
+  }
+  return (
+    <>
+      <button className="ink-button ai-button" disabled={busy} onClick={() => void run()} title={`The AI writes what each DC of the ${check.skill} check finds`}>
+        {busy ? 'Writing…' : '✦ Build with AI'}
+      </button>
+      {(error || got) && (
+        <div className="story-check-ai">
+          {error && <p className="field-error" role="alert">{error} {/service/i.test(error) && <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose one…</button>}</p>}
+          {got && (
+            <div className="ai-suggestion" role="region" aria-label={`AI ${check.skill} check`}>
+              <span className="ai-badge">AI suggestion · {got.source}</span>
+              <ul>{got.tiers.map((t, i) => <li key={i}><strong>{t.dc}:</strong> {t.text}</li>)}</ul>
+              <div className="row tight wrap">
+                <button className="ink-button primary-ink" onClick={() => { onKeep(got.tiers); setGot(null) }}>Keep (replaces the results)</button>
+                <button className="ink-button" disabled={busy} onClick={() => void run()}>Try again</button>
+                <button className="ink-button" onClick={() => setGot(null)}>Discard</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 }
