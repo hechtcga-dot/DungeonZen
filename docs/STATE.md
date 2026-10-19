@@ -817,3 +817,19 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   - Defaults picked: first mention per paragraph (owner's example); page Light by default; the note window has Open sheet
     (in the main window) and Add to an encounter, not Show on board/map or Run; Make a card from [[ makes an NPC (type
     changeable on the sheet); a stat block goes after the paragraph right-clicked.
+
+- 3.0 M0 safety net (2026-10-19, `docs/PLAN-3.0.md`):
+  - Upgrades (`db/open.ts` `migrate`): an existing campaign is copied first with `VACUUM INTO` to
+    `campaign.before-upgrade-<schema n>.bak` (kept if one is there), then every pending step runs in one transaction
+    (a failure leaves campaign.db as it was). Newer campaign refused (as before).
+  - Old-campaign fixtures `tests/fixtures/campaign-<version>.db` (v1.0.0, v1.6.0, v2.0.0, v2.6.1, v2.10.1), made by
+    each release's own code with `tests/fixtures/makefixture.ts` (steps in its header); `tests/oldcampaigns.test.ts`.
+  - Log: `src/main/log.ts`, `userData/logs/dungeonzen.log` (1 MB, then `dungeonzen.old.log`): every failed IPC call,
+    uncaught main error (also an error box), window console errors, crashed windows. Setup › Open log folder (`app:openLog`).
+  - Errors shown: failed Map/Where/Players/Encounters views, DM notes window save ("Not saved: …"), Save as Word, map image.
+  - CI `.github/workflows/test.yml`: typecheck + tests, and the smoke test, on every push. Smoke `npm run smoke`
+    (`tests/e2e/smoke.mjs`, playwright-core `_electron`): v2.10.1 fixture, visits every screen, fails on window/console
+    errors or an error toast; screenshots as artifact `smoke-screenshots`. Also runs before each Windows installer build.
+    Locally: `npm run build`, `npx electron-builder install-app-deps` (needs electronjs.org headers: blocked in cloud
+    sessions, so rely on CI there), `xvfb-run npm run smoke`, then `npm rebuild better-sqlite3` for `npm test`.
+    `DZ_USER_DATA` env sets the userData folder (smoke only).

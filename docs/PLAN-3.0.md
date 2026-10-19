@@ -3,7 +3,7 @@
 Built in milestones. Each milestone with UI changes gets a mockup the owner approves first; no point releases between milestones except fixes.
 Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen; no paid code signing; auto-linking as recommended (filters + per-card tick, on by default for NPC/PC/Location/Faction).
 
-## M0 Safety net (first; no visible change)
+## M0 Safety net (first; no visible change) — built 2026-10-19
 - Before any schema upgrade the app copies `campaign.db` to `campaign.<old version>.bak` in the campaign folder, and runs all pending upgrade steps in one transaction (today: one per step), so a failure leaves the old file untouched. Already in place: `PRAGMA user_version`, and an older app refuses a newer campaign with a message (`db/open.ts`); M0 adds a test for both.
 - CI on every push: typecheck + vitest (Ubuntu), separate from the release workflow.
 - Screenshot smoke test checked in (`tests/e2e/`): playwright `_electron`, demo campaign seed, visit every screen, save screenshots; runs in CI (Windows job too).
