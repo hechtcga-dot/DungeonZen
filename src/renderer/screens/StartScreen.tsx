@@ -2,11 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { Candle } from '../art/props'
+import { useSkin } from '../skin'
 import type { CampaignInfo, RecentCampaign } from '../../shared/types'
 
 export function StartScreen() {
   const openCampaign = useBoard((s) => s.openCampaign)
   const say = useBoard((s) => s.say)
+  const [skin, setSkin] = useSkin()
   const [recent, setRecent] = useState<RecentCampaign[]>([])
   const [name, setName] = useState('')
 
@@ -75,6 +77,15 @@ export function StartScreen() {
         <h2 id="ai-heading">AI services</h2>
         <p className="hint">Optional. Choose which service writes scene text and which draws battle maps: Claude, ChatGPT, Gemini, free ones on this computer and more.</p>
         <button onClick={() => useBoard.getState().setAiSettingsOpen(true)}>Choose AI services…</button>
+      </section>
+
+      <section className="start-panel" aria-labelledby="look-heading">
+        <h2 id="look-heading">Look</h2>
+        <p className="hint">How Dungeon Zen looks on this computer. Change it any time in Setup › Look.</p>
+        <div className="segmented" role="group" aria-label="Look">
+          <button aria-pressed={skin === 'desk'} onClick={() => setSkin('desk')}>Desk</button>
+          <button aria-pressed={skin === 'adventure'} onClick={() => setSkin('adventure')}>Adventure UI</button>
+        </div>
       </section>
     </main>
     </div>

@@ -4,6 +4,8 @@ import { DeskFrame } from '../components/DeskFrame'
 import { ScreenHeader } from '../components/TopBar'
 import { D20 } from '../art/props'
 import { ClockDial } from '../art/sky'
+import { HourScene } from '../art/adventure'
+import { useSkin } from '../skin'
 import { MapView } from '../components/MapView'
 import { WhereTheyAre } from '../components/WhereTheyAre'
 import { readOnlyLayer } from '../components/MapOverlay'
@@ -43,6 +45,7 @@ function Live({ v }: { v: LiveView }) {
   const left = useSidePanel('live-left', 'left', 340)
   const side = useSidePanel('live-right', 'right', 300)
   const { act, mapScreen, goTo } = useBoard()
+  const adventure = useSkin()[0] === 'adventure'
   const [ending, setEnding] = useState(false)
   const [settings, setSettings] = useState(false)
   const sky = skyAt(v.nowMin)
@@ -62,7 +65,7 @@ function Live({ v }: { v: LiveView }) {
       <section className="dm-screen live-screen-bar" aria-label="DM screen">
         <div className="dm-panel clock-panel">
           <h2 className="panel-title">The hour</h2>
-          <ClockDial minutes={v.nowMin} />
+          {adventure ? <HourScene minutes={v.nowMin} className="adv-art-hour" /> : <ClockDial minutes={v.nowMin} />}
           <div className="clock-row">
             <div>
               <div className="clock-text">{formatClock(v.nowMin)}</div>

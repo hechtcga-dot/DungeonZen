@@ -116,7 +116,7 @@ function Timeline({ t }: { t: TimelineView }) {
   return (
     <>
       <div className="page-head">
-        <div className="page-title"><h1>Timeline</h1></div>
+        <span className="spacer" />
         <div className="row tight wrap">
           <button className="brass icon" title="Show all storylines open" aria-label="Show all"
             onClick={() => setClosed(new Set())}>⊞</button>
@@ -236,7 +236,8 @@ function ActBlock({ a, s, pxPerMin, selected, onSelect }: {
   a: ActView; s: TimelineStoryline; pxPerMin: number; selected: boolean; onSelect(): void
 }) {
   const left = a.startMin * pxPerMin
-  const w = Math.max(28, (a.endMin - a.startMin) * pxPerMin - 4)
+  // Wide enough for "Act 1 · " and the first word of the name (3.1: short acts were cut to "Act…").
+  const w = Math.max(96, (a.endMin - a.startMin) * pxPerMin - 4)
   const willDefault = a.state !== 'resolved' && s.projectedStatus === 'autonomous' && !!a.defaultOutcomeId && !a.chosenOutcomeId
   const kind = a.state === 'resolved' ? 'resolved' : a.state === 'awaiting' ? 'awaiting'
     : a.state === 'running' && s.projectedStatus === 'player_active' ? 'running' : willDefault ? 'default' : 'plain'
@@ -251,6 +252,7 @@ function ActBlock({ a, s, pxPerMin, selected, onSelect }: {
           style={{ left: a.plannedStartMin * pxPerMin, width: Math.max(28, (a.plannedEndMin - a.plannedStartMin) * pxPerMin - 4) }} />
       )}
       <button className={`tl-act k-${kind}${selected ? ' is-selected' : ''}`} style={{ left, width: w }} onClick={onSelect}
+        title={`Act ${a.number} · ${a.title}\n${formatClock(a.startMin)} → ${formatClock(a.endMin)}\n${stateText}`}
         aria-label={`Act ${a.number}, ${a.title}, ${formatClock(a.startMin)} to ${formatClock(a.endMin)}, ${stateText}`}>
         <span className="tl-act-title">Act {a.number} · {a.title}</span>
         <span className="tl-act-when">{formatClock(a.startMin)} → {formatClock(a.endMin)}</span>

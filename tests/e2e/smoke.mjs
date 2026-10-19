@@ -9,7 +9,9 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
 const root = join(import.meta.dirname, '..', '..')
-const shots = join(import.meta.dirname, 'shots')
+// DZ_SKIN=adventure runs the same screens in the Adventure UI skin (3.1), screenshots in shots-adventure/.
+const skin = process.env.DZ_SKIN ?? ''
+const shots = join(import.meta.dirname, skin ? `shots-${skin}` : 'shots')
 const work = mkdtempSync(join(tmpdir(), 'dz-smoke-'))
 const folder = join(work, 'Smoke campaign')
 const userData = join(work, 'userData')
@@ -42,6 +44,7 @@ try {
   page.on('pageerror', (e) => problems.push(`window error: ${e.message}`))
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`) })
   await page.setViewportSize({ width: 1440, height: 900 })
+  if (skin) { await page.evaluate((s) => localStorage.setItem('dz.skin', s), skin); await page.reload(); await page.waitForLoadState() }
   let n = 0
   const shot = async (name) => {
     await page.waitForTimeout(800)

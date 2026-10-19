@@ -9,6 +9,8 @@ import { PartyEmblem, roman, StoryEmblemArt } from '../art/emblems'
 import { CampaignSettingsDialog, emblemOf, MapDialog, StorylineDialog, STORYLINE_STATUS_LABELS } from '../components/EditDialogs'
 import { TarotCard } from '../art/TarotCard'
 import { ClockDial, MoonDisc } from '../art/sky'
+import { HourScene, MoonArt } from '../art/adventure'
+import { useSkin } from '../skin'
 import { MapView } from '../components/MapView'
 import { readOnlyLayer } from '../components/MapOverlay'
 import { DeskFrame } from '../components/DeskFrame'
@@ -43,6 +45,7 @@ function Desk({ desk }: { desk: DeskView }) {
   const [mapOpen, setMapOpen] = useState(false)
   const [pcChoice, setPcChoice] = useState(false)
   const [lighting] = useLightingPref()
+  const adventure = useSkin()[0] === 'adventure'
   const candlesLit = !lighting || lightingAt(minutes).candlesLit
 
   const addStoryline = async () => {
@@ -73,7 +76,7 @@ function Desk({ desk }: { desk: DeskView }) {
         <div className={`dm-panel clock-panel${desk.party.length > 3 ? ' tall' : ''}`}>
           <h2 className="panel-title">The hour</h2>
           <div className="dm-panel-row">
-            <ClockDial minutes={minutes} moonOffsetDays={desk.moonOffsetDays} />
+            {adventure ? <HourScene minutes={minutes} className="adv-art-hour" /> : <ClockDial minutes={minutes} moonOffsetDays={desk.moonOffsetDays} />}
             <div className="clock-side">
               <div className="clock-text">{formatClock(minutes)}</div>
               <div className="ink-muted">{{ night: 'Night', dawn: 'Dawn', daylight: 'Daylight', dusk: 'Dusk' }[sky.light]}</div>
@@ -89,7 +92,7 @@ function Desk({ desk }: { desk: DeskView }) {
         <div className="dm-panel moon-panel">
           <h2 className="panel-title">The moon</h2>
           <div className="dm-panel-row">
-            <MoonDisc minutes={minutes} offsetDays={desk.moonOffsetDays} />
+            {adventure ? <MoonArt phase={moon.phase} name={moon.name} className="adv-art-moon" /> : <MoonDisc minutes={minutes} offsetDays={desk.moonOffsetDays} />}
             <div>
               <div className="moon-name">{moon.name}</div>
               <div className="ink-muted">{moon.nightsUntilFull === 0 ? 'Full tonight' : `Full in ${moon.nightsUntilFull} night${moon.nightsUntilFull === 1 ? '' : 's'}`}</div>
@@ -100,7 +103,7 @@ function Desk({ desk }: { desk: DeskView }) {
         <div className="dm-panel party-panel">
           <h2 className="panel-title">The party</h2>
           {desk.party.length === 0
-            ? <p className="ink-muted">No player characters yet.</p>
+            ? <><p className="ink-muted">No player characters yet.</p><button className="ink-button" onClick={() => void newCard('PC')}>Add a player character</button></>
             : (
               <ul className="ledger">
                 {desk.party.map((p) => (

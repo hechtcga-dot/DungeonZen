@@ -1,0 +1,184 @@
+/* Adventure UI skin (3.1, owner 2026-10-19): dark brown frame, aged parchment panels, Cinzel capital headings,
+   deep red buttons. Only on <html data-skin="adventure">; the Desk skin is untouched. Notes keeps its own page (notes.css). */
+
+:root[data-skin='adventure'] {
+  --adv-ground: #24160d; --adv-rail: #1a100a; --adv-bar: #1f130b; --adv-line: #3a2617; --adv-edge: #5a4028;
+  --adv-cream: #f0e3c6; --adv-cream-muted: #bfa680;
+  --adv-parch: #e2cda0; --adv-ink: #3a2414; --adv-head: #2e1b0e; --adv-muted: #6e5235;
+  --adv-paper-btn: #f1e3c0; --adv-paper-line: #b89a68;
+  --adv-red: linear-gradient(#8e2a1d, #6b1810); --adv-red-edge: #4a0f09;
+  --adv-parchment: radial-gradient(ellipse at 30% 20%, rgba(255, 246, 220, 0.6), transparent 60%),
+    radial-gradient(ellipse at 85% 90%, rgba(140, 95, 45, 0.28), transparent 55%),
+    radial-gradient(circle at 60% 45%, rgba(170, 125, 70, 0.14), transparent 40%), var(--tex-paper);
+  --adv-burn: inset 0 0 30px rgba(105, 62, 22, 0.55), inset 0 0 3px rgba(80, 45, 15, 0.7), 0 6px 18px rgba(0, 0, 0, 0.6);
+  --adv-cinzel: 'Cinzel', 'Palatino Linotype', Georgia, serif;
+  --adv-sans: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+}
+:root[data-skin='adventure'] body, :root[data-skin='adventure'] html { background: var(--adv-ground); }
+
+/* ---- the frame: ground, rail, bars ---- */
+[data-skin='adventure'] .desk-screen { background: radial-gradient(ellipse at 50% 40%, #2e1c10 0%, #1c110a 100%); font-family: var(--adv-sans); }
+[data-skin='adventure'] .desk-theme { --text: var(--adv-cream); --muted: var(--adv-cream-muted); --ground: #2c1b10; --border: var(--adv-edge); --selection: #d9604a; --link: #e8b48a; --amber: #e0a050; }
+[data-skin='adventure'] .rail { background: var(--adv-rail); border-right: 1px solid var(--adv-line); box-shadow: none; }
+[data-skin='adventure'] .rail-mark { font-family: var(--adv-cinzel); font-size: 15px; width: 40px; height: 40px; color: var(--adv-cream); border-color: #9a3a26; background: #2a1810; }
+[data-skin='adventure'] .rail-item { color: #d8c7a3; font-family: var(--adv-sans); font-size: 12px; border-radius: 4px; }
+[data-skin='adventure'] .rail-item:hover:not(:disabled) { background: #2c1b10; border-color: var(--adv-line); }
+[data-skin='adventure'] .rail-item[aria-current='page'] { color: #f6e6c8; background: #4a2216; border-color: #8a3a26; }
+[data-skin='adventure'] .rail-group { font-family: var(--adv-cinzel); font-style: normal; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #c0503e; border-top-color: var(--adv-line); }
+[data-skin='adventure'] .rail-foot { border-top-color: var(--adv-line); }
+[data-skin='adventure'] .rail-foot .rail-item { color: var(--adv-cream-muted); }
+
+[data-skin='adventure'] .desk-theme :is(.topbar, .viewbar, .page-head, .tabs, .tools) {
+  background: var(--adv-bar); background-image: none; border-color: var(--adv-line); box-shadow: none;
+}
+[data-skin='adventure'] .desk-theme :is(.viewbar, .tabs, .tools) { background: #1c110a; }
+
+/* ---- the header ---- */
+[data-skin='adventure'] .screen-head .candle, [data-skin='adventure'] .screen-head .egg-candle-wrap { display: none; }
+[data-skin='adventure'] .screen-title h1 { font-family: var(--adv-cinzel); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--adv-cream); text-shadow: none; }
+[data-skin='adventure'] .screen-title h1 input { text-transform: none; }
+[data-skin='adventure'] .screen-eyebrow { font-family: var(--adv-sans); font-style: normal; font-size: 12px; color: var(--adv-cream-muted); }
+[data-skin='adventure'] .screen-find { background: #2c1b10; color: var(--adv-cream-muted); border-color: var(--adv-edge); border-radius: 4px; }
+[data-skin='adventure'] .screen-find kbd { border-color: var(--adv-edge); }
+[data-skin='adventure'] .desk-theme .clock { background: #2c1b10; color: var(--adv-cream); border-color: var(--adv-edge); border-radius: 4px; }
+[data-skin='adventure'] .screen-tools button.brass.icon { background: transparent; border-color: transparent; color: var(--adv-cream); box-shadow: none; }
+[data-skin='adventure'] .screen-tools button.brass.icon:disabled { color: var(--adv-edge); filter: none; }
+[data-skin='adventure'] .screen-tools button.brass.icon[aria-pressed='true'] { background: #2c1b10; border-color: var(--adv-edge); color: var(--adv-cream); }
+
+/* ---- buttons ---- */
+/* On the dark frame: outlined; on parchment: deep red. */
+[data-skin='adventure'] button.brass:not(.nb *), [data-skin='adventure'] .desk-theme button.outline:not(.nb *), [data-skin='adventure'] .desk-theme button.ghost:not(.nb *) {
+  background: transparent; border: 1px solid var(--adv-edge); color: var(--adv-cream); box-shadow: none; font-family: var(--adv-sans); font-weight: 500; border-radius: 4px;
+}
+[data-skin='adventure'] :is(.dm-panel, .parchment-note, .parchment-sheet, .panel, .side, .journal-page, .chest, .library-templates) button.brass,
+[data-skin='adventure'] button.wax, [data-skin='adventure'] .desk-theme button.primary:not(.nb *),
+[data-skin='adventure'] .desk-theme button[aria-pressed='true']:not(.nb *), [data-skin='adventure'] .desk-theme .viewbar button[aria-pressed='true'] {
+  background: var(--adv-red); border: 1px solid var(--adv-red-edge); color: #f6e6c8; font-family: var(--adv-sans); font-weight: 500;
+  border-radius: 3px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 200, 170, 0.25);
+}
+[data-skin='adventure'] button.wax { font-size: 16px; min-height: 44px; padding: 0 20px; }
+[data-skin='adventure'] .desk-theme button:hover:not(:disabled):not(.nb *) { filter: brightness(1.08); box-shadow: none; }
+[data-skin='adventure'] button.ink-button:not(.nb *), [data-skin='adventure'] select.ink-select:not(.nb *), [data-skin='adventure'] .cartouche-button {
+  background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); color: var(--adv-ink); border-radius: 3px; font-family: var(--adv-sans); font-weight: 500;
+}
+[data-skin='adventure'] select.ink-select.on-wood { background: #2c1b10; color: var(--adv-cream); border-color: var(--adv-edge); }
+
+/* ---- parchment ---- */
+[data-skin='adventure'] :is(.dm-panel, .parchment-note, .journal-page, .start-panel),
+[data-skin='adventure'] .desk-theme :is(.side, .panel, .library-templates, .menu):not(.nb *) {
+  --text: var(--adv-ink); --muted: var(--adv-muted); --border: var(--adv-paper-line); --ground: rgba(255, 248, 228, 0.7); --selection: #8e2a1d; --link: #8e2a1d;
+  color: var(--adv-ink); background-color: var(--adv-parch); background-image: var(--adv-parchment); background-size: auto, auto, auto, 300px 300px;
+  border: 0; border-radius: 3px; box-shadow: var(--adv-burn);
+}
+[data-skin='adventure'] .parchment-sheet::before {
+  background-color: #d6bd8a; background-image: var(--adv-parchment); background-size: auto, auto, auto, 300px 300px;
+  filter: none; box-shadow: inset 0 0 60px rgba(95, 55, 18, 0.65), 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+[data-skin='adventure'] :is(.dm-panel, .parchment-note, .parchment-sheet, .journal-page, .panel, .side) :is(input, select, textarea) {
+  background: rgba(255, 248, 228, 0.7); border-color: var(--adv-paper-line); color: var(--adv-ink);
+}
+
+/* ---- headings ---- */
+[data-skin='adventure'] :is(.panel-title, .panel-heading, .mat-heading, .side-h, .journal-title, .map-empty h2, .region-name):not(.nb *) {
+  font-family: var(--adv-cinzel); font-weight: 700; font-style: normal; letter-spacing: 0.05em; text-transform: uppercase; text-shadow: none; color: var(--adv-head);
+}
+[data-skin='adventure'] :is(.panel-title, .panel-heading, .side-h):not(.nb *) { font-size: 16px; padding-bottom: 5px; border-bottom: 1px solid rgba(110, 75, 40, 0.45); }
+[data-skin='adventure'] .moon-name { font-family: var(--adv-sans); font-weight: 700; font-size: 18px; color: var(--adv-head); }
+[data-skin='adventure'] :is(.mat-heading, .mat-heading.on-wood) { font-size: 17px; color: var(--adv-cream); }
+[data-skin='adventure'] .ink-muted { color: var(--adv-muted); }
+
+/* ---- the Desk ---- */
+[data-skin='adventure'] .dm-screen { background: none; border: 0; box-shadow: none; padding: 0; gap: 14px; }
+[data-skin='adventure'] .mat { background: none; border: 0; box-shadow: none; padding: 0; gap: 14px; border-radius: 0; }
+[data-skin='adventure'] .mat::before, [data-skin='adventure'] .desk .prop:not(.map-empty-rose), [data-skin='adventure'] .desk .candle, [data-skin='adventure'] .desk .leaf,
+[data-skin='adventure'] .egg-dice, [data-skin='adventure'] .journal-quill, [data-skin='adventure'] .tools-candle { display: none; }
+[data-skin='adventure'] :is(.mat-stories, .chest, .mat-party) {
+  padding: 14px 16px; border-radius: 3px; background-color: var(--adv-parch); background-image: var(--adv-parchment); background-size: auto, auto, auto, 300px 300px; box-shadow: var(--adv-burn);
+}
+[data-skin='adventure'] :is(.mat-stories, .chest, .mat-party) .mat-heading { color: var(--adv-head); font-size: 16px; padding-bottom: 5px; border-bottom: 1px solid rgba(110, 75, 40, 0.45); }
+[data-skin='adventure'] .journal { background: none; border: 0; box-shadow: none; padding: 0; }
+[data-skin='adventure'] .journal-page textarea { font-family: var(--adv-sans); font-style: normal; font-size: 15px; line-height: 26px; color: var(--adv-ink);
+  background-color: #f4ead2; background-image: repeating-linear-gradient(transparent 0 25px, #cdb68c 25px 26px); background-position: 0 6px; border: 1px solid var(--adv-paper-line); }
+[data-skin='adventure'] .clock-text { font-size: 17px; white-space: nowrap; }
+
+/* Storylines and party cards: parchment rows and slips instead of tarot cards. */
+[data-skin='adventure'] .tarot-stack { display: flex; flex-direction: column; gap: 8px; }
+[data-skin='adventure'] .tarot-slot > .tarot, [data-skin='adventure'] .tarot-slot:nth-child(n) > .tarot, [data-skin='adventure'] .party-row > .tarot:nth-child(n) { transform: none; }
+[data-skin='adventure'] .tarot {
+  width: auto; height: auto; min-height: 52px; aspect-ratio: auto; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+  padding: 6px 10px; text-align: left; border-radius: 3px; color: var(--adv-ink);
+  background: rgba(150, 105, 55, 0.22); border: 1px solid rgba(110, 75, 40, 0.45); box-shadow: none; filter: none;
+}
+[data-skin='adventure'] .tarot::before, [data-skin='adventure'] .tarot::after { display: none; }
+[data-skin='adventure'] .tarot .tarot-art { display: none; }
+[data-skin='adventure'] .tarot-numeral { grid-row: span 2; font-family: var(--adv-cinzel); font-weight: 700; color: var(--adv-head); font-size: 16px; }
+[data-skin='adventure'] .tarot-title { font-family: var(--adv-sans); font-weight: 500; font-size: 15px; color: var(--adv-ink); border: 0; padding: 0; margin: 0; text-align: left; }
+[data-skin='adventure'] :is(.tarot-sub, .tarot-footer) { font-family: var(--adv-sans); font-size: 13px; color: var(--adv-muted); text-align: left; margin: 0; }
+[data-skin='adventure'] .tarot-new { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 6px; background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); color: var(--adv-ink); font-family: var(--adv-sans); }
+[data-skin='adventure'] .tarot-plus { font-size: 18px; }
+[data-skin='adventure'] .tarot-edit { width: 28px; height: 28px; min-height: 0; top: 6px; right: 6px; }
+[data-skin='adventure'] .party-row { gap: 10px; flex-wrap: wrap; }
+[data-skin='adventure'] .tarot-pc { width: 220px; }
+
+/* The new art on the Desk (HourScene, MoonArt) replaces the dial and the disc. */
+[data-skin='adventure'] .adv-art-hour { width: 160px; height: 104px; flex: none; }
+[data-skin='adventure'] .adv-art-moon { width: 108px; height: 108px; flex: none; }
+[data-skin='adventure'] .dm-panel-row { justify-content: center; }
+
+/* ---- board, sheet, library, timeline ---- */
+[data-skin='adventure'] .desk-theme .canvas {
+  background-color: #d6bd8a; background-image: radial-gradient(ellipse at 25% 30%, rgba(255, 240, 205, 0.45), transparent 55%), radial-gradient(ellipse at 75% 75%, rgba(120, 80, 35, 0.3), transparent 60%), var(--tex-paper);
+  background-size: auto, auto, 300px 300px; box-shadow: inset 0 0 60px rgba(95, 55, 18, 0.65); border-color: #1c110a;
+}
+[data-skin='adventure'] .tools-group { font-family: var(--adv-cinzel); font-weight: 700; color: #c0503e; }
+[data-skin='adventure'] .desk-theme .tool { background: transparent; border: 1px solid var(--adv-edge); color: var(--adv-cream); border-radius: 4px; }
+[data-skin='adventure'] .desk-theme .tabs button[role='tab'] { font-family: var(--adv-sans); color: #d8c7a3; }
+[data-skin='adventure'] .desk-theme .tabs button[role='tab'][aria-selected='true'] { color: var(--adv-head); background: var(--adv-parch); border-color: #8a6a44; border-bottom-color: transparent; border-radius: 3px 3px 0 0; font-weight: 700; }
+[data-skin='adventure'] .find-list li.is-at { background: rgba(142, 42, 29, 0.12); }
+
+/* Live desk: The advisor on parchment too. */
+[data-skin='adventure'] .dm-panel.advisor { color: var(--adv-ink); background-color: var(--adv-parch); background-image: var(--adv-parchment); }
+[data-skin='adventure'] .dm-panel.advisor .panel-title { color: var(--adv-head); }
+[data-skin='adventure'] .live-mat { background: none; border: 0; box-shadow: none; }
+
+/* Start screen */
+[data-skin='adventure'] .start-panel h2 { font-family: var(--adv-cinzel); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 18px; color: var(--adv-head); }
+
+/* AI buttons stay blue and dashed (rule 10) on parchment and on the frame. */
+[data-skin='adventure'] .desk-theme button.ai-button { background: var(--adv-paper-btn); border: 2px dashed #2d6ea3; color: #1f4f78; border-radius: 3px; }
+[data-skin='adventure'] .screen-actions button.ai-button { background: #2c1b10; border-color: #5b9bd5; color: #a9cdf0; }
+
+/* Storyline rows: numeral on the left, title and status beside it. */
+[data-skin='adventure'] .tarot-slot > .tarot { grid-template-areas: 'n t' 'n s' 'n f'; }
+[data-skin='adventure'] .tarot-numeral { grid-area: n; }
+[data-skin='adventure'] .tarot-title { grid-area: t; }
+[data-skin='adventure'] .tarot-sub { grid-area: s; }
+[data-skin='adventure'] .tarot-footer { grid-area: f; }
+[data-skin='adventure'] .tarot-slot { position: relative; }
+[data-skin='adventure'] .tarot-edit { position: absolute; background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); color: var(--adv-ink); box-shadow: none; }
+[data-skin='adventure'] .map-empty-rose { position: static; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4)); }
+
+/* The party and Next session: centred, with faint adventurers behind an empty party. */
+[data-skin='adventure'] :is(.party-panel, .session-panel) { justify-content: flex-start; }
+[data-skin='adventure'] :is(.party-panel, .session-panel):has(> .ink-muted) > :not(.panel-title) { align-self: center; text-align: center; position: relative; }
+[data-skin='adventure'] :is(.party-panel, .session-panel):has(> .ink-muted) > button.ink-button { background: var(--adv-red); border-color: var(--adv-red-edge); color: #f6e6c8; }
+[data-skin='adventure'] .party-panel:has(> .ink-muted) { overflow: hidden; padding-bottom: 60px; }
+[data-skin='adventure'] .party-panel:has(> .ink-muted)::after {
+  content: ''; position: absolute; left: 50%; bottom: 0; width: 300px; height: 70px; margin-left: -150px; pointer-events: none; opacity: 0.2;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 70'%3E%3Cg fill='%235f3e1e' stroke='%235f3e1e' stroke-linecap='round'%3E%3Cpath d='M22 70l4-30h12l4 30z'/%3E%3Ccircle cx='32' cy='34' r='5'/%3E%3Cpath d='M24 31l8-20 8 20z'/%3E%3Cpath d='M14 70V22' fill='none' stroke-width='2.5'/%3E%3Ccircle cx='14' cy='20' r='3.5'/%3E%3Cpath d='M78 70l2-26h16l2 26z'/%3E%3Ccircle cx='88' cy='36' r='6'/%3E%3Cpath d='M81 33q7-9 14 0z'/%3E%3Ccircle cx='74' cy='52' r='9'/%3E%3Cpath d='M102 60L112 22' fill='none' stroke-width='2.5'/%3E%3Cpath d='M136 70l3-28q8-14 16 0l3 28z'/%3E%3Cpath d='M141 40q7-16 14 0'/%3E%3Cpath d='M192 70l3-27h14l3 27z'/%3E%3Ccircle cx='202' cy='36' r='6'/%3E%3Cpath d='M214 54l8-22' fill='none' stroke-width='2.5'/%3E%3Ccircle cx='223' cy='30' r='4'/%3E%3Cpath d='M250 70l3-27h14l3 27z'/%3E%3Ccircle cx='260' cy='36' r='6'/%3E%3Cpath d='M276 26q14 18 0 38' fill='none' stroke-width='2.5'/%3E%3C/g%3E%3C/svg%3E") no-repeat center bottom / 300px 70px;
+}
+[data-skin='adventure'] .live .clock-panel > .adv-art-hour { align-self: center; }
+[data-skin='adventure'] .start-candle { display: none; }
+[data-skin='adventure'] .start-screen .start-title { font-family: var(--adv-cinzel); font-weight: 700; font-size: 44px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--adv-cream); text-shadow: none; }
+[data-skin='adventure'] .start-screen .muted { color: var(--adv-cream-muted); }
+
+/* Headings straight on the dark ground read cream; on parchment, dark ink. */
+[data-skin='adventure'] .desk-theme :is(.panel-heading, .side-h, .mat-heading):not(.nb *) { color: var(--adv-cream); border-bottom-color: var(--adv-line); }
+[data-skin='adventure'] :is(.dm-panel, .parchment-note, .parchment-sheet, .journal-page, .start-panel, .side, .panel, .library-templates, .menu, .mat-stories, .chest, .mat-party, .dz-dialog) :is(.panel-heading, .side-h, .mat-heading):not(.nb *) {
+  color: var(--adv-head); border-bottom-color: rgba(110, 75, 40, 0.45);
+}
+[data-skin='adventure'] .dz-dialog-head h2 { font-family: var(--adv-cinzel); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 20px; color: var(--adv-head); }
+/* The players' view keeps its own header: same type as the others. */
+[data-skin='adventure'] .desk-title h1 { font-family: var(--adv-cinzel); font-weight: 700; font-size: 30px; letter-spacing: 0.04em; text-transform: uppercase; text-shadow: none; color: var(--adv-cream); }
+[data-skin='adventure'] .desk-eyebrow { font-family: var(--adv-sans); font-style: normal; color: var(--adv-cream-muted); font-size: 13px; }
+[data-skin='adventure'] .desk-head .candle { display: none; }
