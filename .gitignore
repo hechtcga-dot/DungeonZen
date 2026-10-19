@@ -6,3 +6,5 @@ dist/
 # campaign folders created while testing
 campaigns/
 tests/e2e/shots/
+tests/fixtures/*.db-shm
+tests/fixtures/*.db-wal
