@@ -204,6 +204,16 @@ export class Campaign {
     return this.backups().some((b) => b.name.startsWith(today)) ? null : this.backup()
   }
 
+  /** Ctrl+F (3.0, owner): everything the DM can go to by name — cards, notes, session prep sheets. */
+  findIndex(): Array<{ kind: 'card' | 'note' | 'session'; id: string; name: string; type?: EntityType; detail: string; encounter?: boolean }> {
+    const cards = this.cardBriefs().filter((c) => c.status !== 'defunct').map((c) => ({
+      kind: 'card' as const, id: c.id, name: c.name, type: c.type, detail: c.summary || c.location, ...(c.encounter ? { encounter: true } : {})
+    }))
+    const notes = this.notesScreen().docs.map((d) => ({ kind: 'note' as const, id: d.id, name: d.title, detail: d.folder }))
+    const sessions = this.prepScreen().sheets.map((p) => ({ kind: 'session' as const, id: String(p.number), name: `Session ${p.number}${p.title ? ` · ${p.title}` : ''}`, detail: 'Session prep' }))
+    return [...cards, ...notes, ...sessions]
+  }
+
   // ---- tidy campaign folder: files in assets/ nothing uses ----------------------
 
   /**

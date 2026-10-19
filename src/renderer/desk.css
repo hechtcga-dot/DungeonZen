@@ -1863,3 +1863,14 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .draw-advanced[open] > summary { margin-bottom: 8px; }
 .draw-advanced > :not(summary) + :not(summary) { margin-top: 10px; }
 .draw-hidden { margin: 0 0 8px; padding: 7px 10px; border: 1px dashed rgba(143, 42, 33, 0.5); border-radius: 4px; background: rgba(143, 42, 33, 0.06); color: var(--wax); font-size: 12.5px; }
+
+/* 3.0 Ctrl+F: find anything */
+.find-anything { display: flex; flex-direction: column; gap: 8px; }
+.find-anything input[type='search'] { font-size: 16px; padding: 8px 10px; }
+.find-list { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow: auto; }
+.find-list li { display: flex; align-items: center; gap: 8px; padding: 2px 4px; border-radius: 4px; }
+.find-list li.is-at { background: rgba(143, 42, 33, 0.1); }
+.find-main { flex: 1; display: flex; align-items: center; gap: 8px; min-height: 0; padding: 5px 4px; border: 0; background: none; text-align: left; color: inherit; }
+.find-icon { width: 18px; display: inline-grid; place-items: center; color: var(--ink-muted); }
+.find-name { font-weight: 600; }
+.find-kind { color: var(--ink-muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

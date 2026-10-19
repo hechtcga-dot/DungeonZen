@@ -69,6 +69,8 @@ try {
   await click('Live'); await shot('live')
   await click('Players'); await shot('players')
   await click('Prep'); await shot('back-to-prep')
+  await page.keyboard.press('Control+f'); await page.getByRole('searchbox', { name: 'Find' }).fill('Barl'); await shot('find')
+  await page.keyboard.press('Enter'); await page.getByRole('tab', { name: /Links & secrets/ }).waitFor(); await shot('find-opened-sheet')
   await click('Setup'); await page.getByText('Tidy campaign folder…').click(); await shot('tidy')
   await click('Close')
   await click('Setup'); await page.getByText('Linking names…').click(); await shot('linking-names')

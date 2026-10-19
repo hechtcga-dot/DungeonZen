@@ -247,3 +247,15 @@ describe('tidy campaign folder', () => {
     expect(c.unusedAssets()).toEqual([{ path: 'pictures/stray.png', size: 1 }])
   })
 })
+
+describe('Ctrl+F find anything (3.0)', () => {
+  it('lists cards, notes and session prep sheets by name', () => {
+    const { globalBoardId } = c.info()
+    c.createEntity({ boardId: globalBoardId, type: 'NPC', name: 'Barliman', position: at, attributes: { summary: 'Innkeeper' } })
+    const gone = c.createEntity({ boardId: globalBoardId, type: 'NPC', name: 'Gone', position: at })
+    c.setEntityStatus(gone.id, 'defunct')
+    const list = c.findIndex()
+    expect(list).toContainEqual(expect.objectContaining({ kind: 'card', name: 'Barliman', type: 'NPC', detail: 'Innkeeper' }))
+    expect(list.some((x) => x.name === 'Gone')).toBe(false)
+  })
+})

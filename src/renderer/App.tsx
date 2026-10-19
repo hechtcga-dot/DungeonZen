@@ -8,6 +8,7 @@ import { OrderScopeDialog } from './components/OrderScopeDialog'
 import { StartScreen } from './screens/StartScreen'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
 import { LinkWindow } from './components/LinkWindow'
+import { FindAnything } from './components/FindAnything'
 import { BattleMapDialog } from './components/BattleMapDialog'
 import { GlobalLinks, LinkedCardNote } from './components/LinkField'
 
@@ -94,6 +95,7 @@ function MainApp() {
       </GlobalLinks>
       {info && view && <LinkedCardNote />}
       {info && view && <LinkWindow />}
+      {info && view && <FindAnything />}
       <AiSettingsDialog />
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>

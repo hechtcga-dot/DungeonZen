@@ -155,6 +155,7 @@ export const ipcInputs = {
   'app:about': z.void(),
   'app:uninstall': z.void(),
   'app:openLog': z.void(),
+  'find:index': z.void(),
   'assets:unused': z.void(),
   'assets:trash': z.object({ paths: z.array(z.string().min(1).max(1000)).max(10000) }),
   'board:view': z.object({ boardId: Id }),
@@ -598,6 +599,7 @@ export interface IpcOutputs {
   'app:about': { version: string; campaignFolder: string | null; dataFolder: string; installed: boolean }
   'app:uninstall': void
   'app:openLog': void
+  'find:index': Array<{ kind: 'card' | 'note' | 'session'; id: string; name: string; type?: EntityType; detail: string; encounter?: boolean }>
   'assets:unused': Array<{ path: string; size: number }>
   'assets:trash': number
   'board:view': BoardView
