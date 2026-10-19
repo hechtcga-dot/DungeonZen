@@ -911,3 +911,37 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   Restart now" (`app:restartToUpdate`); installs on quit anyway. Setup › About › Check for updates (`app:checkUpdates`).
   `electron-builder.yml` publish github (hechtcga-dot/DungeonZen, public); release workflow uploads `dist/*.exe` and
   `dist/latest.yml`. Errors go to the log only. 2.x users install 3.0 by hand once.
+
+- 3.1 UI (2026-10-19, `docs/PLAN-3.1-UI.md`, owner's mockups https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC):
+  - One header on every campaign screen: `ScreenHeader` (`components/TopBar.tsx`; replaces `TopBar` and each screen's
+    `desk-head`): eyebrow + title, Find button (Ctrl+K), `middle` (board search), the screen's own buttons, undo/redo,
+    lighting, clock. Desk passes its easter-egg candle (`candle` prop). Players keeps its own header (safe view).
+  - Rail: Prepare (Desk, Session prep, Encounters, Board, Timeline, Map, Library, Notes), At the table, For the players;
+    Setup / AI / Close one icon row (`.rail-foot`, names kept for screen readers). Board top bar lost Map/Timeline.
+  - Card sheet header: Show on board, Fill all blanks with AI, Export ▾ (Character sheet file › …, Print or save,
+    Roll20), ⋯ (Duplicate, Show on map for places, Move to History / Revive). `useSheetFile` (ImportCharSheet.tsx)
+    gives the character-sheet-file items and window; `SheetFileMenu` and the sheet's BackButton went (rail Back).
+  - Board tools: ADD (Card, Note), SHOW (Links, Story, Background, Map view, Hidden), DRAG MOVES (Cards / Background),
+    each with an icon; Fit all is the zoom controls' fit button.
+  - Box controls (− ↑ ↓, `fold.ts`) show on hover/focus of the box, on folded boxes, or always with Setup › Arrange boxes.
+  - Ctrl+K (and Ctrl+F, header Find button via `dz-find`): `FindAnything.tsx` adds Actions (New <card type>, New
+    encounter/storyline/note, Import notes, New map, Start session, +10 min, +1 h, rests, Undo/Redo, Look, Lighting,
+    Arrange boxes, AI services), Recent (5, localStorage `dz.recent`), Suggested per screen, groups, `>` actions,
+    `@` cards, `#` tags, Tab = show card on board, time steps "+2h" / "-1 h" / "advance 45m" / "+3 days"
+    (`parseTimeStep`, `shared/time.ts`; more than a day asks first). Writes go through `act` (undoable).
+  - Adventure UI skin (`adventure.css`, `skin.ts`): `<html data-skin="adventure">`, chosen in Setup › Look or on the
+    Start screen, per computer (localStorage `dz.skin`, all windows follow via the storage event). Desk skin unchanged
+    and the default. Dark brown rail/bars/ground, aged parchment panels (CSS gradients + paper noise, burnt edges),
+    Cinzel capital headings, Alegreya Sans text, red main buttons, outlined buttons on the frame, AI buttons blue dashed.
+    Desk-only art (candles, leaves, potion, quill, d20, leather, tarot art) hidden; storylines and party cards become
+    parchment rows/slips. Notes keeps its book page (`:not(.nb *)` on every broad rule) inside the frame.
+  - Adventure art (`art/adventure.tsx`): `HourScene` (Desk and Live; arched bronze window, sun/moon crossing the arch,
+    colours from `shared/hourPalette.ts` blending smoothly night → dawn → day → dusk → night) and `MoonArt` (true
+    phase via `moonLitPath`, earthshine on the dark part). Empty party box: faint adventurer silhouettes and an Add a
+    player character button (both skins).
+  - Timeline act blocks at least 96 px wide (name readable), full name, times and state in the tooltip; the second
+    "Timeline" title went.
+  - Smoke test: `DZ_SKIN=adventure` runs every screen in the Adventure UI (screenshots `tests/e2e/shots-adventure/`);
+    CI runs both.
+  - Not built from the plan: G5 renderer service layer, G6 first-run loop, Session prep / Encounters side columns,
+    Notes 44 px controls (owner's favourite look kept as is).

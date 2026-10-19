@@ -5,7 +5,7 @@ Two skins: Desk (today's look) and Adventure UI (G7, like the Notes screen); G1�
 Built in groups; each group with UI changes gets owner approval of its mockup first (as in `PLAN-3.0.md`).
 Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
 
-## G1 Shell: one header, one rail (visible)
+## G1 Shell: one header, one rail (visible) — built 3.1.0
 - One `ScreenHeader` on every screen (replaces the big candle title on Desk/Prep/Map/Encounters/Live and `TopBar`
   on Board/Sheet/Timeline/Library): candle + screen title (campaign name small above), Find box (Ctrl+K),
   the screen's own actions (slot), undo/redo icons, day/time chip with the lighting toggle. Same height everywhere.
@@ -15,10 +15,10 @@ Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
   with tooltips at the foot. Fits 900 px without scrolling.
 - What they know keeps its locked rail (unchanged rule).
 
-## G2 Ctrl+K: find and do (visible; see section below)
+## G2 Ctrl+K: find and do (visible; see section below) — built 3.1.0
 - Grows the Ctrl+F Find window into one box for screens, cards, encounters, notes and actions. Ctrl+F still opens it.
 
-## G3 Declutter (visible)
+## G3 Declutter (visible) — built 3.1.0
 - Box controls (− ↑ ↓, `fold.ts`): shown only on hover or keyboard focus of the box title; always shown in Setup ›
   "Arrange boxes" mode. One change in `fold.ts`, every screen gets it.
 - Card sheet header: three buttons (Show on board, Fill blanks with AI, Export ▾ = Character sheet file, Print or
@@ -27,7 +27,7 @@ Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
 - Board tools: icon + label, two groups: Add (Card, Note), Show (Links, Story, Background, Map view); Move
   (Cards / Background / Hidden) becomes one segmented control; Fit all moves to the zoom buttons.
 
-## G4 Consistency and fit (visible)
+## G4 Consistency and fit (visible) — partly built 3.1.0 (Timeline act names, Live advisor on parchment in Adventure UI); Prep/Encounters side columns and Notes 44 px not yet
 - Notes screen keeps its own look (owner, 2026-10-19: the most appealing screen; it is the model for the Adventure UI
   skin's frame, G7; it keeps its clean layout in both skins). Only its controls grow to 44 px.
 - Timeline act blocks: name on one line, ellipsis only past the block width; full name in tooltip; minimum block
@@ -37,18 +37,18 @@ Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
   shows the selected encounter or, with none, the planned list large with "New encounter"; Map keeps the parchment
   centred with the map list on the right.
 
-## G5 Renderer service layer (no visible change)
+## G5 Renderer service layer (no visible change) — not built yet
 - `src/renderer/services/<area>.ts` (campaign, cards, links, encounters, notes, prep, live, maps, pictures, ai):
   named functions over `call`/`act`/`query`. Components import services, never channel names.
 - Moved screen by screen; a vitest check fails if a component file calls `call(`/`act(`/`query(` with a channel
   string. IPC (`shared/ipc.ts`) unchanged.
 - Ctrl+K actions (G2) are built on these services.
 
-## G6 First run (visible, later)
+## G6 First run (visible, later) — not built yet
 - Getting started guide walks one loop after the world map: add a PC, make an NPC, link it, start a prep sheet,
   start the session on the Live desk. Each step skippable; reopen from Desk › Getting started.
 
-## G7 Adventure UI skin (visible; owner, 2026-10-19)
+## G7 Adventure UI skin (visible; owner, 2026-10-19) — built 3.1.0 (stored in localStorage like lighting, not profile.json)
 A second skin. The Desk skin stays; the DM picks. Owner chose the adventure direction (mockup row "Adventure",
 from the owner's reference picture): Notes keeps its clean layout; every other screen gets the adventure look.
 - Frame on every screen (Notes too): dark brown rail (#1a100a, current screen dark red-brown with a red edge),

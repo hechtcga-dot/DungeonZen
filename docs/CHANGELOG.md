@@ -119,3 +119,13 @@ Plan `docs/PLAN-3.0.md`, M0–M5; details in `docs/STATE.md` (3.0 M0–M4).
 - M5: auto-update from GitHub Releases (downloads in the background, installs on close or Restart now; Setup › About › Check for updates). The release carries the .exe and latest.yml.
 Owner's decisions: name stays Dungeon Zen; installer stays unsigned; Ctrl+F (not Ctrl+K); one rail (mockup B); Draw options a service can't use are hidden; style examples in Advanced, Look template in the simple part; link and draw mockups "yes to all".
 Defaults picked: Monster/Item/other card names no longer link by themselves until ticked; Prep's links box keeps its editor inline; no data upgrade for links (a plain line becomes a record when saved); Advanced fold remembered on this computer.
+
+## 3.1.0 (built 2026-10-19)
+Plan `docs/PLAN-3.1-UI.md`; details in `docs/STATE.md` (3.1 UI). Owner's mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
+- One header on every screen (title, Find, the screen's buttons, undo/redo, lighting, clock); rail with Map and Timeline, Setup/AI/Close as icons.
+- Card sheet: Show on board, Fill all blanks with AI, Export ▾, ⋯. Board tools grouped with icons. Box controls show on hover (Setup › Arrange boxes keeps them).
+- Ctrl+K find and do (Ctrl+F still works): actions, recent, suggested, `>` `@` `#`, "+2h" time steps.
+- Adventure UI skin (Setup › Look, Start screen): dark brown frame, aged parchment, Cinzel headings, red buttons; Notes keeps its clean page. Hour picture follows the clock and blends smoothly; the moon shows its true phase.
+- Timeline act names readable.
+Owner's decisions: Adventure UI is a second skin (name Adventure UI), the Desk skin stays; Notes keeps its clean layout; hour and moon pictures larger, illustrated, trimmed; hour picture blends smoothly through the day; Ctrl+K (Ctrl+F kept from 3.0).
+Defaults picked: Desk stays the default skin; the skin is per computer (like lighting), not per campaign; time buttons draw small but keep a 44 px click area; Notes controls left at their size; G5 service layer, G6 first-run loop and the Prep/Encounters side columns not in this release.
