@@ -851,3 +851,24 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   - Docs: CLAUDE.md = rules + standing decisions; release history `docs/CHANGELOG.md`; glossary in `docs/DATA_MODEL.md`.
   - Setup › Tidy campaign folder (`unusedAssets`, `assets:unused`, `assets:trash`): files under assets/ (not pending/,
     notes/, encounters/) whose name appears in no table (change log included); DM ticks, Recycle Bin; main re-checks.
+
+- 3.0 M2 links (2026-10-19, owner's mockup `docs/mockups/m2-links.png`, "yes to all"):
+  - Link window `components/LinkWindow.tsx` (store `linkWindow` / `openLink(req)`, mounted in App): kind chips Link / Secret /
+    Clue, pairs of cards (`SecretEditor` in `manual` mode: rows, card picker, + New link type…, Existing link…), one text
+    (Description / The secret / The clue), The players know this, Move to History, Cancel, Save. `link:get`
+    (`linkRecord`): the record behind a board line, or a stand-in without an id for a line not in one (kind from its
+    dashes, text = its description); `link:save` (`saveLink`): `saveSecret` (+ `boardId` for per-board links) and party
+    knowledge on every link, one undo step. No data upgrade: a plain line gets its record when first saved.
+  - Opens from: board drag between cards, clicking a line (`onEdgeClick`), card menu › New link (click the other card),
+    line right-click › Edit…, sheet Links & secrets, prep NPC + New link. Board side panel for a line: ends, type, text,
+    Edit…, Hide. Quick right-click Kind / Make secret / Delete stay. `LinkTypeFields`, the New link dialogs and the sheet's
+    Links tab are gone. Prep "Links, secrets, clues" keeps the same editor inline (saves as you go).
+  - Card sheet tab "Links & secrets (n)" (all types; replaces Secrets and Links): the card's own secret text (not on
+    buildings), then rows grouped Links / Secrets / Clues (filter All / Links / Secrets / Clues), Party knows tag, ↗ other
+    card's sheet, ＋ Add… Link / Secret / Clue / an existing one (window with "must include this card").
+  - Names that link by themselves: `shared/noteLinks.ts` `autoNames` used by Notes (`makeMatcher`) and every text box
+    (`withAutoLinks`, `WordLink.exact`): card tick `attributes.link_name` (default on for NPC, PC, Location, Faction;
+    `LinkNameTick` on the sheet under Tags and in the board side panel More), setting `link_rules` {never, minLength 4,
+    capitalOnly} (`COMMON_WORDS` default), the old off list still honoured. Stop linking on a card name unticks the card
+    (undoable); spells/conditions keep the off list. Setup › Linking names (`links:rules`). Measured: 500 cards on a
+    5,000-word note well under a second, so no worker or debounce.

@@ -20,7 +20,7 @@ Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen;
 - One source for card type colour + icon (`entityStyle.ts`), used by board, sheet, panels, maps.
 - Asset cleanup: Setup › Tidy campaign folder lists files in `assets/` that nothing uses (not cards, maps, notes, History, nor any undo step), with size; DM ticks and sends to the Recycle Bin (rule 3: nothing removed without the DM). Also listed after the M2 migration.
 
-## M2 One link model (biggest change; data migration)
+## M2 One link model — built 2026-10-19 (mockup approved; no data upgrade was needed: a plain line becomes a record when first saved, so old undo steps stay valid)
 - Link, Secret, Clue = one record kind (`link`: from, to, kind/type, text, known/secret, clue flag). Secrets' "connections" and board strings become the same rows.
 - One editor component used everywhere a link is made or edited: board drag, card sheet Links/Secrets tab, prep "Links, secrets, clues", note Mentions. Four creation paths → one dialog, opened from four places.
 - One auto-link matcher (today two: `LinkField.tsx` and `shared/noteLinks.ts`, with different rules) with filters:
