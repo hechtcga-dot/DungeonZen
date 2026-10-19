@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.10.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.10.1 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -166,3 +166,4 @@ Owner's decisions: encounters are placed on the board by choice only; the summar
 ## 2.10.0 (built 2026-10-19)
 Building Kind on the floor bar and in the board side panel under the picture (out of Details); Shop › What kind of shop (18 common D&D shops + Custom…, `shop_type`, in the backdrop line and Fill with AI); Encounters › Checks: ✦ Build with AI per check (AI suggestion, Keep replaces its results); AI writes exactly three checks with different skills fitting the encounter (Perception the most useful, Insight with an example), all 18 skills in the drop-down; desk The hour with more than three PCs: time and buttons under a bigger clock picture. Details in `docs/STATE.md`.
 Defaults picked: per-check Build with AI reuses Write it up with AI (whole write-up asked, matching check used); short AI check lists topped up with Perception / Investigation / Insight; clock picture up to 150 px high.
+2.10.1 (2026-10-19): desk The hour clock picture fills only the party box's height (never taller); building sheet: Description, History and Secrets & clues in the centre after patrons/stock; board cards: type icon in one 44 px square on every size, name-only cards with no band (square = full card height, name at most two lines then …).
