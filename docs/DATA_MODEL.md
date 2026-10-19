@@ -9,6 +9,22 @@ settings, factions, canvas persistence, sessions, structured triggers,
 multiple outcomes, deltas on relationships, field-level knowledge,
 routines, travel links, provenance.
 
+## Glossary (screen word = code word)
+New code uses the word on the left (what the DM sees). Older code and the database keep the old names.
+| On screen | In code / database | Notes |
+|---|---|---|
+| card | `entity` | one row per card; type in `entity.type` |
+| link | `relationship` (older code: string, connection) | a line between two cards; `is_secret` = dashed |
+| secret, clue | `secret` (kind `secret`/`clue`) + its links (`relationship.secret_id`) | one text, one or more links |
+| encounter | `entity` type SCENE with `attributes.encounter = true` | creatures in `encounter_creature` |
+| Notes screen | screen id `import` | notes files are `note_doc` |
+| Stat block | `FightSummary` component | was "Fight summary" |
+| Character sheet | `CharSheetDialog` | was "Full sheet" |
+| History | rows with `status = 'defunct'` (cards, links, rows), `removed` (storylines) | never hard-deleted except History › Delete for good |
+| Undo step | `command` row (`commandLog.ts`) | before/after copies of every changed row |
+| Live desk | screen id `live` | mode Live |
+| What they know | screen id `players` | mode Players |
+
 ## Core
 ```
 campaign_settings   key, value                       -- name, calendar, rules edition
