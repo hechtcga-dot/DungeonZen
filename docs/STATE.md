@@ -833,3 +833,21 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     Locally: `npm run build`, `npx electron-builder install-app-deps` (needs electronjs.org headers: blocked in cloud
     sessions, so rely on CI there), `xvfb-run npm run smoke`, then `npm rebuild better-sqlite3` for `npm test`.
     `DZ_USER_DATA` env sets the userData folder (smoke only).
+
+- 3.0 M1 code structure (2026-10-19):
+  - `src/main/campaign/`: `campaign.ts` (class core: open/save/backups, board reads/writes, sheet, desk, settings,
+    helpers) + one file per area (`timeline`, `live`, `review`, `regions`, `pictures`, `fill`, `notesImport`,
+    `encounters`, `combat`, `notes`, `prep`, `buildings`), each `export const <area>Part = part({ …methods })`
+    (`part.ts` types `this` as Campaign); campaign.ts puts them on `Campaign.prototype` and merges their types
+    (`interface Campaign extends Parts`). Shared consts/helpers in `common.ts` (re-exported). New method: in its area file.
+  - Speed: `npm run speed` (`tests/speed.test.ts`, 1,000 cards + 1,500 links). Board view 1,534 → 53 ms (secret
+    lookup once per view, storylines grouped per card); card sheet same fix. Renderer `refresh` left as is (measured:
+    the cost was on the main side).
+  - Card values: `shared/schemas.ts` `EntityAttributes` types text/count/flag keys (null = cleared, other keys kept);
+    `commandLog.ts` `checkAttributes` checks the changed keys on every entity insert/update. Old wrong values stay
+    (readers fall back on defaults) and never block an edit. One schema for all types (keys mean the same everywhere).
+  - One icon/colour source: Notes list card icons = board `TypeIcon` in the card colour; encounter builder chips and
+    note links use the DM's type colours (`useTypeColour`, `ENCOUNTER_COLOUR`). CSS: hand-typed palette hexes → `var(--wax)` etc.
+  - Docs: CLAUDE.md = rules + standing decisions; release history `docs/CHANGELOG.md`; glossary in `docs/DATA_MODEL.md`.
+  - Setup › Tidy campaign folder (`unusedAssets`, `assets:unused`, `assets:trash`): files under assets/ (not pending/,
+    notes/, encounters/) whose name appears in no table (change log included); DM ticks, Recycle Bin; main re-checks.

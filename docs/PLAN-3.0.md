@@ -10,7 +10,7 @@ Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen;
 - Old-campaign fixtures: small campaign.db files from 1.x/2.x; test opens each, migrations run, data intact.
 - Errors visible: replace silent `catch(() => …)` in `store.refresh` and elsewhere with a message; main writes a log file in userData (Setup › Open log folder) for bug reports.
 
-## M1 Code structure (no visible change)
+## M1 Code structure (no visible change) — built 2026-10-19 (see STATE.md; inline styles left: almost all are positions/colours computed per card)
 - Split `src/main/campaign/campaign.ts` (4,926 lines) by area: boards, cards, links, maps, encounters, combat, notes, prep, pictures, import/review. Same `db` + `CommandLog`.
 - Lean refresh: each screen loads only its own view; `board:view` / `links:view` only when shown or needed.
 - Zod schema per card type for `entity.attributes` (now `record<string, unknown>`), checked on write; migration fixes bad old values.
