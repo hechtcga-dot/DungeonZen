@@ -357,3 +357,13 @@ describe('scene text', () => {
     }
   })
 })
+
+describe('what each picture service can take (3.0 Draw windows)', () => {
+  it('follows how many pictures the service takes', async () => {
+    const { imageCaps, maxReferences, providerById } = await import('../src/shared/aiProviders')
+    const caps = (id: string) => imageCaps(maxReferences(providerById(id)))
+    expect(caps('openai-image')).toEqual({ examples: 4, plan: true, change: 'marks' })
+    expect(caps('stability')).toEqual({ examples: 1, plan: true, change: 'words' })
+    for (const id of ['replicate', 'fal', 'sd-webui']) expect(caps(id)).toEqual({ examples: 0, plan: false, change: null })
+  })
+})

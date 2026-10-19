@@ -1,4 +1,4 @@
-import { DrawExtras, withArtStyle } from '../components/Pictures'
+import { DrawExtras, withArtStyle, DrawAdvanced, ServiceLine, useImageService } from '../components/Pictures'
 import type { StyleTags } from '../../shared/styleTags'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChangePicture, OutlinePanel, outlineSend } from '../components/OutlinePad'
@@ -194,7 +194,7 @@ function MakeMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
 }
 
 function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void; onBack(): void }) {
-  const { say, act, setAiSettingsOpen, aiSettingsOpen } = useBoard()
+  const { say, act } = useBoard()
   const [description, setDescription] = useState('')
   const [climate, setClimate] = useState<WorldSettings['climate']>('temperate')
   const [style, setStyle] = useState<'painted' | 'parchment'>('painted')
@@ -203,14 +203,6 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('The Known World')
-  const [service, setService] = useState<string | null | undefined>(undefined)
-  useEffect(() => {
-    if (aiSettingsOpen) return
-    call('ai:settings', undefined).then((st) => {
-      const p = st.image.provider ? providerById(st.image.provider) : undefined
-      setService(p ? `${p.name}${st.image.model ? ` (${st.image.model})` : ''}` : null)
-    }).catch(() => setService(null))
-  }, [aiSettingsOpen])
   const artStyle = useBoard((st) => st.info?.artStyle ?? '')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [smaller, setSmaller] = useState(false)
@@ -219,7 +211,8 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
   // The outline is kept with the campaign (undoable); "Use" is for this drawing only.
   const outline = useBoard((st) => st.info?.worldOutline) ?? emptyOutline()
   const [useOutline, setUseOutline] = useState(true)
-  const outlineOn = useOutline && !outlineBlank(outline)
+  const caps = useImageService()
+  const outlineOn = caps.plan && useOutline && !outlineBlank(outline)
   const base = worldMapPrompt({ description, climate, style })
   const told = prompt ?? withArtStyle(outlineOn ? [outline.writeLabels ? base.replace('No text, no labels, no names', 'No other text') : base, outlineText(outline)].join('\n') : base, artStyle, tags)
   const draw = async () => {
@@ -245,7 +238,7 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
           <>
             <img className="guide-picture" src={drawn.url} alt="The world map the AI drew" />
             <p className="ai-tag">Drawn by {drawn.source}</p>
-            <ChangePicture drawn={drawn} ratio={1.5} disabled={busy} onChanged={setDrawn} />
+            {caps.change && <ChangePicture drawn={drawn} ratio={1.5} disabled={busy} onChanged={setDrawn} />}
           </>
         ) : <div className="guide-wait">{busy ? 'Drawing… (this can take a minute)' : 'The map appears here.'}</div>}
       </section>
@@ -264,16 +257,16 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
               <option value="painted">Painted</option><option value="parchment">Inked parchment</option>
             </select></div>
         </div>
-        <OutlinePanel outline={outline} on={useOutline} onOn={(v) => { setUseOutline(v); setPrompt(null) }} ratio={1.5}
-          onSave={(next) => { setPrompt(null); void act('campaign:update', { worldOutline: next }) }} />
-        <DrawExtras use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} send={send} onSend={setSend} />
-        {service === null ? (
-          <p>Drawing needs an image service. <button className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose an AI service…</button></p>
-        ) : (
-          <p className="ink-muted">{service ?? '…'} draws it.</p>
-        )}
+        <ServiceLine service={caps} />
+        <DrawAdvanced service={caps} what={`${caps.plan ? 'outline, ' : ''}${caps.examples ? 'examples, ' : ''}prompt`}
+          hidden={[...(caps.plan ? [] : ['the outline']), ...(caps.examples ? [] : ['example maps']), ...(caps.change === 'marks' ? [] : caps.change ? ['marks on Change this picture'] : ['Change this picture'])]}>
+          {caps.plan && <OutlinePanel outline={outline} on={useOutline} onOn={(v) => { setUseOutline(v); setPrompt(null) }} ratio={1.5}
+            onSave={(next) => { setPrompt(null); void act('campaign:update', { worldOutline: next }) }} />}
+          {caps.examples > 0 && <DrawExtras only="styles" use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} send={send} onSend={setSend} />}
+          <DrawExtras only="prompt" use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} send={send} onSend={setSend} />
+        </DrawAdvanced>
         <div className="row tight wrap">
-          <button className="ink-button" disabled={busy || !service} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Try again' : 'Draw the map'}</button>
+          <button className="ink-button" disabled={busy || !caps.name} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Try again' : 'Draw the map'}</button>
         </div>
         {error && <p className="field-error" role="alert">{error}</p>}
         <hr className="ink-rule" />

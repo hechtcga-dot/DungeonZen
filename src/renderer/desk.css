@@ -1856,3 +1856,10 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .link-row-main { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; padding: 0; border: 0; background: none; text-align: left; color: inherit; }
 .link-row-main i { color: var(--ink-muted); font-style: normal; }
 .link-row-text { color: var(--ink-muted); font-size: 12.5px; white-space: pre-line; }
+
+/* 3.0 Draw windows: Advanced fold, and what the chosen service cannot take */
+.draw-advanced { margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(122, 100, 64, 0.35); }
+.draw-advanced > summary { cursor: pointer; font-family: var(--display); font-size: 17px; }
+.draw-advanced[open] > summary { margin-bottom: 8px; }
+.draw-advanced > :not(summary) + :not(summary) { margin-top: 10px; }
+.draw-hidden { margin: 0 0 8px; padding: 7px 10px; border: 1px dashed rgba(143, 42, 33, 0.5); border-radius: 4px; background: rgba(143, 42, 33, 0.06); color: var(--wax); font-size: 12.5px; }

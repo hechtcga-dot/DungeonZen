@@ -160,3 +160,11 @@ export function maxReferences(info: AiProviderInfo | null | undefined): number {
   if (!info?.references) return 0
   return info.protocol === 'stability' ? 1 : 4
 }
+
+/**
+ * What a picture service can take besides words (3.0 Draw windows show only these): example pictures, a plan picture
+ * (outline, blueprint, Follow a picture) and Change this picture (with coloured marks when it takes two pictures).
+ */
+export function imageCaps(maxRefs: number): { examples: number; plan: boolean; change: 'marks' | 'words' | null } {
+  return { examples: maxRefs, plan: maxRefs > 0, change: maxRefs > 1 ? 'marks' : maxRefs === 1 ? 'words' : null }
+}

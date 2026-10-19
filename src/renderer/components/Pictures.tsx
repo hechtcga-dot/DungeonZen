@@ -10,6 +10,7 @@ import { OpenFolder } from './OpenFolder'
 import { ChangePicture, OutlinePanel, outlineSend } from './OutlinePad'
 import { outlineBlank, outlineText, readOutline } from '../../shared/outline'
 import type { LibraryPictureView, SheetView, StyleExampleView, StyleUse } from '../../shared/types'
+import { imageCaps } from '../../shared/aiProviders'
 
 const ASSET = 'dz-asset://campaign/'
 export const STYLE_USE_LABELS: Record<StyleUse, string> = { portraits: 'Portraits', maps: 'Maps', battle: 'Battle maps' }
@@ -24,6 +25,48 @@ export const withArtStyle = (prompt: string, artStyle: string, tags: StyleTags[]
  * pictures ticked as style examples for this kind of drawing (all on; untick any for this drawing only).
  */
 /** Draw windows: send the ticked examples as smaller copies (off unless the DM ticks it; the files stay as they are). */
+/** The chosen picture service and what it can take (reloads when AI services closes). */
+export function useImageService() {
+  const settingsOpen = useBoard((s) => s.aiSettingsOpen)
+  const [info, setInfo] = useState<IpcOutputs['ai:imageInfo'] | null>(null)
+  useEffect(() => { if (!settingsOpen) void call('ai:imageInfo', undefined).then(setInfo).catch(() => setInfo(null)) }, [settingsOpen])
+  return { name: info?.name ?? null, loaded: info !== null, ...imageCaps(info?.maxReferences ?? 0) }
+}
+export type ImageService = ReturnType<typeof useImageService>
+
+/** "Drawn by <service> · Change…" under the simple part of every Draw window. */
+export function ServiceLine({ service }: { service: ImageService }) {
+  const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
+  return (
+    <p className="hint">{service.name ? <>Drawn by <strong>{service.name}</strong> · </> : service.loaded ? 'Drawing needs an image service. ' : ''}
+      <button type="button" className="link-button" onClick={() => setAiSettingsOpen(true)}>{service.name ? 'Change…' : 'Choose an AI service…'}</button></p>
+  )
+}
+
+const ADVANCED_KEY = 'dz-draw-advanced'
+/**
+ * Every Draw window's Advanced fold (3.0, owner's mockup M3): closed at first, remembered on this computer. Holds only
+ * what the chosen service can use; one line says what is hidden for this service and why.
+ */
+export function DrawAdvanced({ service, what, hidden, children }: { service: ImageService; what: string; hidden: string[]; children: React.ReactNode }) {
+  const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem(ADVANCED_KEY) === '1' } catch { return false } })
+  return (
+    <details className="draw-advanced" open={open} onToggle={(e) => {
+      const next = e.currentTarget.open
+      setOpen(next)
+      try { localStorage.setItem(ADVANCED_KEY, next ? '1' : '0') } catch { /* private window */ }
+    }}>
+      <summary><strong>Advanced</strong> <span className="hint">({what})</span></summary>
+      {service.name && hidden.length > 0 && (
+        <p className="draw-hidden">{service.name} takes {service.examples ? 'only one picture with the words' : 'words only'}, so {hidden.join(', ')} {hidden.length === 1 ? 'is' : 'are'} hidden.{' '}
+          <button type="button" className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose another service…</button></p>
+      )}
+      {children}
+    </details>
+  )
+}
+
 export function SmallerExamples({ value, onChange }: { value: boolean; onChange(v: boolean): void }) {
   return (
     <label className="field checkbox" title="Big pictures take the service longer to read; very large ones can make it time out.">
@@ -209,7 +252,8 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   // The outline is kept on the card (undoable); "Use" is for this drawing only.
   const outline = readOutline(entity.attributes.outline)
   const [useOutline, setUseOutline] = useState(true)
-  const outlineOn = useOutline && !outlineBlank(outline)
+  const service = useImageService()
+  const outlineOn = service.plan && useOutline && !outlineBlank(outline)
   useEffect(() => { void call('entity:picturePrompt', { entityId: entity.id }).then(setBase).catch(() => undefined) }, [entity.id])
   const artStyle = info?.artStyle ?? ''
   const auto: Advanced = {
@@ -237,6 +281,8 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
   }
   const close = () => { if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }); onClose() }
   const rows = (keys: AdvancedKey[]) => <AdvancedRows keys={keys} value={adv} changed={over} onChange={setOver} />
+  const hidden = [...(service.examples ? [] : ['example pictures']), ...(service.plan ? [] : ['the outline']),
+    ...(service.change === 'marks' ? [] : service.change ? ['marks on Change this picture'] : ['Change this picture'])]
   return (
     <Dialog title={`Draw ${entity.name}`} open onClose={close} wide busy={busy}>
       <div className="dz-form">
@@ -246,32 +292,36 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
             <div className="field">
               <label htmlFor="pic-ask">Include in the picture (optional)</label>
               <input id="pic-ask" value={ask} maxLength={2000} placeholder="ducks, a boat, a fisherman in the boat" onChange={(ev) => setAsk(ev.target.value)} />
-              <div className="hint">Things to show, separated by commas. Uses the image service chosen in AI services.</div>
+              <div className="hint">Things to show, separated by commas.</div>
             </div>
-            <DrawExtras only="styles" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
-              onReset={() => undefined} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />
-            <section className="draw-box">
-              <div className="row tight wrap"><strong>Style</strong><TemplateBar value={adv} changed={over} onChange={setOver} /></div>
-              {rows(['style', 'medium', 'palette', 'light', 'detail'])}
-            </section>
-            <section className="draw-box">
-              <CompositionPicker value={comp} onChange={(id) => { setComp(id); setOver(({ composition: _, ...rest }) => rest) }} fromExamples={blended.composition} />
-              {rows(['composition', 'other'])}
-            </section>
-            <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
-              onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />
+            <div className="field"><span className="field-label">Look</span><TemplateBar value={adv} changed={over} onChange={setOver} /></div>
+            <ServiceLine service={service} />
+            <DrawAdvanced service={service} hidden={hidden} what={`${service.examples ? 'examples, ' : ''}style boxes, composition${service.plan ? ', outline' : ''}, prompt`}>
+              {service.examples > 0 && <DrawExtras only="styles" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
+                onReset={() => undefined} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />}
+              <section className="draw-box">
+                <strong>Style</strong>
+                {rows(['style', 'medium', 'palette', 'light', 'detail'])}
+              </section>
+              <section className="draw-box">
+                <CompositionPicker value={comp} onChange={(id) => { setComp(id); setOver(({ composition: _, ...rest }) => rest) }} fromExamples={blended.composition} />
+                {rows(['composition', 'other'])}
+              </section>
+              {service.plan && <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
+                onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />}
+              <DrawExtras only="prompt" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
+                onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} />
+            </DrawAdvanced>
           </div>
           <div className="draw-right">
             {drawn ? (
               <div className="ai-suggestion"><span className="ai-badge">AI suggestion · {drawn.source}</span><img className="pic-preview" src={drawn.url} alt="The AI's drawing" /></div>
             ) : <div className="draw-placeholder">{busy ? 'Drawing… (this can take a minute)' : 'The drawing appears here'}</div>}
-            {drawn && <ChangePicture drawn={drawn} ratio={1} disabled={busy} onChanged={setDrawn} />}
+            {drawn && service.change && <ChangePicture drawn={drawn} ratio={1} disabled={busy} onChanged={setDrawn} />}
             {error && (
               <div className="field-error battle-error" role="alert"><span>{error}</span>
                 <span className="row tight"><button disabled={busy} onClick={() => void draw()}>Try again</button><button onClick={() => setAiSettingsOpen(true)}>AI services…</button></span></div>
             )}
-            <DrawExtras only="prompt" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
-              onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} />
           </div>
         </div>
         <div className="dz-actions">

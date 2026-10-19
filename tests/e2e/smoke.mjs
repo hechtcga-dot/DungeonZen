@@ -58,6 +58,8 @@ try {
   for (const [label, name] of [['Session prep', 'prep'], ['Encounters', 'encounters'], ['Board', 'board']]) { await click(label); await shot(name) }
   await page.getByText('Barliman Butterbur').first().dblclick()
   await shot('sheet')
+  await click('Draw with AI…'); await page.locator('.draw-advanced').waitFor(); await shot('draw-window')
+  await click('Cancel')
   await page.getByRole('tab', { name: /Links & secrets/ }).click(); await shot('sheet-links')
   await page.locator('.link-row-main').first().click(); await page.locator('.link-window').waitFor(); await shot('link-window')
   await click('Cancel')

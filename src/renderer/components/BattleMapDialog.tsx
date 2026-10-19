@@ -4,8 +4,8 @@ import { CommitField } from './fields'
 import { GridLines } from './MapOverlay'
 import { call } from '../api'
 import { useBoard, useUnits } from '../store'
-import { maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
-import { AdvancedRows, SendExamples, SmallerExamples, StyleTagsEditor, TemplateBar } from './Pictures'
+import { imageCaps, maxReferences, providerById, type AiProviderInfo } from '../../shared/aiProviders'
+import { AdvancedRows, DrawAdvanced, SendExamples, SmallerExamples, StyleTagsEditor, TemplateBar } from './Pictures'
 import { advancedFromTags, advancedLines, blendTags, type Advanced, type AdvancedKey } from '../../shared/styleTags'
 import {
   ART_STYLES, aspectFor, BATTLE_FEATURES, BUILDINGS, type FollowSource, BATTLE_SETTINGS, battleMapPrompt, defaultFeatures, FEATURE_KEYS, GRID_MAX, GRID_MIN, guessTerrain, MOODS,
@@ -130,6 +130,9 @@ export function BattleMapDialog() {
   }, [open, aiOpen])
 
   const maxRefs = maxReferences(service?.info)
+  // What this service can take (3.0): a followed picture only goes to one that takes pictures.
+  const caps = { name: service?.info.name ?? null, loaded: service !== undefined, ...imageCaps(maxRefs) }
+  const followed = caps.plan ? follow : null
   const [send, setSend] = useState(false)
   const withExamples = send && maxRefs > 0 && picked.size > 0
   const ticked = styles.filter((st) => picked.has(st.id))
@@ -137,7 +140,7 @@ export function BattleMapDialog() {
   const fromTags = advancedFromTags(blended, '', artStyle)
   if (!blended.artist && !blended.period) fromTags.style = '' // maps: no book-illustration fallback, the Art style choice covers it
   const adv: Advanced = { ...fromTags, ...over }
-  const generated = [battleMapPrompt({ ...spec, withExamples, follow: !!follow }), ...advancedLines(adv, artStyle)].join('\n')
+  const generated = [battleMapPrompt({ ...spec, withExamples, follow: !!followed }), ...advancedLines(adv, artStyle)].join('\n')
   const prompt = ownPrompt ?? generated
   const [gridShown, setGridShown] = useState(false)
   const sizeOk = [cols, rows].every((n) => Number.isInteger(n) && n >= GRID_MIN && n <= GRID_MAX)
@@ -157,9 +160,9 @@ export function BattleMapDialog() {
     try {
       if (drawn) void call('battlemap:discard', { pendingId: drawn.pendingId }).catch(() => undefined)
       const ids = withExamples ? [...picked].slice(0, maxRefs) : []
-      const blueprint = sketch && useBlueprint && !follow ? { png: sketchPng(sketch), text: blueprintText(sketch, { labels: labelsOn, markers: markersOn }) } : undefined
+      const blueprint = sketch && useBlueprint && !followed ? { png: sketchPng(sketch), text: blueprintText(sketch, { labels: labelsOn, markers: markersOn }) } : undefined
       const r = await call('battlemap:draw', { prompt, styleIds: ids, aspect: aspectFor(cols, rows), blueprint, smaller,
-        follow: follow ? { mapId: follow.mapId, path: follow.path, crop: follow.crop } : undefined })
+        follow: followed ? { mapId: followed.mapId, path: followed.path, crop: followed.crop } : undefined })
       setDrawn({ ...r, prompt, cols })
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
@@ -224,8 +227,8 @@ export function BattleMapDialog() {
             {drawn.width && drawn.height ? `${drawn.cols} × ${rowsFor(drawn.cols, drawn.width, drawn.height)} squares. ` : ''}
             The grid is drawn by the app on top; you can change it later under Scale and grid.
           </p>
-          <ChangePicture drawn={drawn} ratio={drawn.width && drawn.height ? drawn.width / drawn.height : 1} disabled={busy}
-            onChanged={(next) => setDrawn({ ...drawn, ...next, prompt: drawn.prompt, cols: drawn.cols })} />
+          {caps.change && <ChangePicture drawn={drawn} ratio={drawn.width && drawn.height ? drawn.width / drawn.height : 1} disabled={busy}
+            onChanged={(next) => setDrawn({ ...drawn, ...next, prompt: drawn.prompt, cols: drawn.cols })} />}
           <div className="field">
             <label htmlFor="bm-keep-name">Name</label>
             <input id="bm-keep-name" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />
@@ -260,11 +263,6 @@ export function BattleMapDialog() {
                 <Choice id="bm-setting" label="Setting" k="setting" options={BATTLE_SETTINGS} spec={spec} auto={{ value: auto.setting, from: 'the place' }}
                   set={(p) => set({ ...p, features: defaultFeatures(p.setting as BattleSetting) })} />
                 <Choice id="bm-terrain" label="Terrain" k="terrain" options={TERRAINS} spec={spec} set={set} auto={{ value: auto.terrain, from: 'the description' }} />
-                <Choice id="bm-time" label="Time of day" k="timeOfDay" options={TIMES_OF_DAY} spec={spec} set={set} auto={{ value: auto.timeOfDay, from: 'the clock' }} />
-                <Choice id="bm-weather" label="Weather" k="weather" options={WEATHERS} spec={spec} set={set} />
-                <Choice id="bm-season" label="Season" k="season" options={SEASONS} spec={spec} set={set} />
-                <Choice id="bm-mood" label="Mood" k="mood" options={MOODS} spec={spec} set={set} />
-                <Choice id="bm-style" label="Art style" k="style" options={ART_STYLES} spec={spec} set={set} />
                 <div className="field">
                   <label htmlFor="bm-cols">Size in squares</label>
                   <div className="row tight">
@@ -278,6 +276,8 @@ export function BattleMapDialog() {
                   <label className="field checkbox"><input type="checkbox" checked={gridShown} onChange={(e) => setGridShown(e.target.checked)} /> Show the battle grid on the map</label>
                 </div>
               </div>
+            </div>
+            <div className="dz-form">
               <fieldset className="field battle-features">
                 <legend>Include <button type="button" className="link-button" onClick={() => set({ features: defaultFeatures(spec.setting) })}>usual for {spec.setting}</button>
                   {' · '}<button type="button" className="link-button" onClick={() => set({ features: [] })}>none</button></legend>
@@ -298,58 +298,46 @@ export function BattleMapDialog() {
                 <input id="bm-extra" value={spec.extra} maxLength={600} placeholder="A broken statue in the middle, the north wall half collapsed…"
                   onChange={(e) => set({ extra: e.target.value })} />
               </div>
-              <details className="draw-box battle-advanced" open={Object.keys(over).length > 0}>
-                <summary><strong>Advanced style and composition</strong> <span className="hint">(style, colours, light, details)</span></summary>
-                <span className="hint">{ticked.length
-                  ? `Filled from the style tags of the ticked example${ticked.length > 1 ? 's' : ''} (${ticked.map((st) => st.name).join(', ')}). Change any box for this drawing (↺ goes back), or save them as a template.`
-                  : 'Tick style examples to fill these from their style tags, or type your own. Save them as a template to use again.'}</span>
-                <div className="row tight wrap"><strong>Style</strong><TemplateBar use="battle" value={adv} changed={over} onChange={setOver} /></div>
-                <AdvancedRows keys={STYLE_KEYS} value={adv} changed={over} onChange={setOver} />
-                {ticked.length > 0 && (
-                  <div className="battle-tags">
-                    <span className="field-label">Style tags of the ticked examples (kept in Library › Pictures)</span>
-                    {ticked.map((st) => (
-                      <div key={st.id}>
-                        <strong>{st.name}</strong>
-                        <StyleTagsEditor picture={{ key: `lib:${st.id}`, name: st.name, tags: st.tags }}
-                          onSave={(tags) => void act('pictures:update', { key: `lib:${st.id}`, patch: { tags } }).then(loadStyles)} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </details>
+              <div className="field"><span className="field-label">Look</span><TemplateBar use="battle" value={adv} changed={over} onChange={setOver} /></div>
             </div>
-            <div className="dz-form">
-              <FollowPicture value={follow} onChange={setFollow} cols={cols} onSize={(c, r) => set({ cols: c, rows: r })} />
-              {follow && (
-                <Choice id="bm-buildings" label="Buildings show" k="buildings" options={BUILDINGS} spec={spec} set={set} />
-              )}
-              {sketch && !follow && (
-                <div className="blueprint-box">
-                  <label className="field checkbox"><input type="checkbox" checked={useBlueprint} onChange={(e) => setUseBlueprint(e.target.checked)} />
-                    <span><strong>Use sketch as blueprint</strong><br /><span className="hint">The map service gets the sketch as a clean plan picture plus a square-by-square list, and is told to keep every wall, door, room and feature exactly where it is, at this size, top-down.{!service.info.references ? ` ${service.info.name} cannot see pictures: it gets the list only.` : ''}</span></span></label>
-                  {useBlueprint && (
-                    <>
-                      <label className="field checkbox"><input type="checkbox" checked={labelsOn} onChange={(e) => setLabelsOn(e.target.checked)} /> Show labels on the finished map</label>
-                      {/[xX]/.test(sketch.cells) && <label className="field checkbox"><input type="checkbox" checked={markersOn} onChange={(e) => setMarkersOn(e.target.checked)} /> Keep start markers on the finished map</label>}
-                      <details>
-                        <summary>Blueprint sent (what the AI sees)</summary>
-                        <svg className="blueprint-preview" viewBox={`0 0 ${sketch.cols * 20} ${sketch.rows * 20}`} aria-label="The sketch"><SketchDrawing s={sketch} /></svg>
-                        <pre className="blueprint-text">{blueprintText(sketch, { labels: labelsOn, markers: markersOn })}</pre>
-                      </details>
-                    </>
-                  )}
+          </div>
+          <DrawAdvanced service={caps} what={`time, weather, mood, art style, style boxes${caps.examples ? ', examples' : ''}${caps.plan ? ', Follow a picture' : ''}${sketch ? ', blueprint' : ''}, prompt`}
+            hidden={[...(caps.examples ? [] : ['example maps']), ...(caps.plan ? [] : ['Follow a picture']), ...(caps.change === 'marks' ? [] : caps.change ? ['marks on Change this picture'] : ['Change this picture'])]}>
+            <div className="battle-grid-fields">
+              <Choice id="bm-time" label="Time of day" k="timeOfDay" options={TIMES_OF_DAY} spec={spec} set={set} auto={{ value: auto.timeOfDay, from: 'the clock' }} />
+              <Choice id="bm-weather" label="Weather" k="weather" options={WEATHERS} spec={spec} set={set} />
+              <Choice id="bm-season" label="Season" k="season" options={SEASONS} spec={spec} set={set} />
+              <Choice id="bm-mood" label="Mood" k="mood" options={MOODS} spec={spec} set={set} />
+              <Choice id="bm-style" label="Art style" k="style" options={ART_STYLES} spec={spec} set={set} />
+            </div>
+            <section className="draw-box">
+              <strong>Style</strong>
+              <span className="hint">{ticked.length
+                ? `Filled from the style tags of the ticked example${ticked.length > 1 ? 's' : ''} (${ticked.map((st) => st.name).join(', ')}). Change any box for this drawing (↺ goes back), or save them as a template.`
+                : 'Tick style examples to fill these from their style tags, or type your own. Save them as a template to use again.'}</span>
+              <AdvancedRows keys={STYLE_KEYS} value={adv} changed={over} onChange={setOver} />
+              {ticked.length > 0 && (
+                <div className="battle-tags">
+                  <span className="field-label">Style tags of the ticked examples (kept in Library › Pictures)</span>
+                  {ticked.map((st) => (
+                    <div key={st.id}>
+                      <strong>{st.name}</strong>
+                      <StyleTagsEditor picture={{ key: `lib:${st.id}`, name: st.name, tags: st.tags }}
+                        onSave={(tags) => void act('pictures:update', { key: `lib:${st.id}`, patch: { tags } }).then(loadStyles)} />
+                    </div>
+                  ))}
                 </div>
               )}
+            </section>
+            {caps.examples > 0 && (
               <div className="field">
-                <span className="field-label">Style examples for battle maps (Library pictures) {maxRefs ? `(${service.info.name} takes up to ${maxRefs}; ${picked.size} ticked)` : `(${service.info.name} can't see examples: the style goes in words only)`}</span>
-                {!service.info.references && <span className="hint">{service.info.name} cannot take example maps; it goes by the words only. OpenAI images, Gemini images and Stability can.</span>}
+                <span className="field-label">Style examples for battle maps (Library pictures) ({service.info.name} takes up to {maxRefs}; {picked.size} ticked)</span>
                 {styles.length === 0 ? <span className="hint">No Library pictures are ticked for battle maps. Add battle maps whose look you like.</span> : (
                   <ul className="style-list">
                     {styles.map((st) => (
-                      <li key={st.id} className={service.info.references && picked.has(st.id) ? 'is-picked' : undefined}>
+                      <li key={st.id} className={picked.has(st.id) ? 'is-picked' : undefined}>
                         <label className="style-thumb">
-                          <input type="checkbox" checked={!!service.info.references && picked.has(st.id)} disabled={!service.info.references || (!picked.has(st.id) && picked.size >= 4)}
+                          <input type="checkbox" checked={picked.has(st.id)} disabled={!picked.has(st.id) && picked.size >= 4}
                             onChange={() => togglePick(st.id)} aria-label={`Use ${st.name} as a style example`} />
                           <img src={`${st.url}?w=400`} alt="" />
                         </label>
@@ -360,17 +348,38 @@ export function BattleMapDialog() {
                     ))}
                   </ul>
                 )}
-                {service.info.references && styles.length > 0 && <SendExamples value={send} onChange={setSend} />}
-                {send && service.info.references && styles.length > 0 && <SmallerExamples value={smaller} onChange={setSmaller} />}
+                {styles.length > 0 && <SendExamples value={send} onChange={setSend} />}
+                {send && styles.length > 0 && <SmallerExamples value={smaller} onChange={setSmaller} />}
                 <button onClick={() => void addExamples()}>Add pictures to the Library…</button>
               </div>
-            </div>
-          </div>
-          <details className="battle-prompt" open={ownPrompt !== null}>
-            <summary>Prompt being sent to the AI{ownPrompt !== null ? ' (edited)' : ' (open to read and change it)'}</summary>
-            <textarea rows={8} value={prompt} maxLength={4000} aria-label="Prompt being sent to the AI" onChange={(e) => setOwnPrompt(e.target.value)} />
-            {ownPrompt !== null && <button className="link-button" onClick={() => setOwnPrompt(null)}>Go back to the generated text</button>}
-          </details>
+            )}
+            {caps.plan && <FollowPicture value={follow} onChange={setFollow} cols={cols} onSize={(c, r) => set({ cols: c, rows: r })} />}
+            {followed && (
+              <Choice id="bm-buildings" label="Buildings show" k="buildings" options={BUILDINGS} spec={spec} set={set} />
+            )}
+            {sketch && !followed && (
+              <div className="blueprint-box">
+                <label className="field checkbox"><input type="checkbox" checked={useBlueprint} onChange={(e) => setUseBlueprint(e.target.checked)} />
+                  <span><strong>Use sketch as blueprint</strong><br /><span className="hint">The map service gets the sketch as a clean plan picture plus a square-by-square list, and is told to keep every wall, door, room and feature exactly where it is, at this size, top-down.{!caps.plan ? ` ${service.info.name} cannot see pictures: it gets the list only.` : ''}</span></span></label>
+                {useBlueprint && (
+                  <>
+                    <label className="field checkbox"><input type="checkbox" checked={labelsOn} onChange={(e) => setLabelsOn(e.target.checked)} /> Show labels on the finished map</label>
+                    {/[xX]/.test(sketch.cells) && <label className="field checkbox"><input type="checkbox" checked={markersOn} onChange={(e) => setMarkersOn(e.target.checked)} /> Keep start markers on the finished map</label>}
+                    <details>
+                      <summary>Blueprint sent (what the AI sees)</summary>
+                      <svg className="blueprint-preview" viewBox={`0 0 ${sketch.cols * 20} ${sketch.rows * 20}`} aria-label="The sketch"><SketchDrawing s={sketch} /></svg>
+                      <pre className="blueprint-text">{blueprintText(sketch, { labels: labelsOn, markers: markersOn })}</pre>
+                    </details>
+                  </>
+                )}
+              </div>
+            )}
+            <details className="battle-prompt" open={ownPrompt !== null}>
+              <summary>Prompt being sent to the AI{ownPrompt !== null ? ' (edited)' : ' (open to read and change it)'}</summary>
+              <textarea rows={8} value={prompt} maxLength={4000} aria-label="Prompt being sent to the AI" onChange={(e) => setOwnPrompt(e.target.value)} />
+              {ownPrompt !== null && <button className="link-button" onClick={() => setOwnPrompt(null)}>Go back to the generated text</button>}
+            </details>
+          </DrawAdvanced>
           {error && (
             <div className="field-error battle-error" role="alert">
               <span>{error}</span>
