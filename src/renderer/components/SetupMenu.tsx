@@ -15,7 +15,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
   const { scope, set: setScope } = useOrderScope()
   const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | null>(null)
+  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | 'tidy' | null>(null)
   const [name, setName] = useState('')
   const [about, setAbout] = useState<About | null>(null)
 
@@ -42,6 +42,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           }) },
           { label: 'Open campaign folder', hint: 'Everything is in it: back up this one folder', onClick: () => void attempt(() => call('campaign:openFolder', { sub: '' })) },
           { label: 'Backups…', hint: 'Made at the end of every session and once a day', onClick: () => setDialog('backups') },
+          { label: 'Tidy campaign folder…', hint: 'Pictures and maps nothing uses any more', onClick: () => setDialog('tidy') },
           { label: 'Save a copy…', hint: 'Copies the whole campaign folder, pictures and notes included', onClick: () => void attempt(async () => {
             const where = await call('campaign:saveCopy', undefined)
             if (where) say(`Copy saved to ${where}`)
@@ -116,6 +117,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
 
       {dialog === 'backups' && <BackupsDialog onClose={() => setDialog(null)} />}
       {dialog === 'vtt' && <VttDialog onClose={() => setDialog(null)} />}
+      {dialog === 'tidy' && <TidyDialog onClose={() => setDialog(null)} />}
 
       <Dialog title="Delete this campaign?" open={dialog === 'delete'} onClose={() => setDialog(null)}>
         <p>Are you sure you want to delete <strong>{campaignName}</strong>?</p>
@@ -172,6 +174,40 @@ function BackupsDialog({ onClose }: { onClose(): void }) {
         {v?.own && <button onClick={() => void act('backups:resetFolder', undefined).then(load)}>Use the campaign folder</button>}
       </div>
       <div className="dz-actions"><button className="primary" onClick={onClose}>Close</button></div>
+    </Dialog>
+  )
+}
+
+/** Setup › Tidy campaign folder: files in assets/ nothing uses (not even History or Undo); ticked ones go to the Recycle Bin. */
+function TidyDialog({ onClose }: { onClose(): void }) {
+  const { say } = useBoard()
+  const [files, setFiles] = useState<IpcOutputs['assets:unused'] | null>(null)
+  const [ticked, setTicked] = useState<Set<string>>(new Set())
+  const load = () => void call('assets:unused', undefined).then(setFiles, (err: Error) => say(err.message, true))
+  useEffect(load, [])
+  const mb = (bytes: number) => `${(bytes / 1_048_576).toFixed(1)} MB`
+  const toggle = (p: string) => { const next = new Set(ticked); if (next.has(p)) next.delete(p); else next.add(p); setTicked(next) }
+  const size = (files ?? []).filter((f) => ticked.has(f.path)).reduce((n, f) => n + f.size, 0)
+  return (
+    <Dialog title="Tidy campaign folder" open onClose={onClose}>
+      <p>Pictures and maps in the campaign folder that nothing uses: no card, map, picture, note, History entry or undo step names them.</p>
+      {!files ? <p className="hint">Looking…</p> : files.length === 0 ? <p className="hint">Nothing to tidy: every file is in use.</p> : (
+        <>
+          <div className="row tight"><button onClick={() => setTicked(new Set(files.map((f) => f.path)))}>Tick all</button>
+            <button onClick={() => setTicked(new Set())}>Untick all</button></div>
+          <ul className="ink-list tidy-list">{files.map((f) => (
+            <li key={f.path}><label><input type="checkbox" checked={ticked.has(f.path)} onChange={() => toggle(f.path)} /> {f.path} <span className="hint">{mb(f.size)}</span></label></li>
+          ))}</ul>
+          <p className="hint">The ticked files go to the Windows Recycle Bin (restore them from there; Undo cannot).</p>
+        </>
+      )}
+      <div className="dz-actions">
+        <button onClick={() => void call('campaign:openFolder', { sub: 'assets' }).catch((err: Error) => say(err.message, true))}>Open folder</button>
+        <button onClick={onClose}>Close</button>
+        <button className="danger" disabled={ticked.size === 0} onClick={() => void call('assets:trash', { paths: [...ticked] }).then((n) => {
+          say(`${n} file${n === 1 ? '' : 's'} (${mb(size)}) moved to the Recycle Bin`); setTicked(new Set()); load()
+        }, (err: Error) => say(err.message, true))}>Move {ticked.size || ''} to the Recycle Bin</button>
+      </div>
     </Dialog>
   )
 }

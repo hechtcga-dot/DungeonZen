@@ -267,6 +267,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const err = await shell.openPath(folder)
     if (err) throw new Error(`Windows could not open it: ${err}`)
   })
+  handle('assets:unused', () => current().unusedAssets())
+  // Only files still unused right now, inside assets/: to the Recycle Bin (not undoable, like Delete file for good).
+  handle('assets:trash', async ({ paths }) => {
+    const c = current()
+    const unused = new Set(c.unusedAssets().map((f) => f.path))
+    const gone = paths.filter((p) => unused.has(p))
+    for (const p of gone) await shell.trashItem(join(c.folder, ASSETS_DIR, p))
+    return gone.length
+  })
   handle('app:openLog', async () => {
     const err = await shell.openPath(logFolder())
     if (err) throw new Error(`Windows could not open it: ${err}`)

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -232,5 +232,18 @@ describe('board: change many cards at once', () => {
     const back = c.boardView(globalBoardId).entities
     for (const id of ids) expect([back[id].attributes.colour, back[id].hidden, back[id].status]).toEqual([undefined, false, 'active'])
     expect(c.undo()).toBe('Added npc B')
+  })
+})
+
+describe('tidy campaign folder', () => {
+  it('lists only files nothing uses, even in History or an undo step', () => {
+    const { globalBoardId } = c.info()
+    const assets = join(dir, 'Test campaign', 'assets')
+    mkdirSync(join(assets, 'pictures'), { recursive: true })
+    mkdirSync(join(assets, 'notes'), { recursive: true })
+    for (const f of ['pictures/Ada_1.png', 'pictures/Ada_2.png', 'pictures/stray.png', 'notes/kept.md']) writeFileSync(join(assets, f), 'x')
+    const ada = c.createEntity({ boardId: globalBoardId, type: 'NPC', name: 'Ada', position: at, attributes: { picture: 'pictures/Ada_1.png' } })
+    c.updateEntity(ada.id, { attributes: { picture: 'pictures/Ada_2.png' } }) // Ada_1 now only in the undo step
+    expect(c.unusedAssets()).toEqual([{ path: 'pictures/stray.png', size: 1 }])
   })
 })

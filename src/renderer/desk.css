@@ -1838,3 +1838,5 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .summary-tools { display: flex; flex-direction: column; gap: 6px; }
 .summary-draft { border: 1px dashed #8a7350; border-radius: 6px; padding: 8px 10px; background: rgba(255, 252, 240, 0.6); }
 .session-summary { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+
+.tidy-list { max-height: 50vh; overflow: auto; }

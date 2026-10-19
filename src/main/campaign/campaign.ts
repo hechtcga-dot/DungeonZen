@@ -204,6 +204,37 @@ export class Campaign {
     return this.backups().some((b) => b.name.startsWith(today)) ? null : this.backup()
   }
 
+  // ---- tidy campaign folder: files in assets/ nothing uses ----------------------
+
+  /**
+   * Files in assets/ whose name appears nowhere in the campaign: not on a card, map, picture, note, setting,
+   * nor in History or any undo step. Pending AI pictures, notes files and encounter picture folders are left out
+   * (their folders are listed as they are). Setup › Tidy campaign folder; the DM ticks what goes to the Recycle Bin.
+   */
+  unusedAssets(): Array<{ path: string; size: number }> {
+    const root = join(this.folder, ASSETS_DIR)
+    const skip = new Set(['pending', 'notes', 'encounters'])
+    const files: string[] = []
+    const walk = (dir: string, rel: string) => {
+      for (const f of readdirSync(dir, { withFileTypes: true })) {
+        if (f.isDirectory()) { if (!(rel === '' && skip.has(f.name))) walk(join(dir, f.name), rel + f.name + '/') }
+        else files.push(rel + f.name)
+      }
+    }
+    if (existsSync(root)) walk(root, '')
+    // Every table's text, one row at a time (the change log holds the undo steps): a file named anywhere is in use.
+    const tables = this.opened.sqlite.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>
+    const used = (name: string) => tables.some((t) =>
+      this.opened.sqlite.prepare(`SELECT 1 FROM "${t.name}" WHERE instr(${this.columnsOf(t.name)}, ?) > 0 LIMIT 1`).get(name))
+    return files.filter((f) => !used(basename(f))).map((f) => ({ path: f, size: statSync(join(root, f)).size }))
+  }
+
+  /** A table's columns as one text (SQL), for searching every value at once. */
+  columnsOf(table: string): string {
+    return (this.opened.sqlite.pragma(`table_info("${table}")`) as Array<{ name: string }>)
+      .map((c) => `COALESCE(CAST("${c.name}" AS TEXT), '')`).join(` || char(31) || `)
+  }
+
   // ---- reads ---------------------------------------------------------------
 
   info(): CampaignInfo {

@@ -64,6 +64,8 @@ try {
   await click('Live'); await shot('live')
   await click('Players'); await shot('players')
   await click('Prep'); await shot('back-to-prep')
+  await click('Setup'); await page.getByText('Tidy campaign folder…').click(); await shot('tidy')
+  await click('Close')
 } catch (err) {
   problems.push(`step failed: ${err.message}`)
 } finally {

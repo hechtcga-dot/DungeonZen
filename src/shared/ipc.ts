@@ -155,6 +155,8 @@ export const ipcInputs = {
   'app:about': z.void(),
   'app:uninstall': z.void(),
   'app:openLog': z.void(),
+  'assets:unused': z.void(),
+  'assets:trash': z.object({ paths: z.array(z.string().min(1).max(1000)).max(10000) }),
   'board:view': z.object({ boardId: Id }),
   'entity:create': z.object({ boardId: Id, type: EntityType, name: Name, position: Position.optional() }),
   'blank:discard': z.object({ id: Id }),
@@ -589,6 +591,8 @@ export interface IpcOutputs {
   'app:about': { version: string; campaignFolder: string | null; dataFolder: string; installed: boolean }
   'app:uninstall': void
   'app:openLog': void
+  'assets:unused': Array<{ path: string; size: number }>
+  'assets:trash': number
   'board:view': BoardView
   'entity:create': EntityView
   'blank:discard': boolean
