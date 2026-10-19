@@ -22,7 +22,8 @@ export function FindAnything() {
   const typeColour = useTypeColour()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f' && !document.querySelector('dialog[open]')) {
+      // Never in Players mode: it would show secret cards on the players' screen.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f' && !document.querySelector('dialog[open]') && useBoard.getState().mode !== 'players') {
         e.preventDefault()
         setQ(''); setAt(0); setOpen(true)
         void call('find:index', undefined).then((list) => setItems([...list, ...SCREENS.map(screenItem)])).catch(() => setItems(SCREENS.map(screenItem)))

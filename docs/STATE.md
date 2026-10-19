@@ -886,3 +886,18 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     picture (hidden and not sent without plan), Buildings show, blueprint (words only on such services), prompt.
     World map (guide): simple = description, climate, style, service; Advanced = outline, examples, prompt.
   - Change this picture only for services that change pictures; Add to picture says when the service cannot.
+
+- 3.0 M4 everyday use (2026-10-19):
+  - Back is Alt+← only (Backspace no longer goes back; on the board Delete/Backspace still remove the selection).
+  - Empty card / board note / prep row cleared away: note "Empty card removed · Undo" (7 s; `say(text, isError, action)`,
+    `.toast-action`). `discardIfBlank` keeps the rows and steps in memory (`discarded`); `blank:restore`
+    (`restoreDiscarded`) puts them back as they were.
+  - Ctrl+F (owner; not Ctrl+K) `components/FindAnything.tsx`, `find:index` (`findIndex`: cards not in History, notes,
+    session prep sheets) + screens: type, ↑ ↓, Enter opens (card sheet; encounter on Encounters; note in Notes; session
+    in Session prep); Board / Map buttons on rows (Map for places and buildings). Not in Players mode.
+  - Right-click places say so on hover (encounter items, History rows, floors, patrons, notes and folders, storylines).
+  - Roll20 output pinned: `tests/roll20.test.ts` + `tests/__snapshots__/roll20.test.ts.snap` (macros, picker attacks,
+    a character, import data, API script). Changing it = `vitest -u` on purpose.
+  - Speed (`npm run speed`, + 200 notes): a card's notes mentions 2.6 s → 0.4 s (plain text search in `findAll`;
+    `notes:mentions` skips notes that never name the card and uses the linking rules).
+  - Screens review: mockup `docs/mockups/m4-screens.png` (one rail instead of the Prep/Live switch) waiting for the owner.
