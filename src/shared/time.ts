@@ -38,3 +38,17 @@ export function playDateText(date: string): string {
 export function sessionLabel(number: number, title: string, date: string | null): string {
   return [`Session ${number}`, title.trim(), date ? playDateText(date) : ''].filter(Boolean).join(' · ')
 }
+
+/** Ctrl+K time steps (3.1): "+2h", "+30 min", "-1 h", "advance 45m", "+3 days" → minutes; anything else → null. */
+export function parseTimeStep(text: string): number | null {
+  const t = text.trim()
+  const m = /^(?:advance\s+|\+|(-))\s*(\d{1,4})\s*(h|hrs?|hours?|m|mins?|minutes?|d|days?)$/i.exec(t)
+  if (!m) return null
+  const n = Number(m[2]) * (/^d/i.test(m[3]) ? 1440 : /^h/i.test(m[3]) ? 60 : 1)
+  return m[1] ? -n : n
+}
+export function timeStepLabel(min: number): string {
+  const a = Math.abs(min)
+  const t = a % 1440 === 0 ? `${a / 1440} day${a === 1440 ? '' : 's'}` : a % 60 === 0 ? `${a / 60} h` : `${a} min`
+  return `${min < 0 ? 'Move the clock back' : 'Advance time'} ${t}`
+}

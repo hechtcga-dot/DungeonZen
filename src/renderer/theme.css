@@ -345,3 +345,6 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .tools-group { display: block; width: 100%; margin-top: 4px; text-align: center; font-size: 10px; letter-spacing: 0.08em; opacity: 0.85; }
 .tool { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 .tool-layer { border: 0; }
+/* Ctrl+K: a small heading over each group of results (3.1). */
+.find-list li[data-group]::before { content: attr(data-group); display: block; width: 100%; padding: 8px 4px 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.find-list li[data-group] { flex-wrap: wrap; }
