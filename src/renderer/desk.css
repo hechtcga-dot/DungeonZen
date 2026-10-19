@@ -1713,6 +1713,9 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 /* The DM screen's own − ↑ ↓ (on The hour's title, they fold and move the whole screen) sit at its top right corner. */
 .dm-screen { position: relative; }
 .dm-screen .clock-panel { position: static; }
+.dm-screen .clock-panel.tall .dm-panel-row { flex: 1; flex-direction: column; align-items: stretch; gap: 6px; }
+.dm-screen .clock-panel.tall .dm-panel-row .clock-dial { width: 100%; flex: 1 1 auto; max-height: 150px; }
+.dm-screen .clock-panel.tall .clock-side { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: center; column-gap: 10px; }
 .dm-screen .clock-panel > .panel-title > .box-tools { position: absolute; top: 18px; right: 22px; margin: 0; z-index: 4; }
 .dm-screen > .session-panel > :first-child { padding-right: 72px; }
 .chest-choice { display: flex; flex-direction: column; gap: 6px; padding-left: 14px; }

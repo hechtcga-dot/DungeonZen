@@ -81,7 +81,8 @@ function Desk({ desk }: { desk: DeskView }) {
 
       {/* The DM screen: a wooden frame with parchment panels. */}
       <section className="dm-screen" aria-label="DM screen">
-        <div className="dm-panel clock-panel">
+        {/* More than three PCs make the panels tall: time and buttons go under a bigger dial (owner, 2026-10-19). */}
+        <div className={`dm-panel clock-panel${desk.party.length > 3 ? ' tall' : ''}`}>
           <h2 className="panel-title">The hour</h2>
           <div className="dm-panel-row">
             <ClockDial minutes={minutes} moonOffsetDays={desk.moonOffsetDays} />
