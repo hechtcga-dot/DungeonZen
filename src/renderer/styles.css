@@ -180,8 +180,10 @@ textarea { padding: 10px 12px; resize: vertical; line-height: 1.45; }
 .card:not(.card-resolved) { --paper: color-mix(in srgb, var(--type, transparent) 30%, var(--card-paper)); background: var(--paper); border-left: 7px solid var(--type, transparent); }
 .card.card-resolved { background: #8d9198; box-shadow: none; }
 /* Type icon: the left band widens into a small square at the top with the type's icon (owner, 2026-10-18). */
-.card { padding-left: 26px; }
-.card-icon { position: absolute; left: -7px; top: 0; width: 25px; height: 25px; display: grid; place-items: center; background: var(--type, #3d434b); color: #fff8e6; border-radius: 4px 0 6px 0; box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.18); }
+/* One full square over the band's top, icon centred and filling it (owner, 2026-10-19). */
+.card { padding-left: 36px; }
+.card-icon { position: absolute; left: -7px; top: 0; width: 34px; height: 34px; display: grid; place-items: center; background: var(--type, #3d434b); color: #fff8e6; border-radius: 4px 0 0 0; }
+.card-icon svg { width: 26px; height: 26px; }
 .card.is-selected, .note.is-selected { outline: 3px solid var(--selection); outline-offset: 2px; }
 .card.is-match { outline: 3px solid var(--amber); outline-offset: 2px; }
 .card.is-dimmed, .note.is-dimmed { opacity: 0.3; }
