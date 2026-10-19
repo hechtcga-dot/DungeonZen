@@ -101,7 +101,15 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
   )
   const rooms = (kind === 'tavern' || live(b.rooms).length > 0) && <RoomsPanel key="rooms" b={b} floor={cur} save={save} price={price} onPick={setHighlight} />
   const stock = <StockPanel key="stock" b={b} kind={kind} floor={cur.id} save={save} price={price} factor={factor} />
-  const order = kind === 'shop' ? [stock, people, rooms, layout] : [people, rooms, stock, layout] // layout always last (owner, 2026-10-14)
+  const words = (
+    <section key="words" className="panel">
+      <CommitField id={`b-${e.id}-desc`} label={lab('description', 'Description')} value={text('description')} multiline rows={4}
+        onCommit={(description) => void act('entity:update', { id: e.id, patch: { attributes: { description } } })} />
+      <CommitField id={`b-${e.id}-hist`} label={lab('history', 'History')} value={text('history')} multiline rows={5}
+        hint="Says how the place got its name." onCommit={(history) => void act('entity:update', { id: e.id, patch: { attributes: { history } } })} />
+    </section>
+  )
+  const order = kind === 'shop' ? [stock, words, people, rooms, layout] : [people, words, rooms, stock, layout] // layout always last (owner, 2026-10-14); description and history in the centre, after patrons/inventory (owner, 2026-10-19)
 
   return (
     <>
@@ -134,12 +142,6 @@ export function BuildingTab({ sheet, side, rest, wrapSide, factions, lab }: {
           <LocationPick id={`b-${e.id}-inside`} label="Inside" value={text('location')} exclude={e.id}
             hint="Its region on the map shows who is in here." onChange={(location) => void act('entity:update', { id: e.id, patch: { attributes: { location } } })} />
           {factions}
-        </section>
-        <section className="panel">
-          <CommitField id={`b-${e.id}-desc`} label={lab('description', 'Description')} value={text('description')} multiline rows={4}
-            onCommit={(description) => void act('entity:update', { id: e.id, patch: { attributes: { description } } })} />
-          <CommitField id={`b-${e.id}-hist`} label={lab('history', 'History')} value={text('history')} multiline rows={5}
-            hint="Says how the place got its name." onCommit={(history) => void act('entity:update', { id: e.id, patch: { attributes: { history } } })} />
         </section>
         <SecretsFolders sheet={sheet} b={b} save={save} setMenu={setMenu} />
         {rest}

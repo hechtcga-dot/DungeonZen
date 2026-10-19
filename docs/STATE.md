@@ -577,8 +577,8 @@ built.
   scale (Price settings, folded at the bottom of the side column). Side: Secrets & clues with two folders, In this
   building and All campaign secrets (campaign's own list, Clue cards, other buildings' secrets; `secretPool`);
   right-click moves between them (`moveSecret`, one undo step; a Clue card is added with its card id); + Add ▾ new
-  secret / clue / rumour or from a Clue card; purple = has its own card. Description, History (says how it got its
-  name), Details (Kind, floors, Inside = location, Factions), template side. No sights/dangers/bio/what the players
+  secret / clue / rumour or from a Clue card; purple = has its own card. Description and History (says how it got its
+  name) in the centre after patrons (shop: after stock) (owner, 2026-10-19). Side: Details (Kind, floors, Inside = location, Factions), template side. No sights/dangers/bio/what the players
   see on buildings. Removing anything inside a building marks it removed (History inside the card, Bring back ▾).
   Fill with AI (`ai:building`, `src/main/ai/building.ts`): one proposal for everything (description, history with
   the name's story, floors, keeper, patrons, scored secrets tied to existing cards by name, rooms, stock, rough
