@@ -37,9 +37,28 @@ export type StorylineStatus = z.infer<typeof StorylineStatus>
 export const RulesEdition = z.enum(['2014', '2024'])
 export type RulesEdition = z.infer<typeof RulesEdition>
 
-// Free-form attributes; typed sub-schemas (5e stat block etc.) arrive with the entity sheet.
-export const EntityAttributes = z.record(z.string(), z.unknown())
-export type EntityAttributes = z.infer<typeof EntityAttributes>
+// A card's attributes: the known keys are type-checked (null = cleared), any other key is kept as it is.
+// Checked where values are written (requests from the window, createEntity/updateEntity: the changed keys only),
+// never on read: readers still fall back on a default, so an old value of the wrong type never blocks the DM.
+// Bigger values (stat block, building, story, sketch…) have readers of their own (readStatBlock, readBuilding…).
+const text = z.string().max(200000).nullable().optional()
+const count = z.number().int().min(0).max(10_000_000).nullable().optional()
+const flag = z.boolean().nullable().optional()
+const TEXT_KEYS = [
+  'summary', 'bio', 'motivation', 'location', 'history', 'secret', 'sights', 'sounds', 'smells', 'reward', 'text', 'from', 'notes',
+  'description', 'details', 'occupation', 'appearance', 'personality', 'voice', 'ideals', 'bonds', 'flaws', 'tactics', 'background',
+  'gender', 'age', 'height', 'weight', 'eyes', 'hair', 'skin', 'faith', 'habitat', 'lore', 'colour', 'picture', 'picture_source',
+  'initiative', 'conditions', 'place_kind', 'biome', 'folder', 'battle_map_id', 'adjusted_for', 'adjusted_from_name', 'spell_ability',
+  'building_kind', 'shop_type', 'save_notes', 'target'
+] as const
+const COUNT_KEYS = ['current_hp', 'temp_hp', 'xp', 'exhaustion', 'hit_dice_used', 'count', 'attacks_per_action'] as const
+export const EntityAttributes = z.object({
+  ...Object.fromEntries(TEXT_KEYS.map((k) => [k, text])) as Record<(typeof TEXT_KEYS)[number], typeof text>,
+  ...Object.fromEntries(COUNT_KEYS.map((k) => [k, count])) as Record<(typeof COUNT_KEYS)[number], typeof count>,
+  prof_bonus: z.number().int().min(-10).max(30).nullable().optional(),
+  encounter: flag, inspiration: flag, generated: flag
+}).catchall(z.unknown())
+export type EntityAttributes = Record<string, unknown>
 
 export const Tags = z.array(z.string().trim().min(1).max(40)).max(50)
 

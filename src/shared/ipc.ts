@@ -9,7 +9,7 @@ import { GRID_MAX, GRID_MIN } from './battlemap'
 import { ImportDraft, type ImportDraftSummary } from './notesImport'
 import { BIOMES, PLACE_KINDS, WORLD_CLIMATES, WORLD_SIZES, type PlaceShape } from './places'
 import {
-  AbilityKind, EncounterFeedback, EntityAttributes, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
+  AbilityKind, EncounterFeedback, EntityStatus, EntityType, Id, KnowledgeField, LogKind, RelationshipType, RowStatus,
   RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
 } from './schemas'
 import type { BuiltCreature, CombatView, SrdMonsterRow,
@@ -514,7 +514,7 @@ export const ipcInputs = {
     id: Id,
     patch: z.object({
       name: Name.optional(), type: EntityType.optional(), tags: Tags.optional(),
-      attributes: EntityAttributes.optional()
+      attributes: z.record(z.string(), z.unknown()).optional() // type-checked on write (commandLog checkAttributes)
     })
   }),
   'entity:setStatus': z.object({ id: Id, status: EntityStatus }),

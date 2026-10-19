@@ -75,3 +75,20 @@ describe('the DM can change everything', () => {
     expect(c.entityView(e.id).attributes).toMatchObject({ colour: '#aa3355', custom: [{ label: 'Weight', value: '2 tons' }] })
   })
 })
+
+describe('card values are type-checked when written', () => {
+  it('refuses a wrong type and keeps an old wrong value from blocking other edits', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dz-attrs-'))
+    const c = Campaign.create(join(dir, 'C'), 'C')
+    try {
+      const boardId = c.info().globalBoardId
+      const npc = c.createEntity({ boardId, type: 'NPC', name: 'Ada', position: { x: 0, y: 0 } })
+      expect(() => c.updateEntity(npc.id, { attributes: { current_hp: 'lots' } })).toThrow(/current_hp/)
+      expect(() => c.createEntity({ boardId, type: 'NPC', name: 'Bo', position: { x: 0, y: 0 }, attributes: { summary: 5 } })).toThrow(/summary/)
+      // An old campaign's wrong value (written before this check) stays and does not stop the next edit.
+      c.opened.sqlite.prepare(`UPDATE entity SET attributes = json_set(attributes, '$.xp', 'ten') WHERE id = ?`).run(npc.id)
+      c.updateEntity(npc.id, { attributes: { ...c.entityView(npc.id).attributes, summary: 'Smith', current_hp: 7, unknown_key: [1] } })
+      expect(c.entityView(npc.id).attributes).toMatchObject({ xp: 'ten', summary: 'Smith', current_hp: 7, unknown_key: [1] })
+    } finally { c.close(); rmSync(dir, { recursive: true, force: true }) }
+  })
+})

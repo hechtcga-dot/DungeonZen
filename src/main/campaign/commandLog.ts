@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import { command, tracked, type CommandRow, type RowChange, type TableName } from '../db/schema'
 import type { Db } from '../db/open'
+import { EntityAttributes } from '../../shared/schemas'
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 type Row = Record<string, unknown>
@@ -21,6 +22,7 @@ export class Writer {
   }
 
   insert<T extends TableName>(table: T, row: InsertOf<T>): void {
+    if (table === 'entity') checkAttributes((row as Row).attributes, {})
     const id = primaryKeyOf(table, row as Row)
     this.tx.insert(tracked[table].table).values(row as never).run()
     this.changes.push({ table, id, before: null, after: this.get(table, id) })
@@ -34,6 +36,7 @@ export class Writer {
       ([k, v]) => v !== undefined && JSON.stringify(before[k]) !== JSON.stringify(v)
     )
     if (!changed) return false
+    if (table === 'entity' && 'attributes' in patch) checkAttributes((patch as Row).attributes, before.attributes)
     const { table: t, pk } = tracked[table]
     this.tx.update(t).set(patch as never).where(eq(pk, id)).run()
     this.changes.push({ table, id, before, after: this.get(table, id) })
@@ -53,6 +56,15 @@ export class Writer {
   idsWhere(table: TableName, column: string, value: string): string[] {
     return this.tx.all<{ id: string }>(sql`SELECT id FROM ${sql.identifier(table)} WHERE ${sql.identifier(column)} = ${value}`).map((r) => r.id)
   }
+}
+
+/** A card's attributes: the keys that changed must have the right type (shared/schemas.ts EntityAttributes). */
+function checkAttributes(next: unknown, before: unknown): void {
+  if (!next || typeof next !== 'object') return
+  const old = (before && typeof before === 'object' ? before : {}) as Row
+  const changed = Object.fromEntries(Object.entries(next).filter(([k, v]) => JSON.stringify(old[k]) !== JSON.stringify(v)))
+  const r = EntityAttributes.safeParse(changed)
+  if (!r.success) throw new Error(`A card value has the wrong type: ${r.error.issues.map((i) => `${i.path.join('.')} (${i.message})`).join(', ')}`)
 }
 
 export interface UndoState {
