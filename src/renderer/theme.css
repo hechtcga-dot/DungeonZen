@@ -6,8 +6,8 @@ html, body { background: #2e1c0e; }
 .frame-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; }
 
 .desk-theme {
-  --text: #f1e6c6; --muted: #d6c296; --ground: rgba(24, 14, 6, 0.55); --panel: rgba(24, 14, 6, 0.4); --bar: transparent;
-  --border: #6b4a26; --border-strong: #a8884f; --selection: #f6c945; --link: #f6c945; --amber: #f6c945;
+  --text: var(--parchment-light); --muted: #d6c296; --ground: rgba(24, 14, 6, 0.55); --panel: rgba(24, 14, 6, 0.4); --bar: transparent;
+  --border: #6b4a26; --border-strong: var(--stitch); --selection: var(--gold); --link: var(--gold); --amber: var(--gold);
   color: var(--text);
 }
 
@@ -41,7 +41,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .desk-theme button[aria-pressed='true']:hover:not(:disabled) { background: linear-gradient(180deg, #fbe0a4, #c89539 55%, #93692a); border-color: #3b2608; }
 .desk-theme button.primary { color: #fbe9d0; border-color: #4a120d; background: radial-gradient(circle at 40% 35%, #b5392d, var(--wax) 60%, #5e1812); }
 .desk-theme button.primary:hover:not(:disabled) { background: radial-gradient(circle at 40% 35%, #c9473a, #9c3026 60%, #5e1812); border-color: #4a120d; }
-.desk-theme button.primary:disabled { color: #e8d9b0; background: #8a7a5c; border-color: #6b5636; }
+.desk-theme button.primary:disabled { color: var(--parchment); background: #8a7a5c; border-color: #6b5636; }
 .desk-theme button.danger { color: #f3b9b0; border-color: #a5352a; }
 .desk-theme button.link { color: var(--link); }
 .desk-theme input, .desk-theme select, .desk-theme textarea { color: var(--text); background: var(--ground); border-color: var(--border); }
@@ -53,7 +53,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 /* ---- parchment surfaces ---- */
 .desk-theme .side, .desk-theme .panel, .desk-theme .library-templates, .start-panel, .desk-theme .menu {
   --text: #2a1f12; --muted: #5a4a32; --ground: rgba(255, 250, 236, 0.6); --panel: transparent;
-  --border: #a8916a; --border-strong: #7a6440; --selection: #8f2a21; --link: #8f2a21; --amber: #8f2a21;
+  --border: #a8916a; --border-strong: #7a6440; --selection: var(--wax); --link: var(--wax); --amber: var(--wax);
   color: var(--text);
   background-color: var(--parchment);
   background-image: radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(120, 80, 30, 0.28) 100%), var(--tex-blotch), var(--tex-paper);
@@ -134,7 +134,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .start-panel button { color: var(--ink); border-color: #7a6440; }
 .start-panel .recent-path { color: var(--ink-muted); }
 .start-panel button.primary { color: #fbe9d0; background: radial-gradient(circle at 40% 35%, #b5392d, var(--wax) 60%, #5e1812); border-color: #4a120d; }
-.start-panel button.primary:disabled { color: #e8d9b0; background: #a89880; border-color: #a89880; }
+.start-panel button.primary:disabled { color: var(--parchment); background: #a89880; border-color: #a89880; }
 
 /* ---- messages ---- */
 .toast { color: var(--ink); background: var(--parchment-light); border: 2px solid #3b2a14; font-weight: 500; }
@@ -203,12 +203,12 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .tl-ghost { position: absolute; top: 12px; height: calc(100% - 24px); border: 2px dotted #8a7350; border-radius: 4px; background: rgba(255, 250, 236, 0.25); }
 .tl-add { min-height: 32px; padding: 0 10px; font-size: 12px; margin-top: auto; }
 .tl-now { position: absolute; width: 3px; margin-left: -1px; background: #e0a800; z-index: 4; pointer-events: none; box-shadow: 0 0 6px rgba(224, 168, 0, 0.6); }
-.tl-now span { position: absolute; top: 46px; left: 6px; white-space: nowrap; font-size: 11px; font-weight: 700; color: #2a1806; background: #f6c945; padding: 1px 6px; border-radius: 3px; }
+.tl-now span { position: absolute; top: 46px; left: 6px; white-space: nowrap; font-size: 11px; font-weight: 700; color: #2a1806; background: var(--gold); padding: 1px 6px; border-radius: 3px; }
 .tl-trigger { position: absolute; width: 0; border-left: 3px dotted #2f6fa3; z-index: 2; pointer-events: none; }
 .tl-trigger.fired { border-left-style: dashed; border-left-color: #1f4f73; }
 .tl-badge {
   position: absolute; left: -15px; min-width: 28px; height: 24px; padding: 0 6px; display: grid; place-items: center; border-radius: 12px;
-  font-size: 11px; font-weight: 700; color: #fff; background: #2f6fa3; border: 2px solid #f1e6c6;
+  font-size: 11px; font-weight: 700; color: #fff; background: #2f6fa3; border: 2px solid var(--parchment-light);
 }
 .tl-badge.static { position: static; display: inline-grid; flex: none; }
 .tl-legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 14px; border-top: 1px solid #a8916a; font-size: 12px; color: var(--ink); }
@@ -242,7 +242,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 /* Dialogs and parchment cards on the table use ink tokens, so their fields are light parchment. */
 .dz-dialog, .desk-theme .parchment-note, .desk-theme .parchment-sheet, .desk-theme .otf-card, .desk-theme .otf-result, .desk-theme .dm-panel:not(.advisor) {
   --text: #2a1f12; --muted: #5a4a32; --ground: rgba(255, 252, 240, 0.85); --border: #8a7350; --border-strong: #7a6440;
-  --selection: #8f2a21; --link: #8f2a21; color: var(--text);
+  --selection: var(--wax); --link: var(--wax); color: var(--text);
 }
 .dz-dialog :is(input, select, textarea), .desk-theme .parchment-note :is(input, select, textarea),
 .desk-theme .otf-card :is(input, select), .desk-theme .dm-panel:not(.advisor) select {
