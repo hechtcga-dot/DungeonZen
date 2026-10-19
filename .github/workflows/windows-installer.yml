@@ -29,6 +29,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npx electron-builder install-app-deps
+      - run: npm run smoke
       - run: npx electron-builder --win --x64 --publish never
       # GitHub zips every artifact itself: upload only the .exe, or the download holds the installer twice (once inside a .zip).
       - uses: actions/upload-artifact@v4

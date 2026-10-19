@@ -78,7 +78,7 @@ export function Roll20Dialog({ entityIds, title, mapId, onClose }: { entityIds: 
                   ? <>Make a Roll20 page <strong>{map.gridCols} × {map.gridRows}</strong> units (70 px squares), put the image on the Map layer and stretch it to the page.</>
                   : 'This map has no grid set; set one under Scale and grid first.'}
               </p>
-              <button onClick={async () => { const f = await call('map:saveImage', { mapId: map.id }).catch(() => null); if (f) say(`Saved ${f}`) }}>Save the map image…</button>
+              <button onClick={async () => { const f = await call('map:saveImage', { mapId: map.id }).catch((e: Error) => { say(e.message, true); return null }); if (f) say(`Saved ${f}`) }}>Save the map image…</button>
             </section>
           )}
           <div className="dz-actions"><button onClick={onClose}>Close</button></div>

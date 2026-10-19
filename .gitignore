@@ -5,3 +5,4 @@ dist/
 .DS_Store
 # campaign folders created while testing
 campaigns/
+tests/e2e/shots/

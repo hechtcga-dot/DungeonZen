@@ -1,14 +1,30 @@
 import { join } from 'node:path'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { app, BrowserWindow, Menu, protocol, safeStorage, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, Menu, protocol, safeStorage, session, shell } from 'electron'
 import { cardSpellings, onCardWord } from './cardWords'
 import { Campaign } from './campaign/campaign'
 import { registerIpc } from './ipcHandlers'
 import { ProfileStore } from './profile'
 import { KeyStore } from './ai/keys'
 import { IPC_PREFIX } from '../shared/ipcPrefix'
+import { logError, startLog } from './log'
 
 let mainWindow: BrowserWindow | null = null
+
+// The smoke test (tests/e2e/smoke.mjs) runs with a userData folder of its own.
+if (process.env.DZ_USER_DATA) app.setPath('userData', process.env.DZ_USER_DATA)
+
+// Errors go to userData/logs/dungeonzen.log (Setup › Open log folder): the main side's, and every window's.
+startLog(app.getPath('userData'))
+process.on('uncaughtException', (err) => {
+  logError('main', err)
+  dialog.showErrorBox('Dungeon Zen: something went wrong', `${err.message}\n\nThe details are in the log: Setup › Open log folder.`)
+})
+process.on('unhandledRejection', (err) => logError('main', err))
+app.on('web-contents-created', (_e, wc) => {
+  wc.on('console-message', (e) => { if (e.level === 'error') logError('window', `${e.message} (${e.sourceId}:${e.lineNumber})`) })
+  wc.on('render-process-gone', (_ev, d) => logError('window', `The window stopped: ${d.reason} (exit code ${d.exitCode})`))
+})
 
 // One copy at a time: a second launch brings the open window forward instead of
 // opening the same campaign database twice.

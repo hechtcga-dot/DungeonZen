@@ -9,6 +9,7 @@ export function JournalWindow() {
   const [text, setText] = useState<string | null>(null)
   const [session, setSession] = useState<number | null>(null)
   const [saved, setSaved] = useState('')
+  const [error, setError] = useState('')
   const typing = useRef(false)
   const load = useCallback(() => {
     if (typing.current) return
@@ -18,7 +19,7 @@ export function JournalWindow() {
   useEffect(() => { document.title = `DM notes${session ? ` · Session ${session}` : ''} · Dungeon Zen` }, [session])
   const save = () => {
     typing.current = false
-    if (text !== null && text !== saved) void call('notes:set', { text }).then(() => setSaved(text)).catch(() => undefined)
+    if (text !== null && text !== saved) void call('notes:set', { text }).then(() => { setSaved(text); setError('') }).catch((e: Error) => setError(e.message))
   }
   // Saves a moment after typing stops, as well as when the window loses focus.
   useEffect(() => {
@@ -32,7 +33,7 @@ export function JournalWindow() {
       <label htmlFor="pop-journal" className="journal-title">DM notes{session ? ` · Session ${session}` : ''}</label>
       <textarea id="pop-journal" value={text} placeholder="Plans, reminders, names you made up on the spot…"
         onChange={(e) => { typing.current = true; setText(e.target.value) }} onBlur={save} />
-      <span className="journal-hint">{text === saved ? 'Saved. ' : 'Saving… '}The desk shows the same notes; Ctrl+Z in the main window undoes.</span>
+      <span className="journal-hint">{error ? `Not saved: ${error} ` : text === saved ? 'Saved. ' : 'Saving… '}The desk shows the same notes; Ctrl+Z in the main window undoes.</span>
     </main>
   )
 }

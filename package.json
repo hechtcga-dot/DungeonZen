@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "icon": "electron scripts/make-icon.cjs",
-    "dist:win": "npm run build && electron-builder --win --x64 --publish never"
+    "dist:win": "npm run build && electron-builder --win --x64 --publish never",
+    "smoke": "node tests/e2e/smoke.mjs"
   },
   "dependencies": {
     "@fontsource/alegreya": "^5.3.0",
@@ -39,6 +40,7 @@
     "electron": "^44.5.1",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
+    "playwright-core": "^1.64.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^7.0.2",

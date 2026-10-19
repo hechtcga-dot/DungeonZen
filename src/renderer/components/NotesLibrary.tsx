@@ -570,7 +570,7 @@ function TextNote({ title, text, hint, below, popout, jump, onSave, extra }: {
           <span className="row tight wrap">
             {extra}
             {popout && <PopOut title="Open these notes in their own window; drag it to another screen" onClick={() => void call('notes:popout', undefined)} />}
-            <button className="ink-button" onClick={async () => { const p = await call('file:saveDocx', { name: title.replace(/[^\w\s-]/g, ''), text: draft }).catch(() => null); if (p) useBoard.getState().say(`Saved ${p}`) }}>Save as Word…</button>
+            <button className="ink-button" onClick={async () => { const p = await call('file:saveDocx', { name: title.replace(/[^\w\s-]/g, ''), text: draft }).catch((e: Error) => { useBoard.getState().say(e.message, true); return null }); if (p) useBoard.getState().say(`Saved ${p}`) }}>Save as Word…</button>
           </span>
         </div>
         <p className="ink-muted">{hint} Saved when you click away; Ctrl+Z undoes. Lines starting with # are headings.</p>

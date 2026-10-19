@@ -261,13 +261,15 @@ export const useBoard = create<BoardState>((set, get) => ({
         return
       }
       const mapId = screen === 'live' ? live?.map?.id : screen === 'desk' || screen === 'map' ? desk?.map?.id : undefined
-      const mapScreen = mapId ? await call('mapscreen:view', { mapId }).catch(() => null) : get().mapScreen
+      // A view that fails says why (an empty screen alone tells the DM nothing); main also writes it to the log.
+      const failed = (err: Error) => { get().say(err.message, true); return null }
+      const mapScreen = mapId ? await call('mapscreen:view', { mapId }).catch(failed) : get().mapScreen
       const [prepScreen, prep] = screen === 'prep'
         ? await Promise.all([call('prep:screen', undefined), call('prep:view', prepNumber ? { number: prepNumber } : {})])
         : [get().prepScreen, get().prep]
-      const where = screen === 'live' ? await call('live:where', undefined).catch(() => null) : get().where
-      const players = screen === 'players' ? await call('players:view', undefined).catch(() => null) : get().players
-      const encounters = screen === 'encounters' ? await call('encounters:view', undefined).catch(() => null) : get().encounters
+      const where = screen === 'live' ? await call('live:where', undefined).catch(failed) : get().where
+      const players = screen === 'players' ? await call('players:view', undefined).catch(failed) : get().players
+      const encounters = screen === 'encounters' ? await call('encounters:view', undefined).catch(failed) : get().encounters
       const combatId = get().combatId
       const combat = screen === 'combat' && combatId ? await call('combat:view', { id: combatId }).catch(() => null) : get().combat
       if (screen === 'combat' && !combat) {

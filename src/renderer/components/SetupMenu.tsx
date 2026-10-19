@@ -58,6 +58,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           { label: 'Delete this campaign…', danger: true, hint: 'Moves its folder to the Recycle Bin', onClick: () => setDialog('delete') },
           'separator',
           { label: 'About Dungeon Zen', onClick: () => void showAbout('about') },
+          { label: 'Open log folder', hint: 'Errors are written there: send the file with a bug report', onClick: () => void attempt(() => call('app:openLog', undefined)) },
           { label: 'Uninstall Dungeon Zen…', danger: true, onClick: () => void showAbout('uninstall') }
         ]} />
       )}

@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell } from 'electron'
 import { ASSETS_DIR, Campaign, MAP_EXTENSIONS, storedExt } from './campaign/campaign'
 import { ProfileStore } from './profile'
+import { logError, logFolder } from './log'
 import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
@@ -156,6 +157,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
         }
         return { ok: true, value }
       } catch (err) {
+        logError(channel, err)
         return { ok: false, error: err instanceof Error ? err.message : String(err) }
       }
     })
@@ -263,6 +265,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const { folder } = current().backupFolder()
     mkdirSync(folder, { recursive: true })
     const err = await shell.openPath(folder)
+    if (err) throw new Error(`Windows could not open it: ${err}`)
+  })
+  handle('app:openLog', async () => {
+    const err = await shell.openPath(logFolder())
     if (err) throw new Error(`Windows could not open it: ${err}`)
   })
   handle('backups:chooseFolder', async () => {
