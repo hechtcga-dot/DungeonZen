@@ -59,7 +59,9 @@ from the owner's reference picture): Notes keeps its clean layout; every other s
 - Buttons: main and "do it" buttons deep red with cream text (The chest's buttons all red); others paper with a
   tan border. Selected rows darker parchment with a red left edge. Tabs: parchment tab on the dark bar.
 - Drawn art kept and coloured to match, larger and more illustrated (owner, 2026-10-19): The hour = sky through an
-  arched bronze window (sun or moon, clouds, hills, town skyline, sky colour by time); The moon = moon with glow in a
+  arched bronze window (sun or moon, clouds, hills, town skyline). It follows the campaign clock (owner,
+  2026-10-19): dawn (low sun, rose sky), day, dusk (setting sun, orange sky, lit windows), night (crescent moon,
+  stars, lit windows); one drawing with four colour sets, also used by the Live desk clock. The moon = moon with glow in a
   round bronze night-sky window with stars; party = faint adventurer silhouettes (wizard, fighter, rogue, cleric,
   ranger), fully visible; bronze compass.
 - Top-row boxes trimmed and centred: content centred in each box, equal box heights; time shown large (09:30) with
