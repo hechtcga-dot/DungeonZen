@@ -57,6 +57,7 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 - Installer: per-user NSIS, no admin (`electron-builder.yml`, `build/installer.nsh`), `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU. Not code-signed yet.
 - New campaign: getting started guide, world map first (1.1.0).
 - All files live in the campaign folder (one folder to back up): imports are copied in, saves default to `exports/`, Open folder links wherever pictures, maps, sheets or notes show (2026-10-09). Replaces "or a folder the DM chooses" for encounter pictures.
+- 3.0 plan `docs/PLAN-3.0.md` (M0–M5). Owner, 2026-10-19: name stays Dungeon Zen; installer stays unsigned; auto-linking filtered (length, common words, capital letter for one-word names) with a per-card "Link this name by itself" tick, on for NPC/PC/Location/Faction, off for others.
 - Delete campaign = folder to the Recycle Bin after an are-you-sure. Battle grid off by default. Encounters: every PC in by default, tick per PC.
 
 ## 1.2.0 (built 2026-10-09)

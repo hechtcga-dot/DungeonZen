@@ -1,7 +1,7 @@
 # Plan for 3.0 (draft, 2026-10-19)
 
 Built in milestones. Each milestone with UI changes gets a mockup the owner approves first; no point releases between milestones except fixes.
-Release name: pending owner (Dungeon Zen 3.0 vs AuctionZen 3.0).
+Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen; no paid code signing; auto-linking as recommended (filters + per-card tick, on by default for NPC/PC/Location/Faction).
 
 ## M0 Safety net (first; no visible change)
 - Before any schema upgrade the app copies `campaign.db` to `campaign.<old version>.bak` in the campaign folder, and runs all pending upgrade steps in one transaction (today: one per step), so a failure leaves the old file untouched. Already in place: `PRAGMA user_version`, and an older app refuses a newer campaign with a message (`db/open.ts`); M0 adds a test for both.
@@ -45,12 +45,13 @@ Release name: pending owner (Dungeon Zen 3.0 vs AuctionZen 3.0).
 - Large-campaign speed check: demo campaign with 1,000 cards, 200 notes; time board, prep, notes.
 
 ## M5 Distribution
-Windows only. Order inside M5: name/userData decision first, then signing, then auto-update.
-- Rename (if AuctionZen): new name on screen and installer only. The userData folder name stays (`app.setPath('userData', …)` pinned), because saved API keys are encrypted with a key kept in that folder: a new folder = keys unreadable. If they still cannot be read, the app already asks for them again (`keys.ts` returns null); 3.0 adds a clear message saying why.
-- Code signing for the Windows installer (paid signing service, owner decides). A new certificate still gets a SmartScreen warning until it has reputation: 3.0 release notes say so.
-- Auto-update from GitHub Releases over HTTPS (`electron-updater`): "A new version is ready – Restart". Only signed builds update (the updater checks the signature).
+Windows only, installer stays unsigned (owner, 2026-10-19).
+- Auto-update from GitHub Releases over HTTPS (`electron-updater`): "A new version is ready – Restart". Works with the unsigned per-user installer; Windows may show the SmartScreen prompt once per update, as with a manual download.
+- App name, appId and userData folder unchanged (saved API keys, recent campaigns, settings carry over).
+- Release notes keep the "More info › Run anyway" line.
 
 ## After 3.0
+- Code signing, if wanted later.
 - macOS and Linux builds (Apple developer account, notarization, Mac file-dialog and path testing; Linux packaging). Never holds up M5.
 
 ## Order
@@ -61,8 +62,8 @@ M0 → M1 → M2 → M3 → M4 → M5 → release 3.0.0. M0 and M1 change nothin
 |---|---|---|
 | Schema upgrade fails part-way | M2 | .bak copy first, all steps in one transaction, old-campaign fixture tests (M0) |
 | Older app opens a 3.0 campaign | M2 | Already refused with a message; test added |
-| API keys unreadable after rename | M5 | userData folder kept; failed read asks for keys again (no crash, already) |
-| SmartScreen warning after signing | M5 | Release notes; reputation builds over downloads |
+| API keys unreadable | M5 | No rename, userData folder unchanged; failed read already asks for keys again |
+| SmartScreen warning (unsigned) | M5 | Release notes explain "Run anyway"; auto-update keeps prompts to updates only |
 | Undo / Undo session over old link steps | M2 | Change log copies rewritten in the migration; unrewritable steps marked not undoable; tests |
 | Auto-link slows typing | M2 | Cached, run after a pause, measured |
 | Roll20 macros change | M2–M4 | Exact-text tests on every macro |
