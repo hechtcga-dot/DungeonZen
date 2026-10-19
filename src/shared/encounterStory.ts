@@ -3,7 +3,8 @@
 
 import { z } from 'zod'
 
-export const CHECK_SKILLS = ['Perception', 'Investigation', 'Insight', 'Survival', 'Nature', 'Arcana (magic)', 'History', 'Religion', 'Medicine', 'Athletics'] as const
+export const CHECK_SKILLS = ['Perception', 'Investigation', 'Insight', 'Survival', 'Nature', 'Arcana (magic)', 'History', 'Religion', 'Medicine', 'Athletics',
+  'Acrobatics', 'Animal Handling', 'Stealth', 'Sleight of Hand', 'Deception', 'Intimidation', 'Performance', 'Persuasion'] as const
 
 const RowId = z.string().min(1).max(64)
 const Line = z.string().max(2000)

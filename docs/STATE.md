@@ -751,7 +751,7 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     = `encounter:keepDraft` (encounter card with place, scene, story, tactics; creatures as rows; one undo step).
   - Encounter story (`attributes.story`, `src/shared/encounterStory.ts`): NPCs (card or one-time, Make a card), Items on
     the ground (things inside things, + inside, right-click Put on the board = Item card, the line stays), Checks (skill
-    drop-down, Perception default, DC rows, ✦ Build with AI per check: `ai:writeEncounter` with a one-check ask, AI suggestion, Keep replaces that check's results), Rewards (gold, items, secrets/clues from the campaign). ✦ Write it up with AI
+    drop-down, Perception default, DC rows, AI writes exactly three checks with different skills fitting the encounter (Nature for beasts, Religion for cultists, Survival in a marsh…; repeats dropped, short lists topped up with Perception/Insight/Investigation), skill list has all 18 skills, ✦ Build with AI per check: `ai:writeEncounter` with a one-check ask, AI suggestion, Keep replaces that check's results), Rewards (gold, items, secrets/clues from the campaign). ✦ Write it up with AI
     (`ai:writeEncounter`): Keep fills empty parts / Keep and replace everything.
   - Who fights: ticks + All, ▼/▲ CR per row and for the selected (`encounter:adjustCr`): an adjusted copy only in this
     encounter ("Goblin Boss (CR 2)", stashed, `adjusted_for`), later steps change that copy; original card unchanged.
