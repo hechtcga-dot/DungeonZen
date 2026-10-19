@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import Database from 'better-sqlite3'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema'
@@ -284,10 +285,15 @@ export function migrate(sqlite: Database.Database): void {
       `This campaign was saved by a newer version of Dungeon Zen (schema ${current}). Update the app to open it.`
     )
   }
-  for (let i = current; i < MIGRATIONS.length; i++) {
-    sqlite.transaction(() => {
-      sqlite.exec(MIGRATIONS[i])
-      sqlite.pragma(`user_version = ${i + 1}`)
-    })()
+  if (current === MIGRATIONS.length) return
+  // An existing campaign is copied first (campaign.before-upgrade-<n>.bak, kept if one is already there), and every
+  // step runs in one transaction: a failing step leaves campaign.db exactly as the older version left it.
+  if (current > 0 && sqlite.name !== ':memory:') {
+    const copy = sqlite.name.replace(/(\.db)?$/, `.before-upgrade-${current}.bak`)
+    if (!existsSync(copy)) sqlite.exec(`VACUUM INTO '${copy.replaceAll("'", "''")}'`)
   }
+  sqlite.transaction(() => {
+    for (let i = current; i < MIGRATIONS.length; i++) sqlite.exec(MIGRATIONS[i])
+    sqlite.pragma(`user_version = ${MIGRATIONS.length}`)
+  })()
 }
