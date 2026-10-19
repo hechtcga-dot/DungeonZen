@@ -23,7 +23,7 @@ import { STYLE_USES } from './types'
 /** A drawing's outline as sent: the sketch as a picture (PNG, base64) or the DM's outline picture (asset path). */
 const OutlineSend = z.object({ png: z.string().max(4_000_000).optional(), path: z.string().max(500).optional() })
 import { PromptTemplateSchema, StyleTagsSchema, TEMPLATE_USES, type PromptTemplate, type StyleTags } from './styleTags'
-import type { NotesScreenView } from './types'
+import type { EntityBrief, NotesScreenView, SecretView } from './types'
 import type { RollTable } from './rolltables'
 import { Blocks, type Block } from './noteDoc'
 import type { BSecret, BuildingProposal } from './building'
@@ -252,6 +252,7 @@ export const ipcInputs = {
   'map:rename': z.object({ mapId: Id, name: Name }),
   'timeline:view': z.void(),
   'links:view': z.void(),
+  'links:rules': z.object({ never: z.array(z.string().trim().min(1).max(100)).max(1000), minLength: z.number().int().min(1).max(30), capitalOnly: z.boolean() }),
   'links:set': z.object({ own: z.array(z.object({ text: z.string().min(1).max(200), entityId: Id })), off: z.array(z.string().max(200)) }),
   'act:create': z.object({ storylineId: Id, title: Name, startMin: Minute, endMin: Minute }),
   'act:update': z.object({
@@ -423,6 +424,11 @@ export const ipcInputs = {
     id: Id.nullable(), kind: z.enum(['secret', 'clue', 'connection']), text: Text,
     connections: z.array(z.object({ id: Id.optional(), sourceId: Id, targetId: Id, type: RelationshipType })).max(50),
     prepItemId: Id.optional()
+  }),
+  'link:get': z.object({ relationshipId: Id.optional(), secretId: Id.optional() }),
+  'link:save': z.object({
+    id: Id.nullable(), kind: z.enum(['secret', 'clue', 'connection']), text: Text, known: z.boolean(), boardId: Id.optional(),
+    connections: z.array(z.object({ id: Id.optional(), sourceId: Id, targetId: Id, type: RelationshipType })).min(1).max(50)
   }),
   'secret:setText': z.object({ id: Id, text: Text }),
   'secret:remove': z.object({ id: Id }),
@@ -657,6 +663,7 @@ export interface IpcOutputs {
   'map:rename': void
   'timeline:view': TimelineView
   'links:view': WordLinksView
+  'links:rules': void
   'links:set': void
   'act:create': string
   'act:update': void
@@ -781,6 +788,8 @@ export interface IpcOutputs {
   'prepItem:addSecret': string
   'secret:save': string
   'secret:freeLinks': Array<{ id: string; sourceId: string; targetId: string; type: string }>
+  'link:get': { record: (Omit<SecretView, 'id'> & { id: string | null }) | null; known: boolean; cards: EntityBrief[] }
+  'link:save': string
   'secret:setText': void
   'secret:remove': void
   'secret:revive': void

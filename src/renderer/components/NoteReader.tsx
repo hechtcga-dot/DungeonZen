@@ -57,7 +57,7 @@ export function useNoteMatcher(): { m: Matcher; cards: Card[]; spells: Map<strin
   const cards = useMemo(() => w?.cards ?? [], [w])
   const m = useMemo(() => {
     const terms = [...Object.keys(RULES_TERMS), ...[...spells.values()].map((s) => s.name).filter((n) => n.length > 3 && !COMMON_SPELL_WORDS.has(n))]
-    return makeMatcher(cards as LinkCard[], w?.own ?? [], w?.off ?? [], terms)
+    return makeMatcher(cards as LinkCard[], w?.own ?? [], w?.off ?? [], terms, w?.rules)
   }, [cards, w, spells])
   return { m, cards, spells }
 }
@@ -363,7 +363,8 @@ export function NoteReader({ doc, docs, jump, onOpenDoc, onChanged, onOpenDraft,
           ...pictureMenu(i).slice(1),
           'separator',
           { label: `Stop linking “${words}” here`, onClick: () => changeRuns(at, (runs) => setLinkRange(runs, from, to, '')) },
-          { label: `Stop linking “${words}” everywhere`, hint: 'Every note and text box; Ctrl+Z undoes', onClick: () => { const w = useBoard.getState().wordLinks; void act('links:set', { own: w?.own ?? [], off: [...new Set([...(w?.off ?? []), words.toLowerCase()])] }) } },
+          c ? { label: `Stop linking “${c.name}” by itself`, hint: 'Every note and text box (unticks it on the card); Ctrl+Z undoes', onClick: () => void act('entity:update', { id: c.id, patch: { attributes: { link_name: false } } }) }
+            : { label: `Stop linking “${words}” everywhere`, hint: 'Every note and text box; Ctrl+Z undoes', onClick: () => { const w = useBoard.getState().wordLinks; void act('links:set', { own: w?.own ?? [], off: [...new Set([...(w?.off ?? []), words.toLowerCase()])] }) } },
           ...(isTerm ? [] : [{ label: 'Link to another card…', onClick: () => setPicker({ title: `Link “${words}” to`, withPictures: false, notes: true, onPick: (id) => { setPicker(null); changeRuns(at, (runs) => setLinkRange(runs, from, to, id)) } }) }])
         ]
       })

@@ -6,6 +6,7 @@ import { useOrderScope } from '../fold'
 import { ContextMenu } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ExportDialog } from './ExportDialog'
+import { DEFAULT_LINK_RULES } from '../../shared/noteLinks'
 
 type About = { version: string; campaignFolder: string | null; dataFolder: string; installed: boolean }
 
@@ -15,7 +16,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
   const { scope, set: setScope } = useOrderScope()
   const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | 'tidy' | null>(null)
+  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | 'tidy' | 'linking' | null>(null)
   const [name, setName] = useState('')
   const [about, setAbout] = useState<About | null>(null)
 
@@ -51,6 +52,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           { label: 'Print or save cards…', onClick: () => setDialog('export') },
           { label: 'Export to Foundry VTT or Owlbear Rodeo…', hint: 'Battle maps with their grid, character and monster sheets, handouts', onClick: () => setDialog('vtt') },
           { label: 'AI services…', onClick: () => setAiSettingsOpen(true) },
+          { label: 'Linking names…', hint: 'Which card names link by themselves in notes and text boxes', onClick: () => setDialog('linking') },
           { label: 'Box order on card sheets', hint: 'What ↑ / ↓ on a card sheet changes (this computer)', items: [
             { label: 'Ask each time', checked: scope === null, onClick: () => setScope(null) },
             { label: 'This card only', checked: scope === 'card', onClick: () => setScope('card') },
@@ -118,6 +120,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
       {dialog === 'backups' && <BackupsDialog onClose={() => setDialog(null)} />}
       {dialog === 'vtt' && <VttDialog onClose={() => setDialog(null)} />}
       {dialog === 'tidy' && <TidyDialog onClose={() => setDialog(null)} />}
+      {dialog === 'linking' && <LinkingDialog onClose={() => setDialog(null)} />}
 
       <Dialog title="Delete this campaign?" open={dialog === 'delete'} onClose={() => setDialog(null)}>
         <p>Are you sure you want to delete <strong>{campaignName}</strong>?</p>
@@ -174,6 +177,46 @@ function BackupsDialog({ onClose }: { onClose(): void }) {
         {v?.own && <button onClick={() => void act('backups:resetFolder', undefined).then(load)}>Use the campaign folder</button>}
       </div>
       <div className="dz-actions"><button className="primary" onClick={onClose}>Close</button></div>
+    </Dialog>
+  )
+}
+
+/** Setup › Linking names (3.0, owner): the never-link words, the shortest name and the capital-letter rule, per campaign. */
+function LinkingDialog({ onClose }: { onClose(): void }) {
+  const act = useBoard((s) => s.act)
+  const rules = useBoard((s) => s.wordLinks?.rules) ?? DEFAULT_LINK_RULES
+  const [word, setWord] = useState('')
+  const set = (patch: Partial<typeof rules>) => void act('links:rules', { ...rules, ...patch })
+  const addWord = () => { const w = word.trim().toLowerCase(); if (w && !rules.never.includes(w)) set({ never: [...rules.never, w] }); setWord('') }
+  return (
+    <Dialog title="Linking names" open onClose={onClose}>
+      <p>Card names link by themselves in notes and text boxes. These rules say which ones; each card also has its own
+        "Link this name by itself" tick. Linking words yourself (select them › Link to a card) always works.</p>
+      <div className="field">
+        <span className="field-label">Words that never link by themselves</span>
+        <div className="row tight wrap">
+          {rules.never.map((w) => (
+            <span key={w} className="chip">{w}<button aria-label={`Let “${w}” link`} title="Remove from the list" onClick={() => set({ never: rules.never.filter((x) => x !== w) })}>×</button></span>
+          ))}
+        </div>
+        <form className="row tight" onSubmit={(e) => { e.preventDefault(); addWord() }}>
+          <input aria-label="Add a word" placeholder="Add a word…" value={word} maxLength={100} onChange={(e) => setWord(e.target.value)} />
+          <button disabled={!word.trim()}>Add</button>
+        </form>
+      </div>
+      <div className="field row tight">
+        <label htmlFor="link-min">Shortest name that links</label>
+        <input id="link-min" type="number" min={1} max={30} value={rules.minLength} style={{ width: 64 }}
+          onChange={(e) => { const n = Math.round(Number(e.target.value)); if (n >= 1 && n <= 30) set({ minLength: n }) }} /> letters
+      </div>
+      <div className="field checkbox">
+        <input id="link-capital" type="checkbox" checked={rules.capitalOnly} onChange={(e) => set({ capitalOnly: e.target.checked })} />
+        <label htmlFor="link-capital">One-word names link only with their capital letter</label>
+      </div>
+      <div className="dz-actions">
+        <button onClick={() => set({ ...DEFAULT_LINK_RULES })}>Back to the standard rules</button>
+        <button className="primary" onClick={onClose}>Close</button>
+      </div>
     </Dialog>
   )
 }

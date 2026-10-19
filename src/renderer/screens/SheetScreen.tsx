@@ -1,7 +1,7 @@
 import { InYourNotes } from '../components/InYourNotes'
-import { useEffect, useState, type FormEvent } from 'react'
+import { LinkNameTick } from '../components/LinkField'
+import { useEffect, useState } from 'react'
 import { BackButton } from '../components/BackButton'
-import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 import { useBoard } from '../store'
 import { TopBar } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
@@ -26,11 +26,11 @@ import { slotsFromText } from '../../shared/combat'
 import { PicturePanel } from '../components/Pictures'
 import { SheetFileMenu } from '../components/ImportCharSheet'
 import { BuildingFillDialog, BuildingTab } from '../components/BuildingSheet'
-import { SECRET_LABEL, SecretEditor } from '../components/SecretEditor'
+import { SECRET_LABEL } from '../components/SecretEditor'
 import { KIND_LABELS, readBuilding } from '../../shared/building'
 import { ActionsTable, ClassStrip, Extras, HpAdjust, InspirationBox, LimitedUses, SpellsTable, VitalsCard } from '../components/SheetExtras'
 
-type Tab = 'building' | 'fight' | 'sheet' | 'traits' | 'secrets' | 'notes' | 'connections'
+type Tab = 'building' | 'fight' | 'sheet' | 'traits' | 'links' | 'notes'
 
 const ABILITY_NAMES = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const
 const ABILITY_FULL = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' } as const
@@ -93,6 +93,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                   onCommit={(biome) => update({ attributes: { biome } })} />}
                 <CommitField id={`${p}-tags`} label="Tags" value={e.tags.join(', ')} hint="Separate tags with commas."
                   onCommit={(t) => update({ tags: [...new Set(t.split(',').map((x) => x.trim()).filter(Boolean))] })} />
+                <LinkNameTick entity={e} id={`${p}-linkname`} />
                 <div className="field">
                   <label htmlFor={`${p}-colour`}>Card colour</label>
                   <div className="row tight">
@@ -151,9 +152,9 @@ function Sheet({ sheet }: { sheet: SheetView }) {
         {([
           ...(building ? [['building', KIND_LABELS[readBuilding(e.attributes).kind]]] as const : []),
           ...(creature ? [['fight', 'Stat block'], ['sheet', 'Character sheet']] as const : []),
-          ...(building ? [] : [['traits', tabTitle(e.type)], ['secrets', 'Secrets']] as const),
-          ['notes', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Notes'],
-          ['connections', `Links (${sheet.connections.length})`]
+          ...(building ? [] : [['traits', tabTitle(e.type)]] as const),
+          ['links', `Links & secrets (${linkRows(sheet).length})`],
+          ['notes', e.type === 'HANDOUT' ? 'Handout text and notes' : e.type === 'QUEST' ? 'Reward and notes' : 'Notes']
         ] as const).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
         ))}
@@ -177,7 +178,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
             {!creature && templateSide}
           </>
         )}
-        {tab === 'secrets' && <SecretsPanel sheet={sheet} lab={lab} onFill={() => setFilling(['secret'])} />}
+        {tab === 'links' && <LinksTab sheet={sheet} lab={lab} own={!building} onFill={() => setFilling(['secret'])} />}
         {tab === 'notes' && (
           <div className="sheet-main wide">
             {e.type === 'HANDOUT' && (
@@ -216,7 +217,6 @@ function Sheet({ sheet }: { sheet: SheetView }) {
           </div>
         )}
 
-        {tab === 'connections' && <Connections sheet={sheet} />}
       </div>
     </>
   )
@@ -328,69 +328,96 @@ function FactionsField({ sheet }: { sheet: SheetView }) {
 }
 
 /** Sheet › Secrets: what only the DM knows, and the secrets, clues and connections the card is in. */
-function SecretsPanel({ sheet, lab, onFill }: { sheet: SheetView; lab(key: string, label: string): string; onFill(): void }) {
-  const { act } = useBoard()
+/** One row of Links & secrets: a record (secret, clue or link with words) or a board line not in one yet. */
+type LinkRow = { key: string; kind: SecretKind; text: string; secretId: string | null; relId: string; conns: SecretView['connections']; known: boolean }
+
+/** Every link, secret and clue this card is in (3.0: one list; a click opens the Link window). */
+function linkRows(sheet: SheetView): LinkRow[] {
   const e = sheet.entity
-  return (
-    <div className="sheet-main wide">
-      <section className="panel">
-        <div className="panel-head-row">
-          <h2 className="panel-heading">Secrets</h2>
-          <button disabled={filled(e, 'secret')} onClick={onFill}>Fill blank with AI…</button>
-        </div>
-        <CommitField id={`secret-${e.id}`} label={lab('secret', 'What only you know')} value={typeof e.attributes.secret === 'string' ? e.attributes.secret : ''}
-          multiline rows={8} hint={SECRET.hint} onCommit={(secret) => void act('entity:update', { id: e.id, patch: { attributes: { secret } } })} />
-      </section>
-      <CardSecrets sheet={sheet} />
-    </div>
-  )
+  const known = new Map(sheet.connections.map((c) => [c.relationship.id, c.partyKnows]))
+  const records: LinkRow[] = sheet.secrets.filter((x) => x.connections.some((c) => c.sourceId === e.id || c.targetId === e.id))
+    .map((x) => ({ key: x.id, kind: x.kind, text: x.text, secretId: x.id, relId: x.connections[0]?.id ?? '', conns: x.connections,
+      known: x.connections.every((c) => known.get(c.id)) }))
+  const lines: LinkRow[] = sheet.connections.filter((c) => !c.relationship.secretId).map((c) => {
+    const r = c.relationship
+    return { key: r.id, kind: r.isSecret ? 'secret' : 'connection', text: r.description, secretId: null, relId: r.id,
+      conns: [{ id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type }], known: c.partyKnows }
+  })
+  return [...records, ...lines]
 }
 
-/** Card sheet › Secrets: the secrets, clues and connections this card is in; make new ones or bring in an existing one. */
-function CardSecrets({ sheet }: { sheet: SheetView }) {
-  const act = useBoard((s) => s.act)
+/** Card sheet › Links & secrets: the card's own secret text, then its links, secrets and clues (owner's mockup B). */
+function LinksTab({ sheet, lab, own, onFill }: { sheet: SheetView; lab(key: string, label: string): string; own: boolean; onFill(): void }) {
+  const { act, openLink, openSheet } = useBoard()
   const e = sheet.entity
-  const [adding, setAdding] = useState<Array<{ key: string; kind: SecretKind; secret: SecretView | null }>>([])
-  const cards = [{ id: e.id, type: e.type, name: e.name, status: e.status }, ...sheet.others]
-  const touches = (x: SecretView) => x.connections.some((c) => c.sourceId === e.id || c.targetId === e.id)
-  const mine = sheet.secrets.filter((x) => touches(x) && !adding.some((a) => a.secret?.id === x.id))
-  const drop = (key: string) => setAdding((list) => list.filter((a) => a.key !== key))
+  const [show, setShow] = useState<SecretKind | 'all'>('all')
+  const rows = linkRows(sheet)
   const me = { id: e.id, name: e.name }
+  const names = new Map([[e.id, e.name], ...sheet.others.map((o) => [o.id, o.name] as const)])
+  const words = (t: string) => t.replace(/_/g, ' ').toLowerCase()
+  const add = (kind: SecretKind) => openLink({ kind, mustInclude: me, start: [{ sourceId: e.id, targetId: '', type: 'KNOWS' }] })
+  const open = (r: LinkRow) => openLink(r.secretId ? { secretId: r.secretId } : { relationshipId: r.relId })
+  const others = sheet.secrets.filter((x) => !rows.some((r) => r.secretId === x.id))
   return (
-    <section className="panel">
-      <div className="panel-head-row">
-        <h2 className="panel-heading">Secrets, clues and links</h2>
-        <div className="row tight">
-          {(['secret', 'clue', 'connection'] as const).map((kind) => (
-            <button key={kind} onClick={() => setAdding((list) => [...list, { key: crypto.randomUUID(), kind, secret: null }])}>Add {SECRET_LABEL[kind].toLowerCase()}</button>
-          ))}
-          <select value="" aria-label="Bring in an existing one" onChange={(ev) => {
-            const x = sheet.secrets.find((s) => s.id === ev.target.value)
-            if (x) setAdding((list) => [...list, { key: crypto.randomUUID(), kind: x.kind, secret: x }])
-          }}>
-            <option value="">Use an existing one…</option>
-            {sheet.secrets.filter((x) => !touches(x)).map((x) => <option key={x.id} value={x.id}>{SECRET_LABEL[x.kind]}: {x.label}</option>)}
-          </select>
+    <div className="sheet-main wide">
+      {own && (
+        <section className="panel">
+          <div className="panel-head-row">
+            <h2 className="panel-heading">Secrets</h2>
+            <button disabled={filled(e, 'secret')} onClick={onFill}>Fill blank with AI…</button>
+          </div>
+          <CommitField id={`secret-${e.id}`} label={lab('secret', 'What only you know')} value={typeof e.attributes.secret === 'string' ? e.attributes.secret : ''}
+            multiline rows={6} hint={SECRET.hint} onCommit={(secret) => void act('entity:update', { id: e.id, patch: { attributes: { secret } } })} />
+        </section>
+      )}
+      <section className="panel">
+        <div className="panel-head-row">
+          <h2 className="panel-heading">Links, secrets and clues</h2>
+          <div className="row tight">
+            <select className="ink-button primary-ink" value="" aria-label="Add" onChange={(ev) => {
+              const v = ev.target.value
+              if (v === 'connection' || v === 'secret' || v === 'clue') add(v)
+              else if (v) openLink({ secretId: v, mustInclude: me })
+            }}>
+              <option value="">＋ Add…</option>
+              <option value="connection">Link…</option><option value="secret">Secret…</option><option value="clue">Clue…</option>
+              {others.length > 0 && <optgroup label="An existing one">{others.map((x) => <option key={x.id} value={x.id}>{SECRET_LABEL[x.kind]}: {x.text.slice(0, 50) || x.label}</option>)}</optgroup>}
+            </select>
+            <div className="segmented" role="group" aria-label="Show">
+              {(['all', 'connection', 'secret', 'clue'] as const).map((k) => (
+                <button key={k} aria-pressed={show === k} onClick={() => setShow(k)}>{k === 'all' ? 'All' : `${SECRET_LABEL[k]}s`}</button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-      <p className="hint">Each is one text with its links (each a link on the board). An existing one stays one secret: changing it here changes it everywhere.</p>
-      {mine.length === 0 && adding.length === 0 && <p className="hint">None on this card yet.</p>}
-      <ul className="secret-list">
-        {adding.map((a) => (
-          <li key={a.key}>
-            <SecretEditor secret={a.secret} kind={a.kind} cards={cards} showText mustInclude={me} pending
-              start={a.secret ? undefined : [{ sourceId: e.id, targetId: '', type: 'KNOWS' }]}
-              onSaved={() => drop(a.key)} onDiscard={() => drop(a.key)} />
-          </li>
-        ))}
-        {mine.map((x) => (
-          <li key={x.id}>
-            <SecretEditor secret={x} kind={x.kind} cards={cards} showText mustInclude={me} />
-            <button className="link-button danger-link" onClick={() => void act('secret:remove', { id: x.id })}>Remove (to History; Ctrl+Z undoes)</button>
-          </li>
-        ))}
-      </ul>
-    </section>
+        {rows.length === 0 && <p className="hint">No links yet. ＋ Add, or drag from this card to another on the board.</p>}
+        {(['connection', 'secret', 'clue'] as const).filter((k) => show === 'all' || show === k).map((k) => {
+          const list = rows.filter((r) => r.kind === k)
+          return list.length === 0 ? null : (
+            <div key={k} className="link-group">
+              <h3 className="link-group-head">{SECRET_LABEL[k]}s</h3>
+              <ul className="link-rows">{list.map((r) => (
+                <li key={r.key}>
+                  <span className={`link-badge k-${k}`}>{SECRET_LABEL[k]}</span>
+                  <button className="link-row-main" title="Edit in the Link window" onClick={() => open(r)}>
+                    <span>{r.conns.map((c, i) => {
+                      const mine = c.sourceId === e.id ? 'out' : c.targetId === e.id ? 'in' : null
+                      const other = mine === 'out' ? c.targetId : c.sourceId
+                      return <span key={c.id}>{i > 0 && ' · '}{mine ? <><i>{mine === 'in' ? `${names.get(c.sourceId) ?? '?'} ` : ''}{words(c.type)}</i> {mine === 'out' ? names.get(other) ?? '?' : e.name}</>
+                        : <>{names.get(c.sourceId) ?? '?'} <i>{words(c.type)}</i> {names.get(c.targetId) ?? '?'}</>}</span>
+                    })}</span>
+                    {r.text && <span className="link-row-text">{r.text}</span>}
+                  </button>
+                  {r.known && <span className="tag-known">Party knows</span>}
+                  <button className="link-button" aria-label="Open the other card's sheet" title="Open the other card's sheet"
+                    onClick={() => { const c = r.conns.find((x) => x.sourceId === e.id || x.targetId === e.id); if (c) void openSheet(c.sourceId === e.id ? c.targetId : c.sourceId) }}>↗</button>
+                </li>
+              ))}</ul>
+            </div>
+          )
+        })}
+      </section>
+    </div>
   )
 }
 
@@ -775,60 +802,3 @@ function PartyKnows({ sheet }: { sheet: SheetView }) {
   )
 }
 
-function Connections({ sheet }: { sheet: SheetView }) {
-  const typeColour = useTypeColour()
-  const { act, openSheet } = useBoard()
-  const e = sheet.entity
-  const [otherId, setOtherId] = useState('')
-  const [link, setLink] = useState<LinkChoice>(DEFAULT_LINK)
-
-  const add = async (ev: FormEvent) => {
-    ev.preventDefault()
-    if (!otherId || !linkReady(link)) return
-    const rel = await act('relationship:create', { sourceId: e.id, targetId: otherId, ...linkInput(link) })
-    if (rel) { setOtherId(''); setLink(DEFAULT_LINK) }
-  }
-
-  return (
-    <div className="sheet-main wide">
-      <section className="panel">
-        <h2 className="panel-heading">Links to other cards</h2>
-        {sheet.connections.length === 0 && <p className="hint">No links yet. Add one below or drag between pins on the board.</p>}
-        <ul className="connections">
-          {sheet.connections.map((c) => (
-            <li key={c.relationship.id}>
-              <span className="badge" style={{ background: typeColour(c.other.type) }}>{ENTITY_LABELS[c.other.type].toUpperCase()}</span>
-              <span className="conn-text">
-                {c.outgoing && <span>{e.name}</span>}
-                {!c.outgoing && <button className="link" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button>}
-                <span className="mono conn-type">{c.relationship.type.replace(/_/g, ' ')} →</span>
-                {c.outgoing && <button className="link" onClick={() => void openSheet(c.other.id)}>{c.other.name}</button>}
-                {!c.outgoing && <span>{e.name}</span>}
-              </span>
-              {c.relationship.isSecret && <span className="tag-secret">Secret</span>}
-              {c.partyKnows && <span className="tag-known">Party knows</span>}
-              <span className="spacer" />
-              <button className="danger" onClick={() => void act('relationship:setStatus', { id: c.relationship.id, status: 'defunct' })}>
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="panel">
-        <h2 className="panel-heading">Add a link</h2>
-        <form className="add-connection" onSubmit={add}>
-          <div className="field">
-            <label htmlFor="conn-other">Link {e.name} to</label>
-            <select id="conn-other" value={otherId} onChange={(ev) => setOtherId(ev.target.value)}>
-              <option value="">Choose a card…</option>
-              {sheet.others.map((o) => <option key={o.id} value={o.id}>{o.name} ({ENTITY_LABELS[o.type]})</option>)}
-            </select>
-          </div>
-          <LinkTypeFields id="conn" value={link} onChange={setLink} />
-          <button type="submit" className="primary" disabled={!otherId || !linkReady(link)}>Add link</button>
-        </form>
-      </section>
-    </div>
-  )
-}

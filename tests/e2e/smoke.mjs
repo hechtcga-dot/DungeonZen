@@ -58,6 +58,9 @@ try {
   for (const [label, name] of [['Session prep', 'prep'], ['Encounters', 'encounters'], ['Board', 'board']]) { await click(label); await shot(name) }
   await page.getByText('Barliman Butterbur').first().dblclick()
   await shot('sheet')
+  await page.getByRole('tab', { name: /Links & secrets/ }).click(); await shot('sheet-links')
+  await page.locator('.link-row-main').first().click(); await page.locator('.link-window').waitFor(); await shot('link-window')
+  await click('Cancel')
   await click('Board'); await click('Map'); await shot('map')
   await click('Board'); await click('Timeline'); await shot('timeline')
   for (const [label, name] of [['Library', 'library'], ['Notes', 'notes']]) { await click(label); await shot(name) }
@@ -65,6 +68,8 @@ try {
   await click('Players'); await shot('players')
   await click('Prep'); await shot('back-to-prep')
   await click('Setup'); await page.getByText('Tidy campaign folder…').click(); await shot('tidy')
+  await click('Close')
+  await click('Setup'); await page.getByText('Linking names…').click(); await shot('linking-names')
   await click('Close')
 } catch (err) {
   problems.push(`step failed: ${err.message}`)

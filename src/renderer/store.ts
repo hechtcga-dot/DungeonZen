@@ -6,6 +6,7 @@ import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
 import type { CombatView, BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView, WordLinksView } from '../shared/types'
 import type { Units } from '../shared/units'
+import type { LinkRequest } from './components/LinkWindow'
 
 export type Selection =
   | { kind: 'entity'; id: string }
@@ -94,6 +95,9 @@ interface BoardState {
   guideStep: 'map' | 'regions' | 'notes'
   /** The battle map dialog is open; a request carries a sketch (blueprint), a name and where to keep the result. */
   battleMapOpen: boolean | BattleMapRequest
+  /** The Link window (components/LinkWindow.tsx) and what it shows. */
+  linkWindow: LinkRequest | null
+  openLink(req: LinkRequest): void
   setBattleMapOpen(open: boolean | BattleMapRequest): void
 
   openCampaign(info: CampaignInfo): Promise<void>
@@ -169,6 +173,8 @@ export const useBoard = create<BoardState>((set, get) => ({
   notesOpenHeading: null,
   guideStep: 'map',
   battleMapOpen: false,
+  linkWindow: null,
+  openLink(req) { set({ linkWindow: req }) },
   setBattleMapOpen(open) { set({ battleMapOpen: open }) },
   reviewSessionId: null,
   sheetId: null,

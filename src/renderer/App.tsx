@@ -7,6 +7,7 @@ import { useFolding } from './fold'
 import { OrderScopeDialog } from './components/OrderScopeDialog'
 import { StartScreen } from './screens/StartScreen'
 import { AiSettingsDialog } from './components/AiSettingsDialog'
+import { LinkWindow } from './components/LinkWindow'
 import { BattleMapDialog } from './components/BattleMapDialog'
 import { GlobalLinks, LinkedCardNote } from './components/LinkField'
 
@@ -92,6 +93,7 @@ function MainApp() {
       {info && view && <BattleMapDialog />}
       </GlobalLinks>
       {info && view && <LinkedCardNote />}
+      {info && view && <LinkWindow />}
       <AiSettingsDialog />
       {message && (
         <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
@@ -162,6 +164,7 @@ function ScreenWindow({ screen }: { screen: Screen }) {
       <BattleMapDialog />
       </GlobalLinks>
       <LinkedCardNote />
+      <LinkWindow />
       <AiSettingsDialog />
       {message && <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>{message.text}</div>}
     </>

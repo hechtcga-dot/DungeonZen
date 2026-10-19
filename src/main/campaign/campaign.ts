@@ -660,7 +660,7 @@ export class Campaign {
    * Saves a secret, clue or connection: its text and its connections (each a string on the board; known for a
    * connection, dashed for a secret or clue). Removed connections go to History. One undo step.
    */
-  saveSecret(input: { id: string | null; kind: SecretKind; text: string; connections: Array<{ id?: string; sourceId: string; targetId: string; type: string }>; prepItemId?: string }): string {
+  saveSecret(input: { id: string | null; kind: SecretKind; text: string; connections: Array<{ id?: string; sourceId: string; targetId: string; type: string }>; prepItemId?: string; boardId?: string }): string {
     for (const c of input.connections) {
       if (c.sourceId === c.targetId) throw new Error('A link needs two different cards')
       this.entityRow(c.sourceId); this.entityRow(c.targetId)
@@ -668,7 +668,7 @@ export class Campaign {
     const id = input.id ?? randomUUID()
     const old = input.id ? this.db.select().from(relationship).where(and(eq(relationship.secretId, input.id), eq(relationship.status, 'active'))).all() : []
     const settings = this.boardSettings()
-    const owner = settings.sharedStrings ? null : this.globalBoard().id
+    const owner = settings.sharedStrings ? null : input.boardId ?? this.globalBoard().id
     const isSecret = input.kind !== 'connection'
     this.log.run(`Saved the ${input.kind === 'connection' ? 'link' : input.kind}${input.text ? ` ${input.text.slice(0, 40)}` : ''}`, (w) => {
       if (input.id) w.update('secret', id, { kind: input.kind, text: input.text })
@@ -688,6 +688,33 @@ export class Campaign {
       if (input.prepItemId) w.update('prep_item', input.prepItemId, { secretId: id, entityId: null, body: input.text })
     })
     return id
+  }
+
+  /**
+   * The Link window (3.0): what a line on the board, a secret or a clue holds. A board line not yet in a record
+   * comes as one without an id (kind from its dashes, text = its description); saving it makes the record.
+   * Known = the party knows every one of its links.
+   */
+  linkRecord(q: { relationshipId?: string; secretId?: string }): { record: (Omit<SecretView, 'id'> & { id: string | null }) | null; known: boolean; cards: EntityBrief[] } {
+    const cards = this.cardBriefs().map((c) => ({ id: c.id, type: c.type, name: c.name, status: c.status }))
+    const rel = q.relationshipId ? this.relationshipRow(q.relationshipId) : undefined
+    const secretId = q.secretId ?? rel?.secretId ?? null
+    const record = secretId ? this.secretViews().find((x) => x.id === secretId) ?? null
+      : rel ? { id: null, kind: (rel.isSecret ? 'secret' : 'connection') as SecretKind, text: rel.description, label: '',
+        connections: [{ id: rel.id, sourceId: rel.sourceId, targetId: rel.targetId, type: rel.type }] } : null
+    const knownIds = new Set(this.db.select().from(relationshipKnown).where(eq(relationshipKnown.status, 'active')).all().map((k) => k.relationshipId))
+    return { record, known: !!record && record.connections.length > 0 && record.connections.every((c) => knownIds.has(c.id)), cards }
+  }
+
+  /** Saves the Link window: the record (saveSecret) and whether the party knows its links, as one undo step. */
+  saveLink(input: Parameters<Campaign['saveSecret']>[0] & { known: boolean }): string {
+    return this.log.many(`Saved the ${input.kind === 'connection' ? 'link' : input.kind}`, () => {
+      const id = this.saveSecret(input)
+      const knownIds = new Set(this.db.select().from(relationshipKnown).where(eq(relationshipKnown.status, 'active')).all().map((k) => k.relationshipId))
+      for (const r of this.db.select().from(relationship).where(and(eq(relationship.secretId, id), eq(relationship.status, 'active'))).all())
+        if (knownIds.has(r.id) !== input.known) this.setStringKnown(r.id, input.known)
+      return id
+    })
   }
 
   /** Board links between two cards that belong to no secret, clue or link text yet. */

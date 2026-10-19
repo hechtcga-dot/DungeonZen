@@ -9,7 +9,7 @@ import { Dialog } from './Dialog'
 import { RELATIONSHIP_TYPES } from '../../shared/schemas'
 import type { EntityBrief, SecretKind, SecretView } from '../../shared/types'
 
-type Conn = { id?: string; sourceId: string; targetId: string; type: string }
+export type Conn = { id?: string; sourceId: string; targetId: string; type: string }
 type Draft = { kind: SecretKind; text: string; connections: Conn[] }
 const words = (t: string) => t.replace(/_/g, ' ').toLowerCase()
 const NEW = '__new__'
@@ -20,7 +20,7 @@ export const SECRET_LABEL: Record<SecretKind, string> = { secret: 'Secret', clue
  * and, on card sheets, its text. Saved as soon as every connection is whole (and, on a card's sheet, one of them is that
  * card); until then the red line says what is missing, and clicking elsewhere asks: Update now, or Do not save changes.
  */
-export function SecretEditor({ secret, kind, cards, text, showText, mustInclude, prepItemId, start, pending, onSaved, onDiscard }: {
+export function SecretEditor({ secret, kind, cards, text, showText, mustInclude, prepItemId, start, pending, onSaved, onDiscard, manual }: {
   secret: SecretView | null
   kind: SecretKind
   cards: EntityBrief[]
@@ -37,6 +37,8 @@ export function SecretEditor({ secret, kind, cards, text, showText, mustInclude,
   start?: Conn[]
   /** Just made or brought onto this card: not valid yet counts as held back even before any change. */
   pending?: boolean
+  /** The Link window: every change goes to it (it saves on Save); no kind drop-down, no held-back check. */
+  manual?(connections: Conn[]): void
 }) {
   const act = useBoard((s) => s.act)
   const stringTypes = useView().settings.stringTypes
@@ -63,10 +65,11 @@ export function SecretEditor({ secret, kind, cards, text, showText, mustInclude,
       ? [`One link must include ${mustInclude.name}.`] : [])
   ]
   const dirty = JSON.stringify(draft) !== savedKey
-  const held = (dirty || !!pending) && problems.length > 0
+  const held = !manual && (dirty || !!pending) && problems.length > 0
 
   const save = async (next: Draft) => {
     setDraft(next)
+    if (manual) { manual(next.connections); return }
     const ok = next.connections.every((c) => c.sourceId && c.targetId && c.sourceId !== c.targetId)
       && (!mustInclude || next.connections.some((c) => c.sourceId === mustInclude.id || c.targetId === mustInclude.id))
     if (!ok || JSON.stringify(next) === savedKey) return
@@ -112,12 +115,12 @@ export function SecretEditor({ secret, kind, cards, text, showText, mustInclude,
         <div className="row tight">
           <button type="button" className="ink-button" onClick={(e) => setAddMenu({ x: e.clientX, y: e.clientY })}>Add link</button>
           {addMenu && <ContextMenu x={addMenu.x} y={addMenu.y} onClose={() => setAddMenu(null)} items={[
-            { label: 'New link', onClick: () => setDraft({ ...draft, connections: [...draft.connections, { sourceId: mustInclude?.id ?? '', targetId: '', type: 'KNOWS' }] }) },
+            { label: 'New link', onClick: () => { const next = { ...draft, connections: [...draft.connections, { sourceId: mustInclude?.id ?? '', targetId: '', type: 'KNOWS' }] }; setDraft(next); manual?.(next.connections) } },
             { label: 'Existing link…', onClick: () => void call('secret:freeLinks', undefined).then(setExisting) }
           ]} />}
-          <select value={draft.kind} aria-label="Secret, clue or link" onChange={(e) => void save({ ...draft, kind: e.target.value as SecretKind })}>
+          {!manual && <select value={draft.kind} aria-label="Secret, clue or link" onChange={(e) => void save({ ...draft, kind: e.target.value as SecretKind })}>
             {(['secret', 'clue', 'connection'] as const).map((k) => <option key={k} value={k}>{SECRET_LABEL[k]}{k === 'connection' ? ' (known)' : ''}</option>)}
-          </select>
+          </select>}
         </div>
         {problems.length > 0 && <p className="secret-problem" role="alert">{problems.join(' ')}</p>}
       </div>

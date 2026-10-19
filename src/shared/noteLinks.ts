@@ -5,7 +5,31 @@ import type { EntityType } from './schemas'
 // books: the first mention in each paragraph. The DM's own links (Run.link) win: a card or note id, or ''
 // for "never link these words here". A card's picture shows at its first mention in the note.
 
-export interface LinkCard { id: string; name: string; type: EntityType; picture: string }
+export interface LinkCard { id: string; name: string; type: EntityType; picture: string; linkName?: boolean }
+
+/** Setup › Linking names (3.0, owner): which card names link by themselves in notes and text boxes. Per campaign. */
+export interface LinkRules { never: string[]; minLength: number; capitalOnly: boolean }
+/** Everyday words a card may be called that never link by themselves (the DM edits the list). */
+export const COMMON_WORDS = ['inn', 'tavern', 'rat', 'rats', 'guard', 'guards', 'the docks', 'docks', 'king', 'queen', 'temple', 'market', 'castle',
+  'tower', 'gate', 'road', 'river', 'forest', 'city', 'town', 'village', 'shop', 'farm', 'mill', 'bridge', 'cave', 'church', 'priest', 'merchant',
+  'soldier', 'bandit', 'bandits', 'wolf', 'wolves', 'spider', 'goblin', 'goblins', 'orc', 'orcs', 'dragon', 'letter', 'map', 'key', 'sword', 'ring', 'book']
+export const DEFAULT_LINK_RULES: LinkRules = { never: COMMON_WORDS, minLength: 4, capitalOnly: true }
+/** Types whose names link by themselves unless the DM unticks it on the card (owner, 2026-10-19). */
+const BY_ITSELF: EntityType[] = ['NPC', 'PC', 'LOCATION', 'FACTION']
+export const linksByItself = (c: { type: EntityType; linkName?: boolean }) => c.linkName ?? BY_ITSELF.includes(c.type)
+
+/**
+ * The card names that link by themselves (notes and every text box use this one rule): the card's tick, not on the
+ * never list nor switched off, at least minLength letters; a one-word name only with its capital letter (exact).
+ */
+export function autoNames(cards: Array<{ id: string; name: string; type: EntityType; linkName?: boolean }>, rules: LinkRules, off: string[]): Array<{ text: string; target: Target; exact: boolean }> {
+  const never = new Set([...rules.never, ...off].map((w) => w.trim().toLowerCase()))
+  return cards.flatMap((c) => {
+    const n = c.name.trim()
+    if (!linksByItself(c) || n.length < rules.minLength || never.has(n.toLowerCase())) return []
+    return [{ text: n, target: c.id, exact: rules.capitalOnly && !/\s/.test(n) }]
+  })
+}
 /** What a piece of text links to: a card id, `note:<id>`, or a rules term (`term:<name>`). */
 export type Target = string
 export interface Hit { from: number; to: number; target: Target }
@@ -21,19 +45,19 @@ const NOT_ALIAS = new Set(['the', 'old', 'young', 'lady', 'lord', 'sir', 'captai
  * Everything a note can link by itself: card names (and an NPC or PC's first name when no other card shares it,
  * matched with its capital letter), the DM's own linked words, spells and conditions. Names switched off are left out.
  */
-export function makeMatcher(cards: LinkCard[], own: Array<{ text: string; entityId: string }>, off: string[], terms: string[]): Matcher {
-  const offSet = new Set(off.map((o) => o.toLowerCase()))
+export function makeMatcher(cards: LinkCard[], own: Array<{ text: string; entityId: string }>, off: string[], terms: string[], rules: LinkRules = DEFAULT_LINK_RULES): Matcher {
+  const offSet = new Set([...off, ...rules.never].map((o) => o.toLowerCase()))
   const phrases: Matcher['phrases'] = []
   for (const o of own) if (o.text.trim()) phrases.push({ text: o.text, target: o.entityId })
-  for (const c of cards) if (c.name.trim().length > 2 && !offSet.has(c.name.toLowerCase())) phrases.push({ text: c.name.trim(), target: c.id })
+  phrases.push(...autoNames(cards, rules, off))
   const firsts = new Map<string, LinkCard[]>()
   for (const c of cards) {
     const first = c.name.trim().split(/\s+/)[0]
-    if (c.name.trim().includes(' ') && first.length >= 4) firsts.set(first, [...(firsts.get(first) ?? []), c])
+    if (c.name.trim().includes(' ') && first.length >= Math.max(4, rules.minLength)) firsts.set(first, [...(firsts.get(first) ?? []), c])
   }
   const names = new Set(cards.map((c) => c.name.trim().toLowerCase()))
   for (const [first, list] of firsts) {
-    if (list.length !== 1 || !['NPC', 'PC'].includes(list[0].type) || NOT_ALIAS.has(first.toLowerCase()) || names.has(first.toLowerCase()) || offSet.has(first.toLowerCase())) continue
+    if (list.length !== 1 || !['NPC', 'PC'].includes(list[0].type) || !linksByItself(list[0]) || NOT_ALIAS.has(first.toLowerCase()) || names.has(first.toLowerCase()) || offSet.has(first.toLowerCase())) continue
     phrases.push({ text: first, target: list[0].id, exact: true })
   }
   for (const t of terms) if (!offSet.has(t.toLowerCase())) phrases.push({ text: t, target: `term:${t}` })

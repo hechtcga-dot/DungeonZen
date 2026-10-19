@@ -6,9 +6,10 @@ import { ENTITY_TYPES } from '../../shared/schemas'
 import type { EntityType } from '../../shared/schemas'
 import type { EntityBrief, WordLinksView } from '../../shared/types'
 import { useBoard } from '../store'
+import { autoNames, DEFAULT_LINK_RULES, linksByItself } from '../../shared/noteLinks'
 
-/** auto: a card's own name, linked only as whole words. */
-export type WordLink = { text: string; entityId: string; auto?: boolean }
+/** auto: a card's own name, linked only as whole words; exact: only as written (a one-word name with its capital). */
+export type WordLink = { text: string; entityId: string; auto?: boolean; exact?: boolean }
 
 /** What a sheet gives its linkable text boxes: the links, the cards, and the card shown beside the sheet. */
 export const LinkContext = createContext<{
@@ -22,21 +23,20 @@ type Hit = { from: number; to: number; link: WordLink }
 type LinkCtx = NonNullable<React.ContextType<typeof LinkContext>>
 
 /**
- * Card names link by themselves (whole words, any case) unless the DM switched that name off; own links win.
- * Removing a name's link switches it off everywhere (setting word_links), undoable.
+ * Card names link by themselves (whole words; shared/noteLinks.ts autoNames, the same rule as Notes); own links win.
+ * Stopping a name's link unticks "Link this name by itself" on its card, undoable.
  */
 export function withAutoLinks(w: WordLinksView | null, own: WordLink[], setOwn: (links: WordLink[]) => void, show: (id: string | null) => void): LinkCtx {
   const cards = w?.cards ?? []
-  const off = w?.off ?? []
-  const taken = new Set([...own.map((l) => l.text.toLowerCase()), ...off])
-  const auto: WordLink[] = cards.filter((c) => c.name.trim().length > 2 && !taken.has(c.name.toLowerCase()))
-    .map((c) => ({ text: c.name, entityId: c.id, auto: true }))
+  const taken = new Set(own.map((l) => l.text.toLowerCase()))
+  const auto: WordLink[] = autoNames(cards, w?.rules ?? DEFAULT_LINK_RULES, w?.off ?? []).filter((n) => !taken.has(n.text.toLowerCase()))
+    .map((n) => ({ text: n.text, entityId: n.target, auto: true, exact: n.exact }))
   return {
     links: [...own, ...auto], cards, show,
     setLinks: (next) => {
       const nextOwn = next.filter((l) => !l.auto).map(({ text, entityId }) => ({ text, entityId }))
-      const dropped = auto.filter((l) => !next.includes(l) && !nextOwn.some((o) => o.text.toLowerCase() === l.text.toLowerCase())).map((l) => l.text.toLowerCase())
-      if (dropped.length && w) void useBoard.getState().act('links:set', { own: w.own, off: [...new Set([...off, ...dropped])] })
+      const dropped = auto.filter((l) => !next.includes(l) && !nextOwn.some((o) => o.text.toLowerCase() === l.text.toLowerCase()))
+      for (const l of dropped) void useBoard.getState().act('entity:update', { id: l.entityId, patch: { attributes: { link_name: false } } })
       if (nextOwn.length !== own.length || nextOwn.some((l, i) => l.text !== own[i].text || l.entityId !== own[i].entityId)) setOwn(nextOwn)
     }
   }
@@ -95,8 +95,9 @@ export function findLinks(text: string, links: WordLink[]): Hit[] {
   const low = text.toLowerCase()
   const hits: Hit[] = []
   for (const link of [...links].sort((a, b) => b.text.length - a.text.length)) {
-    const t = link.text.toLowerCase()
-    for (let i = low.indexOf(t); i >= 0 && t; i = low.indexOf(t, i + t.length)) {
+    const t = link.exact ? link.text : link.text.toLowerCase()
+    const hay = link.exact ? text : low
+    for (let i = hay.indexOf(t); i >= 0 && t; i = hay.indexOf(t, i + t.length)) {
       if (link.auto && (/[\p{L}\p{N}]/u.test(text[i - 1] ?? '') || /[\p{L}\p{N}]/u.test(text[i + t.length] ?? ''))) continue
       if (!hits.some((h) => i < h.to && i + t.length > h.from)) hits.push({ from: i, to: i + t.length, link })
     }
@@ -193,7 +194,7 @@ export function LinkField(props: {
     }
     if (hit) {
       items.push({ label: `Show ${ctx.cards.find((c) => c.id === hit.link.entityId)?.name ?? 'the card'}`, onClick: () => ctx.show(hit.link.entityId) })
-      items.push({ label: hit.link.auto ? `Stop linking “${hit.link.text}” by itself (the words stay)` : `Remove the link on “${hit.link.text}” (the words stay)`, danger: true, onClick: () => ctx.setLinks(ctx.links.filter((l) => l !== hit.link)) })
+      items.push({ label: hit.link.auto ? `Stop linking “${hit.link.text}” by itself (unticks it on the card)` : `Remove the link on “${hit.link.text}” (the words stay)`, danger: true, onClick: () => ctx.setLinks(ctx.links.filter((l) => l !== hit.link)) })
     }
     setMenu({ x: e.clientX, y: e.clientY, items })
   }
@@ -276,5 +277,18 @@ export function CardPicker({ words, cards, onPick, onClose, title }: { words: st
         <div className="actions"><button onClick={onClose}>Cancel</button></div>
       </div>
     </Dialog>
+  )
+}
+
+/** Card sheet and board side panel: "Link this name by itself" (3.0, owner; starts ticked for NPC, PC, Location, Faction). */
+export function LinkNameTick({ entity, id }: { entity: { id: string; type: EntityType; attributes: Record<string, unknown> }; id: string }) {
+  const act = useBoard((s) => s.act)
+  const linkName = typeof entity.attributes.link_name === 'boolean' ? entity.attributes.link_name : undefined
+  return (
+    <div className="field checkbox">
+      <input id={id} type="checkbox" checked={linksByItself({ type: entity.type, linkName })}
+        onChange={(e) => void act('entity:update', { id: entity.id, patch: { attributes: { link_name: e.target.checked } } })} />
+      <label htmlFor={id}>Link this name by itself in notes and text boxes</label>
+    </div>
   )
 }

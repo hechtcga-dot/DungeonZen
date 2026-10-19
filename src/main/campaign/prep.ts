@@ -8,6 +8,7 @@ import { readStatBlock, statLine } from '../../shared/statblock'
 import type { PcToken,   EntityBrief, PrepScreenView, PrepView, WordLinksView, PrepItemView, TravelEstimateView } from '../../shared/types'
 import { estimateTravel, regionAt, type Point } from '../../shared/geometry'
 import { part } from './part'
+import { DEFAULT_LINK_RULES, type LinkRules } from '../../shared/noteLinks'
 import { PREP_LABELS, PrepItemPatch } from './common'
 
 export const prepPart = part({
@@ -35,14 +36,20 @@ export const prepPart = part({
       .sort((a, b) => a.name.localeCompare(b.name)).map((e) => {
         const a = e.attributes as Record<string, unknown>
         const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
-        return { id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus, summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes'), flaws: t('flaws'), ...(a.encounter === true ? { encounter: true } : {}), ...(typeof a.colour === 'string' ? { colour: a.colour } : {}) }
+        return { id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus, summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes'), flaws: t('flaws'), ...(a.encounter === true ? { encounter: true } : {}), ...(typeof a.colour === 'string' ? { colour: a.colour } : {}), ...(typeof a.link_name === 'boolean' ? { linkName: a.link_name } : {}) }
       })
   },
 
   /** Text boxes everywhere: card names link by themselves; the DM's own links and the names switched off (setting word_links). */
   wordLinks(): WordLinksView {
     const v = this.setting('word_links') as { own?: WordLinksView['own']; off?: string[] } | undefined
-    return { cards: this.cardBriefs(), own: Array.isArray(v?.own) ? v.own : [], off: Array.isArray(v?.off) ? v.off : [] }
+    const r = this.setting('link_rules') as Partial<LinkRules> | undefined
+    const rules: LinkRules = {
+      never: Array.isArray(r?.never) ? r.never.map(String) : DEFAULT_LINK_RULES.never,
+      minLength: typeof r?.minLength === 'number' ? r.minLength : DEFAULT_LINK_RULES.minLength,
+      capitalOnly: typeof r?.capitalOnly === 'boolean' ? r.capitalOnly : DEFAULT_LINK_RULES.capitalOnly
+    }
+    return { cards: this.cardBriefs(), own: Array.isArray(v?.own) ? v.own : [], off: Array.isArray(v?.off) ? v.off : [], rules }
   },
 
   prepScreen(): PrepScreenView {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { setLinkRange, autoBanner, autoPictures, cardMentions, makeMatcher, paragraphLinks, segments, unknownNames, type LinkCard } from '../src/shared/noteLinks'
+import { setLinkRange, autoBanner, autoPictures, cardMentions, makeMatcher, paragraphLinks, segments, unknownNames, type LinkCard, autoNames, DEFAULT_LINK_RULES, findAll } from '../src/shared/noteLinks'
 import type { Block } from '../src/shared/noteDoc'
 
 const cards: LinkCard[] = [
@@ -46,5 +46,27 @@ describe('notes book links (2.8.0)', () => {
     const blocks: Block[] = [p('Maren knows.'), { kind: 'h2', runs: [{ text: 'The Tower' }] }, p('The stranger Talis paid Maren. Talis left for Greyhollow Keep. The end.')]
     expect(cardMentions(blocks, m).map((x) => [x.target, x.heading])).toEqual([['maren', -1], ['maren', 0]])
     expect(unknownNames(blocks, m, ['greyhollow keep']).map((x) => [x.name, x.count])).toEqual([['Talis', 2]])
+  })
+})
+
+describe('names that link by themselves (3.0)', () => {
+  const card = (id: string, name: string, type: LinkCard['type'], linkName?: boolean): LinkCard => ({ id, name, type, picture: '', ...(linkName === undefined ? {} : { linkName }) })
+  it('follows the card tick, the type default, the never list, the shortest length and the capital letter', () => {
+    const cards = [card('b', 'Barliman', 'NPC'), card('r', 'Rat', 'MONSTER'), card('g', 'Guard', 'NPC'), card('p', 'Prancing Pony', 'LOCATION'),
+      card('s', 'Sting', 'ITEM'), card('s2', 'Sting2', 'ITEM', true), card('x', 'Strider', 'NPC', false), card('o', 'Odo', 'NPC')]
+    const names = autoNames(cards, DEFAULT_LINK_RULES, []).map((n) => `${n.text}${n.exact ? '!' : ''}`)
+    expect(names).toEqual(['Barliman!', 'Prancing Pony', 'Sting2!'])
+    const m = makeMatcher(cards, [], [], [])
+    const text = 'barliman met Barliman at the prancing pony; the guard saw a rat and Strider.'
+    expect(findAll(text, m).map((h) => text.slice(h.from, h.to))).toEqual(['Barliman', 'prancing pony'])
+  })
+
+  it('links a 5,000-word note against 500 cards quickly', () => {
+    const cards = Array.from({ length: 500 }, (_, i) => card(`c${i}`, `Person Number${i}`, 'NPC'))
+    const words = Array.from({ length: 5000 }, (_, i) => (i % 50 === 0 ? `Person Number${i % 500}` : 'word')).join(' ')
+    const t0 = performance.now()
+    const hits = findAll(words, makeMatcher(cards, [], [], []))
+    expect(hits.length).toBeGreaterThan(90)
+    expect(performance.now() - t0).toBeLessThan(1000)
   })
 })

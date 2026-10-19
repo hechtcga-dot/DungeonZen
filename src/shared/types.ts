@@ -451,10 +451,14 @@ export interface TimelineView {
 }
 
 /** Linked words in text boxes. own: words the DM linked to a card; off: card names that no longer link by themselves (lower case). */
+import type { LinkRules } from './noteLinks'
+
 export interface WordLinksView {
   cards: PrepScreenView['cards']
   own: Array<{ text: string; entityId: string }>
   off: string[]
+  /** Setup › Linking names. */
+  rules: LinkRules
 }
 
 export interface WhatIfView {
@@ -736,7 +740,7 @@ export interface PrepScreenView {
   /** Planned encounters (the Encounters box links to them). */
   encounters: Array<{ id: string; name: string; placeName: string | null }>
   /** Every card, for linking words on the sheet and the card summary beside it. */
-  cards: Array<EntityBrief & { summary: string; picture: string; location: string; notes: string; flaws: string; encounter?: boolean; colour?: string }>
+  cards: Array<EntityBrief & { summary: string; picture: string; location: string; notes: string; flaws: string; encounter?: boolean; colour?: string; linkName?: boolean }>
   /** Secret strings and Clue cards a prep secret can be tied to. */
   boardSecrets: Array<{ kind: 'string' | 'clue'; id: string; label: string }>
   /** Every secret, clue and connection. */

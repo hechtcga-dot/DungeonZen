@@ -3,12 +3,13 @@ import { ShopTypePick } from './BuildingSheet'
 import { useEffect, useState } from 'react'
 import { LocationPick } from './LocationPick'
 import { useReactFlow } from '@xyflow/react'
+import { LinkNameTick } from './LinkField'
 import { useBoard, useView } from '../store'
 import { CommitField } from './fields'
 import { ENTITY_LABELS } from '../entityStyle'
 import { TypeEmblem } from '../art/emblems'
 import { BUILDING_KINDS, buildingAttrs, KIND_LABELS, readBuilding, type BuildingKind } from '../../shared/building'
-import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
+import { ENTITY_TYPES, type EntityType } from '../../shared/schemas'
 import type { EntityView } from '../../shared/types'
 import type { IpcInput } from '../../shared/ipc'
 
@@ -131,7 +132,7 @@ function EntityInspector({ entity }: { entity: EntityView }) {
 
       <InYourNotes entityId={entity.id} />
       <details className="inspector-more">
-        <summary>More: type, location, tags, storylines</summary>
+        <summary>More: type, location, tags, linking, storylines</summary>
         <div className="field">
           <label htmlFor={`${p}-type`}>Type</label>
           <select id={`${p}-type`} value={entity.type} onChange={(e) => update({ type: e.target.value as EntityType })}>
@@ -144,6 +145,7 @@ function EntityInspector({ entity }: { entity: EntityView }) {
           onCommit={(motivation) => update({ attributes: { motivation } })} />
         <CommitField id={`${p}-tags`} label="Tags" value={entity.tags.join(', ')} hint="Separate tags with commas."
           onCommit={(t) => update({ tags: [...new Set(t.split(',').map((x) => x.trim()).filter(Boolean))] })} />
+        <LinkNameTick entity={entity} id={`${p}-linkname`} />
         <fieldset className="field">
           <legend>Storylines</legend>
           {linked.length === 0 && <div className="hint">Not on any storyline view yet.</div>}
@@ -184,33 +186,20 @@ function EntityInspector({ entity }: { entity: EntityView }) {
   )
 }
 
+/** A board line: who it ties and its words; Edit… opens the Link window (3.0: links are edited there everywhere). */
 function StringInspector({ id }: { id: string }) {
-  const act = useBoard((s) => s.act)
-  const select = useBoard((s) => s.select)
+  const { act, openLink } = useBoard()
   const view = useView()
   const rel = view.relationships.find((r) => r.id === id)!
   const name = (eid: string) => view.entities[eid]?.name ?? '?'
   return (
     <div className="inspector">
-      <h2 className="panel-heading">Link</h2>
-      <p className="string-ends">{name(rel.sourceId)} <span aria-hidden="true">—</span><span className="visually-hidden">to</span> {name(rel.targetId)}</p>
-      <CommitField id={`rel-${id}-type`} label="Link type" value={rel.type.replace(/_/g, ' ')} list="relationship-types" required
-        hint="Pick a suggestion or type your own." onCommit={(type) => void act('relationship:update', { id, patch: { type } })} />
-      <datalist id="relationship-types">
-        {[...new Set([...RELATIONSHIP_TYPES, ...view.settings.stringTypes.map((t) => t.type)])].map((t) => <option key={t} value={t.replace(/_/g, ' ')} />)}
-      </datalist>
-      <CommitField id={`rel-${id}-desc`} label="Description" value={rel.description} multiline rows={3}
-        hint="Prep secrets tied to this link share this text." onCommit={(description) => void act('relationship:update', { id, patch: { description } })} />
-      <div className="field checkbox">
-        <input id={`rel-${id}-secret`} type="checkbox" checked={rel.isSecret}
-          onChange={(e) => void act('relationship:update', { id, patch: { isSecret: e.target.checked } })} />
-        <label htmlFor={`rel-${id}-secret`}>Secret link (dashed): the party doesn't know about it</label>
-      </div>
+      <h2 className="panel-heading">{rel.secretKind === 'clue' ? 'Clue' : rel.isSecret ? 'Secret' : 'Link'}</h2>
+      <p className="string-ends">{name(rel.sourceId)} <span className="ink-muted">{rel.type.replace(/_/g, ' ').toLowerCase()}</span> {name(rel.targetId)}</p>
+      {rel.description && <p className="pre-line">{rel.description}</p>}
       <div className="actions">
+        <button className="primary" onClick={() => openLink({ relationshipId: id, boardId: view.board.id })}>Edit…</button>
         <button onClick={() => void act('board:setHidden', { kind: 'string', id, hidden: !rel.hidden })}>{rel.hidden ? 'Unhide' : 'Hide'}</button>
-        <button className="danger" onClick={async () => { await act('relationship:setStatus', { id, status: 'defunct' }); select(null) }}>
-          Remove link
-        </button>
       </div>
     </div>
   )

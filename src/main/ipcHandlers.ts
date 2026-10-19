@@ -417,6 +417,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     setCardWords(v.cards.map((c) => c.name))
     return v
   })
+  handle('links:rules', (rules) => current().setSetting('link_rules', rules, 'Changed which names link by themselves'))
   handle('links:set', (links) => current().setSetting('word_links', links, 'Changed the linked words'))
   handle('act:create', (i) => current().createAct(i))
   handle('act:update', ({ id, patch }) => current().updateAct(id, patch))
@@ -1299,6 +1300,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('prepItem:update', ({ id, patch }) => current().updatePrepItem(id, patch))
   handle('prepItem:addSecret', ({ prepId, kind }) => current().addPrepSecret(prepId, kind))
   handle('secret:save', (i) => current().saveSecret(i))
+  handle('link:get', (q) => current().linkRecord(q))
+  handle('link:save', (i) => current().saveLink(i))
   handle('secret:freeLinks', () => current().freeLinks().map((r) => ({ id: r.id, sourceId: r.sourceId, targetId: r.targetId, type: r.type })))
   handle('secret:setText', ({ id, text }) => current().setSecretText(id, text))
   handle('secret:remove', ({ id }) => current().removeSecret(id))

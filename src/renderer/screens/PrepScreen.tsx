@@ -11,10 +11,7 @@ import { ENTITY_TYPES, type EntityType, type PrepKind, type SceneType } from '..
 import { ENTITY_LABELS } from '../entityStyle'
 import type { EntityBrief, PrepItemView, PrepScreenView, PrepView, SheetView } from '../../shared/types'
 import { call } from '../api'
-import { Dialog } from '../components/Dialog'
 import { LocationPick } from '../components/LocationPick'
-import { CardPicker } from '../components/LinkField'
-import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 import { readStatBlock, statLine } from '../../shared/statblock'
 import { useSidePanel } from '../components/Splitter'
 import { LinkContext, LinkField, withAutoLinks } from '../components/LinkField'
@@ -339,7 +336,7 @@ export function NpcRow({ i, s, k, count }: { i: PrepItemView; s: PrepScreenView;
   const ties = card ? s.strings.filter((r) => r.sourceId === card.id || r.targetId === card.id) : []
   const words = (t: string) => t.replace(/_/g, ' ').toLowerCase()
   const [making, setMaking] = useState<string | null>(null)
-  const [linking, setLinking] = useState(false)
+  const openLink = useBoard((st) => st.openLink)
   const links = useRef<HTMLDivElement>(null)
   const [linksH, setLinksH] = useState(0)
   useEffect(() => {
@@ -428,7 +425,7 @@ export function NpcRow({ i, s, k, count }: { i: PrepItemView; s: PrepScreenView;
                       })}
                     </ul>
                   )}
-                  <button className="ink-button" onClick={() => setLinking(true)}>+ New link</button>
+                  {card && <button className="ink-button" onClick={() => openLink({ kind: 'connection', mustInclude: { id: card.id, name: card.name }, start: [{ sourceId: card.id, targetId: '', type: 'KNOWS' }] })}>+ New link</button>}
                 </div>
               </div>
               <LinkField id={`n-n-${i.id}`} label="DM notes" multiline rows={2} value={card.notes} minHeight={card.notes ? undefined : Math.min(linksH, 200)}
@@ -438,7 +435,6 @@ export function NpcRow({ i, s, k, count }: { i: PrepItemView; s: PrepScreenView;
           </>
         )}
       </details>
-      {linking && card && <NewLinkDialog from={card} cards={s.cards} onClose={() => setLinking(false)} />}
     </div>
   )
 }
@@ -475,36 +471,6 @@ function ShowFromSheet({ i, cardId, shown }: { i: PrepItemView; cardId: string; 
         <div key={p.key} className="npc-show-part"><strong>{p.label}:</strong> {part(p.key)}</div>
       ))}
     </details>
-  )
-}
-
-/** + New link from a prep NPC: this card – link type – another card (picked or made). A string on the board, Ctrl+Z undoes. */
-function NewLinkDialog({ from, cards, onClose }: { from: EntityBrief; cards: EntityBrief[]; onClose(): void }) {
-  const act = useBoard((st) => st.act)
-  const [choice, setChoice] = useState<LinkChoice>(DEFAULT_LINK)
-  const [target, setTarget] = useState<string | null>(null)
-  const [picking, setPicking] = useState(false)
-  const save = async () => {
-    if (!target || !linkReady(choice)) return
-    await act('relationship:create', { sourceId: from.id, targetId: target, ...linkInput(choice) })
-    onClose()
-  }
-  return (
-    <Dialog title="New link" open onClose={onClose}>
-      <div className="dz-form">
-        <div className="new-link-row">
-          <div className="field"><span className="field-label">Card</span><p><strong>{from.name}</strong></p></div>
-          <div><LinkTypeFields id={`nl-${from.id}`} value={choice} onChange={setChoice} /></div>
-          <div className="field"><span className="field-label">Card</span>
-            <button type="button" onClick={() => setPicking(true)}>{target ? cards.find((c) => c.id === target)?.name ?? 'A card' : 'Pick or make a card…'}</button></div>
-        </div>
-        <div className="dz-actions">
-          <button type="button" onClick={onClose}>Cancel</button>
-          <button className="primary" disabled={!target || !linkReady(choice)} onClick={() => void save()}>Add link</button>
-        </div>
-      </div>
-      {picking && <CardPicker words="" title="Link to which card?" cards={cards.filter((c) => c.id !== from.id)} onClose={() => setPicking(false)} onPick={(id) => { setTarget(id); setPicking(false) }} />}
-    </Dialog>
   )
 }
 

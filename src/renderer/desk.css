@@ -1840,3 +1840,19 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .session-summary { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 
 .tidy-list { max-height: 50vh; overflow: auto; }
+
+/* 3.0 Link window and the sheet's Links & secrets list */
+.link-window { display: flex; flex-direction: column; gap: 12px; padding: 4px 0; }
+.link-window textarea { width: 100%; resize: vertical; }
+.toggle-chip.secret-chip[aria-pressed='true'] { background: var(--wax); }
+.dz-actions .spacer { flex: 1; }
+.pre-line { white-space: pre-line; }
+.link-group-head { margin: 10px 0 2px; font: italic 17px var(--display); color: var(--wax); border-bottom: 1px solid rgba(143, 42, 33, 0.3); }
+.link-rows { list-style: none; margin: 0; padding: 0; }
+.link-rows li { display: flex; align-items: flex-start; gap: 8px; padding: 6px 2px; border-bottom: 1px dashed rgba(122, 100, 64, 0.35); }
+.link-badge { flex: none; width: 58px; margin-top: 2px; padding: 2px 0; border-radius: 3px; text-align: center; font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; color: #f6ecd0; background: #3b6e8f; }
+.link-badge.k-secret { background: var(--wax); } .link-badge.k-clue { background: #5a3f8a; }
+.link-row-main { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; padding: 0; border: 0; background: none; text-align: left; color: inherit; }
+.link-row-main i { color: var(--ink-muted); font-style: normal; }
+.link-row-text { color: var(--ink-muted); font-size: 12.5px; white-space: pre-line; }

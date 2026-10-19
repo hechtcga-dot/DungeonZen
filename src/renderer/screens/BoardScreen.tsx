@@ -38,9 +38,7 @@ import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/
 import type { BoardView, EntityView, MapScreenView } from '../../shared/types'
 import type { ManyOp } from '../../shared/ipc'
 import { useCtrlPan } from '../useCtrlPan'
-import { Dialog } from '../components/Dialog'
 import { MapViewPanel } from './MapScreen'
-import { DEFAULT_LINK, LinkTypeFields, linkInput, linkReady, type LinkChoice } from '../components/LinkTypeFields'
 
 type BoardNode = CardNodeType | NoteNodeType | ImageNodeType | RegionNodeType
 
@@ -72,7 +70,7 @@ type Menu = { x: number; y: number; items: MenuItem[] }
 
 function BoardLayout() {
   const view = useView()
-  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, goTo, selection } = useBoard()
+  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, goTo, selection, openLink } = useBoard()
   // Links: the tool button shows every link; the panel tab shows the selected card's (the rest folded).
   const [linksAll, setLinksAll] = useState(false)
   const prefs = useBoardPrefs()
@@ -95,8 +93,6 @@ function BoardLayout() {
   /** Card menu › New link…: the string follows the mouse from this card until another card is clicked. */
   const [linking, setLinking] = useState<{ itemId: string; entity: EntityView } | null>(null)
   const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null)
-  const [confirmLink, setConfirmLink] = useState<{ a: EntityView; b: EntityView } | null>(null)
-  const [linkChoice, setLinkChoice] = useState<LinkChoice>(DEFAULT_LINK)
   const [colourFor, setColourFor] = useState<ColourTarget | null>(null)
   const typeColour = useTypeColour()
   const background = prefs.layer === 'background'
@@ -252,10 +248,8 @@ function BoardLayout() {
     const target = nodes.find((n) => n.id === c.target)
     const ok = (n?: BoardNode): n is CardNodeType | RegionNodeType => n?.type === 'card' || n?.type === 'region'
     if (!ok(source) || !ok(target) || source.data.entity.id === target.data.entity.id) return
-    void act('relationship:create', {
-      sourceId: source.data.entity.id, targetId: target.data.entity.id, type: 'KNOWS', isSecret: false, boardId: view.board.id
-    }).then((rel) => { if (rel) select({ kind: 'string', id: rel.id }) })
-  }, [nodes, act, select, view.board.id])
+    openLink({ start: [{ sourceId: source.data.entity.id, targetId: target.data.entity.id, type: 'KNOWS' }], kind: 'connection', boardId: view.board.id })
+  }, [nodes, openLink, view.board.id])
 
   const onNodeDragStop = useCallback((_e: unknown, _n: BoardNode, dragged: BoardNode[]) => {
     const moves = dragged
@@ -477,7 +471,7 @@ function BoardLayout() {
   const stringItems = (id: string): MenuItem[] => {
     const r = view.relationships.find((x) => x.id === id)!
     return [
-      { label: 'Edit in the panel', onClick: () => { select({ kind: 'string', id }); setPanel('inspector') } },
+      { label: 'Edit…', onClick: () => openLink({ relationshipId: id, boardId: view.board.id }) },
       { label: 'Kind', items: stringKinds.map((k) => ({ label: k.replace(/_/g, ' ').toLowerCase(), checked: r.type === k, onClick: () => void act('relationship:update', { id, patch: { type: k } }) })) },
       { label: r.isSecret ? 'Make known (solid)' : 'Make secret (dashed)', onClick: () => void act('relationship:update', { id, patch: { isSecret: !r.isSecret } }) },
       'separator',
@@ -656,11 +650,13 @@ function BoardLayout() {
             onEdgesChange={onEdgesChange}
             onSelectionChange={onSelectionChange}
             onConnect={onConnect}
+            onEdgeClick={(_e, edge) => openLink({ relationshipId: edge.id, boardId: view.board.id })}
             onNodeDragStop={onNodeDragStop}
             onNodeDoubleClick={(_e, n: BoardNode) => { if (n.type === 'card' || n.type === 'region') void openSheet(n.data.entity.id) }}
             onNodeClick={(_e, n: BoardNode) => {
               if (!linking) return
-              if ((n.type === 'card' || n.type === 'region') && n.data.entity.id !== linking.entity.id) { setConfirmLink({ a: linking.entity, b: n.data.entity }); setLinkChoice(DEFAULT_LINK) }
+              if ((n.type === 'card' || n.type === 'region') && n.data.entity.id !== linking.entity.id)
+                openLink({ start: [{ sourceId: linking.entity.id, targetId: n.data.entity.id, type: 'KNOWS' }], kind: 'connection', boardId: view.board.id })
               setLinking(null)
             }}
             onPaneClick={() => { setLinking(null); select(null) }}
@@ -736,25 +732,6 @@ function BoardLayout() {
       </div>
       {colourFor && <ColourDialog target={colourFor} onClose={() => setColourFor(null)} />}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
-      <Dialog title="Link these two?" open={!!confirmLink} onClose={() => setConfirmLink(null)}>
-        {confirmLink && (
-          <form onSubmit={(e) => {
-            e.preventDefault()
-            if (!linkReady(linkChoice)) return
-            const { a, b } = confirmLink
-            setConfirmLink(null)
-            void act('relationship:create', { sourceId: a.id, targetId: b.id, boardId: view.board.id, ...linkInput(linkChoice) })
-              .then((rel) => { if (rel) select({ kind: 'string', id: rel.id }) })
-          }}>
-            <p className="link-confirm"><strong>{confirmLink.a.name}</strong> <span aria-hidden="true">→</span> <strong>{confirmLink.b.name}</strong></p>
-            <LinkTypeFields id="new-link" value={linkChoice} onChange={setLinkChoice} />
-            <div className="dz-actions">
-              <button type="button" onClick={() => setConfirmLink(null)}>Cancel</button>
-              <button type="submit" className="primary" disabled={!linkReady(linkChoice)}>Yes, link them</button>
-            </div>
-          </form>
-        )}
-      </Dialog>
       {askLink && (
         <WinnerDialog title="Move cards on every board"
           text="From now on, moving or resizing a card moves it on every board. The boards may have the card in different places now: which layout should every board take?"
