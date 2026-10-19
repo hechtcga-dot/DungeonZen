@@ -11,7 +11,10 @@ import './styles.css'
 import './desk.css'
 import './theme.css'
 import { App } from './App'
+import { applyLook } from './skin'
 import './textKeys'
+
+applyLook()
 
 // Every one-line text box shows the start of its text again when the DM clicks out (owner, 2026-10-14).
 document.addEventListener('focusout', (ev) => { if (ev.target instanceof HTMLInputElement) ev.target.scrollLeft = 0 })

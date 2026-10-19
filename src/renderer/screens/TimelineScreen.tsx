@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { useCtrlPan } from '../useCtrlPan'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
-import { TopBar } from '../components/TopBar'
+import { ScreenHeader } from '../components/TopBar'
 import { CommitField } from '../components/fields'
 import { StorylineDialog, STORYLINE_STATUS_LABELS } from '../components/EditDialogs'
 import { Dialog } from '../components/Dialog'
@@ -26,7 +26,7 @@ export function TimelineScreen() {
   const timeline = useBoard((s) => s.timeline)
   return (
     <DeskFrame>
-      <TopBar />
+      <ScreenHeader title="Timeline" />
       {timeline ? <Timeline t={timeline} /> : <p className="desk-loading">Unrolling the timeline…</p>}
     </DeskFrame>
   )

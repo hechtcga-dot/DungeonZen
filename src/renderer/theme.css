@@ -314,3 +314,34 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .desk-theme .tl-enc-x, .desk-theme .tl-enc-add { min-height: 0; height: 22px; width: 22px; padding: 0; line-height: 1; }
 .tl-enc-x { border: 0; background: transparent; }
 .tl-times { align-items: flex-start; gap: 16px; }
+
+/* ---- one header on every screen (3.1) ---- */
+.screen-head { flex-wrap: nowrap; min-height: 64px; padding: 8px 16px; }
+.screen-title { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; max-width: 34%; }
+.screen-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-style: italic; font-size: 13px; color: #d6c296; white-space: nowrap; overflow: hidden; }
+.screen-title h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--parchment-light); text-shadow: 0 2px 0 #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen-title h1 input { font-size: inherit; }
+.screen-find {
+  flex: 0 1 300px; min-width: 150px; min-height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left;
+  color: #5a4a32; background: var(--parchment); border: 1px solid #3b2608; border-radius: 6px; cursor: text;
+}
+.screen-find span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen-find kbd { font-family: var(--mono); font-size: 11px; border: 1px solid #a8916a; border-radius: 3px; padding: 1px 5px; }
+.screen-head .topbar-middle { flex: 0 1 260px; }
+.screen-gap { flex: 1 1 0; }
+.screen-actions { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; }
+.screen-actions > * { flex: none; white-space: nowrap; }
+.screen-head .live-seal { width: 24px; height: 24px; font-size: 9px; }
+
+/* Rail foot: Setup, AI, Close as one row of icons (3.1). */
+.rail-item { min-height: 50px; }
+.rail-foot { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; border-top: 1px solid rgba(214, 194, 150, 0.22); padding-top: 6px; }
+.rail-foot .rail-item { min-height: 44px; padding: 0; }
+.rail-foot .rail-item svg { width: 18px; height: 18px; }
+.rail-foot .rail-item span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.screen-head .clock, .screen-head .screen-tools { flex: none; white-space: nowrap; }
+
+/* Board tools in groups, each with a small picture (3.1). */
+.tools-group { display: block; width: 100%; margin-top: 4px; text-align: center; font-size: 10px; letter-spacing: 0.08em; opacity: 0.85; }
+.tool { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.tool-layer { border: 0; }

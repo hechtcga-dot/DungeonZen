@@ -24,7 +24,7 @@ import { Splitter, useSplit } from '../components/Splitter'
 import { ENTITY_LABELS, cardColour, useTypeColour } from '../entityStyle'
 import { ColourDialog, type ColourTarget } from '../components/ColourDialog'
 import { freeSpot } from '../../shared/layout'
-import { TopBar, isTyping } from '../components/TopBar'
+import { ScreenHeader, isTyping } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
 import { Candle } from '../art/props'
 import { lightingAt } from '../../shared/sky'
@@ -48,6 +48,11 @@ const nodeTypes = { card: CardNode, note: NoteNode, image: ImageNode, region: Re
 const edgeTypes = { string: StringEdge }
 const ASSET = 'dz-asset://campaign/'
 
+/** A board tool's small picture, above its name (3.1). */
+const toolIcon = (d: string) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+)
+
 export function BoardScreen() {
   return (
     <ReactFlowProvider>
@@ -70,11 +75,11 @@ type Menu = { x: number; y: number; items: MenuItem[] }
 
 function BoardLayout() {
   const view = useView()
-  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, goTo, selection, openLink } = useBoard()
+  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, selection, openLink } = useBoard()
   // Links: the tool button shows every link; the panel tab shows the selected card's (the rest folded).
   const [linksAll, setLinksAll] = useState(false)
   const prefs = useBoardPrefs()
-  const { screenToFlowPosition, flowToScreenPosition, fitView, setCenter, getViewport, setViewport } = useReactFlow()
+  const { screenToFlowPosition, flowToScreenPosition, setCenter, getViewport, setViewport } = useReactFlow()
   const paneRef = useRef<HTMLDivElement>(null)
   const [nodes, setNodes] = useState<BoardNode[]>([])
   const [edges, setEdges] = useState<StringEdgeType[]>([])
@@ -533,16 +538,13 @@ function BoardLayout() {
 
   return (
     <DeskFrame>
-      <TopBar>
+      <ScreenHeader title="Board" middle={
         <div className="search">
           <label htmlFor="board-search" className="visually-hidden">Search the board</label>
           <input id="board-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search names, types, tags, notes" />
+            placeholder="Search this board" />
           {q && <span className="search-count mono" aria-live="polite">{matchCount} found</span>}
-        </div>
-        <button className="brass" onClick={() => goTo('map')}>Map</button>
-        <button className="brass" onClick={() => goTo('timeline')}>Timeline</button>
-      </TopBar>
+        </div>} />
 
       <nav className="viewbar" aria-label="Board views">
         <span className="eyebrow">VIEW</span>
@@ -584,8 +586,9 @@ function BoardLayout() {
 
       <div className="workspace">
         <nav className="tools" aria-label="Board tools">
+          <span className="eyebrow tools-group">ADD</span>
           <div className="tool-wrap" ref={cardWrap}>
-            <button className="tool" aria-expanded={cardMenu} aria-haspopup="menu" onClick={() => setCardMenu((v) => !v)}>Card</button>
+            <button className="tool" aria-expanded={cardMenu} aria-haspopup="menu" onClick={() => setCardMenu((v) => !v)}>{toolIcon('M5 3h14v18H5zM12 8v8M8 12h8')}Card</button>
             {cardMenu && (
               <div className="menu" role="menu" aria-label="New card type">
                 {ENTITY_TYPES.map((t) => (
@@ -598,12 +601,13 @@ function BoardLayout() {
               </div>
             )}
           </div>
-          <button className="tool" onClick={() => void addNote()}>Note</button>
+          <button className="tool" onClick={() => void addNote()}>{toolIcon('M4 4h16v11l-5 5H4zM15 20v-5h5')}Note</button>
+          <span className="eyebrow tools-group">SHOW</span>
           <button className="tool" aria-pressed={panel === 'connections'} title="Every link: kinds, colours, hide, remove"
-            onClick={() => { setLinksAll(true); setPanel(panel === 'connections' && linksAll ? 'inspector' : 'connections') }}>Links</button>
+            onClick={() => { setLinksAll(true); setPanel(panel === 'connections' && linksAll ? 'inspector' : 'connections') }}>{toolIcon('M6 7a2 2 0 1 0 0.1 0M18 15a2 2 0 1 0 0.1 0M7.5 8.5l9 5.5')}Links</button>
           <button className="tool" aria-pressed={panel === 'storylines'} title="Storylines: colours, acts and display"
-            onClick={() => setPanel(panel === 'storylines' ? 'inspector' : 'storylines')}>Story</button>
-          <button className="tool" title="Put a map or a picture behind the cards" onClick={(e) => openMenu(e, backgroundItems())}>Background</button>
+            onClick={() => setPanel(panel === 'storylines' ? 'inspector' : 'storylines')}>{toolIcon('M3 12h18M7 8v8M14 6v12')}Story</button>
+          <button className="tool" title="Put a map or a picture behind the cards" onClick={(e) => openMenu(e, backgroundItems())}>{toolIcon('M3 5h18v14H3zM3 15l5-5 4 4 3-3 6 6')}Background</button>
           <button className="tool" aria-pressed={!!mapView} title="Regions, the party token and travel on a map (the board's background map first)" onClick={(e) => {
             if (mapView) return setMapView(null)
             const used = view.items.filter((i) => i.kind === 'image' && i.content && 'image' in i.content).map((i) => String((i.content as { image: string }).image))
@@ -614,17 +618,16 @@ function BoardLayout() {
             if (!list.length) return say('No map yet: import one on the Map screen or add one as a background picture.', true)
             if (list.length === 1) return setMapView(list[0].id)
             openMenu(e, list.map((m) => ({ label: m.name, onClick: () => setMapView(m.id) })))
-          }}>Map view</button>
+          }}>{toolIcon('M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14')}Map view</button>
+          <button className="tool" aria-pressed={prefs.showHidden} title={`Show hidden things greyed (${hiddenCount} hidden)`}
+            onClick={() => prefs.set({ showHidden: !prefs.showHidden })}>{toolIcon('M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0.1 0M4 4l16 16')}Hidden{hiddenCount ? ` (${hiddenCount})` : ''}</button>
           <div className="tool-layer" role="group" aria-label="What a drag moves">
-            <span className="eyebrow">MOVE</span>
+            <span className="eyebrow tools-group">DRAG MOVES</span>
             <button className="tool" aria-pressed={!background} title="Drag cards, notes and links; the background stays put"
               onClick={() => prefs.set({ layer: 'cards' })}>Cards</button>
             <button className="tool" aria-pressed={background} title="Drag and resize background pictures; the cards stay put"
               onClick={() => prefs.set({ layer: 'background', pictures: true })}>Background</button>
           </div>
-          <button className="tool" aria-pressed={prefs.showHidden} title={`Show hidden things greyed (${hiddenCount} hidden)`}
-            onClick={() => prefs.set({ showHidden: !prefs.showHidden })}>Hidden{hiddenCount ? ` (${hiddenCount})` : ''}</button>
-          <button className="tool" onClick={() => fitView({ padding: 0.2, duration: 300 })}>Fit all</button>
           <span className="spacer" />
           <Candle className="tools-candle" lit={!lighting || lightingAt(useBoard.getState().info?.clockMin ?? 0).candlesLit} />
         </nav>

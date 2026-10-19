@@ -7,9 +7,7 @@ import { useBoard, useUnits } from '../store'
 import { kmToShown, shownToKm } from '../../shared/units'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
-import { Candle } from '../art/props'
-import { useLightingPref } from '../art/TableLighting'
-import { lightingAt } from '../../shared/sky'
+import { ScreenHeader } from '../components/TopBar'
 import { providerById } from '../../shared/aiProviders'
 import { placeLabels } from '../../shared/labels'
 import {
@@ -29,7 +27,6 @@ export function GuideScreen() {
   const info = useBoard((s) => s.info)
   const desk = useBoard((s) => s.desk)
   const { goTo, act } = useBoard()
-  const [lighting] = useLightingPref()
   const step = useBoard((s) => s.guideStep)
   const setStep = (guideStep: Step) => useBoard.setState({ guideStep })
   const [map, setMap] = useState<MapView | null>(null)
@@ -45,17 +42,12 @@ export function GuideScreen() {
 
   return (
     <DeskFrame>
-      <main className="desk guide-screen" aria-label="Getting started">
-        <header className="desk-head">
-          <Candle className="desk-candle" lit={!lighting || lightingAt(info?.clockMin ?? 0).candlesLit} />
-          <div className="desk-title">
-            <span className="desk-eyebrow">Getting started · {info?.name}</span>
-            <h1>{step === 'map' ? 'First, a map of your world' : step === 'regions' ? 'The lands of your world' : 'Then, your notes'}</h1>
-          </div>
-          <div className="desk-head-actions">
+      <>
+      <ScreenHeader title={<>{step === 'map' ? 'First, a map of your world' : step === 'regions' ? 'The lands of your world' : 'Then, your notes'}</>} eyebrow={<>Getting started · {info?.name}</>}>
             <button className="brass" onClick={() => void finish('desk')} title="You can open this guide again from the Desk">Skip the guide</button>
-          </div>
-        </header>
+          
+</ScreenHeader>
+      <main className="desk guide-screen" aria-label="Getting started">
         <ol className="guide-steps" aria-label="Steps">
           {(['map', 'regions', 'notes'] as Step[]).map((s, i) => (
             <li key={s} className={s === step ? 'is-current' : undefined}>
@@ -72,6 +64,7 @@ export function GuideScreen() {
         )}
         {step === 'notes' && <NotesStep onChoose={(to) => void finish(to)} />}
       </main>
+      </>
     </DeskFrame>
   )
 }

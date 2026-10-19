@@ -1388,9 +1388,9 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 
 /* Easter eggs on the Desk: the header candle and the d20 on the mat. */
 .egg-candle-wrap { position: relative; flex: none; display: inline-block; }
-.egg-candle-wrap .desk-candle { pointer-events: none; }
+.egg-candle-wrap .candle { pointer-events: none; }
 .egg-hit { all: unset; cursor: pointer; }
-.egg-candle-hit { position: absolute; z-index: 3; left: 14px; top: -14px; width: 54px; height: 120px; }
+.egg-candle-hit { position: absolute; z-index: 3; left: 0; top: -6px; width: 40px; height: 64px; }
 .egg-dice { position: absolute; right: 190px; bottom: 60px; transform: rotate(14deg); z-index: 3; transition: left 0.6s ease-out, top 0.6s ease-out, transform 0.6s ease-out; }
 .egg-dice .prop { position: static; }
 .egg-dice.is-rolling .egg-d20 { animation: egg-spin 0.7s ease-out; }
@@ -1866,3 +1866,7 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .find-icon { width: 18px; display: inline-grid; place-items: center; color: var(--ink-muted); }
 .find-name { font-weight: 600; }
 .find-kind { color: var(--ink-muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Box controls show when the pointer or keyboard is on the box, on a folded box, or always with Setup › Arrange boxes (3.1). */
+.box-tools { visibility: hidden; }
+[data-box]:hover .box-tools, [data-box]:focus-within .box-tools, [data-folded] .box-tools, html[data-arrange] .box-tools { visibility: visible; }

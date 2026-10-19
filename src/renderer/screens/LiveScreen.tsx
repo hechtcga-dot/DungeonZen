@@ -1,15 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
-import { Candle, D20 } from '../art/props'
+import { ScreenHeader } from '../components/TopBar'
+import { D20 } from '../art/props'
 import { ClockDial } from '../art/sky'
 import { MapView } from '../components/MapView'
 import { WhereTheyAre } from '../components/WhereTheyAre'
 import { readOnlyLayer } from '../components/MapOverlay'
 import { Dialog } from '../components/Dialog'
 import { CampaignSettingsDialog } from '../components/EditDialogs'
-import { useLightingPref } from '../art/TableLighting'
-import { lightingAt, skyAt } from '../../shared/sky'
+import { skyAt } from '../../shared/sky'
 import { formatClock, toClockParts } from '../../shared/time'
 import type { LogKind } from '../../shared/schemas'
 import type { AiSuggestion, GeneratedView, LiveView, LogView, PartyHealth } from '../../shared/types'
@@ -43,29 +43,21 @@ function Live({ v }: { v: LiveView }) {
   const left = useSidePanel('live-left', 'left', 340)
   const side = useSidePanel('live-right', 'right', 300)
   const { act, mapScreen, goTo } = useBoard()
-  const [lighting] = useLightingPref()
   const [ending, setEnding] = useState(false)
   const [settings, setSettings] = useState(false)
-  const lit = !lighting || lightingAt(v.nowMin).candlesLit
   const sky = skyAt(v.nowMin)
   const s = v.session
 
   return (
-    <main className="desk live" aria-label="Live session">
-      <header className="desk-head">
-        <Candle className="desk-candle" lit={lit} />
-        <span className={`live-seal${s ? '' : ' off'}`} aria-hidden="true">{s ? 'Live' : 'Off'}</span>
-        <div className="desk-title">
-          <span className="desk-eyebrow">{s ? 'Now playing' : 'No session running'}</span>
-          <h1>{s ? `Session ${s.number}` : 'Live session'}</h1>
-        </div>
-        <div className="desk-head-actions">
+    <>
+    <ScreenHeader title={<>{s ? `Session ${s.number}` : 'Live session'}</>} eyebrow={<><span className={`live-seal${s ? '' : ' off'}`} aria-hidden="true">{s ? 'Live' : 'Off'}</span>{s ? 'Now playing' : 'No session running'}</>}>
           <button className="brass" onClick={() => goTo('map')}>Map</button>
           <button className="brass" onClick={() => goTo('generators')}>Generators</button>
           {s ? <button className="wax" onClick={() => setEnding(true)}>End session</button>
             : <button className="wax" onClick={() => void act('session:start', undefined)}>Start session {v.sessions.length + 1}</button>}
-        </div>
-      </header>
+        
+</ScreenHeader>
+    <main className="desk live" aria-label="Live session">
 
       <section className="dm-screen live-screen-bar" aria-label="DM screen">
         <div className="dm-panel clock-panel">
@@ -181,6 +173,7 @@ function Live({ v }: { v: LiveView }) {
       {ending && s && <EndSessionDialog v={v} onClose={() => setEnding(false)} />}
       <CampaignSettingsDialog open={settings} onClose={() => setSettings(false)} />
     </main>
+    </>
   )
 }
 

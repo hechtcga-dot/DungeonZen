@@ -2,10 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useBoard } from '../store'
 import { freshRow } from '../fresh'
 import { DeskFrame } from '../components/DeskFrame'
+import { ScreenHeader } from '../components/TopBar'
 import { CommitField } from '../components/fields'
-import { Candle } from '../art/props'
-import { useLightingPref } from '../art/TableLighting'
-import { lightingAt } from '../../shared/sky'
 import { formatClock, sessionLabel } from '../../shared/time'
 import { ENTITY_TYPES, type EntityType, type PrepKind, type SceneType } from '../../shared/schemas'
 import { ENTITY_LABELS } from '../entityStyle'
@@ -40,20 +38,12 @@ const DONE_LABEL: Record<PrepKind, string> = { discovery: 'Revealed', scene: 'Pl
 /** DM Prep › Session prep: the owner's one-page DM tool (opening, scenes, secrets & clues, NPCs, loose threads, recap, world bible). */
 export function PrepScreen() {
   const { prepScreen, prep, info, act, prepNumber, setPrepNumber, goTo } = useBoard()
-  const [lighting] = useLightingPref()
-  const minutes = info?.clockMin ?? 0
   const number = prep?.number ?? prepNumber ?? prepScreen?.openNumber ?? prepScreen?.nextNumber ?? 1
   const numbers = prepScreen ? Array.from(new Set([...prepScreen.sheets.map((x) => x.number), prepScreen.nextNumber, number])).sort((a, b) => a - b) : [number]
   return (
     <DeskFrame>
-      <main className="desk prep-screen" aria-label="Session prep">
-        <header className="desk-head">
-          <Candle className="desk-candle" lit={!lighting || lightingAt(minutes).candlesLit} />
-          <div className="desk-title">
-            <span className="desk-eyebrow">DM prep · {info ? formatClock(info.clockMin) : ''}</span>
-            <h1>Session {number}{prep?.title ? `: ${prep.title}` : ''}</h1>
-          </div>
-          <div className="desk-head-actions">
+      <>
+      <ScreenHeader title={<>Session {number}{prep?.title ? `: ${prep.title}` : ''}</>} eyebrow={<>DM prep · {info ? formatClock(info.clockMin) : ''}</>}>
             <button className="brass" onClick={() => goTo('map')}>Map</button>
             <label htmlFor="prep-pick" className="visually-hidden">Prep sheet for session</label>
             <select id="prep-pick" className="ink-select on-wood" value={number} onChange={(e) => setPrepNumber(Number(e.target.value))}>
@@ -66,8 +56,9 @@ export function PrepScreen() {
             </select>
             {prep && <SaveNote p={prep} />}
             {prep && <button className="brass" onClick={() => void act('prep:setStatus', { id: prep.id, status: 'defunct' })}>Remove sheet</button>}
-          </div>
-        </header>
+          
+</ScreenHeader>
+      <main className="desk prep-screen" aria-label="Session prep">
         {!prepScreen ? <p className="desk-loading">Opening the prep sheet…</p> : !prep ? (
           <div className="parchment-sheet prep-empty">
             <h2 className="panel-title">No prep sheet for session {number} yet</h2>
@@ -77,6 +68,7 @@ export function PrepScreen() {
           </div>
         ) : <Sheet p={prep} s={prepScreen} />}
       </main>
+      </>
     </DeskFrame>
   )
 }

@@ -3,6 +3,7 @@ import type { IpcOutputs } from '../../shared/ipc'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { useOrderScope } from '../fold'
+import { useArrange, useSkin } from '../skin'
 import { ContextMenu } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ExportDialog } from './ExportDialog'
@@ -14,6 +15,8 @@ type About = { version: string; campaignFolder: string | null; dataFolder: strin
 export function SetupMenu({ icon }: { icon: React.ReactNode }) {
   const { openCampaign, closeCampaign, say, setAiSettingsOpen } = useBoard()
   const { scope, set: setScope } = useOrderScope()
+  const [skin, setSkin] = useSkin()
+  const [arrange, setArrange] = useArrange()
   const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | 'tidy' | 'linking' | null>(null)
@@ -51,6 +54,11 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           'separator',
           { label: 'Print or save cards…', onClick: () => setDialog('export') },
           { label: 'Export to Foundry VTT or Owlbear Rodeo…', hint: 'Battle maps with their grid, character and monster sheets, handouts', onClick: () => setDialog('vtt') },
+          { label: 'Look', hint: 'How the app looks on this computer', items: [
+            { label: 'Desk', hint: 'Wooden table, leather mat, tarot cards', checked: skin === 'desk', onClick: () => setSkin('desk') },
+            { label: 'Adventure UI', hint: 'Dark frame, aged parchment, red buttons', checked: skin === 'adventure', onClick: () => setSkin('adventure') }
+          ] },
+          { label: 'Arrange boxes', hint: 'Always show − ↑ ↓ on box titles (otherwise they show when the pointer is on a box)', checked: arrange, onClick: () => setArrange(!arrange) },
           { label: 'AI services…', onClick: () => setAiSettingsOpen(true) },
           { label: 'Linking names…', hint: 'Which card names link by themselves in notes and text boxes', onClick: () => setDialog('linking') },
           { label: 'Box order on card sheets', hint: 'What ↑ / ↓ on a card sheet changes (this computer)', items: [

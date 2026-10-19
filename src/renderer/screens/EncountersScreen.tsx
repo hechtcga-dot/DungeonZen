@@ -3,12 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useBoard } from '../store'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
+import { ScreenHeader } from '../components/TopBar'
 import { CommitField } from '../components/fields'
 import { Roll20Dialog } from '../components/Roll20Dialog'
 import { ExportDialog } from '../components/ExportDialog'
-import { Candle } from '../art/props'
-import { useLightingPref } from '../art/TableLighting'
-import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { RATING_LABELS } from '../../shared/encounter'
 import type { AiSuggestion, EncountersView, EncounterView, SrdSearch } from '../../shared/types'
@@ -33,8 +31,7 @@ const FEEL: Record<string, string> = { too_easy: 'too easy', about_right: 'about
 /** DM Prep › Encounters: plan fights per place, rated with the 2024 rules and adapted to the party. */
 export function EncountersScreen() {
   const left = useSidePanel('enc-list', 'left', 240)
-  const { encounters, encounterId, openEncounter, act, info } = useBoard()
-  const [lighting] = useLightingPref()
+  const { encounters, encounterId, openEncounter, act } = useBoard()
   const [sketchBig, setSketchBigState] = useState(sketchBigKept)
   const setSketchBig = (big: boolean) => { sketchBigKept = big; setSketchBigState(big) }
   const v = encounters
@@ -45,17 +42,12 @@ export function EncountersScreen() {
   }
   return (
     <DeskFrame>
-      <main className="desk encounters-screen" aria-label="Encounters">
-        <header className="desk-head">
-          <Candle className="desk-candle" lit={!lighting || lightingAt(info?.clockMin ?? 0).candlesLit} />
-          <div className="desk-title">
-            <span className="desk-eyebrow">DM prep · {v ? `${v.party.size} characters of level ${v.party.level}` : ''}</span>
-            <h1>Encounters</h1>
-          </div>
-          <div className="desk-head-actions">
+      <>
+      <ScreenHeader title={<>Encounters</>} eyebrow={<>DM prep · {v ? `${v.party.size} characters of level ${v.party.level}` : ''}</>}>
             <button className="wax" onClick={() => void create()}>New encounter</button>
-          </div>
-        </header>
+          
+</ScreenHeader>
+      <main className="desk encounters-screen" aria-label="Encounters">
         {!v ? <p className="desk-loading">Sharpening blades…</p> : (
           <div className="enc-layout" style={left.style}>
             <div className="enc-left">
@@ -88,6 +80,7 @@ export function EncountersScreen() {
           </div>
         )}
       </main>
+      </>
     </DeskFrame>
   )
 }

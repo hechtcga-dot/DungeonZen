@@ -21,16 +21,19 @@ export function FindAnything() {
   const [at, setAt] = useState(0)
   const typeColour = useTypeColour()
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const show = () => {
       // Never in Players mode: it would show secret cards on the players' screen.
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f' && !document.querySelector('dialog[open]') && useBoard.getState().mode !== 'players') {
-        e.preventDefault()
-        setQ(''); setAt(0); setOpen(true)
-        void call('find:index', undefined).then((list) => setItems([...list, ...SCREENS.map(screenItem)])).catch(() => setItems(SCREENS.map(screenItem)))
-      }
+      if (document.querySelector('dialog[open]') || useBoard.getState().mode === 'players') return
+      setQ(''); setAt(0); setOpen(true)
+      void call('find:index', undefined).then((list) => setItems([...list, ...SCREENS.map(screenItem)])).catch(() => setItems(SCREENS.map(screenItem)))
+    }
+    // Ctrl+K (3.1) and Ctrl+F; the header's Find button sends dz-find.
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && ['f', 'k'].includes(e.key.toLowerCase())) { e.preventDefault(); show() }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('dz-find', show)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('dz-find', show) }
   }, [])
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase()

@@ -3,7 +3,7 @@ import { SummaryTools } from '../components/SessionSummary'
 import { BackButton } from '../components/BackButton'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
-import { TopBar } from '../components/TopBar'
+import { ScreenHeader } from '../components/TopBar'
 import { Dialog } from '../components/Dialog'
 import { formatClock } from '../../shared/time'
 import type { EncounterFeedback, KnowledgeField } from '../../shared/schemas'
@@ -20,7 +20,7 @@ export function ReviewScreen() {
   const review = useBoard((s) => s.review)
   return (
     <DeskFrame>
-      <TopBar />
+      <ScreenHeader title="Session review" />
       {review ? <Review r={review} /> : <p className="desk-loading">Gathering the session…</p>}
     </DeskFrame>
   )

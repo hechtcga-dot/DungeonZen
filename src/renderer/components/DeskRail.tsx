@@ -20,6 +20,8 @@ export const ICONS = {
   prep: <><path d="M6 3h9l3 3v15H6z" /><path d="M9 9h6M9 13h6M9 17h4" /></>,
   players: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M2.5 19q0-5 5.5-5t5.5 5M10.5 19q0-5 5.5-5t5.5 5" /></>,
   notes: <><path d="M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6z" /><path d="M6 3v18M9 8h6M9 12h6M9 16h4" /><path d="M4 6h2M4 10h2M4 14h2M4 18h2" /></>,
+  timeline: <path d="M3 12h18M7 8v8M12 6v12M17 9v6" />,
+  map: <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14" />,
   setup: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1" /></>,
   back: <path d="M10 6l-6 6 6 6M4 12h16" />,
   close: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />,
@@ -67,7 +69,7 @@ export function DeskRail() {
   const [menu, setMenu] = useState<{ x: number; y: number; id: PopScreen } | null>(null)
   useRailKeys()
 
-  const item = (id: 'desk' | 'board' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import', label: string, icon: keyof typeof ICONS = id) => {
+  const item = (id: 'desk' | 'board' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'map' | 'timeline', label: string, icon: keyof typeof ICONS = id) => {
     const pop = (POP_SCREENS as readonly string[]).includes(id) ? (id as PopScreen) : null
     return (
       <button className="rail-item" aria-current={screen === id ? 'page' : undefined} onClick={() => goTo(id)}
@@ -93,10 +95,13 @@ export function DeskRail() {
         </>
       ) : (
         <>
+          <span className="rail-group">Prepare</span>
           {item('desk', 'Desk')}
           {item('prep', 'Session prep', 'prep')}
           {item('encounters', 'Encounters', 'encounters')}
           {item('board', 'Board')}
+          {item('timeline', 'Timeline')}
+          {item('map', 'Map')}
           {item('library', 'Library')}
           {item('import', 'Notes', 'notes')}
           <span className="rail-group">At the table</span>
@@ -104,13 +109,16 @@ export function DeskRail() {
           <span className="rail-group">For the players</span>
           {item('players', 'What they know', 'players')}
           <span className="spacer" />
-          <SetupMenu icon={<Icon name="setup" />} />
-          <button className="rail-item" onClick={() => setAiSettingsOpen(true)} title="Choose AI services for writing and battle maps">
-            <Icon name="ai" /><span>AI</span>
-          </button>
-          <button className="rail-item" onClick={() => void closeCampaign()} title="Close this campaign">
-            <Icon name="close" /><span>Close</span>
-          </button>
+          {/* Setup, AI and Close: one row of icons at the foot (3.1); their names stay for screen readers. */}
+          <div className="rail-foot">
+            <SetupMenu icon={<Icon name="setup" />} />
+            <button className="rail-item" onClick={() => setAiSettingsOpen(true)} title="AI services for writing and battle maps">
+              <Icon name="ai" /><span>AI</span>
+            </button>
+            <button className="rail-item" onClick={() => void closeCampaign()} title="Close this campaign">
+              <Icon name="close" /><span>Close</span>
+            </button>
+          </div>
         </>
       )}
       {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[

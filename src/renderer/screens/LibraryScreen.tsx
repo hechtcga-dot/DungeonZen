@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { call } from '../api'
 import { useBoard } from '../store'
 import { freshCard } from '../fresh'
-import { TopBar } from '../components/TopBar'
+import { ScreenHeader } from '../components/TopBar'
 import { DeskFrame } from '../components/DeskFrame'
 import { ExportDialog } from '../components/ExportDialog'
 import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
@@ -77,7 +77,7 @@ export function LibraryScreen() {
 
   return (
     <DeskFrame>
-      <TopBar />
+      <ScreenHeader title="Library" />
       <div className="library">
         <aside className="panel library-templates" style={{ flexBasis: left.width }}>
           {left.grip}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import { useBoard } from '../store'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
+import { ScreenHeader } from '../components/TopBar'
 import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { providerById } from '../../shared/aiProviders'
 import { RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
@@ -36,22 +37,21 @@ export function ImportScreen() {
   if (!draft && tab === 'notes') {
     return (
       <DeskFrame>
+        <ScreenHeader title="Notes" />
         <main className="notes-screen" aria-label="Notes"><NotesLibrary onOpen={setDraft} onImport={() => setTab('import')} /></main>
       </DeskFrame>
     )
   }
   return (
     <DeskFrame>
+      <>
+      <ScreenHeader title={<>{draft ? `Import: ${draft.title}` : 'Import notes'}</>} eyebrow={<>DM prep · your notes; the AI reads, you decide</>}>
+<button className="brass" onClick={() => (draft ? setDraft(null) : setTab('notes'))}>Back to your notes</button>
+</ScreenHeader>
       <main className="desk import-screen" aria-label="Notes">
-        <header className="desk-head">
-          <div className="desk-title">
-            <span className="desk-eyebrow">DM prep · your notes; the AI reads, you decide</span>
-            <h1>{draft ? `Import: ${draft.title}` : 'Import notes'}</h1>
-          </div>
-          <div className="desk-head-actions"><button className="brass" onClick={() => (draft ? setDraft(null) : setTab('notes'))}>Back to your notes</button></div>
-        </header>
         {draft ? <Review key={draft.id} initial={draft} onDone={() => setDraft(null)} /> : <Start onOpen={setDraft} />}
       </main>
+      </>
     </DeskFrame>
   )
 }

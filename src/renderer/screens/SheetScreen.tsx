@@ -1,9 +1,9 @@
 import { InYourNotes } from '../components/InYourNotes'
 import { LinkNameTick } from '../components/LinkField'
 import { useEffect, useState } from 'react'
-import { BackButton } from '../components/BackButton'
 import { useBoard } from '../store'
-import { TopBar } from '../components/TopBar'
+import { ScreenHeader } from '../components/TopBar'
+import { ContextMenu } from '../components/ContextMenu'
 import { DeskFrame } from '../components/DeskFrame'
 import { Roll20Dialog } from '../components/Roll20Dialog'
 import { Dialog } from '../components/Dialog'
@@ -24,7 +24,7 @@ import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
 import { slotsFromText } from '../../shared/combat'
 import { PicturePanel } from '../components/Pictures'
-import { SheetFileMenu } from '../components/ImportCharSheet'
+import { useSheetFile } from '../components/ImportCharSheet'
 import { BuildingFillDialog, BuildingTab } from '../components/BuildingSheet'
 import { SECRET_LABEL } from '../components/SecretEditor'
 import { KIND_LABELS, readBuilding } from '../../shared/building'
@@ -42,8 +42,7 @@ export function SheetScreen() {
   const sheet = useBoard((s) => s.sheet)
   return (
     <DeskFrame>
-      <TopBar />
-      {sheet ? <Sheet key={sheet.entity.id} sheet={sheet} /> : <p className="muted page-pad">Loading…</p>}
+      {sheet ? <Sheet key={sheet.entity.id} sheet={sheet} /> : <><ScreenHeader title="Card" /><p className="muted page-pad">Loading…</p></>}
     </DeskFrame>
   )
 }
@@ -51,7 +50,10 @@ export function SheetScreen() {
 function Sheet({ sheet }: { sheet: SheetView }) {
   const typeColour = useTypeColour()
   const side = useSidePanel('sheet-side', 'right', 340)
-  const { act, showOnBoard, openSheet } = useBoard()
+  const { act, showOnBoard, openSheet, goTo } = useBoard()
+  const [menu, setMenu] = useState<{ x: number; y: number; kind: 'export' | 'more' } | null>(null)
+  const fileHook = useSheetFile(sheet.entity.id, sheet.entity.name)
+  const file = sheet.entity.type === 'PC' || sheet.entity.type === 'NPC' ? fileHook : null
   const creature = HAS_STATBLOCK.has(sheet.entity.type)
   const building = sheet.entity.type === 'BUILDING'
   const [tab, setTab] = useState<Tab>(building ? 'building' : sheet.entity.type === 'MONSTER' ? 'fight' : 'traits')
@@ -121,28 +123,33 @@ function Sheet({ sheet }: { sheet: SheetView }) {
 
   return (
     <>
-      <div className="page-head">
-        <BackButton />
-        <div className="page-title">
+      {/* Three buttons and ⋯ (3.1, owner): the rest of the old row went into Export ▾ and ⋯. */}
+      <ScreenHeader title={<TitleField value={e.name} label={`${ENTITY_LABELS[e.type]} name`} onCommit={(name) => update({ name })} />}
+        eyebrow={<>
           <span className="badge" style={{ background: cardColour(e, typeColour) }}>{ENTITY_LABELS[e.type].toUpperCase()}</span>
-          <h1><TitleField value={e.name} label={`${ENTITY_LABELS[e.type]} name`} onCommit={(name) => update({ name })} /></h1>
           {e.status === 'defunct' && <span className="source-tag">In History</span>}
-          {e.status === 'resolved' && <span className="muted">Resolved</span>}
+          {e.status === 'resolved' && <span>Resolved</span>}
           {source?.name && <span className="source-tag" title="Copied into this campaign; edit it freely">Copy from {source.name}</span>}
-        </div>
-        <button onClick={() => void showOnBoard(e.id)}>Show on board</button>
-        {building ? <button className="ai-button" onClick={() => setBuildingFill(true)}>✦ Fill with AI…</button> : <button onClick={() => setFilling([])}>Fill blanks with AI…</button>}
-        {(e.type === 'PC' || e.type === 'NPC') && <SheetFileMenu entityId={e.id} name={e.name} />}
-        <button onClick={() => setExporting('print')}>{e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…'}</button>
-        {['NPC', 'PC', 'MONSTER'].includes(e.type) && <button onClick={() => setExporting('roll20')}>Export to Roll20…</button>}
-        <button onClick={async () => {
-          const copy = await act('entity:duplicate', { id: e.id })
-          if (copy) await openSheet(copy.id)
-        }}>Duplicate</button>
-        <button className="danger" onClick={async () => {
-          await act('entity:setStatus', { id: e.id, status: e.status === 'defunct' ? 'active' : 'defunct' })
-        }}>{e.status === 'defunct' ? 'Revive' : 'Move to History'}</button>
-      </div>
+        </>}>
+        <button className="brass" onClick={() => void showOnBoard(e.id)}>Show on board</button>
+        {building ? <button className="ai-button" onClick={() => setBuildingFill(true)}>✦ Fill with AI…</button>
+          : <button className="ai-button" onClick={() => setFilling([])} title="AI suggests text for every empty field; you choose what to keep">Fill all blanks with AI…</button>}
+        <button className="brass" aria-haspopup="menu" onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); setMenu({ x: r.left, y: r.bottom + 4, kind: 'export' }) }}>Export ▾</button>
+        <button className="brass icon" aria-label="More" title="Duplicate, show on map, move to History" aria-haspopup="menu"
+          onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); setMenu({ x: r.left, y: r.bottom + 4, kind: 'more' }) }}>⋯</button>
+      </ScreenHeader>
+      {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menu.kind === 'export' ? [
+        ...(file ? [{ label: 'Character sheet file', items: file.items }] : []),
+        { label: e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…', onClick: () => setExporting('print') },
+        ...(['NPC', 'PC', 'MONSTER'].includes(e.type) ? [{ label: 'Export to Roll20…', onClick: () => setExporting('roll20') }] : [])
+      ] : [
+        { label: 'Duplicate', onClick: async () => { const copy = await act('entity:duplicate', { id: e.id }); if (copy) await openSheet(copy.id) } },
+        ...(e.type === 'LOCATION' || e.type === 'BUILDING' ? [{ label: 'Show on map', onClick: () => { useBoard.setState({ mapFocusId: e.id }); goTo('map') } }] : []),
+        'separator',
+        { label: e.status === 'defunct' ? 'Revive' : 'Move to History', danger: e.status !== 'defunct',
+          onClick: () => void act('entity:setStatus', { id: e.id, status: e.status === 'defunct' ? 'active' : 'defunct' }) }
+      ]} />}
+      {fileHook.dialog}
 
       {buildingFill && <BuildingFillDialog sheet={sheet} onClose={() => setBuildingFill(false)} />}
       {filling && <FillDialog sheet={sheet} only={filling} onClose={() => setFilling(null)} />}

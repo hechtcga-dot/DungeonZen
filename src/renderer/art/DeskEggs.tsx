@@ -25,7 +25,7 @@ export function EggCandle({ lit, fullMoonNight }: { lit: boolean; fullMoonNight:
   return (
     <span className="egg-candle-wrap">
       <button type="button" className="egg-hit egg-candle-hit" title={on ? 'Put the candle out' : 'Light the candle'} aria-label={on ? 'Put the candle out' : 'Light the candle'} onClick={click} />
-      <Candle className="desk-candle" lit={on} />
+      <Candle className="topbar-candle" lit={on} />
       {hobbit && <Hobbit />}
     </span>
   )

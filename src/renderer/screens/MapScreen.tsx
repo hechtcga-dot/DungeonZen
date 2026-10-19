@@ -2,17 +2,16 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useBoard, useUnits } from '../store'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
+import { ScreenHeader } from '../components/TopBar'
 import { MapView, type MapLayerContext } from '../components/MapView'
 import { MapOverlay, PartyToken, PcTokenMark, ScaleBar, scaleKeyLayout } from '../components/MapOverlay'
-import { Candle, CompassRose } from '../art/props'
-import { useLightingPref } from '../art/TableLighting'
+import { CompassRose } from '../art/props'
 import { Dialog } from '../components/Dialog'
 import { CommitField, TitleField } from '../components/fields'
 import { MapDialog } from '../components/EditDialogs'
 import { FindRegions } from './GuideScreen'
 import { OpenFolder } from '../components/OpenFolder'
 import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
-import { lightingAt } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 import { centroid, regionAt, type Point } from '../../shared/geometry'
 import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
@@ -27,8 +26,6 @@ type Mode = 'view' | 'draw' | 'edit' | 'scale'
 export function MapScreen() {
   const { desk, info, act, mapScreen, goTo } = useBoard()
   const current = desk?.map ?? null
-  const minutes = info?.clockMin ?? 0
-  const [lighting] = useLightingPref()
   const [editOpen, setEditOpen] = useState(false)
   const [scaleOpen, setScaleOpen] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
@@ -36,14 +33,8 @@ export function MapScreen() {
   const view = mapScreen && current && mapScreen.map.id === current.id ? mapScreen : null
   return (
     <DeskFrame>
-      <main className="desk map-screen" aria-label="Map">
-        <header className="desk-head">
-          <Candle className="desk-candle" lit={!lighting || lightingAt(minutes).candlesLit} />
-          <div className="desk-title">
-            <span className="desk-eyebrow">{info ? formatClock(info.clockMin) : ''}</span>
-            <h1>{current ? <TitleField value={current.name} label="Map name" onCommit={(name) => void act('map:rename', { mapId: current.id, name })} /> : 'The map'}</h1>
-          </div>
-          <div className="desk-head-actions">
+      <>
+      <ScreenHeader title={<>{current ? <TitleField value={current.name} label="Map name" onCommit={(name) => void act('map:rename', { mapId: current.id, name })} /> : 'The map'}</>} eyebrow={<>{info ? formatClock(info.clockMin) : ''}</>}>
             {desk && desk.maps.length > 1 && current && (
               <>
                 <label htmlFor="map-pick" className="visually-hidden">Show map</label>
@@ -76,8 +67,9 @@ export function MapScreen() {
             )}
             {current && <MapDialog open={editOpen} onClose={() => setEditOpen(false)} map={current} />}
             {view && scaleOpen && <ScaleDialog view={view} onClose={() => setScaleOpen(false)} />}
-          </div>
-        </header>
+          
+</ScreenHeader>
+      <main className="desk map-screen" aria-label="Map">
         {current && view ? <MapWorkspace key={current.id} view={view} mode={mode} setMode={setMode} /> : (
           <div className="map-layout">
             <div className="parchment-sheet map-sheet">
@@ -91,6 +83,7 @@ export function MapScreen() {
           </div>
         )}
       </main>
+      </>
     </DeskFrame>
   )
 }

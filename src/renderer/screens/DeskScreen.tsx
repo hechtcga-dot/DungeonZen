@@ -12,6 +12,7 @@ import { ClockDial, MoonDisc } from '../art/sky'
 import { MapView } from '../components/MapView'
 import { readOnlyLayer } from '../components/MapOverlay'
 import { DeskFrame } from '../components/DeskFrame'
+import { ScreenHeader } from '../components/TopBar'
 import { lightingAt, moonOn, skyAt } from '../../shared/sky'
 import { useLightingPref } from '../art/TableLighting'
 import { formatClock } from '../../shared/time'
@@ -32,7 +33,7 @@ export function DeskScreen() {
 }
 
 function Desk({ desk }: { desk: DeskView }) {
-  const { info, act, showBoard, openSheet, goTo, undo, redo, view, mapScreen } = useBoard()
+  const { info, act, showBoard, openSheet, goTo, mapScreen } = useBoard()
   const minutes = info?.clockMin ?? 0
   const sky = skyAt(minutes)
   const moon = moonOn(minutes, desk.moonOffsetDays)
@@ -41,7 +42,7 @@ function Desk({ desk }: { desk: DeskView }) {
   const [editStory, setEditStory] = useState<DeskView['storylines'][number] | null>(null)
   const [mapOpen, setMapOpen] = useState(false)
   const [pcChoice, setPcChoice] = useState(false)
-  const [lighting, setLighting] = useLightingPref()
+  const [lighting] = useLightingPref()
   const candlesLit = !lighting || lightingAt(minutes).candlesLit
 
   const addStoryline = async () => {
@@ -58,26 +59,13 @@ function Desk({ desk }: { desk: DeskView }) {
   }
 
   return (
+    <>
+    <ScreenHeader title={info ? <TitleField value={info.name} label="Campaign name" onCommit={(name) => void act('campaign:update', { name })} /> : 'Desk'}
+      eyebrow="The campaign of" candle={<EggCandle lit={candlesLit} fullMoonNight={moon.name === 'Full moon' && lightingAt(minutes).darkness > 0.5} />}>
+      <button className="brass" onClick={() => goTo('guide')} title="World map, regions and importing notes, step by step">Getting started</button>
+      <button className="brass" onClick={() => setSettingsOpen(true)}>Campaign settings</button>
+    </ScreenHeader>
     <main className="desk" aria-label="DM desk">
-      <header className="desk-head">
-        <EggCandle lit={candlesLit} fullMoonNight={moon.name === 'Full moon' && lightingAt(minutes).darkness > 0.5} />
-        <div className="desk-title">
-          <span className="desk-eyebrow">The campaign of</span>
-          <h1>{info && <TitleField value={info.name} label="Campaign name" onCommit={(name) => void act('campaign:update', { name })} />}</h1>
-        </div>
-        <div className="desk-head-actions">
-          <button className="brass" onClick={() => goTo('guide')} title="World map, regions and importing notes, step by step">Getting started</button>
-          <button className="brass" onClick={() => setSettingsOpen(true)}>Campaign settings</button>
-          <button className="brass light-toggle" aria-pressed={lighting} onClick={() => setLighting(!lighting)}
-            title="Day and night lighting follows the campaign clock; candles burn at night">
-            {lighting ? 'Lighting: day and night' : 'Lighting: always bright'}
-          </button>
-          <button className="brass" disabled={!view?.undo.undoLabel} onClick={() => void undo()}
-            title={view?.undo.undoLabel ? `Undo: ${view.undo.undoLabel} (Ctrl+Z)` : 'Nothing to undo'}>Undo</button>
-          <button className="brass" disabled={!view?.undo.redoLabel} onClick={() => void redo()}
-            title={view?.undo.redoLabel ? `Redo: ${view.undo.redoLabel} (Ctrl+Y)` : 'Nothing to redo'}>Redo</button>
-        </div>
-      </header>
 
       {/* The DM screen: a wooden frame with parchment panels. */}
       <section className="dm-screen" aria-label="DM screen">
@@ -246,6 +234,7 @@ function Desk({ desk }: { desk: DeskView }) {
           detail={{ title: editStory.title, status: editStory.status, isMajor: editStory.isMajor, emblem: editStory.emblem, colour: editStory.colour }} />
       )}
     </main>
+    </>
   )
 }
 
