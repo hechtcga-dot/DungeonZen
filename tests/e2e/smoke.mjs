@@ -30,10 +30,15 @@ const problems = []
 const app = await _electron.launch({
   // Linux CI runners block Chromium's sandbox helper.
   args: [join(root, 'out', 'main', 'index.js'), ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
-  env: { ...process.env, DZ_USER_DATA: userData }
+  env: { ...process.env, DZ_USER_DATA: userData },
+  timeout: 60000
 })
+// The app's own output (a failed start shows here).
+app.process().stdout?.on('data', (d) => process.stdout.write(d))
+app.process().stderr?.on('data', (d) => process.stderr.write(d))
 try {
   const page = await app.firstWindow()
+  page.setDefaultTimeout(15000)
   page.on('pageerror', (e) => problems.push(`window error: ${e.message}`))
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`) })
   await page.setViewportSize({ width: 1440, height: 900 })

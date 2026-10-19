@@ -21,6 +21,7 @@ jobs:
   # Opens a campaign in the built app and visits every screen (tests/e2e/smoke.mjs); screenshots kept as an artifact.
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
