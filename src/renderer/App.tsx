@@ -51,6 +51,10 @@ function MainApp() {
   const message = useBoard((s) => s.message)
   const popped = useBoard((s) => s.popped)
 
+  // A new version downloaded in the background (3.0): it installs when the app closes, or now on Restart now.
+  useEffect(() => window.dungeonzen.onUpdateReady((version) => useBoard.getState().say(
+    `Dungeon Zen ${version} is ready: it installs when you close the app.`, false, { label: 'Restart now', run: () => void call('app:restartToUpdate', undefined) })), [])
+
   // Screens open in windows of their own show here as "open in another window".
   useEffect(() => {
     void call('window:popped', undefined).then((p) => useBoard.setState({ popped: p })).catch(() => undefined)

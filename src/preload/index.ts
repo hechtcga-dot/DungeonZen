@@ -23,6 +23,11 @@ const api: DungeonZenApi = {
     ipcRenderer.on(IPC_PREFIX + 'popped', listener)
     return () => { ipcRenderer.removeListener(IPC_PREFIX + 'popped', listener) }
   },
+  onUpdateReady: (fn) => {
+    const listener = (_e: unknown, version: string) => fn(version)
+    ipcRenderer.on(IPC_PREFIX + 'update-ready', listener)
+    return () => { ipcRenderer.removeListener(IPC_PREFIX + 'update-ready', listener) }
+  },
   onChanged: (fn) => {
     const listener = () => fn()
     ipcRenderer.on(IPC_PREFIX + 'changed', listener)

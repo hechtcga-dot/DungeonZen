@@ -9,6 +9,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeSt
 import { ASSETS_DIR, Campaign, MAP_EXTENSIONS, storedExt } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import { logError, logFolder } from './log'
+import { checkUpdates, restartToUpdate } from './updates'
 import type { KeyStore } from './ai/keys'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
@@ -277,6 +278,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     for (const p of gone) await shell.trashItem(join(c.folder, ASSETS_DIR, p))
     return gone.length
   })
+  handle('app:checkUpdates', () => checkUpdates())
+  handle('app:restartToUpdate', () => restartToUpdate())
   handle('app:openLog', async () => {
     const err = await shell.openPath(logFolder())
     if (err) throw new Error(`Windows could not open it: ${err}`)

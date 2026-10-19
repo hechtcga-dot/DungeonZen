@@ -44,7 +44,7 @@ Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen;
 - Fewer places to go: review the 15 screens + 3 modes with the owner (mockup) — merge or hide what overlaps.
 - Large-campaign speed check: demo campaign with 1,000 cards, 200 notes; time board, prep, notes.
 
-## M5 Distribution
+## M5 Distribution — built 2026-10-19 (electron-updater, publish: github in electron-builder.yml, release uploads latest.yml)
 Windows only, installer stays unsigned (owner, 2026-10-19).
 - Auto-update from GitHub Releases over HTTPS (`electron-updater`): "A new version is ready – Restart". Works with the unsigned per-user installer; Windows may show the SmartScreen prompt once per update, as with a manual download.
 - App name, appId and userData folder unchanged (saved API keys, recent campaigns, settings carry over).

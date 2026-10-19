@@ -81,7 +81,11 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
       {dialog === 'export' && <ExportDialog onClose={() => setDialog(null)} />}
 
       <Dialog title="About Dungeon Zen" open={dialog === 'about'} onClose={() => setDialog(null)}>
-        <p><strong>Dungeon Zen {about?.version}</strong></p>
+        <p><strong>Dungeon Zen {about?.version}</strong>{' '}
+          <button className="link-button" onClick={() => void attempt(async () => {
+            const v = await call('app:checkUpdates', undefined)
+            say(v ? `Dungeon Zen ${v} is downloading; you will be told when it is ready.` : 'This is the newest Dungeon Zen.')
+          })}>Check for updates</button></p>
         <p className="about-welcome">Welcome, Dungeon Master. Dungeon Zen was crafted with love to make your job easier: before the session starts, and on the fly when the players go somewhere you never planned.</p>
         <dl className="about-list">
           <dt>This campaign</dt><dd>{about?.campaignFolder ?? 'None open'}</dd>

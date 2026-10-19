@@ -8,6 +8,7 @@ import { ProfileStore } from './profile'
 import { KeyStore } from './ai/keys'
 import { IPC_PREFIX } from '../shared/ipcPrefix'
 import { logError, startLog } from './log'
+import { startUpdates } from './updates'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -170,6 +171,7 @@ const screens = {
 }
 
 app.whenReady().then(() => {
+  startUpdates()
   registerIpc(() => mainWindow, new ProfileStore(app.getPath('userData')), new KeyStore(app.getPath('userData'), safeStorage), openJournal, openPrepWindow, screens)
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })

@@ -155,6 +155,8 @@ export const ipcInputs = {
   'app:about': z.void(),
   'app:uninstall': z.void(),
   'app:openLog': z.void(),
+  'app:restartToUpdate': z.void(),
+  'app:checkUpdates': z.void(),
   'find:index': z.void(),
   'assets:unused': z.void(),
   'assets:trash': z.object({ paths: z.array(z.string().min(1).max(1000)).max(10000) }),
@@ -599,6 +601,9 @@ export interface IpcOutputs {
   'app:about': { version: string; campaignFolder: string | null; dataFolder: string; installed: boolean }
   'app:uninstall': void
   'app:openLog': void
+  'app:restartToUpdate': void
+  /** The newer version found (downloading in the background), or null when this one is the newest. */
+  'app:checkUpdates': string | null
   'find:index': Array<{ kind: 'card' | 'note' | 'session'; id: string; name: string; type?: EntityType; detail: string; encounter?: boolean }>
   'assets:unused': Array<{ path: string; size: number }>
   'assets:trash': number
@@ -897,6 +902,8 @@ export interface DungeonZenApi {
   dragOut(url: string): void
   /** Notes import progress; returns a function that stops listening. */
   onImportProgress(fn: (p: ImportProgress) => void): () => void
+  /** A new version was downloaded in the background (3.0 auto-update); returns a function that stops listening. */
+  onUpdateReady(fn: (version: string) => void): () => void
   /** Another window (the popped-out DM notes) changed something; returns a function that stops listening. */
   onChanged(fn: () => void): () => void
   /** A pop-out window asked the main window to open this card's sheet. */

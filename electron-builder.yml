@@ -18,6 +18,12 @@ files:
   - "!node_modules/pdfjs-dist/{web,image_decoders,types}/**"
   - "!node_modules/pdfjs-dist/build/**"
   - "!node_modules/pdfjs-dist/legacy/{web,image_decoders}/**"
+# Auto-update (3.0): the app reads latest.yml from the newest GitHub release (the repository is public, no key).
+# The release workflow uploads the installer and latest.yml.
+publish:
+  provider: github
+  owner: hechtcga-dot
+  repo: DungeonZen
 asarUnpack:
   - "**/*.node"
 npmRebuild: false

@@ -905,3 +905,9 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     Session prep, Encounters, Board, Library, Notes, then "At the table" Live desk, "For the players" What they know,
     then Setup, AI, Close. While What they know shows, the rail shows only it and Back (or Leave); Esc leaves too, and
     Ctrl+F is off. `mode` stays in the store, set by the screen (`modeFor`); `setMode`/`MODE_HOME` are gone.
+
+- 3.0 M5 auto-update (2026-10-19): `src/main/updates.ts` (electron-updater; installed app only): checks GitHub Releases at
+  start, downloads in the background, `update-ready` → note "Dungeon Zen X is ready: it installs when you close the app ·
+  Restart now" (`app:restartToUpdate`); installs on quit anyway. Setup › About › Check for updates (`app:checkUpdates`).
+  `electron-builder.yml` publish github (hechtcga-dot/DungeonZen, public); release workflow uploads `dist/*.exe` and
+  `dist/latest.yml`. Errors go to the log only. 2.x users install 3.0 by hand once.
