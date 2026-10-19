@@ -1,0 +1,148 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Roll20 output stays exactly the same > a character, the import data and the API script 1`] = `
+{
+  "abilities": [
+    {
+      "action": "&{template:default} {{name=Multiattack}} {{description=The ghoul makes two Bite attacks.}}",
+      "istokenaction": true,
+      "name": "Multiattack",
+    },
+    {
+      "action": "&{template:default} {{name=Bite}} {{attack=[[1d20+4]]}} {{damage=[[1d6+2]]}} {{description=Melee Attack Roll: +4, reach 5 ft. 5 (1d6 + 2) Piercing damage plus 3 (1d6) Necrotic damage.}}",
+      "istokenaction": true,
+      "name": "Bite",
+    },
+    {
+      "action": "&{template:default} {{name=Claw}} {{attack=[[1d20+4]]}} {{damage=[[1d4+2]]}} {{description=Melee Attack Roll: +4, reach 5 ft. 4 (1d4 + 2) Slashing damage. If the target is a creature that isn't an Undead or elf, it is subjected to the following effect. Constitution Saving Throw: DC 10. Failure: The target has the Paralyzed condition until the end of its next turn.}}",
+      "istokenaction": true,
+      "name": "Claw",
+    },
+  ],
+  "attributes": {
+    "charisma": 6,
+    "charisma_mod": -2,
+    "constitution": 10,
+    "constitution_mod": 0,
+    "dexterity": 15,
+    "dexterity_mod": 2,
+    "hp": {
+      "current": 22,
+      "max": 22,
+    },
+    "intelligence": 7,
+    "intelligence_mod": -2,
+    "npc": 1,
+    "npc_ac": "12",
+    "npc_actype": "natural armor",
+    "npc_challenge": "1",
+    "npc_condition_immunities": "charmed, exhaustion, poisoned",
+    "npc_hpformula": "5d8",
+    "npc_immunities": "poison",
+    "npc_languages": "Common",
+    "npc_name": "Ghoul",
+    "npc_resistances": "",
+    "npc_saving_throws": "Str +1, Dex +2, Con +0, Int -2, Wis +0, Cha -2",
+    "npc_senses": "darkvision 60 ft., Passive Perception 10",
+    "npc_skills": "",
+    "npc_speed": "30 ft.",
+    "npc_type": "Medium undead, chaotic evil",
+    "npc_vulnerabilities": "",
+    "npc_xp": 200,
+    "strength": 13,
+    "strength_mod": 1,
+    "wisdom": 10,
+    "wisdom_mod": 0,
+  },
+  "bio": "",
+  "gmnotes": "",
+  "name": "Ghoul",
+}
+`;
+
+exports[`Roll20 output stays exactly the same > a character, the import data and the API script 2`] = `"{"dungeonZen":1,"characters":[{"name":"Ghoul","bio":"","gmnotes":"","attributes":{"npc":1,"npc_name":"Ghoul","npc_type":"Medium undead, chaotic evil","npc_ac":"12","npc_actype":"natural armor","npc_hpformula":"5d8","npc_speed":"30 ft.","npc_senses":"darkvision 60 ft., Passive Perception 10","npc_languages":"Common","npc_challenge":"1","npc_xp":200,"npc_vulnerabilities":"","npc_resistances":"","npc_immunities":"poison","npc_condition_immunities":"charmed, exhaustion, poisoned","npc_saving_throws":"Str +1, Dex +2, Con +0, Int -2, Wis +0, Cha -2","npc_skills":"","hp":{"current":22,"max":22},"strength":13,"strength_mod":1,"dexterity":15,"dexterity_mod":2,"constitution":10,"constitution_mod":0,"intelligence":7,"intelligence_mod":-2,"wisdom":10,"wisdom_mod":0,"charisma":6,"charisma_mod":-2},"abilities":[{"name":"Multiattack","action":"&{template:default} {{name=Multiattack}} {{description=The ghoul makes two Bite attacks.}}","istokenaction":true},{"name":"Bite","action":"&{template:default} {{name=Bite}} {{attack=[[1d20+4]]}} {{damage=[[1d6+2]]}} {{description=Melee Attack Roll: +4, reach 5 ft. 5 (1d6 + 2) Piercing damage plus 3 (1d6) Necrotic damage.}}","istokenaction":true},{"name":"Claw","action":"&{template:default} {{name=Claw}} {{attack=[[1d20+4]]}} {{damage=[[1d4+2]]}} {{description=Melee Attack Roll: +4, reach 5 ft. 4 (1d4 + 2) Slashing damage. If the target is a creature that isn't an Undead or elf, it is subjected to the following effect. Constitution Saving Throw: DC 10. Failure: The target has the Paralyzed condition until the end of its next turn.}}","istokenaction":true}]}]}"`;
+
+exports[`Roll20 output stays exactly the same > a character, the import data and the API script 3`] = `
+"// Dungeon Zen import for Roll20 (API / Mod script). Install once per game.
+// 1. Make a handout named "Dungeon Zen import" and paste the Dungeon Zen data into its GM Notes.
+// 2. Type !dz-import in chat (GM only). Add --replace to refresh characters that already exist.
+on('ready', function () {
+  'use strict';
+  var HANDOUT = "Dungeon Zen import";
+  function unhtml(s) {
+    return String(s || '')
+      .replace(/<br\\s*\\/?>/gi, '\\n').replace(/<\\/p>/gi, '\\n').replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
+  }
+  function html(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\\n/g, '<br>'); }
+  function whisper(text) { sendChat('Dungeon Zen', '/w gm ' + text); }
+  function setAttr(charId, name, value) {
+    var current = value, max = '';
+    if (value !== null && typeof value === 'object') { current = value.current; max = value.max; }
+    var found = findObjs({ type: 'attribute', characterid: charId, name: name })[0];
+    if (found) found.set({ current: String(current), max: String(max) });
+    else createObj('attribute', { characterid: charId, name: name, current: String(current), max: String(max) });
+  }
+  function build(c, replace) {
+    var existing = findObjs({ type: 'character', name: c.name })[0];
+    if (existing && !replace) return 'skipped';
+    var ch = existing || createObj('character', { name: c.name, inplayerjournals: '', controlledby: '' });
+    ch.set({ bio: html(c.bio), gmnotes: html(c.gmnotes) });
+    Object.keys(c.attributes || {}).forEach(function (k) { setAttr(ch.id, k, c.attributes[k]); });
+    (c.abilities || []).forEach(function (a) {
+      findObjs({ type: 'ability', characterid: ch.id, name: a.name }).forEach(function (old) { old.remove(); });
+      createObj('ability', { characterid: ch.id, name: a.name, action: a.action, istokenaction: !!a.istokenaction });
+    });
+    return existing ? 'updated' : 'created';
+  }
+  on('chat:message', function (msg) {
+    if (msg.type !== 'api' || msg.content.indexOf('!dz-import') !== 0) return;
+    if (!playerIsGM(msg.playerid)) return;
+    var replace = msg.content.indexOf('--replace') !== -1;
+    var handout = findObjs({ type: 'handout', name: HANDOUT })[0];
+    if (!handout) { whisper('Make a handout named "' + HANDOUT + '" and paste the data into its GM Notes.'); return; }
+    handout.get('gmnotes', function (notes) {
+      var data;
+      try { data = JSON.parse(unhtml(notes)); } catch (e) { whisper('The handout GM Notes are not Dungeon Zen data: ' + e.message); return; }
+      if (!data || !data.characters) { whisper('No characters in the data.'); return; }
+      var counts = { created: 0, updated: 0, skipped: 0 };
+      data.characters.forEach(function (c) { counts[build(c, replace)] += 1; });
+      whisper('Imported: ' + counts.created + ' created, ' + counts.updated + ' updated, ' + counts.skipped + ' skipped (already there; use --replace).');
+    });
+  });
+});
+"
+`;
+
+exports[`Roll20 output stays exactly the same > attacks and spells from the picker 1`] = `
+[
+  {
+    "description": "Melee Attack Roll: +5, reach 5 ft. Hit: 7 (1d8 + 3) Slashing damage.",
+    "kind": "ACTION",
+    "macroText": "&{template:default} {{name=Longsword}} {{attack=[[1d20+5]]}} {{damage=[[1d8+3]] slashing}}",
+    "name": "Longsword",
+  },
+  {
+    "description": "Level 3 Evocation · action · 150 feet. Dexterity Saving Throw: DC 15, 20-foot-radius Sphere. Failure: 28 (8d6) Fire damage. Half damage on a success.",
+    "kind": "SPELL",
+    "macroText": "&{template:default} {{name=Fireball}} {{damage=[[8d6]] fire}} {{save=DC 15 Dex}} {{description=Level 3 Evocation · action · 150 feet. Half damage on a success.}}",
+    "name": "Fireball",
+  },
+  {
+    "description": "touch. 12 (2d8 + 3) Hit Points regained.",
+    "kind": "SPELL",
+    "macroText": "&{template:default} {{name=Cure Wounds}} {{healing=[[2d8+3]]}}",
+    "name": "Cure Wounds",
+  },
+]
+`;
+
+exports[`Roll20 output stays exactly the same > macros built from descriptions 1`] = `
+[
+  "&{template:default} {{name=Scimitar}} {{attack=[[1d20+5]]}} {{damage=[[1d6+3]] slashing}} {{damage 2=[[1d6]] fire}} {{description=Melee Attack Roll: +5, reach 5 ft. 6 (1d6 + 3) Slashing damage plus 3 (1d6) Fire damage.}}",
+  "&{template:default} {{name=Fire Breath}} {{damage=[[4d10]] fire}} {{save=DC 13 Dex}} {{description=Dexterity Saving Throw: DC 13, each creature in a 15-foot Cone. Failure: 22 (4d10) Fire damage.}}",
+  "&{template:default} {{name=Old style}} {{attack=[[1d20+4]]}} {{save=DC 13 Dex}} {{description=+4 to hit. Each creature must make a DC 13 Dexterity saving throw.}}",
+  "/roll 1d6",
+]
+`;

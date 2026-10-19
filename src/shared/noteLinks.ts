@@ -36,7 +36,6 @@ export interface Hit { from: number; to: number; target: Target }
 export interface Matcher { phrases: Array<{ text: string; target: Target; exact?: boolean }> }
 
 const WORD = /[\p{L}\p{N}]/u
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Short first names that are everyday words: never used alone as a card's short name. */
 const NOT_ALIAS = new Set(['the', 'old', 'young', 'lady', 'lord', 'sir', 'captain', 'king', 'queen', 'mister', 'master', 'mother', 'father', 'brother', 'sister', 'little', 'big', 'black', 'white', 'red', 'green', 'blue', 'grey', 'gray', 'dark', 'great'])
@@ -70,11 +69,11 @@ export function findAll(text: string, m: Matcher, blocked: Array<[number, number
   const low = text.toLowerCase()
   const hits: Hit[] = []
   const free = (a: number, b: number) => !hits.some((h) => a < h.to && b > h.from) && !blocked.some(([x, y]) => a < y && b > x)
+  // Plain text search, no pattern per phrase (speed: 1,000 cards over 200 notes, 2026-10-19).
   for (const p of m.phrases) {
-    const t = p.text.toLowerCase()
-    const re = new RegExp(esc(p.exact ? p.text : t), 'g')
-    for (const r of (p.exact ? text : low).matchAll(re)) {
-      const i = r.index
+    const t = p.exact ? p.text : p.text.toLowerCase()
+    const hay = p.exact ? text : low
+    for (let i = hay.indexOf(t); i >= 0 && t; i = hay.indexOf(t, i + t.length)) {
       if (WORD.test(text[i - 1] ?? '') || WORD.test(text[i + t.length] ?? '')) continue
       if (free(i, i + t.length)) hits.push({ from: i, to: i + t.length, target: p.target })
     }

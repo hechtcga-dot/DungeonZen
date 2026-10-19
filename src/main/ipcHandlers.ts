@@ -834,13 +834,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notes:mentions', async ({ entityId }) => {
     const c = current()
     const w = c.wordLinks()
-    const m = makeMatcher(w.cards, w.own, w.off, [])
+    const m = makeMatcher(w.cards, w.own, w.off, [], w.rules)
+    const names = m.phrases.filter((p) => p.target === entityId).map((p) => p.text.toLowerCase())
     const out: IpcOutputs['notes:mentions'] = []
     const linked = new Set(c.notesLinkedTo(entityId))
     for (const d of c.notesScreen().docs) if (linked.has(d.id)) out.push({ docId: d.id, title: d.title, heading: -1, headingText: '', text: 'Linked to this card' })
     for (const d of c.notesScreen().docs) {
       if (d.kind === 'picture') continue
       const blocks = await noteBlocks(c.noteFile(d.id), d.kind).catch(() => [])
+      // Speed (large campaigns): a note that never names the card is not matched at all.
+      const low = JSON.stringify(blocks).toLowerCase()
+      if (!names.some((n) => low.includes(n))) continue
       const heads = headingsOf(blocks)
       const seen = new Set<number>(linked.has(d.id) ? [-1] : [])
       for (const x of cardMentions(blocks, m)) {
