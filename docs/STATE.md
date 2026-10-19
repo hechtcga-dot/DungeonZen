@@ -872,3 +872,17 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     capitalOnly} (`COMMON_WORDS` default), the old off list still honoured. Stop linking on a card name unticks the card
     (undoable); spells/conditions keep the off list. Setup › Linking names (`links:rules`). Measured: 500 cards on a
     5,000-word note well under a second, so no worker or debounce.
+
+- 3.0 M3 Draw windows (2026-10-19, owner's mockup `docs/mockups/m3-draw.png`, "yes to all"):
+  - `shared/aiProviders.ts` `imageCaps(maxReferences)`: examples (0/1/4), plan picture (outline, blueprint picture,
+    Follow a picture), Change this picture ('marks' / 'words' / none). OpenAI, Gemini: 4, plan, marks; Stability: 1,
+    plan, words; Replicate, fal.ai, local SD: words only.
+  - `Pictures.tsx`: `useImageService` (reloads when AI services closes), `ServiceLine` ("Drawn by … · Change…"),
+    `DrawAdvanced` (fold closed at first, open/closed remembered on this computer, `dz-draw-advanced`; a red line names
+    what is hidden for this service with Choose another service…). Hidden, not greyed (owner).
+  - Card picture: simple = Description, Include, Look (templates), service; Advanced = examples, Style boxes,
+    composition, outline, prompt. Battle map: simple = Name, Description, Setting, Terrain, Size + grid, Include,
+    Anything else, Look; Advanced = time, weather, season, mood, art style, style boxes and tags, examples, Follow a
+    picture (hidden and not sent without plan), Buildings show, blueprint (words only on such services), prompt.
+    World map (guide): simple = description, climate, style, service; Advanced = outline, examples, prompt.
+  - Change this picture only for services that change pictures; Add to picture says when the service cannot.

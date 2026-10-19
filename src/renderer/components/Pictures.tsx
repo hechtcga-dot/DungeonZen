@@ -422,10 +422,16 @@ function AddToPictureDialog({ entity, picture, onClose }: { entity: SheetView['e
   const shown = drawn ?? base
   const ratio = shown?.width && shown.height ? shown.width / shown.height : 1
   const close = () => { if (waiting.current) void call('battlemap:discard', { pendingId: waiting.current }); onClose() }
+  const service = useImageService()
+  const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
   return (
     <Dialog title={`Add to the picture of ${entity.name}`} open onClose={close} wide>
       <div className="dz-form">
         {error && <p className="field-error" role="alert">{error}</p>}
+        {service.loaded && !service.change && (
+          <p className="draw-hidden">{service.name ? `${service.name} cannot change a picture.` : 'No image service is chosen yet.'} OpenAI images, Gemini images and Stability can.{' '}
+            <button type="button" className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose another service…</button></p>
+        )}
         {!shown ? !error && <p className="hint">Loading…</p> : (
           <>
             <div className={drawn ? 'ai-suggestion' : undefined}>

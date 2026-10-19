@@ -29,7 +29,7 @@ Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen;
 - Migration: every existing string/secret/clue/word link converted; old ids kept.
 - Undo and Undo session: the change log stores before/after copies of rows, so old steps would write old-shape link rows back. The migration rewrites those copies to the new shape; any step it cannot rewrite is marked "from before 3.0, cannot be undone" (shown in History, never half-applied). Tests: undo a pre-3.0 link step and a whole pre-3.0 session on a fixture campaign.
 
-## M3 Progressive disclosure in AI windows
+## M3 Progressive disclosure in AI windows — built 2026-10-19 (one shared Advanced fold and service line in the three windows; Fill/Build with AI unchanged: already one button)
 - One Draw window component for card picture, battle map and world map (today three separate dialogs).
 - Simple by default: description, service, Draw. Everything else in an Advanced fold.
 - Advanced shows only what the chosen service can do: capability flags per service in `shared/aiProviders.ts` (references, update/change, marks, outline/blueprint, follow a picture, sizes). Unsupported options hidden, not greyed.
