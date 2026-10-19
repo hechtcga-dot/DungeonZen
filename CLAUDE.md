@@ -42,7 +42,7 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 
 ## Decided (owner)
 - Rules edition default 2024 (SRD 5.2), per campaign.
-- Oblivion UI skin (owner, 2026-10-19): second skin, adventure look (dark brown rail/top bar/ground, aged parchment panels, Cinzel capital headings, deep red buttons); Notes keeps its clean layout inside that frame (`docs/PLAN-3.1-UI.md` G7). Desk skin stays, DM picks.
+- Adventure UI skin (owner, 2026-10-19): second skin, adventure look (dark brown rail/top bar/ground, aged parchment panels, Cinzel capital headings, deep red buttons); Notes keeps its clean layout inside that frame (`docs/PLAN-3.1-UI.md` G7). Desk skin stays, DM picks.
 - Desk style everywhere (painted tabletop: wood, old map, tarot, candles, leather). Art drawn in code in `src/renderer/art/` (replaceable); painted art later from commissions/licensed packs, never generated; never the 1971 U.S. Games Rider-Waite scans.
 - Map zooms and pans (`MapView.tsx`).
 - Roll20: paste-in macros and API script.
