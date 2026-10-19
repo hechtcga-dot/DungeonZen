@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.9.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 2.10.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -163,3 +163,6 @@ Defaults picked: see `docs/STATE.md` 2.8.0.
 Travel distance from the token to the drop point on an invisible 200-square grid; Map side panel › Scale (key show/hide, drag, right-click hides, known-lengths hint); sketch pads keep the picture's shape; card type icons in a square on the left band; encounters off the board until Encounters › Put on the board (their cards/links open Encounters); prep Add a scene… › Scene / Encounter (encounter row edits the encounter, Open in Encounters); Encounters › Pictures and maps at the bottom; Notes: DM, session and Master notes in the clean book look; real-life session dates (Played on) and notes labelled "Session N · Title · date", prep notes files in Notes › Sessions; prep header compact, save buttons brass at the top; session summary = "What happened", one text on prep/Notes/Review, Fill from the session (no AI) and Write with AI from the table's facts, first in the notes file; empty labelled lines left out. Details in `docs/STATE.md`.
 Owner's decisions: encounters are placed on the board by choice only; the summary is the session's existing recap (one text); a plain fill works without AI. Defaults picked: encounter cards gold #9a6a10 labelled ENCOUNTER; older encounter cards stay on the board; prep encounter "What happens" = the encounter's Scene; London (not Paris) in the scale hint; Save as notes file stays a button (not automatic).
 
+## 2.10.0 (built 2026-10-19)
+Building Kind on the floor bar and in the board side panel under the picture (out of Details); Shop › What kind of shop (18 common D&D shops + Custom…, `shop_type`, in the backdrop line and Fill with AI); Encounters › Checks: ✦ Build with AI per check (AI suggestion, Keep replaces its results); AI writes exactly three checks with different skills fitting the encounter (Perception the most useful, Insight with an example), all 18 skills in the drop-down; desk The hour with more than three PCs: time and buttons under a bigger clock picture. Details in `docs/STATE.md`.
+Defaults picked: per-check Build with AI reuses Write it up with AI (whole write-up asked, matching check used); short AI check lists topped up with Perception / Investigation / Insight; clock picture up to 150 px high.
