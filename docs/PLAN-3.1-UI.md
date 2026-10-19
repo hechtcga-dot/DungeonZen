@@ -29,7 +29,7 @@ Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
 
 ## G4 Consistency and fit (visible)
 - Notes screen keeps its own look (owner, 2026-10-19: the most appealing screen; it is the model for the Oblivion UI
-  skin, G7). Only its controls grow to 44 px.
+  skin's frame, G7; it keeps its clean layout in both skins). Only its controls grow to 44 px.
 - Timeline act blocks: name on one line, ellipsis only past the block width; full name in tooltip; minimum block
   width shows at least the first word.
 - Live desk: The advisor on parchment (not the dark panel); one row of four boxes kept.
@@ -49,18 +49,24 @@ Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
   start the session on the Live desk. Each step skippable; reopen from Desk › Getting started.
 
 ## G7 Oblivion UI skin (visible; owner, 2026-10-19)
-A second skin: every screen looks like the Notes screen. The Desk skin stays; the DM picks.
-- Look (from `notes.css`, the `.nb` tokens): flat paper panels with hairline borders, no wood, leather or candle
-  props; Cinzel titles in dark red, small-capital red headings (Alegreya Sans SC) with the fading red rule; Alegreya
-  for reading text, Alegreya Sans for controls; red filled main button, paper buttons with a hairline border;
-  selected rows with a red bar on the left; tabs like the Notes tabs. Light and dark, like Notes.
+A second skin. The Desk skin stays; the DM picks. Owner chose the adventure direction (mockup row "Adventure",
+from the owner's reference picture): Notes keeps its clean layout; every other screen gets the adventure look.
+- Frame on every screen (Notes too): dark brown rail (#1a100a, current screen dark red-brown with a red edge),
+  dark brown top bar (#1f130b, screen name in cream Cinzel capitals, outlined dark buttons), dark brown ground
+  (#24160d, darker at the edges) between panels.
+- Panels: aged parchment (#e2cda0 mottled, edges darkened as if burnt), each a separate sheet with a shadow, 14 px
+  apart. Headings in dark brown Cinzel capitals with a thin rule under them. Text Alegreya Sans, dark brown ink.
+- Buttons: main and "do it" buttons deep red with cream text (The chest's buttons all red); others paper with a
+  tan border. Selected rows darker parchment with a red left edge. Tabs: parchment tab on the dark bar.
+- Drawn art kept and coloured to match: sun and cloud, moon, party silhouettes, bronze compass.
+- Notes: its own clean book page (`notes.css`, Light/Dark) inside the adventure frame; unchanged otherwise.
 - Kept in both skins: card type colours, AI suggestions blue dashed (rule 10), secret links dashed, the drawn art
   that carries meaning (clock sky, moon, compass, weather), 44 px controls.
 - Built as tokens: `theme.css` gets one token set per skin under `[data-skin='desk']` / `[data-skin='oblivion']`
-  (and `[data-skin-theme='dark']`); `.nb` tokens move into it so Notes and Oblivion share one source. Screens use
-  tokens only; desk-only art (wood, leather, candles, props) is drawn only when the skin is Desk.
-- Switch: Setup › Look (Desk / Oblivion UI; light / dark), also on the Start screen. Stored per computer in
-  `userData/profile.json` (a UI preference, not campaign data). Notes' own Light/Dark switch becomes the same setting.
+  (parchment, ink, red, frame browns); Notes keeps its `.nb` tokens. Screens use tokens only; desk-only art (wood,
+  leather, candles, props) is drawn only when the skin is Desk; the parchment texture is CSS gradients (no images).
+- Switch: Setup › Look (Desk / Oblivion UI), also on the Start screen. Stored per computer in `userData/profile.json`
+  (a UI preference, not campaign data). Notes keeps its own Light/Dark page switch.
 - Fonts already bundled (`@fontsource`), so it stays offline (rule 1).
 - Smoke test takes every screen's screenshot in both skins.
 
