@@ -257,7 +257,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
     const key = keyOf(o)
     const heads = outline[key] ?? []
     return (
-      <li key={key} draggable={!!d} onDragStart={d ? (e) => drag(e, d.id) : undefined} onContextMenu={d ? (e) => docMenu(e, d) : undefined}
+      <li key={key} title={d ? 'Right-click for more' : undefined} draggable={!!d} onDragStart={d ? (e) => drag(e, d.id) : undefined} onContextMenu={d ? (e) => docMenu(e, d) : undefined}
         onAuxClick={(e) => { if (e.button === 1) go(o, -1, true) }}>
         <div className={`nb-row${same(open, o) ? ' is-cur' : ''}${d && selected.has(d.id) && selected.size > 1 ? ' is-sel' : ''}`}>
           {heads.length > 0
@@ -291,7 +291,7 @@ export function NotesLibrary({ onOpen, onImport }: { onOpen(d: ImportDraft): voi
       const card = data.folderLinks[f] ? cardById.get(data.folderLinks[f]) : undefined
       return (
         <li key={`folder:${f}`}>
-          <button className="nb-folder" aria-expanded={!closedFolders.has(f)} onClick={() => setClosedFolders(toggle(closedFolders, f))} title={card ? `Linked to ${card.name}` : undefined}
+          <button className="nb-folder" aria-expanded={!closedFolders.has(f)} onClick={() => setClosedFolders(toggle(closedFolders, f))} title={`${card ? `Linked to ${card.name}. ` : ''}Right-click for more`}
             onContextMenu={(e) => folderMenu(e, f)} draggable onDragStart={(e) => { e.dataTransfer.setData('text/x-dz-folder', f); e.dataTransfer.effectAllowed = 'move' }} {...dropOn(f)}>
             <span className="nb-chev" aria-hidden="true">{closedFolders.has(f) ? '▸' : '▾'}</span>{card ? <CardIcon card={card} /> : <FolderIcon />}<span className="nb-fname">{leaf(f)}</span>
             <span className="nb-muted" style={{ marginLeft: 'auto' }}>{countIn(f)}</span>

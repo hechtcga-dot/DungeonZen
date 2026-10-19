@@ -548,7 +548,7 @@ function BoardLayout() {
         <span className="eyebrow">VIEW</span>
         <ViewStrip activeId={view.board.id}>
           {view.boards.map((b) => (
-            <button key={b.id} data-board={b.id} aria-pressed={b.id === view.board.id} onClick={() => void showBoard(b.id)}
+            <button key={b.id} data-board={b.id} aria-pressed={b.id === view.board.id} onClick={() => void showBoard(b.id)} title={b.storylineId ? 'Right-click: edit or delete this storyline' : undefined}
               onContextMenu={b.storylineId ? (e) => openMenu(e, [
                 { label: 'Edit storyline…', onClick: () => void showBoard(b.id).then(() => setEditStory(true)) },
                 { label: 'Delete storyline (to History)', danger: true, onClick: async () => {

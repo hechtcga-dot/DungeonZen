@@ -172,7 +172,7 @@ export function HistoryPanel() {
           {sorted.map((r, i) => {
             const on = sel.has(r.key)
             return (
-              <li key={r.key} className={on ? 'is-picked' : undefined} onClick={(e) => pick(e, i)}
+              <li key={r.key} className={on ? 'is-picked' : undefined} onClick={(e) => pick(e, i)} title="Right-click: bring back or delete for good"
                 onContextMenu={(e) => {
                   e.preventDefault()
                   const keys = on ? picked : [r.key]

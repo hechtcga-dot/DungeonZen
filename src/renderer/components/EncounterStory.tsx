@@ -68,7 +68,7 @@ export function EncounterStoryEditor({ e, v }: { e: EncounterView; v: Encounters
         {s.items.length === 0 ? <p className="ink-muted">Nothing yet. + adds an item; “+ inside” puts things in it. Right-click an item to put it on the board.</p>
           : <p className="hint">Right-click an item: Put on the board makes an Item card; the line stays here.</p>}
         {itemTree(s.items).map(({ item: it, depth }) => (
-          <div key={it.id} className="story-row story-grid"
+          <div key={it.id} className="story-row story-grid" title="Right-click for more"
             onContextMenu={(ev) => {
               ev.preventDefault()
               setMenu({ x: ev.clientX, y: ev.clientY, items: [

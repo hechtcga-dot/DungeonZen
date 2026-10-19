@@ -189,7 +189,7 @@ function FloorTabs({ b, current, onPick, save, setMenu, onDropPatron }: {
         <input key={f.id} autoFocus className="floor-tab-input" value={naming.name} maxLength={60} aria-label="Floor name"
           onChange={(ev) => setNaming({ ...naming, name: ev.target.value })} onBlur={commit} onKeyDown={(ev) => { if (ev.key === 'Enter') commit(); if (ev.key === 'Escape') setNaming(null) }} />
       ) : (
-        <button key={f.id} role="tab" aria-selected={f.id === current} className="floor-tab" onClick={() => onPick(f.id)}
+        <button key={f.id} role="tab" aria-selected={f.id === current} className="floor-tab" onClick={() => onPick(f.id)} title="Right-click: rename, move, remove"
           onDragOver={(ev) => ev.preventDefault()} onDrop={(ev) => { const pid = ev.dataTransfer.getData('text/x-patron'); if (pid) onDropPatron(pid, f.id) }}
           onContextMenu={(ev) => { ev.preventDefault(); setMenu({ x: ev.clientX, y: ev.clientY, items: [
             { label: 'Rename', onClick: () => setNaming({ id: f.id, name: f.name }) },
@@ -267,7 +267,7 @@ function PeoplePanel({ b, kind, floor, floors, save, setMenu, makeCard, openShee
         const secrets = live(b.secrets).filter((s) => s.patronId === p.id).sort(byScore)
         const edit = editing === p.id
         return (
-          <div key={p.id} className={`patron${p.keeper ? ' is-keeper' : ''}`} draggable={!edit}
+          <div key={p.id} className={`patron${p.keeper ? ' is-keeper' : ''}`} draggable={!edit} title="Right-click for more; drag to another floor"
             onDragStart={(ev) => ev.dataTransfer.setData('text/x-patron', p.id)} onContextMenu={(ev) => menuFor(ev, p)}>
             {edit ? (
               <div className="patron-edit">
