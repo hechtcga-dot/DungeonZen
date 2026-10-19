@@ -1,6 +1,7 @@
 # Plan for 3.1: UI clean-up (draft, 2026-10-19)
 
 From the 3.0.0 screenshot review (smoke run, 20 screens, 1440×900). Goal: easier for a new DM, same desk look.
+Two skins: Desk (today's look) and Oblivion UI (G7, like the Notes screen); G1–G6 apply to both.
 Built in groups; each group with UI changes gets owner approval of its mockup first (as in `PLAN-3.0.md`).
 Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
 
@@ -27,7 +28,8 @@ Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
   (Cards / Background / Hidden) becomes one segmented control; Fit all moves to the zoom buttons.
 
 ## G4 Consistency and fit (visible)
-- Notes screen in the parchment/desk style (fonts, buttons, 44 px controls). Light/Dark page switch kept.
+- Notes screen keeps its own look (owner, 2026-10-19: the most appealing screen; it is the model for the Oblivion UI
+  skin, G7). Only its controls grow to 44 px.
 - Timeline act blocks: name on one line, ellipsis only past the block width; full name in tooltip; minimum block
   width shows at least the first word.
 - Live desk: The advisor on parchment (not the dark panel); one row of four boxes kept.
@@ -46,8 +48,24 @@ Mockups: https://claude.ai/artifact/188ioHGX4U4us7zQSe37TC
 - Getting started guide walks one loop after the world map: add a PC, make an NPC, link it, start a prep sheet,
   start the session on the Live desk. Each step skippable; reopen from Desk › Getting started.
 
+## G7 Oblivion UI skin (visible; owner, 2026-10-19)
+A second skin: every screen looks like the Notes screen. The Desk skin stays; the DM picks.
+- Look (from `notes.css`, the `.nb` tokens): flat paper panels with hairline borders, no wood, leather or candle
+  props; Cinzel titles in dark red, small-capital red headings (Alegreya Sans SC) with the fading red rule; Alegreya
+  for reading text, Alegreya Sans for controls; red filled main button, paper buttons with a hairline border;
+  selected rows with a red bar on the left; tabs like the Notes tabs. Light and dark, like Notes.
+- Kept in both skins: card type colours, AI suggestions blue dashed (rule 10), secret links dashed, the drawn art
+  that carries meaning (clock sky, moon, compass, weather), 44 px controls.
+- Built as tokens: `theme.css` gets one token set per skin under `[data-skin='desk']` / `[data-skin='oblivion']`
+  (and `[data-skin-theme='dark']`); `.nb` tokens move into it so Notes and Oblivion share one source. Screens use
+  tokens only; desk-only art (wood, leather, candles, props) is drawn only when the skin is Desk.
+- Switch: Setup › Look (Desk / Oblivion UI; light / dark), also on the Start screen. Stored per computer in
+  `userData/profile.json` (a UI preference, not campaign data). Notes' own Light/Dark switch becomes the same setting.
+- Fonts already bundled (`@fontsource`), so it stays offline (rule 1).
+- Smoke test takes every screen's screenshot in both skins.
+
 ## Order
-G5 first (no visible change, makes G2 simple) → G1 → G3 → G2 → G4 → G6. Each group: mockup approved, built,
+G5 first (no visible change, makes G2 simple) → G1 (header and rail built on skin tokens) → G7 → G3 → G2 → G4 → G6. Each group: mockup approved, built,
 vitest + typecheck + smoke screenshots, `STATE.md` updated, `CHANGELOG.md` at release.
 
 ## Ctrl+K in detail
