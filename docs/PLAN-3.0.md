@@ -37,7 +37,7 @@ Release: Dungeon Zen 3.0 (no rename). Owner, 2026-10-19: name stays Dungeon Zen;
 
 ## M4 Everyday use
 - Backspace no longer goes back (Alt+← and the Back button stay).
-- Ctrl+K: find and go to anything (card, note, encounter, session, screen, map region).
+- Ctrl+F (owner, 2026-10-19; not Ctrl+K): find and go to anything (card, note, encounter, session, screen, map region).
 - Empty new card/row removed on click-away shows "Removed – Undo" for a few seconds.
 - Roll20 export pass: one shared macro format for attacks, spells, checks; tests pin the exact text of each macro and the API script so schema changes in 3.0 cannot alter what a DM pastes in.
 - Right-click actions also listed in hover text or a ⋯ button (discoverability).
