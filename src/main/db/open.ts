@@ -274,7 +274,8 @@ export function openDatabase(file: string): OpenedDb {
   const sqlite = new Database(file)
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
-  migrate(sqlite)
+  // A campaign that cannot be opened (newer version, failed upgrade) is closed again: Windows keeps the file locked otherwise.
+  try { migrate(sqlite) } catch (err) { sqlite.close(); throw err }
   return { sqlite, db: drizzle(sqlite, { schema }) }
 }
 
