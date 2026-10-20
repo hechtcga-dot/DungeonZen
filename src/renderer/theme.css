@@ -322,10 +322,13 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .screen-title h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--parchment-light); text-shadow: 0 2px 0 #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .screen-title h1 input { font-size: inherit; }
 .screen-find {
-  flex: 0 1 300px; min-width: 150px; min-height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left;
+  flex: 0 1 300px; min-width: 150px; min-height: 40px; container-type: inline-size; display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left;
   color: #5a4a32; background: var(--parchment); border: 1px solid #3b2608; border-radius: 6px; cursor: text;
 }
-.screen-find span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen-find span { flex: 1; white-space: nowrap; overflow: hidden; }
+/* A squeezed top bar: the short words, never cut-off long ones. */
+.screen-find .find-short { display: none; }
+@container (max-width: 289px) { .screen-find .find-long { display: none; } .screen-find .find-short { display: inline; } }
 .screen-find kbd { font-family: var(--mono); font-size: 11px; border: 1px solid #a8916a; border-radius: 3px; padding: 1px 5px; }
 .screen-head .topbar-middle { flex: 0 1 260px; }
 .screen-gap { flex: 1 1 0; }

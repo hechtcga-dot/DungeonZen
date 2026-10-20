@@ -32,7 +32,7 @@ export function ScreenHeader({ title, eyebrow, middle, candle, children }: { tit
       </div>
       <button className="screen-find" onClick={openFind} title="Find a card, note or screen, or do something (Ctrl+K)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M10 4a6 6 0 1 0 0 12a6 6 0 1 0 0-12M15 15l5 5" /></svg>
-        <span>Find or do anything…</span><kbd>Ctrl K</kbd>
+        <span className="find-long">Find or do anything…</span><span className="find-short">Find…</span><kbd>Ctrl K</kbd>
       </button>
       {middle && <div className="topbar-middle">{middle}</div>}
       <span className="screen-gap" />
