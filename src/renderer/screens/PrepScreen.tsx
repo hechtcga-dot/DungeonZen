@@ -166,7 +166,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
               <option value="encounter">Encounter</option>
             </select>
           </>}>
-          {(i, k) => i.encounter ? <EncounterScene i={i} n={k + 1} locations={s.locations} /> : (
+          {(i, k) => i.encounter ? <EncounterScene i={i} n={k + 1} locations={s.locations} encounters={s.encounters} /> : (
             <>
               <div className="prep-row-fields">
                 <LinkField id={`s-t-${i.id}`} label={`Scene ${k + 1}: location`} value={i.title} placeholder="Dock at night" onCommit={(v) => upItem(act, i, { title: v })} />
@@ -282,7 +282,18 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
           {s.encounters.length === 0 ? <p className="ink-muted">None planned yet.</p> : (
             <ul className="here-list">
               {s.encounters.map((e) => (
-                <li key={e.id}><button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>{e.placeName && <span className="ink-muted"> · {e.placeName}</span>}</li>
+                <li key={e.id} className="enc-li">
+                  <button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>
+                  {p.items.some((x) => x.entityId === e.id)
+                    ? <span className="enc-add">in this session</span>
+                    : <button className="enc-add" title="Add it to Likely scenes (Ctrl+Z undoes)" onClick={() => void act('prep:addEncounter', { prepId: p.id, encounterId: e.id })}>add to session</button>}
+                  {(e.summary || e.pictureUrl) && (
+                    <div className="enc-peek parchment-note" aria-hidden="true">
+                      {e.pictureUrl && <img src={e.pictureUrl} alt="" />}
+                      {e.summary && <p>{e.summary}</p>}
+                    </div>
+                  )}
+                </li>
               ))}
             </ul>
           )}
@@ -467,14 +478,19 @@ function ShowFromSheet({ i, cardId, shown }: { i: PrepItemView; cardId: string; 
 }
 
 /** A likely scene that is an encounter: its main fields here, everything else on Encounters. */
-function EncounterScene({ i, n, locations }: { i: PrepItemView; n: number; locations: EntityBrief[] }) {
+function EncounterScene({ i, n, locations, encounters }: { i: PrepItemView; n: number; locations: EntityBrief[]; encounters: PrepScreenView['encounters'] }) {
   const { act, openEncounter } = useBoard()
+  const [renaming, setRenaming] = useState(false)
+  useEffect(() => { if (renaming) document.getElementById(`e-n-${i.id}`)?.focus() }, [renaming, i.id])
   const e = i.encounter!
   const up = (patch: Record<string, unknown>) => void act('encounter:update', { id: i.entityId!, patch })
   return (
     <>
       <div className="prep-row-fields">
-        <CommitField id={`e-n-${i.id}`} label={`Encounter ${n}`} value={e.name} onCommit={(v) => v.trim() && up({ name: v.trim() })} />
+        {renaming
+          ? <div className="contents" onBlur={() => setRenaming(false)}><CommitField id={`e-n-${i.id}`} label={`Encounter ${n}`} value={e.name} onCommit={(v) => v.trim() && up({ name: v.trim() })} /></div>
+          : <EncounterPick id={`e-n-${i.id}`} label={`Encounter ${n}`} value={i.entityId!} name={e.name} encounters={encounters}
+              onPick={(id) => void act('prep:setEncounter', { itemId: i.id, encounterId: id })} onRename={() => setRenaming(true)} />}
         <CardPick id={`e-loc-${i.id}`} label="Location card" value={e.locationId} cards={locations} onPick={(v) => up({ locationId: v })} />
         <div className="field">
           <label htmlFor={`e-t-${i.id}`}>Aim for</label>
@@ -534,6 +550,41 @@ function PrepSection({ p, kind, n, title, hint, add, extra, children, pop }: {
         </ol>
       )}
     </section>
+  )
+}
+
+/** Encounter N on a likely scene: a drop-down of the campaign's encounters with a search box, and Rename. */
+function EncounterPick({ id, label, value, name, encounters, onPick, onRename }: {
+  id: string; label: string; value: string; name: string; encounters: PrepScreenView['encounters']; onPick(id: string): void; onRename(): void
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const list = encounters.filter((x) => x.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const close = () => { setOpen(false); setQ('') }
+  return (
+    <div className="field enc-pick" onBlur={(ev) => { if (!ev.currentTarget.contains(ev.relatedTarget)) close() }}
+      onKeyDown={(ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); close() } }}>
+      <label htmlFor={id}>{label} <button type="button" className="link-button" title="Rename this encounter" onClick={onRename}>✎</button></label>
+      <button id={id} type="button" className="enc-pick-button" aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+        <span>{name}</span><span aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div className="enc-pick-pop">
+          <input type="search" autoFocus placeholder="Search encounters" aria-label="Search encounters" value={q} onChange={(ev) => setQ(ev.target.value)}
+            onKeyDown={(ev) => { if (ev.key === 'Enter' && list[0]) { onPick(list[0].id); close() } }} />
+          <ul role="listbox" aria-label="Encounters">
+            {list.length === 0 && <li className="ink-muted">No encounter by that name.</li>}
+            {list.map((x) => (
+              <li key={x.id} role="option" aria-selected={x.id === value}>
+                <button type="button" onClick={() => { if (x.id !== value) onPick(x.id); close() }}>
+                  {x.name}{x.placeName && <span className="ink-muted"> · {x.placeName}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   )
 }
 

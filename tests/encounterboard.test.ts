@@ -38,6 +38,25 @@ describe('encounters on the board (owner, 2026-10-18)', () => {
     c.undo(); c.undo()
     expect(c.prepView(prepId).items.some((i) => i.id === rowId)).toBe(false)
   })
+
+  it('prep: an encounter row picks an existing encounter; the blank one it leaves goes to History; add to session links one', () => {
+    const prepId = c.createPrep(1)
+    const rowId = c.addPrepEncounter(prepId)
+    const blank = c.prepView(prepId).items.find((i) => i.id === rowId)!.entityId!
+    const prep2 = c.createPrep(2)
+    const other = c.addPrepEncounter(prep2)
+    const ford = c.prepView(prep2).items.find((i) => i.id === other)!.entityId!
+    c.updateEncounter(ford, { name: 'Ambush at the ford' })
+    c.setPrepEncounter(rowId, ford)
+    expect(c.prepView(prepId).items.find((i) => i.id === rowId)).toMatchObject({ entityId: ford, title: 'Ambush at the ford' })
+    expect(c.encountersView().encounters.map((e) => e.id)).not.toContain(blank)
+    c.undo()
+    expect(c.prepView(prepId).items.find((i) => i.id === rowId)!.entityId).toBe(blank)
+    expect(c.encountersView().encounters.map((e) => e.id)).toContain(blank)
+    const added = c.addPrepEncounter(prepId, ford)
+    expect(c.prepView(prepId).items.find((i) => i.id === added)).toMatchObject({ entityId: ford, title: 'Ambush at the ford' })
+    expect(c.encountersView().encounters).toHaveLength(2)
+  })
 })
 
 describe('session dates (owner, 2026-10-18)', () => {

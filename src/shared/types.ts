@@ -738,7 +738,7 @@ export interface PrepScreenView {
   people: EntityBrief[]
   locations: EntityBrief[]
   /** Planned encounters (the Encounters box links to them). */
-  encounters: Array<{ id: string; name: string; placeName: string | null }>
+  encounters: Array<{ id: string; name: string; placeName: string | null; summary: string; pictureUrl: string | null }>
   /** Every card, for linking words on the sheet and the card summary beside it. */
   cards: Array<EntityBrief & { summary: string; picture: string; location: string; notes: string; flaws: string; encounter?: boolean; colour?: string; linkName?: boolean }>
   /** Secret strings and Clue cards a prep secret can be tied to. */

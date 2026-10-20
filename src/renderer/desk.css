@@ -1873,3 +1873,30 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 /* Box controls show when the pointer or keyboard is on the box, on a folded box, or always with Setup › Arrange boxes (3.1). */
 .box-tools { visibility: hidden; }
 [data-box]:hover .box-tools, [data-box]:focus-within .box-tools, [data-folded] .box-tools, html[data-arrange] .box-tools { visibility: visible; }
+
+/* ---- Session prep: encounter picker and the Encounters box (owner, 2026-10-20) ---- */
+.contents { display: contents; }
+.enc-pick { position: relative; }
+.enc-pick label .link-button { min-height: 0; padding: 0 4px; font-size: 12px; text-decoration: none; }
+.enc-pick-button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; color: var(--ink); background: rgba(255, 252, 240, 0.7); border: 1px solid #a8916a; }
+.enc-pick-button span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.enc-pick-pop {
+  position: absolute; top: 100%; left: 0; z-index: 30; width: max(100%, 260px); margin-top: 4px; padding: 6px;
+  background: var(--parchment-light); border: 1px solid #6b5636; border-radius: 3px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+.enc-pick-pop input { width: 100%; color: var(--ink); background: #fffaf0; }
+.enc-pick-pop ul { list-style: none; margin: 6px 0 0; padding: 0; max-height: 260px; overflow-y: auto; }
+.enc-pick-pop li > button { width: 100%; min-height: 30px; text-align: left; color: var(--ink); background: transparent; border: 0; padding: 2px 6px; }
+.enc-pick-pop li > button:hover, .enc-pick-pop li[aria-selected='true'] > button { background: rgba(120, 80, 35, 0.15); }
+.enc-pick-pop li.ink-muted { padding: 4px 6px; }
+.enc-li { position: relative; }
+/* "add to session": small, italic, like the place text it replaced; only while the encounter is hovered. */
+.enc-add { display: none; min-height: 0; padding: 0; border: 0; background: transparent; font-family: var(--sans); font-size: 13px; font-style: italic; color: var(--ink-muted); }
+button.enc-add { text-decoration: underline; text-underline-offset: 2px; }
+.desk-theme .enc-li button.enc-add, .desk-theme .enc-li button.enc-add:hover:not(:disabled) { min-height: 0; padding: 0; background: transparent; border: 0; box-shadow: none; outline-offset: 1px; }
+.desk-theme .enc-li button.enc-add:hover:not(:disabled) { color: var(--wax); }
+.enc-li:hover .enc-add, .enc-li:focus-within .enc-add { display: inline; }
+.enc-peek { display: none; position: absolute; right: calc(100% + 10px); top: 0; z-index: 30; width: 260px; padding: 10px; pointer-events: none; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); }
+.enc-li:hover .enc-peek { display: block; }
+.enc-peek img { display: block; width: 100%; max-height: 160px; object-fit: cover; border-radius: 2px; margin-bottom: 6px; }
+.enc-peek p { margin: 0; font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }

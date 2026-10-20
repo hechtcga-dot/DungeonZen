@@ -350,7 +350,8 @@ export const ipcInputs = {
   'encounters:view': z.void(),
   'encounter:create': z.object({ name: Name, locationId: Id.nullable().optional() }),
   'encounter:toBoard': z.object({ id: Id }),
-  'prep:addEncounter': z.object({ prepId: Id }),
+  'prep:addEncounter': z.object({ prepId: Id, encounterId: Id.optional() }),
+  'prep:setEncounter': z.object({ itemId: Id, encounterId: Id }),
   'encounter:update': z.object({
     id: Id,
     patch: z.object({
@@ -745,6 +746,7 @@ export interface IpcOutputs {
   'encounter:create': string
   'encounter:toBoard': void
   'prep:addEncounter': string
+  'prep:setEncounter': void
   'encounter:update': void
   'encounter:storyCard': string
   'encounter:adjustCr': void

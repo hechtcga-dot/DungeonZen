@@ -74,7 +74,16 @@ export const prepPart = part({
         ...live.filter((e) => e.type === 'CLUE').map((e) => ({ kind: 'clue' as const, id: e.id, label: `Clue: ${e.name}` }))
       ],
       locations: live.filter((e) => e.type === 'LOCATION').map(brief),
-      encounters: this.encountersView().encounters.map((e) => ({ id: e.id, name: e.name, placeName: e.locationName }))
+      encounters: (() => {
+        const maps = new Map(this.maps().map((m) => [m.id, m.url]))
+        const pics = new Map(this.encounterCards().map((e) => [e.id, typeof e.attributes.picture === 'string' && e.attributes.picture ? e.attributes.picture : null]))
+        // Hover card on the Encounters box: the notes (else what happens) and the card picture, else the battle map.
+        return this.encountersView().encounters.map((e) => {
+          const pic = pics.get(e.id)
+          return { id: e.id, name: e.name, placeName: e.locationName, summary: e.notes.trim() || e.scene.trim(),
+            pictureUrl: pic ? `dz-asset://campaign/${pic}?w=400` : (e.battleMapId && maps.get(e.battleMapId)) || null }
+        })
+      })()
     }
   },
 

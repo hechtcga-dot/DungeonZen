@@ -129,12 +129,14 @@ export const encountersPart = part({
   },
 
   /** Prep › Likely scenes › Add an encounter: a new encounter (off the board) and its scene line, one undo step. */
-  addPrepEncounter(prepId: string): string {
+  /** A likely scene that is an encounter: a new one, or one that already exists (`encounterId`). */
+  addPrepEncounter(prepId: string, encounterId?: string): string {
     const p = this.prepRow(prepId)
     const siblings = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'scene'))).all()
     const id = randomUUID()
-    this.log.run(`Added an encounter to the prep for session ${p.number}`, (w) => {
-      const enc = this.insertEntity(w, {
+    const existing = encounterId ? this.entityRow(encounterId) : null
+    this.log.run(`Added ${existing ? existing.name : 'an encounter'} to the prep for session ${p.number}`, (w) => {
+      const enc = existing ? existing.id : this.insertEntity(w, {
         boardId: this.globalBoard().id, type: 'SCENE', name: 'New encounter', position: this.freeGlobalSpot(), place: false,
         attributes: { encounter: true, target: 'moderate', tactics: '', summary: '' }
       })
@@ -145,6 +147,22 @@ export const encountersPart = part({
       })
     })
     return id
+  },
+
+  /** An encounter row on the prep picks another encounter. The one it leaves goes to History if it was never filled in
+   *  (the blank "New encounter" from Add a scene) and nothing else uses it. One undo step. */
+  setPrepEncounter(itemId: string, encounterId: string): void {
+    const item = this.db.select().from(prepItem).where(eq(prepItem.id, itemId)).get()
+    if (!item) throw new Error('That prep line is gone.')
+    const next = this.entityRow(encounterId)
+    const old = item.entityId ? this.db.select().from(entity).where(eq(entity.id, item.entityId)).get() : undefined
+    const blank = old && old.id !== next.id && old.name === 'New encounter' && !old.attributes.scene && !old.attributes.summary
+      && this.encounterView(old.id).creatures.length === 0
+      && this.db.select().from(prepItem).where(and(eq(prepItem.entityId, old.id), eq(prepItem.status, 'active'))).all().length === 1
+    this.log.run(`Picked ${next.name} for a likely scene`, (w) => {
+      w.update('prep_item', itemId, { entityId: next.id })
+      if (blank) w.update('entity', old.id, { status: 'defunct' })
+    })
   },
 
   updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[]; sketch?: Sketch | null; follow?: FollowSource | null; story?: EncounterStory }): void {

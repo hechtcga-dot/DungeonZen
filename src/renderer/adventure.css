@@ -61,6 +61,10 @@
 [data-skin='adventure'] button.ink-button:not(.nb *), [data-skin='adventure'] select.ink-select:not(.nb *), [data-skin='adventure'] .cartouche-button {
   background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); color: var(--adv-ink); border-radius: 3px; font-family: var(--adv-sans); font-weight: 500;
 }
+/* Primary ink buttons (Add an NPC, Add a thread, Add a scene…): red like the other main buttons; the Desk skin's light text was unreadable on paper. */
+[data-skin='adventure'] .desk-theme :is(button, select).ink-button.primary-ink:not(.nb *) { background: var(--adv-red); border: 1px solid var(--adv-red-edge); color: #f6e6c8; }
+[data-skin='adventure'] .desk-theme :is(button, select).ink-button.primary-ink:disabled:not(.nb *) { background: #b39a78; color: #efe2c4; border-color: #8a6a44; }
+[data-skin='adventure'] .desk-theme select.ink-button.primary-ink option { background: var(--adv-paper-btn); color: var(--adv-ink); }
 [data-skin='adventure'] select.ink-select.on-wood { background: #2c1b10; color: var(--adv-cream); border-color: var(--adv-edge); }
 
 /* ---- parchment ---- */
@@ -202,3 +206,10 @@
 [data-skin='adventure'] .desk-title h1 { font-family: var(--adv-cinzel); font-weight: 700; font-size: 30px; letter-spacing: 0.04em; text-transform: uppercase; text-shadow: none; color: var(--adv-cream); }
 [data-skin='adventure'] .desk-eyebrow { font-family: var(--adv-sans); font-style: normal; color: var(--adv-cream-muted); font-size: 13px; }
 [data-skin='adventure'] .desk-head .candle { display: none; }
+
+/* Session prep: encounter picker and Encounters box hover card. */
+[data-skin='adventure'] .enc-pick-button { font-family: var(--adv-sans); color: var(--adv-ink); background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); border-radius: 3px; }
+[data-skin='adventure'] .enc-pick-pop { background: var(--adv-paper-btn); border-color: var(--adv-paper-line); }
+[data-skin='adventure'] .enc-pick-pop li > button { font-family: var(--adv-sans); color: var(--adv-ink); }
+[data-skin='adventure'] .enc-add { font-family: var(--adv-sans); color: var(--adv-muted); }
+[data-skin='adventure'] .enc-peek { color: var(--adv-ink); font-family: var(--adv-sans); }
