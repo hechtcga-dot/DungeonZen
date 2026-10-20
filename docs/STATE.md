@@ -933,8 +933,9 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     Start screen, per computer (localStorage `dz.skin`, all windows follow via the storage event). Desk skin unchanged
     and the default. Dark brown rail/bars/ground, aged parchment panels (CSS gradients + paper noise, burnt edges),
     Cinzel capital headings, Alegreya Sans text, red main buttons, outlined buttons on the frame, AI buttons blue dashed.
-    Desk-only art (candles, leaves, potion, quill, d20, leather, tarot art) hidden; storylines and party cards become
-    parchment rows/slips. Notes keeps its book page (`:not(.nb *)` on every broad rule) inside the frame.
+    Desk-only art (candles, leaves, potion, quill, d20, leather, tarot art) hidden; storylines become parchment rows;
+    Desk party cards stay upright cards like the Desk skin (emblem/portrait, name in Cinzel, AC/HP/PP/size, XP, conditions,
+    red Open sheet) on parchment. Rail buttons never shrink (Session prep's icon was squashed, both skins). Notes keeps its book page (`:not(.nb *)` on every broad rule) inside the frame.
   - Adventure art (`art/adventure.tsx`): `HourScene` (Desk and Live; arched bronze window, sun/moon crossing the arch,
     colours from `shared/hourPalette.ts` blending smoothly night → dawn → day → dusk → night) and `MoonArt` (true
     phase via `moonLitPath`, earthshine on the dark part). Empty party box: faint adventurer silhouettes and an Add a

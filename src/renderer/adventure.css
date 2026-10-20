@@ -117,8 +117,28 @@
 [data-skin='adventure'] .tarot-new { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 6px; background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); color: var(--adv-ink); font-family: var(--adv-sans); }
 [data-skin='adventure'] .tarot-plus { font-size: 18px; }
 [data-skin='adventure'] .tarot-edit { width: 28px; height: 28px; min-height: 0; top: 6px; right: 6px; }
-[data-skin='adventure'] .party-row { gap: 10px; flex-wrap: wrap; }
-[data-skin='adventure'] .tarot-pc { width: 220px; }
+[data-skin='adventure'] .party-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+
+/* Party cards: upright parchment cards like the Desk skin's (portrait, name, stats, sheet button), adventure look. */
+[data-skin='adventure'] .tarot.tarot-pc {
+  display: flex; flex-direction: column; align-items: stretch; gap: 5px; min-height: 0; padding: 8px 8px 10px; text-align: center;
+  background-color: var(--adv-parch); background-image: var(--adv-parchment); background-size: auto, auto, auto, 300px 300px;
+  border: 1px solid #6e4b28; box-shadow: inset 0 0 18px rgba(105, 62, 22, 0.45), 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+[data-skin='adventure'] .tarot-pc .tarot-numeral { font-size: 13px; letter-spacing: 0.1em; min-height: 16px; }
+[data-skin='adventure'] .tarot-pc .tarot-art { display: grid; place-items: center; flex: none; height: 120px; min-height: 0; overflow: hidden; border: 1px solid #8a6a44; border-radius: 2px; box-shadow: inset 0 0 12px rgba(60, 30, 10, 0.45); }
+[data-skin='adventure'] .tarot-pc .tarot-art .emblem { width: auto; height: 86%; }
+[data-skin='adventure'] .tarot-pc .tarot-title { font-family: var(--adv-cinzel); font-weight: 700; font-size: 15px; color: var(--adv-head); text-align: center; padding: 4px 2px 3px; border-bottom: 1px solid rgba(110, 75, 40, 0.45); overflow-wrap: anywhere; }
+[data-skin='adventure'] .tarot-pc :is(.tarot-sub, .tarot-footer) { text-align: center; }
+[data-skin='adventure'] .tarot-pc .tarot-sub { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-skin='adventure'] .tarot-pc .pc-stats { justify-content: space-between; color: var(--adv-ink); font-size: 13px; padding: 2px 0; }
+[data-skin='adventure'] .tarot-pc .pc-stats b { font-family: var(--adv-cinzel); font-size: 10px; color: var(--adv-muted); }
+[data-skin='adventure'] .mat .tarot-pc input.pc-hp { width: 3em; height: 22px; color: var(--adv-ink); background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); border-radius: 2px; }
+[data-skin='adventure'] .tarot-pc .pc-max { color: var(--adv-muted); }
+[data-skin='adventure'] .tarot-pc .pc-line { font-family: var(--adv-sans); font-size: 12px; color: #7a2a1a; }
+[data-skin='adventure'] .mat .tarot-pc input.pc-conditions { font-family: var(--adv-sans); font-size: 12px; color: var(--adv-ink); background: rgba(241, 227, 192, 0.6); border: 1px dashed var(--adv-paper-line); border-radius: 2px; }
+[data-skin='adventure'] .tarot-pc .pc-open { margin-top: 2px; font-family: var(--adv-sans); font-size: 13px; color: #f6e6c8; background: var(--adv-red); border: 1px solid var(--adv-red-edge); border-radius: 3px; }
+[data-skin='adventure'] .party-row > .tarot-new { min-height: 120px; flex-direction: column; border-style: dashed; }
 
 /* The new art on the Desk (HourScene, MoonArt) replaces the dial and the disc. */
 [data-skin='adventure'] .adv-art-hour { width: 160px; height: 104px; flex: none; }
