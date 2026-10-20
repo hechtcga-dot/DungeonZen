@@ -1,6 +1,6 @@
 // Checks run on every smoke screenshot (in the window, via page.evaluate; keep it self-contained).
 // 1. Buttons: none faded, see-through, hidden or covered by something else.
-// 2. Text: none cut off by its box or a box around it (scroll boxes are fine: you can scroll to it).
+// 2. Text: none cut off by its box or a box around it, "…" included (scroll boxes are fine: you can scroll to it).
 // Returns one line per problem: "<what>: <element> "<text>"".
 export function uiProblems() {
   const out = []
@@ -94,15 +94,12 @@ export function uiProblems() {
     if (top && !top.contains(el)) continue
     const s = getComputedStyle(el)
     const own = [s.overflowX, s.overflowY].some((o) => o === 'hidden' || o === 'clip')
-    // Its own box: text too long for a box that hides the rest. "…" is fine only with the full text on hover.
+    // Its own box: text too long for a box that hides the rest ("…" counts too: the words are gone, hover text or not).
     if (own && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)) {
-      if (!(s.textOverflow === 'ellipsis' && el.closest('[title]'))) {
-        seen.add(el)
-        out.push(`text cut off${s.textOverflow === 'ellipsis' ? ' (…, no hover text)' : ''}: ${name(el)} "${node.textContent.trim().replace(/\s+/g, ' ').slice(0, 40)}"`)
-      }
+      seen.add(el)
+      out.push(`text cut off${s.textOverflow === 'ellipsis' || s.webkitLineClamp !== 'none' ? ' (…)' : ''}: ${name(el)} "${node.textContent.trim().replace(/\s+/g, ' ').slice(0, 40)}"`)
       continue
     }
-    if (own && s.textOverflow === 'ellipsis') continue
     const range = document.createRange()
     range.selectNodeContents(node)
     const t = range.getBoundingClientRect()

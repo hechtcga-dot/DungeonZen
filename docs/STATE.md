@@ -839,7 +839,7 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   - Look checks on every smoke screenshot (2026-10-20, `tests/e2e/uiChecks.mjs`, both skins): buttons (enabled ones
     fully opaque, disabled ≥ 35%; not 0-size; not covered by another element; text contrast ≥ 3:1 on a plain
     background; with a window open only its buttons count) and text (not cut off by its own box or a box around it,
-    up to the nearest scroll box; "…" allowed only with the full text on hover; screen-reader-only text, closed
+    up to the nearest scroll box; any "…" counts as cut off, hover text or not (owner, 2026-10-20); screen-reader-only text, closed
     `<details>` and inputs skipped). Fixed with it: side panel fold and Notes tab buttons were faded, Adventure
     `primary-ink` buttons were cream on cream, Adventure screen titles cut at the bottom, Timeline acts cut their
     words (now wrap; acts under 160 px leave out the times, which stay on hover and in the side panel).
