@@ -301,7 +301,7 @@ export function BattleMapDialog() {
               <div className="field"><span className="field-label">Look</span><TemplateBar use="battle" value={adv} changed={over} onChange={setOver} /></div>
             </div>
           </div>
-          <DrawAdvanced service={caps} what={`time, weather, mood, art style, style boxes${caps.examples ? ', examples' : ''}${caps.plan ? ', Follow a picture' : ''}${sketch ? ', blueprint' : ''}, prompt`}
+          <DrawAdvanced service={caps} what={`time, weather, mood, art style, style boxes${caps.examples ? ', examples' : ''}${caps.plan ? ', Follow a picture' : ''}${sketch ? ', blueprint' : ''}`}
             hidden={[...(caps.examples ? [] : ['example maps']), ...(caps.plan ? [] : ['Follow a picture']), ...(caps.change === 'marks' ? [] : caps.change ? ['marks on Change this picture'] : ['Change this picture'])]}>
             <div className="battle-grid-fields">
               <Choice id="bm-time" label="Time of day" k="timeOfDay" options={TIMES_OF_DAY} spec={spec} set={set} auto={{ value: auto.timeOfDay, from: 'the clock' }} />
@@ -374,12 +374,12 @@ export function BattleMapDialog() {
                 )}
               </div>
             )}
-            <details className="battle-prompt" open={ownPrompt !== null}>
-              <summary>Prompt being sent to the AI{ownPrompt !== null ? ' (edited)' : ' (open to read and change it)'}</summary>
-              <textarea rows={8} value={prompt} maxLength={4000} aria-label="Prompt being sent to the AI" onChange={(e) => setOwnPrompt(e.target.value)} />
-              {ownPrompt !== null && <button className="link-button" onClick={() => setOwnPrompt(null)}>Go back to the generated text</button>}
-            </details>
           </DrawAdvanced>
+          <details className="battle-prompt" open={ownPrompt !== null}>
+            <summary>Prompt being sent to the AI{ownPrompt !== null ? ' (edited)' : ' (open to read and change it)'}</summary>
+            <textarea rows={8} value={prompt} maxLength={4000} aria-label="Prompt being sent to the AI" onChange={(e) => setOwnPrompt(e.target.value)} />
+            {ownPrompt !== null && <button className="link-button" onClick={() => setOwnPrompt(null)}>Go back to the generated text</button>}
+          </details>
           {error && (
             <div className="field-error battle-error" role="alert">
               <span>{error}</span>

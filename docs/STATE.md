@@ -881,11 +881,13 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   - `Pictures.tsx`: `useImageService` (reloads when AI services closes), `ServiceLine` ("Drawn by … · Change…"),
     `DrawAdvanced` (fold closed at first, open/closed remembered on this computer, `dz-draw-advanced`; a red line names
     what is hidden for this service with Choose another service…). Hidden, not greyed (owner).
-  - Card picture: simple = Description, Include, Look (templates), service; Advanced = examples, Style boxes,
-    composition, outline, prompt. Battle map: simple = Name, Description, Setting, Terrain, Size + grid, Include,
+  - Card picture: simple = Description, Include, Look (templates), service; fold "Advanced composition and style" =
+    examples, Style boxes, composition; Outline and Prompt are folds of their own under it (owner, 2026-10-20; all three
+    boxed alike). Battle map: simple = Name, Description, Setting, Terrain, Size + grid, Include,
     Anything else, Look; Advanced = time, weather, season, mood, art style, style boxes and tags, examples, Follow a
-    picture (hidden and not sent without plan), Buildings show, blueprint (words only on such services), prompt.
-    World map (guide): simple = description, climate, style, service; Advanced = outline, examples, prompt.
+    picture (hidden and not sent without plan), Buildings show, blueprint (words only on such services); Prompt a fold of its own under it.
+    World map (guide): simple = description, climate, style, service; fold "Advanced style" = examples; Outline and Prompt folds of
+    their own under it.
   - Change this picture only for services that change pictures; Add to picture says when the service cannot.
 
 - 3.0 M4 everyday use (2026-10-19):

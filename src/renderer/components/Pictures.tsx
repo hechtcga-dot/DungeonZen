@@ -48,7 +48,7 @@ const ADVANCED_KEY = 'dz-draw-advanced'
  * Every Draw window's Advanced fold (3.0, owner's mockup M3): closed at first, remembered on this computer. Holds only
  * what the chosen service can use; one line says what is hidden for this service and why.
  */
-export function DrawAdvanced({ service, what, hidden, children }: { service: ImageService; what: string; hidden: string[]; children: React.ReactNode }) {
+export function DrawAdvanced({ service, what, hidden, children, title = 'Advanced' }: { service: ImageService; what: string; hidden: string[]; children: React.ReactNode; title?: string }) {
   const setAiSettingsOpen = useBoard((s) => s.setAiSettingsOpen)
   const [open, setOpen] = useState(() => { try { return localStorage.getItem(ADVANCED_KEY) === '1' } catch { return false } })
   return (
@@ -57,7 +57,7 @@ export function DrawAdvanced({ service, what, hidden, children }: { service: Ima
       setOpen(next)
       try { localStorage.setItem(ADVANCED_KEY, next ? '1' : '0') } catch { /* private window */ }
     }}>
-      <summary><strong>Advanced</strong> <span className="hint">({what})</span></summary>
+      <summary><strong>{title}</strong> <span className="hint">({what})</span></summary>
       {service.name && hidden.length > 0 && (
         <p className="draw-hidden">{service.name} takes {service.examples ? 'only one picture with the words' : 'words only'}, so {hidden.join(', ')} {hidden.length === 1 ? 'is' : 'are'} hidden.{' '}
           <button type="button" className="link-button" onClick={() => setAiSettingsOpen(true)}>Choose another service…</button></p>
@@ -296,7 +296,8 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
             </div>
             <div className="field"><span className="field-label">Look</span><TemplateBar value={adv} changed={over} onChange={setOver} /></div>
             <ServiceLine service={service} />
-            <DrawAdvanced service={service} hidden={hidden} what={`${service.examples ? 'examples, ' : ''}style boxes, composition${service.plan ? ', outline' : ''}, prompt`}>
+            {/* Outline and Prompt are folds of their own beside Advanced (owner, 2026-10-20). */}
+            <DrawAdvanced service={service} hidden={hidden} title="Advanced composition and style" what={`${service.examples ? 'examples, ' : ''}style boxes, composition`}>
               {service.examples > 0 && <DrawExtras only="styles" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
                 onReset={() => undefined} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} />}
               <section className="draw-box">
@@ -307,11 +308,11 @@ export function DrawPictureDialog({ entity, onClose }: { entity: SheetView['enti
                 <CompositionPicker value={comp} onChange={(id) => { setComp(id); setOver(({ composition: _, ...rest }) => rest) }} fromExamples={blended.composition} />
                 {rows(['composition', 'other'])}
               </section>
-              {service.plan && <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
-                onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />}
-              <DrawExtras only="prompt" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
-                onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} />
             </DrawAdvanced>
+            {service.plan && <OutlinePanel outline={outline} on={useOutline} onOn={setUseOutline} ratio={1}
+              onSave={(next) => void act('entity:update', { id: entity.id, patch: { attributes: { outline: next } } })} />}
+            <DrawExtras only="prompt" use={use} prompt={prompt} onPrompt={setOwnPrompt} send={send} onSend={setSend}
+              onReset={() => { setOwnPrompt(null); setOver({}) }} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} />
           </div>
           <div className="draw-right">
             {drawn ? (

@@ -1900,3 +1900,8 @@ button.enc-add { text-decoration: underline; text-underline-offset: 2px; }
 .enc-li:hover .enc-peek { display: block; }
 .enc-peek img { display: block; width: 100%; max-height: 160px; object-fit: cover; border-radius: 2px; margin-bottom: 6px; }
 .enc-peek p { margin: 0; font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
+/* Advanced, Outline and Prompt: three folds of the same look, one under the other (owner, 2026-10-20). */
+.draw-advanced ~ details { margin-top: 10px; }
+.draw-advanced { margin-top: 10px; padding: 6px 10px; border: 1px solid rgba(42, 31, 18, 0.3); border-radius: 6px; background: rgba(255, 252, 240, 0.5); }
+.draw-advanced > summary { font-family: inherit; font-size: inherit; }
+.draw-advanced > summary strong { font-weight: 600; }

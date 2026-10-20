@@ -251,13 +251,13 @@ function DrawMap({ onKept, onBack }: { onKept(m: MapView, regions: number): void
             </select></div>
         </div>
         <ServiceLine service={caps} />
-        <DrawAdvanced service={caps} what={`${caps.plan ? 'outline, ' : ''}${caps.examples ? 'examples, ' : ''}prompt`}
+        <DrawAdvanced service={caps} title="Advanced style" what={caps.examples ? 'examples' : 'what this service can use'}
           hidden={[...(caps.plan ? [] : ['the outline']), ...(caps.examples ? [] : ['example maps']), ...(caps.change === 'marks' ? [] : caps.change ? ['marks on Change this picture'] : ['Change this picture'])]}>
-          {caps.plan && <OutlinePanel outline={outline} on={useOutline} onOn={(v) => { setUseOutline(v); setPrompt(null) }} ratio={1.5}
-            onSave={(next) => { setPrompt(null); void act('campaign:update', { worldOutline: next }) }} />}
           {caps.examples > 0 && <DrawExtras only="styles" use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={setPicked} onTags={setTags} smaller={smaller} onSmaller={setSmaller} send={send} onSend={setSend} />}
-          <DrawExtras only="prompt" use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} send={send} onSend={setSend} />
         </DrawAdvanced>
+        {caps.plan && <OutlinePanel outline={outline} on={useOutline} onOn={(v) => { setUseOutline(v); setPrompt(null) }} ratio={1.5}
+          onSave={(next) => { setPrompt(null); void act('campaign:update', { worldOutline: next }) }} />}
+        <DrawExtras only="prompt" use="maps" prompt={told} onPrompt={setPrompt} onReset={() => setPrompt(null)} picked={picked} onPicked={() => undefined} smaller={smaller} onSmaller={setSmaller} send={send} onSend={setSend} />
         <div className="row tight wrap">
           <button className="ink-button" disabled={busy || !caps.name} onClick={() => void draw()}>{busy ? 'Drawing…' : drawn ? 'Try again' : 'Draw the map'}</button>
         </div>
