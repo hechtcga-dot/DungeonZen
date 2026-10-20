@@ -833,6 +833,16 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     errors or an error toast; screenshots as artifact `smoke-screenshots`. Also runs before each Windows installer build.
     Locally: `npm run build`, `npx electron-builder install-app-deps` (needs electronjs.org headers: blocked in cloud
     sessions, so rely on CI there), `xvfb-run npm run smoke`, then `npm rebuild better-sqlite3` for `npm test`.
+    Cloud sessions: better-sqlite3 13 ships N-API prebuilds that load in Electron as they are (no install-app-deps);
+    if Electron itself is missing, unzip `electron-v<version>-linux-x64.zip` from github.com/electron/electron releases
+    into `node_modules/electron/dist` and write `electron` to `node_modules/electron/path.txt`.
+  - Look checks on every smoke screenshot (2026-10-20, `tests/e2e/uiChecks.mjs`, both skins): buttons (enabled ones
+    fully opaque, disabled ≥ 35%; not 0-size; not covered by another element; text contrast ≥ 3:1 on a plain
+    background; with a window open only its buttons count) and text (not cut off by its own box or a box around it,
+    up to the nearest scroll box; "…" allowed only with the full text on hover; screen-reader-only text, closed
+    `<details>` and inputs skipped). Fixed with it: side panel fold and Notes tab buttons were faded, Adventure
+    `primary-ink` buttons were cream on cream, Adventure screen titles cut at the bottom, Timeline acts cut their
+    words (now wrap; acts under 160 px leave out the times, which stay on hover and in the side panel).
     `DZ_USER_DATA` env sets the userData folder (smoke only).
 
 - 3.0 M1 code structure (2026-10-19):

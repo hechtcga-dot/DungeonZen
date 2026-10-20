@@ -7,6 +7,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { uiProblems } from './uiChecks.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
 // DZ_SKIN=adventure runs the same screens in the Adventure UI skin (3.1), screenshots in shots-adventure/.
@@ -50,6 +51,7 @@ try {
     await page.waitForTimeout(800)
     const alert = page.locator('.toast-error')
     if (await alert.count()) problems.push(`${name}: error on screen: ${await alert.first().innerText()}`)
+    for (const p of await page.evaluate(uiProblems)) problems.push(`${name}: ${p}`)
     await page.screenshot({ path: join(shots, `${String(++n).padStart(2, '0')}-${name}.png`) })
   }
   const click = (text) => page.getByRole('button', { name: text, exact: true }).first().click()

@@ -35,7 +35,7 @@
 
 /* ---- the header ---- */
 [data-skin='adventure'] .screen-head .candle, [data-skin='adventure'] .screen-head .egg-candle-wrap { display: none; }
-[data-skin='adventure'] .screen-title h1 { font-family: var(--adv-cinzel); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--adv-cream); text-shadow: none; }
+[data-skin='adventure'] .screen-title h1 { font-family: var(--adv-cinzel); font-weight: 700; font-size: 22px; line-height: 1.35; letter-spacing: 0.04em; text-transform: uppercase; color: var(--adv-cream); text-shadow: none; }
 [data-skin='adventure'] .screen-title h1 input { text-transform: none; }
 [data-skin='adventure'] .screen-eyebrow { font-family: var(--adv-sans); font-style: normal; font-size: 12px; color: var(--adv-cream-muted); }
 [data-skin='adventure'] .screen-find { background: #2c1b10; color: var(--adv-cream-muted); border-color: var(--adv-edge); border-radius: 4px; }
@@ -61,6 +61,8 @@
 [data-skin='adventure'] button.ink-button:not(.nb *), [data-skin='adventure'] select.ink-select:not(.nb *), [data-skin='adventure'] .cartouche-button {
   background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); color: var(--adv-ink); border-radius: 3px; font-family: var(--adv-sans); font-weight: 500;
 }
+/* The main ink button (Build with AI, Make a character card…): deep red like the other main buttons, never cream on cream. */
+[data-skin='adventure'] .desk-theme button.ink-button.primary-ink:not(:disabled):not(.nb *) { background: var(--adv-red); border-color: var(--adv-red-edge); color: #f6e6c8; }
 [data-skin='adventure'] select.ink-select.on-wood { background: #2c1b10; color: var(--adv-cream); border-color: var(--adv-edge); }
 
 /* ---- parchment ---- */

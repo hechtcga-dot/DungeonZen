@@ -255,7 +255,8 @@ function ActBlock({ a, s, pxPerMin, selected, onSelect }: {
         title={`Act ${a.number} · ${a.title}\n${formatClock(a.startMin)} → ${formatClock(a.endMin)}\n${stateText}`}
         aria-label={`Act ${a.number}, ${a.title}, ${formatClock(a.startMin)} to ${formatClock(a.endMin)}, ${stateText}`}>
         <span className="tl-act-title">Act {a.number} · {a.title}</span>
-        <span className="tl-act-when">{formatClock(a.startMin)} → {formatClock(a.endMin)}</span>
+        {/* A narrow act leaves out its times (they are on hover and in the side panel) rather than cut its words off. */}
+        {w >= 160 && <span className="tl-act-when">{formatClock(a.startMin)} → {formatClock(a.endMin)}</span>}
         <span className="tl-act-state">{stateText}{a.shiftedBy !== 0 ? ` · moved ${a.shiftedBy > 0 ? 'later' : 'earlier'}` : ''}</span>
       </button>
     </>
