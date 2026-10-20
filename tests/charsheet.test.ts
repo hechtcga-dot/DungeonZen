@@ -39,6 +39,26 @@ describe('character sheet from notes', () => {
     expect(charSheetPrompt([{ title: 'Sheet', lines: ['AC 15'] }, { title: 'Background', lines: ['Born in a tavern'] }])).toMatch(/File: Sheet[\s\S]*File: Background/)
   })
 
+  it('copies the rest of the sheet one to one: own numbers, uses, inspiration', () => {
+    const a = parseCharSheet(JSON.stringify({
+      name: 'Raph', level: '9', statblock: { dex: 12, con: 16, cha: 18 }, spell_ability: 'cha', spell_save_dc: 20, spell_attack: 12,
+      prof_bonus: 4, initiative: '+1', inspiration: true, skill_adv: { stealth: 'A', Juggling: 'A' },
+      uses: [{ name: 'Sorcery Points', max: 9, used: 1, reset: 'long' }, { name: 'Strength of the Grave', max: 1, used: 0, reset: 'long' }, { name: '', max: 2 }]
+    }))
+    // Proficiency +4 and initiative +1 are what the card works out itself; the spell DC 20 is 4 over 8 + Cha + proficiency.
+    expect(a.attrs).toEqual({
+      inspiration: true, skill_adv: { Stealth: 'A' }, spell_bonus: 4,
+      uses: [{ name: 'Sorcery Points', max: 9, used: 1, reset: 'long' }, { name: 'Strength of the Grave', max: 1, used: 0, reset: 'long' }]
+    })
+    const id = c.applyCharSheet({ entityId: null, ...a, source: 'Test AI', attrs: { ...a.attrs, picture: 'x.png' } })
+    const at = c.sheet(id).entity.attributes
+    expect(at).toMatchObject({ inspiration: true, spell_bonus: 4, skill_adv: { Stealth: 'A' } })
+    expect(at.picture).toBeUndefined()
+    expect(usesOf(at).map((u) => `${u.name} ${u.used}/${u.max}`)).toEqual(['Sorcery Points 1/9', 'Strength of the Grave 0/1'])
+    c.undo()
+    expect(c.importTargets().some((t) => t.id === id)).toBe(false)
+  })
+
   it('makes a new PC card in one undo step, prepared spells ticked', () => {
     const a = parseCharSheet(REPLY)
     const id = c.applyCharSheet({ entityId: null, ...a, source: 'Test AI', fields: a.fields })

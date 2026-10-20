@@ -11,6 +11,8 @@ import type { ImportProgress } from '../../shared/ipc'
 import { useSidePanel } from '../components/Splitter'
 import { Dialog } from '../components/Dialog'
 import { NotesLibrary } from '../components/NotesLibrary'
+import { CharSheetDialog } from '../components/CharSheetDialog'
+import type { NoteDocView } from '../../shared/types'
 
 type Preview = Awaited<ReturnType<typeof call<'import:preview'>>>
 
@@ -58,7 +60,7 @@ export function ImportScreen() {
 
 function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
   const side = useSidePanel('import-side', 'right', 340)
-  const { say, setAiSettingsOpen, aiSettingsOpen } = useBoard()
+  const { act, say, setAiSettingsOpen, aiSettingsOpen } = useBoard()
   const [files, setFiles] = useState<Preview>([])
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState(false)
@@ -90,7 +92,17 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
     const paths = [...e.dataTransfer.files].map((f) => window.dungeonzen.pathForFile(f)).filter(Boolean)
     void add(paths)
   }
-  const usable = files.filter((f) => !f.error)
+  // Character sheets go to Make a character card (the whole sheet onto a PC card), not the card proposals; the DM can read one as notes instead.
+  const [asNotes, setAsNotes] = useState<Set<string>>(new Set())
+  const [sheet, setSheet] = useState<{ ids: string[]; docs: NoteDocView[] } | null>(null)
+  const isSheet = (f: Preview[number]) => f.sheet && !asNotes.has(f.path)
+  const makeCard = async (f: Preview[number]) => {
+    const ids = await act('charsheet:import', { paths: [f.path] })
+    if (!ids?.length) return
+    setFiles((cur) => cur.filter((x) => x.path !== f.path))
+    setSheet({ ids, docs: (await call('notes:screen', undefined)).docs })
+  }
+  const usable = files.filter((f) => !f.error && !isSheet(f))
   const requests = usable.reduce((n, f) => n + f.parts, 0)
   const [clash, setClash] = useState<Array<{ id: string; title: string; originalName: string }> | null>(null)
   const read = async (replace?: Record<string, string>) => {
@@ -125,6 +137,13 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
                 <strong>{f.name}</strong>
                 <span className="ink-muted">{f.error ? f.error : `${f.kind}, ${f.parts} part${f.parts === 1 ? '' : 's'}${f.chars ? `, ${f.chars < 1000 ? f.chars : `${Math.round(f.chars / 1000)}k`} characters` : ''}`}</span>
                 {f.warnings.map((w) => <span key={w} className="field-error">{w}</span>)}
+                {!f.error && f.sheet && (isSheet(f) ? (
+                  <span className="row tight wrap">
+                    <span>A character sheet: it becomes a character card, every stat, skill, action, spell and note.</span>
+                    <button className="ink-button primary-ink" onClick={() => void makeCard(f)}>Make a character card…</button>
+                    <button className="link-button" onClick={() => setAsNotes((s) => new Set(s).add(f.path))}>Read as notes instead</button>
+                  </span>
+                ) : <button className="link-button" onClick={() => setAsNotes((s) => { const n = new Set(s); n.delete(f.path); return n })}>Make a character card instead</button>)}
                 <button className="link-button" onClick={() => setFiles((cur) => cur.filter((x) => x.path !== f.path))}>Remove</button>
               </li>
             ))}
@@ -151,6 +170,7 @@ function Start({ onOpen }: { onOpen(d: ImportDraft): void }) {
             {error && <p className="field-error" role="alert">{error}</p>}
           </div>
         )}
+        {sheet && <CharSheetDialog doc={sheet.docs.find((d) => d.id === sheet.ids[0]) ?? sheet.docs[0]} docs={sheet.docs} ids={sheet.ids} onClose={() => setSheet(null)} />}
         <Dialog title="These notes are already here" open={!!clash} onClose={() => setClash(null)}>
           <p>{clash?.map((n) => n.title).join(', ')} {clash?.length === 1 ? 'is' : 'are'} already in your notes.</p>
           <p className="hint">Replace: the new file becomes the note and the old one stays under Earlier versions (bring it back any time). Keep both: the new file is a separate note.</p>

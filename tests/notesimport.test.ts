@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Campaign } from '../src/main/campaign/campaign'
-import { chunkBlocks, CHUNK_CHARS, docxParagraphs, readNotesFile } from '../src/main/importers/read'
+import { chunkBlocks, CHUNK_CHARS, docxParagraphs, looksLikeCharSheet, readNotesFile } from '../src/main/importers/read'
 import { readZipEntry } from '../src/main/importers/zip'
 import { buildDraft, cardType, extractJson, findDuplicate, linkType, nameLikeness, notesPrompt, parseChunkReply } from '../src/main/importers/notes'
 import { generateText, resolve, type Fetch } from '../src/main/ai/client'
@@ -64,6 +64,21 @@ describe('reading notes files', () => {
     const f = await readNotesFile(join(dir, 'notes.docx'))
     expect(f).toMatchObject({ kind: 'word', name: 'notes.docx' })
     expect(f.chunks).toEqual([{ locator: 'paragraphs 1–3', text: '[¶1] The Old Harbour\n\n[¶2] Ciaf Crol & his crew run the docks.\n\n[¶3] Father Brine rings the bell.' }])
+  })
+
+  it('keeps a Word table row on one line and knows a character sheet', () => {
+    const cell = (...ps: string[]) => `<w:tc>${ps.map((p) => `<w:p><w:r><w:t>${p}</w:t></w:r></w:p>`).join('')}</w:tc>`
+    const row = (...cells: string[]) => `<w:tr>${cells.join('')}</w:tr>`
+    const file = zip({
+      '[Content_Types].xml': '<Types/>',
+      'word/document.xml': `<w:document><w:body><w:p><w:r><w:t>RAPH</w:t></w:r></w:p><w:tbl>${row(cell('LEVEL'), cell('SPELL NAME'), cell('HIT / DC'))}${row(cell('3rd Level'), cell('Fireball'), cell('DEX 20'))}`
+        + `${row(cell('SPELL SAVE DC<w:br/>20'), cell(''), cell('Two', 'lines'))}</w:tbl></w:body></w:document>`
+    })
+    expect(docxParagraphs(file)).toEqual(['RAPH', 'LEVEL | SPELL NAME | HIT / DC', '3rd Level | Fireball | DEX 20', 'SPELL SAVE DC 20 |  | Two lines'])
+    const sheet = 'Tortle Sorcerer • Level 9\nARMOR CLASS | PROF. BONUS\nStrength (STR) | 11\nDexterity (DEX) | 12\nConstitution (CON) | 16\nIntelligence (INT) | 10\nWisdom (WIS) | 10\nCharisma (CHA) | 18\n'
+      + 'Acrobatics | Animal Handling | Arcana | Athletics | Deception | History | Insight | Intimidation | Investigation | Medicine | Nature | Perception | Stealth'
+    expect(looksLikeCharSheet(sheet)).toBe(true)
+    expect(looksLikeCharSheet('The bandits (AC 12, HP 11; STR 11 DEX 12 CON 12 INT 10 WIS 10 CHA 10; Stealth +3, Perception +2) wait at the ford.')).toBe(false)
   })
 
   it('splits long notes into parts and reads text and pictures', async () => {

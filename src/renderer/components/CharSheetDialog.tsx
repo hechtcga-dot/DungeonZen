@@ -4,7 +4,7 @@ import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import { ABILITY_KEYS, readStatBlock, type StatBlock } from '../../shared/statblock'
 import type { IpcOutputs } from '../../shared/ipc'
-import { classLine } from '../../shared/charsheet'
+import { CHAR_ATTRS, classLine, usesOf } from '../../shared/charsheet'
 import type { NoteDocView, SheetView } from '../../shared/types'
 
 type Answer = IpcOutputs['ai:charsheet']
@@ -20,6 +20,11 @@ const sbLine = (sb: StatBlock) => [
   sb.saves && `Saves ${sb.saves}`, sb.skills && `Skills ${sb.skills}`, sb.senses, sb.languages && `Languages ${sb.languages}`,
   sb.traits.length && `${sb.traits.length} features and traits`
 ].filter(Boolean).join(' · ')
+
+/** An extra sheet value for the review ("Sorcery Points 8/9 (long rest)", "Yes", "Stealth A"). */
+const attrText = (k: string, v: unknown): string => k === 'uses' ? usesOf({ uses: v }).map((u) => `${u.name} ${u.max - u.used}/${u.max} (${u.reset} rest)`).join(', ')
+  : k === 'skill_adv' && v && typeof v === 'object' ? Object.entries(v).map(([s, m]) => `${s} ${m === 'A' ? 'advantage' : 'disadvantage'}`).join(', ')
+  : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : k === 'spell_bonus' && typeof v === 'number' ? (v > 0 ? `+${v}` : String(v)) : v == null ? '' : String(v)
 
 /**
  * Notes › a character sheet file › Make a character card: the AI reads the ticked files and copies
@@ -46,7 +51,7 @@ export function CharSheetDialog({ doc, docs, ids, targetId, onClose }: { doc: No
       setTarget(targetId ?? r.match ?? '')
       setKeep(new Set([
         ...Object.keys(r.fields), 'statblock', ...(r.actions.length ? ['actions'] : []), ...(r.level ? ['level'] : []),
-        ...(r.currentHp !== null ? ['currentHp'] : []), ...(r.spellSlots ? ['spellSlots'] : [])
+        ...(r.currentHp !== null ? ['currentHp'] : []), ...(r.spellSlots ? ['spellSlots'] : []), ...Object.keys(r.attrs).map((k) => `attr:${k}`)
       ]))
     } catch (e) { setError((e as Error).message) }
     setBusy(false)
@@ -63,7 +68,8 @@ export function CharSheetDialog({ doc, docs, ids, targetId, onClose }: { doc: No
       level: on('level') ? answer.level : null, currentHp: on('currentHp') ? answer.currentHp : null,
       spellSlots: on('spellSlots') ? answer.spellSlots : null, fields,
       spellAbility: on('actions') ? answer.spellAbility as 'str' | null : null, prepared: on('actions') ? answer.prepared : [],
-      classes: on('level') && answer.classes.length ? answer.classes : null, saveNotes: on('statblock') && answer.saveNotes ? answer.saveNotes : null
+      classes: on('level') && answer.classes.length ? answer.classes : null, saveNotes: on('statblock') && answer.saveNotes ? answer.saveNotes : null,
+      attrs: Object.fromEntries(Object.entries(answer.attrs).filter(([k]) => on(`attr:${k}`)))
     })
     if (id) { say(`${answer.name} filled from the character sheet. Ctrl+Z undoes it.`); onClose(); await openSheet(id) }
   }
@@ -80,7 +86,7 @@ export function CharSheetDialog({ doc, docs, ids, targetId, onClose }: { doc: No
     <Dialog title="Make a character card" open onClose={onClose} wide>
       {!answer ? (
         <div className="dz-form">
-          <p className="hint">The writing AI reads the files you tick (the sheet, a background, notes) and copies them into a character card: stat block, attacks and spells, spell slots, level, hit points and the traits tab. You choose what to keep; nothing changes until then.
+          <p className="hint">The writing AI reads the files you tick (the sheet, a background, notes) and copies them into a character card: stat block, saves and skills, attacks and spells, spell slots, limited uses, Heroic Inspiration, level, hit points and the traits tab. You choose what to keep; nothing changes until then.
             Pictures of a sheet need a model that can see images.</p>
           <fieldset className="field fill-pick">
             <legend>Files with this character</legend>
@@ -117,6 +123,7 @@ export function CharSheetDialog({ doc, docs, ids, targetId, onClose }: { doc: No
           {answer.level && row('level', answer.classes.length ? `Level and classes (${classLine(answer.classes)})` : 'Level', <input aria-label="Level" value={answer.level} onChange={(ev) => setAnswer({ ...answer, level: ev.target.value })} />, nowAttr('level'))}
           {answer.currentHp !== null && row('currentHp', 'Hit points now', <span>{answer.currentHp}</span>, nowAttr('current_hp'))}
           {answer.spellSlots && row('spellSlots', 'Spell slots (levels 1–9)', <span>{answer.spellSlots.join(' · ')}</span>, nowAttr('spell_slots'))}
+          {Object.entries(answer.attrs).map(([k, v]) => row(`attr:${k}`, CHAR_ATTRS[k] ?? k, <span>{attrText(k, v)}</span>, attrText(k, now?.entity.attributes[k])))}
           {Object.entries(answer.fields).map(([k, v]) => row(k, FIELD_LABELS[k] ?? k,
             <textarea aria-label={FIELD_LABELS[k] ?? k} rows={v.length > 90 ? 3 : 1} value={v} onChange={(ev) => setAnswer({ ...answer, fields: { ...answer.fields, [k]: ev.target.value } })} />,
             nowAttr(k)))}

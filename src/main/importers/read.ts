@@ -3,6 +3,7 @@ import { basename, extname } from 'node:path'
 import { readZipEntry } from './zip'
 import { readDocxBlocks } from './docx'
 import { textToBlocks, type Block } from '../../shared/noteDoc'
+import { SKILLS } from '../../shared/statblock'
 
 // Notes import, step 1: read the DM's files on this computer (nothing leaves it yet).
 // Text comes out in chunks with a locator ("paragraphs 4–18", "page 3") so every
@@ -50,19 +51,38 @@ export function chunkBlocks(blocks: string[], unit: 'paragraph' | 'page'): Chunk
 
 const unxml = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
 
-/** Paragraphs of a Word document, headings and table cells included, in order. */
+/** A Word paragraph's visible text (hidden picture details left out). */
+function paraText(p: string): string {
+  return (p.replace(/<w:r[ >](?:(?!<\/w:r>)[\s\S])*?<w:vanish\/>[\s\S]*?<\/w:r>/g, '') // hidden text (picture details)
+    .replace(/<w:tab\/>/g, '\t').replace(/<w:br[^>]*\/>/g, '\n')
+    .match(/<w:t(?:\s[^>]*)?>[^<]*<\/w:t>|\t|\n/g)?.map((t) => (t.startsWith('<') ? unxml(t.replace(/<[^>]+>/g, '')) : t)).join('') ?? '').trim()
+}
+
+/** Paragraphs of a Word document, headings included, in order; a table row is one line, its cells split by " | " (character sheets). */
 export function docxParagraphs(file: Buffer): string[] {
   const xml = readZipEntry(file, 'word/document.xml')
   if (!xml) throw new Error('This Word file has no document text')
-  const body = xml.toString('utf8')
   const out: string[] = []
-  for (const m of body.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)) {
-    const p = m[0].replace(/<w:r[ >](?:(?!<\/w:r>)[\s\S])*?<w:vanish\/>[\s\S]*?<\/w:r>/g, '') // hidden text (picture details)
-      .replace(/<w:tab\/>/g, '\t').replace(/<w:br[^>]*\/>/g, '\n')
-      .match(/<w:t(?:\s[^>]*)?>[^<]*<\/w:t>|\t|\n/g)?.map((t) => (t.startsWith('<') ? unxml(t.replace(/<[^>]+>/g, '')) : t)).join('') ?? ''
-    if (p.trim()) out.push(p.trim())
+  for (const m of xml.toString('utf8').matchAll(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>/g)) {
+    const lines = m[0].startsWith('<w:tbl>')
+      ? [...m[0].matchAll(/<w:tr[ >][\s\S]*?<\/w:tr>/g)].map((tr) => [...tr[0].matchAll(/<w:tc>[\s\S]*?<\/w:tc>/g)]
+        .map((tc) => [...tc[0].matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((p) => paraText(p[0])).join(' ').replace(/\s*\n\s*/g, ' ').trim()).join(' | '))
+      : [paraText(m[0])]
+    out.push(...lines.filter((l) => l.replace(/[|\s]/g, '')))
   }
   return out
+}
+
+/**
+ * A character sheet rather than campaign notes: most ability names, most skills, and a
+ * player-character word (proficiency bonus, level, hit dice, inspiration, death saves).
+ */
+export function looksLikeCharSheet(text: string): boolean {
+  const t = text.toLowerCase()
+  const abilities = Math.max(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].filter((a) => t.includes(a)).length,
+    ['str', 'dex', 'con', 'int', 'wis', 'cha'].filter((a) => new RegExp(`\\b${a}\\b`).test(t)).length)
+  const skills = SKILLS.filter(([s]) => t.includes(s.toLowerCase())).length
+  return abilities >= 5 && skills >= 10 && /proficiency bonus|prof\.? bonus|\blevel \d|hit dice|inspiration|death saves|spell save dc|armor class/.test(t)
 }
 
 /**

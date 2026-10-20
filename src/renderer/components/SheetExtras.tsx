@@ -253,6 +253,7 @@ export function SpellsTable({ sheet, sb, prof, slots }: { sheet: SheetView; sb: 
   const [q, setQ] = useState('')
   const caster = castingAbility(e.attributes, sb)
   const mod = abilityModifier(sb[caster])
+  const bonus = typeof e.attributes.spell_bonus === 'number' ? e.attributes.spell_bonus : 0
   const prepared = new Set(Array.isArray(e.attributes.prepared) ? (e.attributes.prepared as string[]) : [])
   const used = Array.from({ length: 9 }, (_, k) => Math.max(0, Number((Array.isArray(e.attributes.slots_used) ? e.attributes.slots_used as unknown[] : [])[k]) || 0))
   const spells = sheet.abilities.filter((a) => a.kind === 'SPELL')
@@ -270,7 +271,11 @@ export function SpellsTable({ sheet, sb, prof, slots }: { sheet: SheetView; sb: 
             {ABILITY_KEYS.map((k) => <option key={k} value={k}>{ABILITY_FULL[k]} ({formatModifier(abilityModifier(sb[k]))})</option>)}
           </select>
         </div>
-        {prof !== null && <div className="cs-spell-nums"><span><b>{formatModifier(mod)}</b>Modifier</span><span><b>{formatModifier(mod + prof)}</b>Spell attack</span><span><b>{8 + mod + prof}</b>Save DC</span></div>}
+        {prof !== null && <div className="cs-spell-nums"><span><b>{formatModifier(mod)}</b>Modifier</span><span><b>{formatModifier(mod + prof + bonus)}</b>Spell attack</span><span><b>{8 + mod + prof + bonus}</b>Save DC</span></div>}
+        <div className="field cs-inline" title="Magic items and the like: added to the spell attack and save DC">
+          <CommitField id={`spell-bonus-${e.id}`} label="Spell bonus" value={bonus ? formatModifier(bonus) : ''} placeholder="+0"
+            onCommit={(v) => { const n = Number.parseInt(v.replace('−', '-'), 10); setAttr({ spell_bonus: Number.isFinite(n) && n ? Math.max(-10, Math.min(10, n)) : null }) }} />
+        </div>
       </div>
       <div className="row tight wrap">
         <input className="cs-search" aria-label="Search spells" placeholder="Search spells…" value={q} onChange={(ev) => setQ(ev.target.value)} />

@@ -30,7 +30,7 @@ export const Blocks = z.array(Block).max(20000)
 export function blockLines(blocks: Block[]): string[] {
   const runText = (runs: Run[]) => runs.map((r) => r.text).join('')
   return blocks.map((b) => (b.kind === 'pic' || b.kind === 'stat' ? '' : b.kind === 'table'
-    ? b.rows.map((row) => row.map(runText).join(' | ')).join('\n')
+    ? b.rows.map((row) => row.map((c) => runText(c).replace(/\s*\n\s*/g, ' ')).join(' | ')).join('\n')
     : `${b.kind === 'bullet' ? '• ' : b.kind === 'number' ? '- ' : ''}${runText(b.runs)}`)).filter((l) => l.trim())
 }
 

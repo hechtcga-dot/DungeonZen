@@ -148,6 +148,7 @@ export const ipcInputs = {
   'backups:chooseFolder': z.void(),
   'backups:resetFolder': z.void(),
   'charsheet:importDialog': z.void(),
+  'charsheet:import': z.object({ paths: z.array(z.string().max(2000)).min(1).max(10) }),
   'campaign:openFolder': z.object({ sub: z.enum(['', 'assets', 'maps', 'styles', 'pictures', 'notes', 'board', 'encounters', 'exports', 'outlines']) }),
   'campaign:info': z.void(),
   'campaign:save': z.void(),
@@ -201,7 +202,7 @@ export const ipcInputs = {
     spellSlots: z.array(z.number().int().min(0).max(9)).length(9).nullable(), fields: z.record(z.string().max(40), z.string().max(20000)),
     spellAbility: z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha']).nullable(), prepared: z.array(z.string().max(120)).max(80),
     classes: z.array(z.object({ name: z.string().max(60), subclass: z.string().max(80), level: z.number().int().min(0).max(20) })).max(6).nullable(),
-    saveNotes: z.string().max(500).nullable()
+    saveNotes: z.string().max(500).nullable(), attrs: z.record(z.string().max(40), z.unknown()).optional()
   }),
   'entity:pictureDialog': z.object({ entityId: Id }),
   'entity:picturePrompt': z.object({ entityId: Id }),
@@ -594,6 +595,7 @@ export interface IpcOutputs {
   'backups:chooseFolder': string | null
   'backups:resetFolder': void
   'charsheet:importDialog': string[]
+  'charsheet:import': string[]
   'campaign:openFolder': void
   'campaign:info': CampaignInfo | null
   'campaign:save': string
@@ -635,6 +637,7 @@ export interface IpcOutputs {
   'ai:charsheet': {
     name: string; level: string; currentHp: number | null; spellSlots: number[] | null; fields: Record<string, string>
     spellAbility: string | null; prepared: string[]; classes: Array<{ name: string; subclass: string; level: number }>; saveNotes: string
+    attrs: Record<string, unknown>
     statblock: StatBlock; actions: Array<{ name: string; kind: z.infer<typeof AbilityKind>; description: string }>; source: string
     /** PC and NPC cards it could go on; `match` is the one whose name fits best. */
     targets: Array<{ id: string; name: string; type: string }>; match: string | null
@@ -699,7 +702,7 @@ export interface IpcOutputs {
   'ai:fill': { fields: Record<string, string>; srd: { key: string; name: string; cr: string } | null; source: string }
   'card:applyFill': string[]
   'import:chooseFiles': string[]
-  'import:preview': Array<{ path: string; name: string; kind: string; parts: number; chars: number; warnings: string[]; error: string | null }>
+  'import:preview': Array<{ path: string; name: string; kind: string; parts: number; chars: number; warnings: string[]; error: string | null; sheet: boolean }>
   'import:read': ImportDraft
   'notes:screen': NotesScreenView
   'notes:popout': void

@@ -3,6 +3,8 @@ import { basename, extname, join } from 'node:path'
 import { and, eq } from 'drizzle-orm'
 import { ability, storyline, storylineEntity } from '../db/schema'
 import { readStatBlock, StatBlock } from '../../shared/statblock'
+import { EntityAttributes } from '../../shared/schemas'
+import { CHAR_ATTRS } from '../../shared/charsheet'
 import { scaleToCr } from '../../shared/crscale'
 import { part } from './part'
 import { ASSETS_DIR, SrdCopy, MAP_EXTENSIONS, storedExt, NewAbility } from './common'
@@ -62,7 +64,10 @@ export const fillPart = part({
     entityId: string | null; name: string; source: string; statblock: StatBlock | null; actions: NewAbility[] | null
     level: string | null; currentHp: number | null; spellSlots: number[] | null; fields: Record<string, string>
     spellAbility?: string | null; prepared?: string[]; classes?: Array<{ name: string; subclass: string; level: number }> | null; saveNotes?: string | null
+    /** More of the sheet (Heroic Inspiration, limited uses, own numbers): only the keys in CHAR_ATTRS. */
+    attrs?: Record<string, unknown>
   }): string {
+    const more = EntityAttributes.parse(Object.fromEntries(Object.entries(input.attrs ?? {}).filter(([k]) => k in CHAR_ATTRS)))
     const e = input.entityId ? this.entityRow(input.entityId) : null
     let id = input.entityId ?? ''
     this.log.run(`${e ? 'Filled' : 'Made'} ${e?.name ?? input.name} from a character sheet (AI)`, (w) => {
@@ -80,6 +85,7 @@ export const fillPart = part({
       if (input.spellAbility) attrs.spell_ability = input.spellAbility
       if (input.classes?.length) attrs.classes = input.classes
       if (input.saveNotes) attrs.save_notes = input.saveNotes
+      Object.assign(attrs, more)
       attrs.ai_filled = filled
       if (!e) {
         id = this.insertEntity(w, { boardId: this.globalBoard().id, type: 'PC', name: input.name, position: this.freeGlobalSpot(), attributes: attrs })

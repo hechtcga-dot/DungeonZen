@@ -56,6 +56,7 @@ export const EntityAttributes = z.object({
   ...Object.fromEntries(TEXT_KEYS.map((k) => [k, text])) as Record<(typeof TEXT_KEYS)[number], typeof text>,
   ...Object.fromEntries(COUNT_KEYS.map((k) => [k, count])) as Record<(typeof COUNT_KEYS)[number], typeof count>,
   prof_bonus: z.number().int().min(-10).max(30).nullable().optional(),
+  spell_bonus: z.number().int().min(-10).max(10).nullable().optional(),
   encounter: flag, inspiration: flag, generated: flag, link_name: flag
 }).catchall(z.unknown())
 export type EntityAttributes = Record<string, unknown>

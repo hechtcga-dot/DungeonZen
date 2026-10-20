@@ -21,6 +21,8 @@ export function AttackPicker({ sheet, tab: start, onClose }: { sheet: SheetView;
   const e = sheet.entity
   const sb = readStatBlock(e.attributes.statblock) ?? emptyStatBlock()
   const prof = profFor(e.type, e.attributes, sb).prof ?? 2
+  // Spell bonus on the Spells tab (items): on the spell attack and save DC.
+  const spellBonus = typeof e.attributes.spell_bonus === 'number' ? e.attributes.spell_bonus : 0
   const charLevel = Number.parseInt(String(e.attributes.level ?? ''), 10) || 1
   const [tab, setTab] = useState<PickerTab>(start)
   const [data, setData] = useState<SrdAttacks | null>(cache)
@@ -42,7 +44,7 @@ export function AttackPicker({ sheet, tab: start, onClose }: { sheet: SheetView;
   // Every ticked one, also those the current search hides.
   const made = () => tab === 'weapons'
     ? (data?.weapons ?? []).filter((w) => pick.has(w.key)).map((w) => buildAttack(weaponSpec(w, sb, prof, { proficient, magic })))
-    : (data?.spells ?? []).filter((s) => pick.has(s.key)).map((s) => buildAttack(spellSpec(s, castMod, prof, charLevel)))
+    : (data?.spells ?? []).filter((s) => pick.has(s.key)).map((s) => buildAttack(spellSpec(s, castMod, prof + spellBonus, charLevel)))
   const add = async (list: ReturnType<typeof buildAttack>[]) => {
     if (!list.length) return
     const ok = await act('ability:addMany', { entityId: e.id, abilities: list })

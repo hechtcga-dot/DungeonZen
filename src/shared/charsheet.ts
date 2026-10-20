@@ -2,6 +2,12 @@
 // uses, companions, and the columns of the Actions and Spells tables. All kept in
 // entity.attributes; pure helpers here, read by the sheet, the desk and rests.
 
+/** Labels of `attrs` for the review. */
+export const CHAR_ATTRS: Record<string, string> = {
+  inspiration: 'Heroic Inspiration', uses: 'Limited uses', skill_adv: 'Advantage on skills', initiative: 'Initiative', prof_bonus: 'Proficiency bonus',
+  spell_bonus: 'Spell bonus (save DC and attack, from items)', temp_hp: 'Temporary hit points', xp: 'Experience points', exhaustion: 'Exhaustion'
+}
+
 export interface ClassLevel { name: string; subclass: string; level: number }
 export interface LimitedUse { name: string; max: number; used: number; reset: 'short' | 'long' }
 

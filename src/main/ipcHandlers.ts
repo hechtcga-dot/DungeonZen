@@ -33,7 +33,7 @@ import { DUNGEON_ZEN_SCRIPT, IMPORT_HANDOUT, roll20Character, roll20Data } from 
 import { boardDocument, letterDocument, sheetPage, sheetsDocument } from './exporters/pages'
 import { FOUNDRY_README, foundryActor, foundryJournal, foundryScene, handoutHtml, OWLBEAR_README, owlbearMapName } from './exporters/vtt'
 import { renderJpg, renderPdf } from './exporters/render'
-import { chunkBlocks, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
+import { chunkBlocks, looksLikeCharSheet, NOTE_EXTENSIONS, noteBlocks, readNotesFile, type NotesFile } from './importers/read'
 import { writeDocx } from './importers/docx'
 import { blockLines, changedLines, headingsOf, textToBlocks, type Block } from '../shared/noteDoc'
 import { blockRuns, cardMentions, makeMatcher, snippet } from '../shared/noteLinks'
@@ -543,6 +543,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     return { ...answer, source: `${r.info.name} · ${r.model || 'default model'}`, targets, match: scored[0]?.id ?? null }
   })
   // Character sheet files (PDF, pictures, Word, text): copied into the campaign's notes, then read by the AI.
+  const addSheets = async (paths: string[]) => {
+    for (const p of paths) await readNotesFile(p) // the same checks as notes (size, scanned PDF)
+    return paths.map((p) => current().addNoteDoc(p))
+  }
   handle('charsheet:importDialog', async () => {
     const win = getWindow()
     const options = {
@@ -550,10 +554,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
       filters: [{ name: 'Character sheets (PDF, pictures, Word, text)', extensions: NOTE_EXTENSIONS.map((e) => e.slice(1)) }]
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
-    if (result.canceled) return []
-    for (const p of result.filePaths) await readNotesFile(p) // the same checks as notes (size, scanned PDF)
-    return result.filePaths.map((p) => current().addNoteDoc(p))
+    return result.canceled ? [] : addSheets(result.filePaths)
   })
+  // Import notes › a file that looks like a character sheet › Make a character card.
+  handle('charsheet:import', ({ paths }) => addSheets(paths))
   handle('entity:applyCharSheet', (input) => current().applyCharSheet(input))
   handle('entity:pictureDialog', async ({ entityId }) => {
     const win = getWindow()
@@ -684,9 +688,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('import:preview', async ({ paths }) => Promise.all(paths.map(async (path) => {
     try {
       const f = await readNotesFile(path)
-      return { path, name: f.name, kind: f.kind, parts: f.chunks.length, chars: f.chunks.reduce((n, c) => n + c.text.length, 0), warnings: f.warnings, error: null }
+      return { path, name: f.name, kind: f.kind, parts: f.chunks.length, chars: f.chunks.reduce((n, c) => n + c.text.length, 0), warnings: f.warnings, error: null, sheet: looksLikeCharSheet(f.chunks.map((c) => c.text).join('\n')) }
     } catch (e) {
-      return { path, name: basename(path), kind: 'unknown', parts: 0, chars: 0, warnings: [], error: (e as Error).message }
+      return { path, name: basename(path), kind: 'unknown', parts: 0, chars: 0, warnings: [], error: (e as Error).message, sheet: false }
     }
   })))
   handle('import:cancel', () => { importCancel = true })
