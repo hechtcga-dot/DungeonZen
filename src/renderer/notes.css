@@ -23,16 +23,17 @@
 .nb.no-right { grid-template-columns: var(--nb-left, 260px) minmax(0, 1fr) 0; }
 .nb.no-left.no-right { grid-template-columns: 0 minmax(0, 1fr) 0; }
 .nb.no-right .nb-right { display: none; }
-.nb button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; min-height: 0; padding: 0; border-radius: 4px; box-shadow: none; }
+.nb button:where(:not(.dz-dialog *)) { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; min-height: 0; padding: 0; border-radius: 4px; box-shadow: none; }
 .nb button:focus-visible, .nb a:focus-visible { outline: 2px solid var(--nb-head); outline-offset: 2px; }
-.nb input, .nb select { font: inherit; color: var(--nb-ink); background: var(--nb-page); border: 1px solid var(--nb-line); border-radius: 4px; }
+.nb input:where(:not(.dz-dialog *)), .nb select:where(:not(.dz-dialog *)) { font: inherit; color: var(--nb-ink); background: var(--nb-page); border: 1px solid var(--nb-line); border-radius: 4px; }
 
 /* top bar */
 .nb-top { grid-column: 1 / -1; display: flex; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--nb-line); background: var(--nb-panel); }
 .nb-nav { display: flex; align-items: center; gap: 2px; padding: 0 8px; border-right: 1px solid var(--nb-line); }
 .nb-nav button { width: 28px; height: 28px; color: var(--nb-muted); }
 .nb-nav button:hover:not(:disabled) { background: var(--nb-hover); color: var(--nb-ink); }
-.nb-nav button:disabled { opacity: 0.35; cursor: default; }
+.nb-nav button:disabled { cursor: default; }
+.nb-nav button:not(:disabled) { color: var(--nb-ink); }
 .nb-tabs { display: flex; flex: 1; min-width: 0; overflow-x: auto; }
 .nb-tab { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 14px; border-right: 1px solid var(--nb-line); white-space: nowrap; color: var(--nb-muted); cursor: pointer; max-width: 260px; }
 .nb-tab > span { overflow: hidden; text-overflow: ellipsis; }

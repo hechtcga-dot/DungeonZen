@@ -134,7 +134,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .start-panel button { color: var(--ink); border-color: #7a6440; }
 .start-panel .recent-path { color: var(--ink-muted); }
 .start-panel button.primary { color: #fbe9d0; background: radial-gradient(circle at 40% 35%, #b5392d, var(--wax) 60%, #5e1812); border-color: #4a120d; }
-.start-panel button.primary:disabled { color: var(--parchment); background: #a89880; border-color: #a89880; }
+.start-panel button.primary:disabled { color: var(--parchment); background: #7a6a4c; border-color: #7a6a4c; }
 
 /* ---- messages ---- */
 .toast { color: var(--ink); background: var(--parchment-light); border: 2px solid #3b2a14; font-weight: 500; }
@@ -171,7 +171,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
   background: rgba(232, 217, 176, 0.97); border-right: 2px solid #6b5636; box-shadow: 4px 0 8px rgba(60, 35, 10, 0.15);
 }
 .tl-lane-row { display: flex; align-items: center; gap: 8px; }
-.desk-theme .tl-lane-title { min-height: 0; height: auto; max-width: 100%; line-height: 1.15; white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.desk-theme .tl-lane-title { min-height: 0; height: auto; max-width: 100%; line-height: 1.15; white-space: normal; overflow-wrap: anywhere; }
 .tl-lane-title { min-height: 32px; padding: 0; border: 0; background: transparent; font-family: var(--display); font-size: 18px; text-align: left; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .desk-theme .tl-lane-title:hover:not(:disabled) { background: transparent; color: var(--wax); }
 .tl-lane-kind { font-size: 12px; color: var(--ink-muted); }
@@ -307,7 +307,7 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .tl-grip.is-row { top: auto; right: 0; bottom: -4px; left: 0; width: auto; height: 8px; cursor: row-resize; }
 .tl-grip:hover { background: rgba(138, 106, 18, 0.35); }
 .tl-lane.is-thin .tl-lane-head { padding: 2px 8px; justify-content: center; }
-.tl-fold { min-height: 0; padding: 0 2px; border: 0; background: transparent; color: var(--ink); font-family: var(--display); font-size: 15px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tl-fold { min-height: 0; padding: 0 2px; border: 0; background: transparent; color: var(--ink); font-family: var(--display); font-size: 15px; text-align: left; white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .desk-theme .tl-fold { min-height: 0; height: auto; }
 .tl-encounters { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .tl-enc { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 6px; border: 1px solid #8a7350; border-radius: 10px; font-size: 13px; }
@@ -316,10 +316,11 @@ button.brass.icon { min-width: 44px; padding: 0; display: inline-flex; align-ite
 .tl-times { align-items: flex-start; gap: 16px; }
 
 /* ---- one header on every screen (3.1) ---- */
-.screen-head { flex-wrap: nowrap; min-height: 64px; padding: 8px 16px; }
-.screen-title { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; max-width: 34%; }
-.screen-eyebrow { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-style: italic; font-size: 13px; color: #d6c296; white-space: nowrap; overflow: hidden; }
-.screen-title h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--parchment-light); text-shadow: 0 2px 0 #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A crowded top bar goes onto a second row: the title, date and clock are never cut (a long map name on a small window). */
+.screen-head { flex-wrap: wrap; row-gap: 6px; min-height: 64px; padding: 8px 16px; }
+.screen-title { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; max-width: 100%; }
+.screen-eyebrow { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; font-family: var(--display); font-style: italic; font-size: 13px; color: #d6c296; }
+.screen-title h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--parchment-light); text-shadow: 0 2px 0 #000; overflow-wrap: anywhere; }
 .screen-title h1 input { font-size: inherit; }
 .screen-find {
   flex: 0 1 300px; min-width: 150px; min-height: 40px; container-type: inline-size; display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left;

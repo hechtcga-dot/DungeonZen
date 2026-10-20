@@ -843,6 +843,22 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     `<details>` and inputs skipped). Fixed with it: side panel fold and Notes tab buttons were faded, Adventure
     `primary-ink` buttons were cream on cream, Adventure screen titles cut at the bottom, Timeline acts cut their
     words (now wrap; acts under 160 px leave out the times, which stay on hover and in the side panel).
+  - Look checks, round 2 (2026-10-20, owner's screenshots): every screen checked at 1440×900 and 1280×720, Make a
+    character card also at 900×700. Text: clear of every edge it sits in (a side with a border, or a filled box with a
+    border, round corners or a shadow), at least 3 px left and right, up to the nearest scroll box or positioned tag;
+    nothing on top of it (board cards, placed by the DM, and click-through tags left out). Buttons: words readable on
+    the real pixels behind them (`capturePage`, painted parchment included), ≥ 3:1, unavailable ones too. Centring
+    (`layoutProblems`): things stacked in a box share one alignment (headings, form fields, lists, button rows left
+    out). Sizing: a picture alone in a frame fills ≥ 90 % of it, no picture stretched, icons of one kind in one group
+    the same size. Map screen: the map opens centred in what you can see of its frame (`mapCentred`). Smoke campaign
+    gets a wide map, a card in History, a long storyline name and seven notes files with long names.
+    Fixed with it: hour panel time ran past the panel (goes under the picture, centred with it); storyline title under
+    its edit button (Adventure); rail icons shrank in a short window (rail buttons never shrink; compact rail under
+    820 px high, thin scrollbar); map frame grew below the screen (map row fits the screen, side list scrolls; no
+    580 px minimum), so the map opened off-centre; top bar wraps to a second row instead of cutting title/date/clock;
+    Adventure outline/ghost buttons on parchment (Open full sheet, A–Z, Type, Select all) were cream on cream;
+    dialogs opened from Notes lost their button styles; link buttons in dialogs had a pale box; unavailable main
+    buttons and Notes arrows too faint; Timeline lane names whole (no 2-line cut).
     `DZ_USER_DATA` env sets the userData folder (smoke only).
 
 - 3.0 M1 code structure (2026-10-19):

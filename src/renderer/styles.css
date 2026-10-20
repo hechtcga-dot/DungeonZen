@@ -351,10 +351,11 @@ input.big { min-height: 48px; font-size: 16px; background: var(--panel); border-
 .dz-form { display: flex; flex-direction: column; gap: 14px; }
 .dz-dialog input, .dz-dialog select { color: #2a1f12; background: rgba(255, 250, 236, 0.85); border-color: #8a7350; }
 .dz-dialog button { color: #2a1f12; background: rgba(255, 248, 228, 0.6); border-color: #7a6440; }
+.dz-dialog button.link-button { background: transparent; }
 .dz-dialog button:hover:not(:disabled) { background: #fffaf0; border-color: #2a1f12; }
 .dz-dialog button.primary { color: #fbe9d0; background: var(--wax); border-color: #4a120d; }
 .dz-dialog button.primary:hover:not(:disabled) { background: #a5352a; border-color: #4a120d; }
-.dz-dialog button.primary:disabled { color: var(--parchment); background: #a89880; border-color: #a89880; }
+.dz-dialog button.primary:disabled { color: var(--parchment); background: #7a6a4c; border-color: #7a6a4c; }
 .dz-dialog button.danger { color: var(--wax); border-color: var(--wax); background: transparent; }
 .dz-dialog .hint { color: #5a4a32; }
 .dz-dialog :focus-visible { outline-color: var(--wax); }
