@@ -238,7 +238,7 @@ function Editor({ e, v, sketchBig, onSketchSmall }: { e: EncounterView; v: Encou
           <label htmlFor="enc-pick">Add a card</label>
           <div className="row tight">
             <select id="enc-pick" value={pick} onChange={(ev) => setPick(ev.target.value)}>
-              <option value="">Choose a monster or NPC card…</option>
+              <option value="">Choose a card…</option>
               {v.fighters.map((f) => <option key={f.id} value={f.id}>{f.name}{f.cr ? ` (CR ${f.cr})` : ''}</option>)}
             </select>
             <input className="short" type="number" min={1} max={100} value={pickCount} aria-label="How many" onChange={(ev) => setPickCount(Math.max(1, Number(ev.target.value) || 1))} />

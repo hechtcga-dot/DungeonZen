@@ -57,19 +57,19 @@ export function EncounterBuilder({ className, onKept }: { className: string; onK
       <span className="ink-muted eb-adapt">{v.adaptation.explain}</span>
       <label className="field-label" htmlFor="eb-where">Where</label>
       <select id="eb-where" className="ink-select" value={where} onChange={(e) => setWhere(e.target.value)}>
-        <option value="">{v.partyPlace ? `${v.partyPlace.name} (party location)` : 'Where the party is (not placed)'}</option>
+        {/* Short choices: the side column is narrow and a drop-down cannot wrap (playtest 2026-10-21). */}
+        <option value="">{v.partyPlace ? v.partyPlace.name : 'Where the party is'}</option>
         {v.places.filter((p) => p.id !== v.partyPlace?.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         <option value={CUSTOM}>Custom location…</option>
       </select>
+      {where === '' && <span className="ink-muted">{v.partyPlace ? 'Where the party is now.' : 'The party is not on a map yet.'}</span>}
       {where === CUSTOM && <input aria-label="Custom location" value={custom} maxLength={200} placeholder="Open field, mountain region, abandoned village…" onChange={(e) => setCustom(e.target.value)} />}
-      <div className="row tight wrap">
-        <select aria-label="Difficulty" className="ink-select" value={difficulty} onChange={(e) => setDifficulty(e.target.value as typeof difficulty)}>
-          <option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option>
-        </select>
-        <select aria-label="Creature type" className="ink-select" value={ctype} onChange={(e) => setCtype(e.target.value)}>
-          {CREATURE_TYPES.map((t) => <option key={t} value={t}>{t ? t[0].toUpperCase() + t.slice(1) : 'Any creature'}</option>)}
-        </select>
-      </div>
+      <select aria-label="Difficulty" className="ink-select" value={difficulty} onChange={(e) => setDifficulty(e.target.value as typeof difficulty)}>
+        <option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option>
+      </select>
+      <select aria-label="Creature type" className="ink-select" value={ctype} onChange={(e) => setCtype(e.target.value)}>
+        {CREATURE_TYPES.map((t) => <option key={t} value={t}>{t ? t[0].toUpperCase() + t.slice(1) : 'Any creature'}</option>)}
+      </select>
       <label className="field-label" htmlFor="eb-include">Include these cards</label>
       {include.length > 0 && (
         <div className="row tight wrap">
@@ -87,7 +87,7 @@ export function EncounterBuilder({ className, onKept }: { className: string; onK
         </div>
       )}
       <select id="eb-include" className="ink-select" value="" onChange={(e) => { const id = e.target.value; if (id && !include.some((x) => x.entityId === id)) setInclude([...include, { entityId: id, count: 1 }]) }}>
-        <option value="">Add an NPC or monster card…</option>
+        <option value="">Add a card…</option>
         {v.fighters.filter((f) => !include.some((x) => x.entityId === f.id)).map((f) => <option key={f.id} value={f.id}>{f.name}{f.cr ? ` (CR ${f.cr})` : ''}</option>)}
       </select>
       <label className="field-label" htmlFor="eb-desc">What happens here (for the AI)</label>

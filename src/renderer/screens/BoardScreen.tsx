@@ -275,31 +275,43 @@ function BoardLayout() {
     return freeSpot({ x: Math.round(mid.x), y: Math.round(mid.y) }, view.items.filter((i) => i.kind !== 'image'))
   }, [screenToFlowPosition, view.items])
 
+  // The middle of the view can be taken: the free spot may lie outside it. Pan there (same zoom) so the new card is in sight.
+  const reveal = useCallback((p: { x: number; y: number }) => {
+    const rect = paneRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const a = flowToScreenPosition(p), b = flowToScreenPosition({ x: p.x + 220, y: p.y + 140 })
+    if (a.x < rect.left || a.y < rect.top || b.x > rect.right || b.y > rect.bottom) void setCenter(p.x + 110, p.y + 70, { zoom: getViewport().zoom, duration: 300 })
+  }, [flowToScreenPosition, setCenter, getViewport])
+
   const addCard = useCallback(async (type: EntityType, at?: { x: number; y: number }) => {
     setCardMenu(false)
     // A new card of a type that is switched off turns its type back on, so it shows.
     const off = useBoardPrefs.getState().hiddenTypes
     if (off.includes(type)) useBoardPrefs.getState().set({ hiddenTypes: off.filter((x) => x !== type) })
+    const position = at ?? centre()
     const entity = await act('entity:create', {
-      boardId: view.board.id, type, name: `New ${ENTITY_LABELS[type]}`, position: at ?? centre()
+      boardId: view.board.id, type, name: `New ${ENTITY_LABELS[type]}`, position
     })
     if (entity) {
+      reveal(position)
       select({ kind: 'entity', id: entity.id })
       freshCard(entity.id)
       setPanel('inspector')
       setTimeout(() => { const el = document.getElementById(`entity-${entity.id}-name`) as HTMLInputElement | null; el?.focus(); el?.select() }, 50)
     }
-  }, [act, view.board.id, centre, select, setPanel])
+  }, [act, view.board.id, centre, select, setPanel, reveal])
 
   const addNote = useCallback(async (at?: { x: number; y: number }) => {
-    const item = await act('note:create', { boardId: view.board.id, position: at ?? centre(), text: '' })
+    const position = at ?? centre()
+    const item = await act('note:create', { boardId: view.board.id, position, text: '' })
     if (item) {
+      reveal(position)
       select({ kind: 'note', id: item.id })
       freshNote(item.id)
       setPanel('inspector')
       setTimeout(() => document.getElementById(`note-${item.id}`)?.focus(), 50)
     }
-  }, [act, view.board.id, centre, select, setPanel])
+  }, [act, view.board.id, centre, select, setPanel, reveal])
 
   const addPicture = useCallback(async (mapId: string | null, at?: { x: number; y: number }, file?: string) => {
     const item = await act('boardImage:add', { boardId: view.board.id, mapId, position: at ?? centre(), file })

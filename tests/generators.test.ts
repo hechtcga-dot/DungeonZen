@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { encounterBudget, fillTavern, matchMonsters, MAX_ROLLED, rollCharacter, seededRng, suggestEncounter, xpForCr } from '../src/main/generators'
+import { encounterBudget, fillTavern, matchMonsters, MAX_ROLLED, maxCreatures, rollCharacter, seededRng, suggestEncounter, suggestThemed, xpForCr } from '../src/main/generators'
 import { srdMonsterIndex } from '../src/main/srd'
 
 describe('on-the-fly generators', () => {
@@ -55,5 +55,22 @@ describe('on-the-fly generators', () => {
     expect(tooDear.groups).toEqual([])
     expect(tooDear.note).toMatch(/Sphinx.*more than the 75 XP budget/)
     expect(suggestEncounter(seededRng(1), monsters, 1, 1, 'moderate', 'zzqx')!.note).toBe('No SRD monster mentions “zzqx”.')
+  })
+
+  it('keeps a small party\'s fight small: at most twice the characters (at least 4), stronger monsters first', () => {
+    const monsters = srdMonsterIndex()
+    expect(maxCreatures(2)).toBe(4)
+    expect(maxCreatures(5)).toBe(10)
+    for (let s = 0; s < 40; s++) {
+      const e = suggestEncounter(seededRng(s), monsters, 1, 2, 'moderate')!
+      expect(e.groups.reduce((n, g) => n + g.count, 0)).toBeLessThanOrEqual(4)
+      const t = suggestThemed(seededRng(s), monsters, 1, 2, 'moderate', { lands: ['grassland'] })
+      if (t) expect(t.groups.reduce((n, g) => n + g.count, 0)).toBeLessThanOrEqual(4)
+    }
+    // Jackals (10 XP) and wolves (50 XP) for 150 XP: wolves, not a pack of 15 jackals.
+    const pool = monsters.filter((m) => m.name === 'Jackal' || m.name === 'Wolf')
+    const e = suggestEncounter(seededRng(2), pool, 1, 2, 'moderate')!
+    expect(e.groups.find((g) => g.name === 'Wolf')?.count).toBeGreaterThan(0)
+    expect(e.totalXp).toBeGreaterThanOrEqual(100)
   })
 })

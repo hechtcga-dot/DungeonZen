@@ -999,3 +999,8 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     time, screenshot; What to improve: failures, slow steps, look findings, cut-off drop-downs, cards placed out of
     sight, crowded SRD suggestions; what is not covered) and the played campaign folder (demo, without backups).
   - Shared launch code: `tests/e2e/app.mjs` (launch, window size and scale, screenshots, PNG maker).
+- 3.4.0 playtest fixes (2026-10-21): BoardScreen `reveal` pans to a new card/note placed out of sight (same zoom);
+  `maxCreatures` + `strongEnough` in `generators.ts` (both suggest functions); `createEncounter` with no locationId
+  takes `partyPlace()`; SheetScreen PC opens on `sheet`; `Toast` in TopBar renders in `.screen-gap` (App's fixed one
+  hidden by `body:has(.toast.in-bar)`); `button.brass:disabled` dark words; fold controls skip `.guide-screen`.
+  Smoke `faintButtons` retries the first `capturePage` once (UnknownVizError on CI right after start).

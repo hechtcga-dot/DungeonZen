@@ -105,14 +105,16 @@ export const encountersPart = part({
     }
   },
 
+  /** No place given (undefined, not null): where the party is now, as the builder's Suggest assumes (playtest 2026-10-21). */
   createEncounter(input: { name: string; locationId?: string | null }): string {
+    const locationId = input.locationId === undefined ? this.partyPlace()?.id ?? null : input.locationId
     let id = ''
     this.log.run(`Planned encounter ${input.name}`, (w) => {
       id = this.insertEntity(w, {
         boardId: this.globalBoard().id, type: 'ENCOUNTER', name: input.name, position: this.freeGlobalSpot(), place: false,
         attributes: { target: 'moderate', tactics: '', summary: '' }
       })
-      if (input.locationId) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: input.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
+      if (locationId) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
     })
     return id
   },

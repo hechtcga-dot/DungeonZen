@@ -56,7 +56,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
   const file = sheet.entity.type === 'PC' || sheet.entity.type === 'NPC' ? fileHook : null
   const creature = HAS_STATBLOCK.has(sheet.entity.type)
   const building = sheet.entity.type === 'BUILDING'
-  const [tab, setTab] = useState<Tab>(building ? 'building' : sheet.entity.type === 'MONSTER' ? 'fight' : 'traits')
+  // A player character opens on its character sheet: hit points, scores and level first (playtest 2026-10-21).
+  const [tab, setTab] = useState<Tab>(building ? 'building' : sheet.entity.type === 'MONSTER' ? 'fight' : sheet.entity.type === 'PC' ? 'sheet' : 'traits')
   const [buildingFill, setBuildingFill] = useState(false)
   const [exporting, setExporting] = useState<'roll20' | 'print' | null>(null)
   /** Fill blanks with AI: null = closed; otherwise the fields to offer (empty list = every empty field). */

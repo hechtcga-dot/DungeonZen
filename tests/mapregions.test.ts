@@ -160,6 +160,21 @@ describe('map regions and the party token', () => {
   })
 })
 
+describe('a new encounter is where the party is (playtest 2026-10-21)', () => {
+  it('takes the party\'s place unless told otherwise', () => {
+    const town = c.createRegion({ mapId, polygon: sq(0, 0, 200), newName: 'Frostholm' })
+    const townId = c.mapScreen(mapId).regions.find((r) => r.id === town)!.locationId
+    const before = c.createEncounter({ name: 'Before they arrive' })
+    c.moveParty({ mapId, x: 100, y: 100, minutes: 0 })
+    const here = c.createEncounter({ name: 'Wolves at the gate' })
+    const nowhere = c.createEncounter({ name: 'Somewhere else', locationId: null })
+    const at = (id: string) => c.encountersView().encounters.find((e) => e.id === id)!.locationId
+    expect(at(before)).toBeNull()
+    expect(at(here)).toBe(townId)
+    expect(at(nowhere)).toBeNull()
+  })
+})
+
 describe('session summary facts (owner, 2026-10-18)', () => {
   it('gathers where the party was and went, who they met, clues, fights and Live notes', () => {
     const town = c.createRegion({ mapId, polygon: sq(0, 0, 200), newName: 'Frostholm' })
@@ -183,7 +198,7 @@ describe('session summary facts (owner, 2026-10-18)', () => {
     expect(text).toContain('They travelled to Old Mill.')
     expect(text).toContain('They met Brannoc, a hard and lonely dwarf.')
     expect(text).toContain('They learned the iron key opens the mill.')
-    expect(text).toContain('They fought Pixie swarm.')
+    expect(text).toContain('They fought Pixie swarm at Old Mill.') // made where the party was
     expect(text.endsWith('Mira died to the pixies and was revived.')).toBe(true)
   })
 })

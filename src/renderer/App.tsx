@@ -11,6 +11,7 @@ import { LinkWindow } from './components/LinkWindow'
 import { FindAnything } from './components/FindAnything'
 import { BattleMapDialog } from './components/BattleMapDialog'
 import { GlobalLinks, LinkedCardNote } from './components/LinkField'
+import { Toast } from './components/TopBar'
 
 // Each screen loads the first time it opens (faster start).
 const BoardScreen = lazy(() => import('./screens/BoardScreen').then((m) => ({ default: m.BoardScreen })))
@@ -101,12 +102,7 @@ function MainApp() {
       {info && view && <LinkWindow />}
       {info && view && <FindAnything />}
       <AiSettingsDialog />
-      {message && (
-        <div className={`toast${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
-          {message.text}
-          {message.action && <button className="toast-action" onClick={() => { message.action!.run(); useBoard.setState({ message: null }) }}>{message.action.label}</button>}
-        </div>
-      )}
+      <Toast />
     </>
   )
 }

@@ -283,11 +283,12 @@ const improve = [
   ...notes,
   ...failed.map((s) => `Fix: "${s.title}" failed (${s.error ?? s.errors[0] ?? s.checks.find((c) => !c.ok)?.check}).`),
   ...steps.filter((s) => s.ms > s.slow).map((s) => `Speed: "${s.title}" took ${(s.ms / 1000).toFixed(1)} s (over ${s.slow / 1000} s).`),
-  ...steps.flatMap((s) => [...new Set(s.findings.filter((f) => !f.includes('div.toast')))].map((f) => `Look (${s.title}): ${f}`))
+  // Board cards cut by the edge of the view are where the DM put them (the board pans), not a fault.
+  ...steps.flatMap((s) => [...new Set(s.findings.filter((f) => !f.includes('div.toast') && !f.includes('by div.react-flow')))].map((f) => `Look (${s.title}): ${f}`))
 ]
-// A message at the bottom covering text: one line, not one per word it covers.
-const toasted = steps.filter((s) => s.findings.some((f) => f.includes('div.toast'))).map((s) => s.title)
-if (toasted.length) improve.push(`Look: the message at the bottom (toast) covers text for a few seconds after an action (${toasted.join(', ')}).`)
+// A message (toast) covering text: one line with what it covered, not one per word.
+const toasted = steps.filter((s) => s.findings.some((f) => f.includes('div.toast')))
+if (toasted.length) improve.push(`Look: the message after an action (toast) covers text for a few seconds: ${toasted.map((s) => `${s.title} (${s.findings.filter((f) => f.includes('div.toast')).map((f) => f.replace(/^.*?: \w+ /, '')).join(', ')})`).join('; ')}.`)
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Dungeon Zen playtest</title><style>
 body{font:15px/1.5 system-ui,sans-serif;max-width:1100px;margin:0 auto;padding:16px;background:#f6f1e6;color:#2b2118}

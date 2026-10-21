@@ -116,6 +116,13 @@ export interface GeneratedEncounter {
 
 /** Most creatures one roll puts in (a very cheap pool with a big budget would otherwise fill a page). */
 export const MAX_ROLLED = 30
+/** Most creatures for this party: twice the characters, at least 4 (playtest 2026-10-21: 15 jackals for two characters is hard to run). */
+export const maxCreatures = (partySize: number) => Math.min(MAX_ROLLED, Math.max(4, partySize * 2))
+/** From what fits, those strong enough to spend what is left in the places left (cheap ones only when nothing else fits). */
+function strongEnough(fits: SrdMonsterIndexEntry[], left: number, places: number): SrdMonsterIndexEntry[] {
+  const strong = fits.filter((m) => xpForCr(m.cr) * places * 2 >= left)
+  return strong.length ? strong : fits
+}
 
 /** Monsters whose stat block has every word (a word matches the start of any word written there; "hills" finds "hill"); a creature type word means that type. */
 export function matchMonsters(monsters: SrdMonsterIndexEntry[], words = ''): SrdMonsterIndexEntry[] {
@@ -132,8 +139,8 @@ export function matchMonsters(monsters: SrdMonsterIndexEntry[], words = ''): Srd
 }
 
 /**
- * A random roll of SRD monsters within the 2024 XP budget: every pick is any monster that still fits
- * (all equally likely), until nothing fits or MAX_ROLLED creatures are in. Words narrow the pool to
+ * A random roll of SRD monsters within the 2024 XP budget: every pick is any monster that still fits and is strong
+ * enough to spend the rest in the places left, until nothing fits or maxCreatures are in. Words narrow the pool to
  * monsters whose stat block mentions them. Never exceeds the budget. Null only when the SRD is empty.
  */
 export function suggestEncounter(
@@ -151,10 +158,11 @@ export function suggestEncounter(
   }
   const groups: EncounterGroup[] = []
   let left = budget, count = 0
+  const cap = maxCreatures(partySize)
   for (;;) {
     const fits = pool.filter((m) => xpForCr(m.cr) <= left)
-    if (!fits.length || count >= MAX_ROLLED) break
-    const m = pick(rng, fits)
+    if (!fits.length || count >= cap) break
+    const m = pick(rng, strongEnough(fits, left, cap - count))
     const xp = xpForCr(m.cr)
     const g = groups.find((x) => x.key === m.key)
     if (g) { g.count++; g.xp += xp } else groups.push({ key: m.key, name: m.name, cr: m.cr, count: 1, xp })
@@ -201,10 +209,11 @@ export function suggestThemed(
   const leader = found(theme.leaders).filter((m) => xpForCr(m.cr) <= left * 0.6).sort((a, b) => xpForCr(b.cr) - xpForCr(a.cr))[0]
   if (leader) add(leader)
   const troops = found(theme.troops).filter((m) => !leader || m.key !== leader.key || theme.troops.length === 1)
+  const cap = maxCreatures(partySize)
   for (;;) {
     const fits = troops.filter((m) => xpForCr(m.cr) <= left)
-    if (!fits.length || count >= MAX_ROLLED) break
-    add(pick(rng, fits))
+    if (!fits.length || count >= cap) break
+    add(pick(rng, strongEnough(fits, left, cap - count)))
   }
   if (!groups.length) return null
   groups.sort((x, y) => y.xp / y.count - x.xp / x.count)

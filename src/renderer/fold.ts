@@ -28,7 +28,8 @@ export const boxOrder = (key: string): string[] | undefined => orders[key]
 
 const screen = () => useBoard.getState().screen
 const titleOf = (h: Element) => (h.firstChild?.nodeType === Node.TEXT_NODE ? h.textContent ?? '' : h.textContent ?? '').replace(/[−+↑↓⧉]/g, '').trim()
-const boxOf = (h: Element) => (h.closest('dialog, .ctx-menu') ? null : h.parentElement?.closest(BOXES) ?? null)
+// The getting started guide is a few one-off choices, not a working screen: no box controls (playtest 2026-10-21).
+const boxOf = (h: Element) => (h.closest('dialog, .ctx-menu, .guide-screen') ? null : h.parentElement?.closest(BOXES) ?? null)
 /** The box's title element (its first title, not one inside a nested box). */
 const headOf = (box: Element) => [...box.querySelectorAll(TITLES)].find((h) => boxOf(h) === box)
 const parentKey = (parent: Element) => `${screen()}|${parent.className}`

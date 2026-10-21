@@ -18,6 +18,19 @@ export const openFind = () => window.dispatchEvent(new Event('dz-find'))
  * The one header on every campaign screen (3.1): title, Find, the screen's own buttons (`children`),
  * undo/redo, day-and-night lighting and the clock. `middle` sits beside Find (the board's card search).
  */
+/** The message after an action. In the top bar's free gap where there is one (it covers nothing there; playtest
+ * 2026-10-21), else fixed at the top (CSS shows only one: `body:has(.toast.in-bar)`). */
+export function Toast({ inBar }: { inBar?: boolean }) {
+  const message = useBoard((s) => s.message)
+  if (!message) return null
+  return (
+    <div className={`toast${inBar ? ' in-bar' : ''}${message.isError ? ' toast-error' : ''}`} role={message.isError ? 'alert' : 'status'}>
+      {message.text}
+      {message.action && <button className="toast-action" onClick={() => { message.action!.run(); useBoard.setState({ message: null }) }}>{message.action.label}</button>}
+    </div>
+  )
+}
+
 export function ScreenHeader({ title, eyebrow, middle, candle, children }: { title: ReactNode; eyebrow?: ReactNode; middle?: ReactNode; candle?: ReactNode; children?: ReactNode }) {
   const { info, view, undo, redo } = useBoard()
   const [settings, setSettings] = useState(false)
@@ -35,7 +48,7 @@ export function ScreenHeader({ title, eyebrow, middle, candle, children }: { tit
         <span className="find-long">Find or do anything…</span><span className="find-short">Find…</span><kbd>Ctrl K</kbd>
       </button>
       {middle && <div className="topbar-middle">{middle}</div>}
-      <span className="screen-gap" />
+      <span className="screen-gap"><Toast inBar /></span>
       {children && <div className="screen-actions">{children}</div>}
       <div className="row tight screen-tools">
         <button className="brass icon" aria-label="Undo" title={undoState.undoLabel ? `Undo: ${undoState.undoLabel} (Ctrl+Z)` : 'Nothing to undo'}

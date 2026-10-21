@@ -68,7 +68,9 @@ try {
   const faintButtons = async () => {
     const { list, width } = await page.evaluate(buttonSamples)
     return app.evaluate(async ({ BrowserWindow }, { list, width }) => {
-      const img = await BrowserWindow.getAllWindows()[0].webContents.capturePage()
+      // Right after start the compositor can refuse the first capture (UnknownVizError on CI): one retry.
+      const capture = () => BrowserWindow.getAllWindows()[0].webContents.capturePage()
+      const img = await capture().catch(() => new Promise((r) => setTimeout(r, 1000)).then(capture))
       const { width: w, height: h } = img.getSize()
       const px = img.toBitmap() // BGRA
       const k = w / width
