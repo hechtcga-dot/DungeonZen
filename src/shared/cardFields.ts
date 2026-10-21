@@ -60,6 +60,7 @@ export const DETAIL_FIELDS: Record<EntityType, CardField[]> = {
   HANDOUT: [{ key: 'description', label: 'Description', long: true, hint: 'What it looks like: paper, seal, handwriting' }, HISTORY],
   OTHER: [{ key: 'description', label: 'Description', long: true }, { key: 'details', label: 'Details', long: true }, HISTORY],
   SCENE: [{ key: 'description', label: 'Description', long: true }, ...SENSES, { key: 'tactics', label: 'Tactics', long: true }],
+  ENCOUNTER: [{ key: 'description', label: 'Description', long: true }, ...SENSES, { key: 'tactics', label: 'Tactics', long: true }],
   BUILDING: [{ key: 'description', label: 'Description', long: true }, { key: 'history', label: 'History', long: true, hint: 'Always says how the place got its name.' }]
 }
 

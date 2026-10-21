@@ -2,7 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import Database from 'better-sqlite3'
 import { Campaign } from '../src/main/campaign/campaign'
+import { MIGRATIONS } from '../src/main/db/open'
 
 let dir: string
 let c: Campaign
@@ -37,6 +39,47 @@ describe('encounters on the board (owner, 2026-10-18)', () => {
     expect(c.prepView(prepId).items.find((i) => i.id === rowId)).toMatchObject({ title: 'Bridge toll', body: 'Trolls want a song.' })
     c.undo(); c.undo()
     expect(c.prepView(prepId).items.some((i) => i.id === rowId)).toBe(false)
+  })
+})
+
+describe('encounter card type and Add to prep sheet (owner, 2026-10-21)', () => {
+  it('Add to prep sheet: a Likely scene on the next sheet (started if missing), once per sheet, one undo step', () => {
+    const id = c.createEncounter({ name: 'Ford ambush' })
+    expect(c.entityRow(id).type).toBe('ENCOUNTER')
+    expect(c.encounterToPrep(id)).toEqual({ number: 1, added: true })
+    const row = c.prepFor(1)!.items.find((i) => i.entityId === id)!
+    expect(row).toMatchObject({ kind: 'scene', sceneType: 'combat', title: 'Ford ambush' })
+    expect(c.encounterToPrep(id)).toEqual({ number: 1, added: false })
+    const other = c.createPrep(3)
+    expect(c.encounterToPrep(id, other)).toEqual({ number: 3, added: true })
+    c.undo(); c.undo(); c.undo()
+    expect(c.prepFor(1)).toBeNull()
+  })
+
+  it('a prep row can be tied to another encounter', () => {
+    const prepId = c.createPrep(1)
+    const rowId = c.addPrepEncounter(prepId)
+    const other = c.createEncounter({ name: 'Wolves' })
+    c.updatePrepItem(rowId, { entityId: other })
+    expect(c.prepView(prepId).items.find((i) => i.id === rowId)).toMatchObject({ title: 'Wolves', encounter: { name: 'Wolves' } })
+  })
+
+  it('upgrade: old Scene encounters (flag or "Encounter…" name) become Encounter cards, other scenes stay', () => {
+    const g = c.info().globalBoardId
+    const flagged = c.createEncounter({ name: 'Ambush' })
+    const named = c.createEntity({ boardId: g, type: 'SCENE', name: 'Encounter: wolves', position: { x: 0, y: 0 } }).id
+    const scene = c.createEntity({ boardId: g, type: 'SCENE', name: 'Encountered a bard', position: { x: 0, y: 0 } }).id
+    c.close()
+    const folder = join(dir, 'Enc board')
+    const db = new Database(join(folder, 'campaign.db'))
+    db.prepare(`UPDATE entity SET type = 'SCENE', attributes = json_set(attributes, '$.encounter', json('true')) WHERE id = ?`).run(flagged)
+    db.prepare(`UPDATE entity SET type = 'SCENE' WHERE id = ?`).run(named)
+    db.pragma(`user_version = ${MIGRATIONS.length - 1}`)
+    db.close()
+    c = Campaign.open(folder)
+    expect([flagged, named, scene].map((id) => c.entityRow(id).type)).toEqual(['ENCOUNTER', 'ENCOUNTER', 'SCENE'])
+    expect(c.entityRow(flagged).attributes.encounter).toBeUndefined()
+    expect(c.encountersView().encounters.map((e) => e.name).sort()).toEqual(['Ambush', 'Encounter: wolves'])
   })
 })
 

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, renameSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
-import { and, eq } from 'drizzle-orm'
-import { ability, boardItem, entity, logEntry, relationship, session, prepItem, encounterCreature, type EntityRow } from '../db/schema'
+import { and, eq, inArray } from 'drizzle-orm'
+import { ability, boardItem, entity, logEntry, relationship, session, sessionPrep, prepItem, encounterCreature, type EntityRow } from '../db/schema'
 import { type Writer } from './commandLog'
 import type { AbilityKind, EntityStatus, EntityType } from '../../shared/schemas'
 import { readStatBlock, StatBlock, statLine } from '../../shared/statblock'
@@ -17,11 +17,11 @@ import { part } from './part'
 import { ASSETS_DIR, SrdCopy, MAP_EXTENSIONS, storedExt, NewAbility, isEncounter } from './common'
 
 export const encountersPart = part({
-  // ---- encounter planner (an encounter is a SCENE card with attributes.encounter = true)
+  // ---- encounter planner (an encounter is an ENCOUNTER card; isEncounter also takes pre-3.3 SCENE ones)
 
   /** Encounter cards, including ones made by "Suggest an encounter" before the planner. */
   encounterCards(): EntityRow[] {
-    return this.db.select().from(entity).where(eq(entity.type, 'SCENE')).all()
+    return this.db.select().from(entity).where(inArray(entity.type, ['SCENE', 'ENCOUNTER'])).all()
       .filter((e) => e.status === 'active' || e.status === 'resolved' || e.status === 'stashed')
       .filter(isEncounter)
   },
@@ -109,8 +109,8 @@ export const encountersPart = part({
     let id = ''
     this.log.run(`Planned encounter ${input.name}`, (w) => {
       id = this.insertEntity(w, {
-        boardId: this.globalBoard().id, type: 'SCENE', name: input.name, position: this.freeGlobalSpot(), place: false,
-        attributes: { encounter: true, target: 'moderate', tactics: '', summary: '' }
+        boardId: this.globalBoard().id, type: 'ENCOUNTER', name: input.name, position: this.freeGlobalSpot(), place: false,
+        attributes: { target: 'moderate', tactics: '', summary: '' }
       })
       if (input.locationId) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: input.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
     })
@@ -131,18 +131,45 @@ export const encountersPart = part({
   /** Prep › Likely scenes › Add an encounter: a new encounter (off the board) and its scene line, one undo step. */
   addPrepEncounter(prepId: string): string {
     const p = this.prepRow(prepId)
-    const siblings = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'scene'))).all()
-    const id = randomUUID()
+    let id = ''
     this.log.run(`Added an encounter to the prep for session ${p.number}`, (w) => {
       const enc = this.insertEntity(w, {
-        boardId: this.globalBoard().id, type: 'SCENE', name: 'New encounter', position: this.freeGlobalSpot(), place: false,
-        attributes: { encounter: true, target: 'moderate', tactics: '', summary: '' }
+        boardId: this.globalBoard().id, type: 'ENCOUNTER', name: 'New encounter', position: this.freeGlobalSpot(), place: false,
+        attributes: { target: 'moderate', tactics: '', summary: '' }
       })
-      w.insert('prep_item', {
-        id, prepId, kind: 'scene', sort: siblings.reduce((n, x) => Math.max(n, x.sort), 0) + 1, title: '', body: '',
-        sceneType: 'combat', targetStart: null, targetEnd: null, entityId: enc, locationId: null,
-        discoveryId: null, role: '', stats: '', tactics: '', done: false, doneAtMin: null, status: 'active'
-      })
+      id = this.insertPrepEncounter(w, prepId, enc)
+    })
+    return id
+  },
+
+  /**
+   * Add to prep sheet (owner, 2026-10-21): a Likely scene tied to this encounter on that sheet, else the running or
+   * next session's (started if it has none). One undo step; nothing changes if the sheet has it already.
+   */
+  encounterToPrep(id: string, prepId?: string): { number: number; added: boolean } {
+    const e = this.entityRow(id)
+    const s = this.sessionNumbers()
+    const number = prepId ? this.prepRow(prepId).number : s.openNumber ?? s.nextNumber
+    let sheet = prepId ?? this.db.select().from(sessionPrep).where(and(eq(sessionPrep.number, number), eq(sessionPrep.status, 'active'))).get()?.id
+    if (sheet && this.db.select().from(prepItem).where(and(eq(prepItem.prepId, sheet), eq(prepItem.entityId, id), eq(prepItem.status, 'active'))).get()) return { number, added: false }
+    this.log.run(`Added ${e.name} to the prep for session ${number}`, (w) => {
+      if (!sheet) {
+        sheet = randomUUID()
+        w.insert('session_prep', { id: sheet, number, title: '', premise: '', pacingMinutes: 180, backupNames: '', notes: '', wantNext: '', noteDocId: null, status: 'active' })
+      }
+      this.insertPrepEncounter(w, sheet, id)
+    })
+    return { number, added: true }
+  },
+
+  /** The Likely scenes line of an encounter (its row edits the encounter itself). */
+  insertPrepEncounter(w: Writer, prepId: string, encounterId: string): string {
+    const siblings = this.db.select().from(prepItem).where(and(eq(prepItem.prepId, prepId), eq(prepItem.kind, 'scene'))).all()
+    const id = randomUUID()
+    w.insert('prep_item', {
+      id, prepId, kind: 'scene', sort: siblings.reduce((n, x) => Math.max(n, x.sort), 0) + 1, title: '', body: '',
+      sceneType: 'combat', targetStart: null, targetEnd: null, entityId: encounterId, locationId: null,
+      discoveryId: null, role: '', stats: '', tactics: '', done: false, doneAtMin: null, status: 'active'
     })
     return id
   },
@@ -150,7 +177,7 @@ export const encountersPart = part({
   updateEncounter(id: string, patch: { name?: string; locationId?: string | null; target?: 'low' | 'moderate' | 'high'; tactics?: string; notes?: string; scene?: string; battleMapId?: string | null; pcsOut?: string[]; sketch?: Sketch | null; follow?: FollowSource | null; story?: EncounterStory }): void {
     const e = this.entityRow(id)
     this.log.run(`Edited encounter ${patch.name ?? e.name}`, (w) => {
-      const attrs: Record<string, unknown> = { encounter: true }
+      const attrs: Record<string, unknown> = {}
       if (patch.target) attrs.target = patch.target
       if (patch.tactics !== undefined) attrs.tactics = patch.tactics
       if (patch.notes !== undefined) attrs.summary = patch.notes
@@ -429,19 +456,19 @@ export const encountersPart = part({
    */
   keepEncounterDraft(d: { name: string; scene: string; difficulty: 'low' | 'moderate' | 'high'; locationId: string | null; groups: Array<{ key: string; count: number; notes: string }>; include: Array<{ entityId: string; count: number }>; story: EncounterStory | null; tactics: string }, stash: boolean, copy: (key: string) => SrdCopy): string {
     const cards = this.db.select().from(entity).all().filter((x) => x.status !== 'defunct')
-    const status: EntityStatus = stash ? 'stashed' : 'active'
     let id = ''
-    this.log.run(`${stash ? 'Saved for later' : 'Put on the board'}: ${d.name}`, (w) => {
+    // Put on the board = the encounter's one card; new creature cards stay in the encounter only (stashed) either way (owner, 2026-10-21).
+    this.log.run(`${stash ? 'Saved encounter' : 'Put on the board'}: ${d.name}`, (w) => {
       id = this.insertEntity(w, {
-        boardId: this.globalBoard().id, type: 'SCENE', name: d.name, position: this.freeGlobalSpot(), status, place: false,
-        attributes: { encounter: true, target: d.difficulty, tactics: d.tactics, summary: '', scene: d.scene, ...(d.story ? { story: d.story } : {}), generated: true }
+        boardId: this.globalBoard().id, type: 'ENCOUNTER', name: d.name, position: this.freeGlobalSpot(), place: !stash,
+        attributes: { target: d.difficulty, tactics: d.tactics, summary: '', scene: d.scene, ...(d.story ? { story: d.story } : {}), generated: true }
       })
       if (d.locationId && cards.some((x) => x.id === d.locationId)) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: d.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
       for (const g of d.groups) {
         let cid = cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === g.key)?.id
         if (!cid) {
           const c = copy(g.key)
-          cid = this.insertEntity(w, { boardId: this.globalBoard().id, type: c.type, name: c.name, position: this.freeGlobalSpot(), status, attributes: c.attributes, abilities: c.abilities })
+          cid = this.insertEntity(w, { boardId: this.globalBoard().id, type: c.type, name: c.name, position: this.freeGlobalSpot(), status: 'stashed', attributes: c.attributes, abilities: c.abilities })
         }
         this.putCreature(w, id, cid, g.count)
         if (g.notes) {

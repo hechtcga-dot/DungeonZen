@@ -16,7 +16,7 @@ New code uses the word on the left (what the DM sees). Older code and the databa
 | card | `entity` | one row per card; type in `entity.type` |
 | link | `relationship` (older code: string, connection) | a line between two cards; `is_secret` = dashed |
 | secret, clue | `secret` (kind `secret`/`clue`) + its links (`relationship.secret_id`) | one text, one or more links |
-| encounter | `entity` type SCENE with `attributes.encounter = true` | creatures in `encounter_creature` |
+| encounter | `entity` type ENCOUNTER (before 2026-10-21: SCENE with `attributes.encounter = true`) | creatures in `encounter_creature` |
 | Notes screen | screen id `import` | notes files are `note_doc` |
 | Stat block | `FightSummary` component | was "Fight summary" |
 | Character sheet | `CharSheetDialog` | was "Full sheet" |
@@ -33,7 +33,9 @@ entity              id, type, name, attributes(json), tags(json),
 relationship        id, source_id, target_id, type, is_secret
 ```
 - `entity.type`: NPC, PC, MONSTER, LOCATION, QUEST, ITEM, SCENE, CLUE,
-  FACTION, HANDOUT, BUILDING (1.10.0)
+  FACTION, HANDOUT, BUILDING (1.10.0), ENCOUNTER (2026-10-21; migration 26 turns old SCENE
+  encounters, flagged or named "Encounter…", into ENCOUNTER and drops the flag; `isEncounterCard` still reads
+  a flagged SCENE so undo across the upgrade keeps working), OTHER
 - `entity.status`: active, resolved (greyed on board), defunct (History),
   stashed (generated and saved for later)
 - `relationship.type` examples: KNOWS, HOSTILE_TO, LOCATED_AT,
@@ -211,8 +213,8 @@ commands. `group_id` lets a session or an import undo as one step.
   clue rows became discovery, old threat rows were copied into the sheet's
   notes and set defunct. Campaign settings: `heading_location_id` (where the party is
   heading). Location cards: `attributes.player_notes` (what the players see).
-- Encounters (migration 11): an encounter is an entity of type SCENE with
-  `attributes.encounter = true`, `target` (low | moderate | high), `tactics`,
+- Encounters (migration 11): an encounter is an entity of type ENCOUNTER (SCENE with
+  `attributes.encounter = true` before 2026-10-21), `target` (low | moderate | high), `tactics`,
   `summary` (notes) and `battle_map_id`; its place is a LOCATED_AT relationship.
   `encounter_creature` (encounter_id, entity_id, count, notes, sort, status).
   `log_entry.encounter_id` links a fight to the encounter that was run.

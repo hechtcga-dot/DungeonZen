@@ -3,10 +3,15 @@ import { z } from 'zod'
 // Enums are stored as strings in SQLite and checked here (CLAUDE.md rule 6).
 
 export const ENTITY_TYPES = [
-  'NPC', 'PC', 'MONSTER', 'LOCATION', 'QUEST', 'ITEM', 'SCENE', 'CLUE', 'FACTION', 'HANDOUT', 'BUILDING', 'OTHER'
+  'NPC', 'PC', 'MONSTER', 'LOCATION', 'QUEST', 'ITEM', 'SCENE', 'CLUE', 'FACTION', 'HANDOUT', 'BUILDING', 'ENCOUNTER', 'OTHER'
 ] as const
 export const EntityType = z.enum(ENTITY_TYPES)
 export type EntityType = z.infer<typeof EntityType>
+
+/** An encounter card (its own type since 2026-10-21; before, a SCENE with attributes.encounter, still read for undo across the upgrade). */
+export function isEncounterCard(e: { type: string; attributes: Record<string, unknown> }): boolean {
+  return e.type === 'ENCOUNTER' || (e.type === 'SCENE' && e.attributes.encounter === true)
+}
 
 // active: on the board; resolved: greyed on the board; defunct: in History;
 // stashed: generated and saved for later.

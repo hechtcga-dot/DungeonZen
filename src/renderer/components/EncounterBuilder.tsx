@@ -11,7 +11,7 @@ const CUSTOM = '__custom'
 /**
  * Build an encounter (owner, 2026-10-15), on Live and on Encounters: where (the party's place by default, any place
  * from the map or a typed one), difficulty, creature type, the DM's own cards to include and a description for the AI.
- * Suggest = an offline themed roll; Build with AI = creatures and story. Nothing is saved until Put on the board / Save for later.
+ * Suggest = an offline themed roll; Build with AI = creatures and story. Nothing is saved until Put on the board / Edit encounter.
  */
 export function EncounterBuilder({ className, onKept }: { className: string; onKept(id: string, name: string, stash: boolean): void }) {
   const typeColour = useTypeColour()
@@ -124,7 +124,7 @@ function DraftView({ d, again, keep, discard, busy }: { d: EncounterDraft; again
       )}
       <div className="row tight wrap">
         <button className="ink-button primary-ink" onClick={() => keep(false)}>Put on the board</button>
-        <button className="ink-button" onClick={() => keep(true)}>Save for later</button>
+        <button className="ink-button" onClick={() => keep(true)}>Edit encounter</button>
         <button className="ink-button" disabled={busy} onClick={again}>{d.source ? 'Build again' : 'Roll again'}</button>
         <button className="ink-button" onClick={discard}>Discard</button>
       </div>

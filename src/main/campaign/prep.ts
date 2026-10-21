@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { noteDoc, secret, entity, partyPosition, regionShape,
   relationship, session, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, type EntityRow } from '../db/schema'
 import type { EntityStatus, EntityType,   RowStatus } from '../../shared/schemas'
-import { type PrepKind, type SceneType } from '../../shared/schemas'
+import { isEncounterCard, type PrepKind, type SceneType } from '../../shared/schemas'
 import { readStatBlock, statLine } from '../../shared/statblock'
 import type { PcToken,   EntityBrief, PrepScreenView, PrepView, WordLinksView, PrepItemView, TravelEstimateView } from '../../shared/types'
 import { estimateTravel, regionAt, type Point } from '../../shared/geometry'
@@ -36,7 +36,7 @@ export const prepPart = part({
       .sort((a, b) => a.name.localeCompare(b.name)).map((e) => {
         const a = e.attributes as Record<string, unknown>
         const t = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '')
-        return { id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus, summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes'), flaws: t('flaws'), ...(a.encounter === true ? { encounter: true } : {}), ...(typeof a.colour === 'string' ? { colour: a.colour } : {}), ...(typeof a.link_name === 'boolean' ? { linkName: a.link_name } : {}) }
+        return { id: e.id, type: e.type as EntityType, name: e.name, status: e.status as EntityStatus, summary: t('summary'), picture: t('picture'), location: t('location'), notes: t('notes'), flaws: t('flaws'), ...(isEncounterCard(e) ? { encounter: true } : {}), ...(typeof a.colour === 'string' ? { colour: a.colour } : {}), ...(typeof a.link_name === 'boolean' ? { linkName: a.link_name } : {}) }
       })
   },
 

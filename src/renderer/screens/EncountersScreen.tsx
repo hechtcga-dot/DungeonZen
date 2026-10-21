@@ -1,6 +1,7 @@
 import { InYourNotes } from '../components/InYourNotes'
 import { useEffect, useRef, useState } from 'react'
-import { useBoard } from '../store'
+import { addEncounterToPrep, useBoard } from '../store'
+import { ContextMenu } from '../components/ContextMenu'
 import { call } from '../api'
 import { DeskFrame } from '../components/DeskFrame'
 import { ScreenHeader } from '../components/TopBar'
@@ -33,6 +34,7 @@ export function EncountersScreen() {
   const left = useSidePanel('enc-list', 'left', 240)
   const { encounters, encounterId, openEncounter, act } = useBoard()
   const [sketchBig, setSketchBigState] = useState(sketchBigKept)
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string; name: string } | null>(null)
   const setSketchBig = (big: boolean) => { sketchBigKept = big; setSketchBigState(big) }
   const v = encounters
   const current = v?.encounters.find((e) => e.id === encounterId) ?? v?.encounters[0] ?? null
@@ -60,7 +62,7 @@ export function EncountersScreen() {
                     <h3 className="side-h">{place}</h3>
                     <ul className="enc-items">
                       {list.map((e) => (
-                        <li key={e.id}>
+                        <li key={e.id} onContextMenu={(ev) => { ev.preventDefault(); setMenu({ x: ev.clientX, y: ev.clientY, id: e.id, name: e.name }) }}>
                           <button className="enc-item" aria-current={current?.id === e.id ? 'true' : undefined} onClick={() => openEncounter(e.id)}>
                             <span>{e.name}</span>
                             <span className={`rating-chip r-${e.difficulty.rating}`}>{RATING_LABELS[e.difficulty.rating]}</span>
@@ -72,6 +74,9 @@ export function EncountersScreen() {
                 ))
               )}
             </nav>
+            {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
+              { label: 'Add to prep sheet', hint: 'A Likely scene on the next session\'s prep sheet', onClick: () => void addEncounterToPrep(menu.id, menu.name) }
+            ]} />}
             <EncounterBuilder className="parchment-note" onKept={(id) => openEncounter(id)} />
             {current && <BattleMapBox e={current} maps={v.battleMaps} onSketch={() => setSketchBig(true)} />}
             <HouseRules v={v} />

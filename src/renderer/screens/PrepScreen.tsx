@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useBoard } from '../store'
+import { addEncounterToPrep, useBoard } from '../store'
+import { ContextMenu, type MenuItem } from '../components/ContextMenu'
 import { freshRow } from '../fresh'
 import { DeskFrame } from '../components/DeskFrame'
 import { ScreenHeader } from '../components/TopBar'
@@ -90,6 +91,7 @@ function SaveNote({ p }: { p: PrepView }) {
 function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }) {
   const side = useSidePanel('prep-side', 'right', 300)
   const { act, say, goTo, openEncounter, openSheet } = useBoard()
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const items = (k: PrepKind) => p.items.filter((i) => i.kind === k)
   const scenes = items('scene')
   const sceneMins = scenes.length ? Math.round(p.pacingMinutes / scenes.length) : null
@@ -166,7 +168,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
               <option value="encounter">Encounter</option>
             </select>
           </>}>
-          {(i, k) => i.encounter ? <EncounterScene i={i} n={k + 1} locations={s.locations} /> : (
+          {(i, k) => i.encounter ? <EncounterScene i={i} n={k + 1} locations={s.locations} encounters={s.encounters} /> : (
             <>
               <div className="prep-row-fields">
                 <LinkField id={`s-t-${i.id}`} label={`Scene ${k + 1}: location`} value={i.title} placeholder="Dock at night" onCommit={(v) => upItem(act, i, { title: v })} />
@@ -251,6 +253,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
         </PrepSection>}
       </div>
 
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       {!only && <aside className="prep-side">
         {side.grip}
         {card ? (
@@ -281,9 +284,23 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
           <h2 className="panel-title">Encounters</h2>
           {s.encounters.length === 0 ? <p className="ink-muted">None planned yet.</p> : (
             <ul className="here-list">
-              {s.encounters.map((e) => (
-                <li key={e.id}><button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>{e.placeName && <span className="ink-muted"> · {e.placeName}</span>}</li>
-              ))}
+              {s.encounters.map((e) => {
+                // Add to prep sheet: hover button and right-click (owner, 2026-10-21); greyed once the sheet has it.
+                const there = p.items.some((x) => x.entityId === e.id)
+                const add = () => void addEncounterToPrep(e.id, e.name, p.id)
+                return (
+                  <li key={e.id} className="enc-side-row" onContextMenu={(ev) => {
+                    ev.preventDefault()
+                    setMenu({ x: ev.clientX, y: ev.clientY, items: [
+                      { label: 'Open in Encounters', onClick: () => openEncounter(e.id) },
+                      { label: there ? 'On this prep sheet' : 'Add to prep sheet', disabled: there, onClick: add }
+                    ] })
+                  }}>
+                    <button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>{e.placeName && <span className="ink-muted"> · {e.placeName}</span>}
+                    <button className="ink-button enc-side-add" disabled={there} title={there ? 'Already a Likely scene on this sheet' : 'Add as a Likely scene on this sheet'} onClick={add}>{there ? 'On this sheet' : 'Add to prep sheet'}</button>
+                  </li>
+                )
+              })}
             </ul>
           )}
           <button className="ink-button" onClick={() => goTo('encounters')}>Open Encounters</button>
@@ -467,14 +484,22 @@ function ShowFromSheet({ i, cardId, shown }: { i: PrepItemView; cardId: string; 
 }
 
 /** A likely scene that is an encounter: its main fields here, everything else on Encounters. */
-function EncounterScene({ i, n, locations }: { i: PrepItemView; n: number; locations: EntityBrief[] }) {
+function EncounterScene({ i, n, locations, encounters }: { i: PrepItemView; n: number; locations: EntityBrief[]; encounters: Array<{ id: string; name: string }> }) {
   const { act, openEncounter } = useBoard()
   const e = i.encounter!
   const up = (patch: Record<string, unknown>) => void act('encounter:update', { id: i.entityId!, patch })
   return (
     <>
       <div className="prep-row-fields">
-        <CommitField id={`e-n-${i.id}`} label={`Encounter ${n}`} value={e.name} onCommit={(v) => v.trim() && up({ name: v.trim() })} />
+        {/* Typing renames this encounter; ▾ ties the row to another one instead (owner, 2026-10-21). */}
+        <div className="enc-name-pick">
+          <CommitField id={`e-n-${i.id}`} label={`Encounter ${n}`} value={e.name} onCommit={(v) => v.trim() && up({ name: v.trim() })} />
+          <select className="ink-button" value="" aria-label="Link another encounter" title="Link another encounter"
+            onChange={(ev) => ev.target.value && upItem(act, i, { entityId: ev.target.value })}>
+            <option value="">▾</option>
+            {encounters.filter((x) => x.id !== i.entityId).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </div>
         <CardPick id={`e-loc-${i.id}`} label="Location card" value={e.locationId} cards={locations} onPick={(v) => up({ locationId: v })} />
         <div className="field">
           <label htmlFor={`e-t-${i.id}`}>Aim for</label>

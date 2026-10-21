@@ -242,7 +242,7 @@ export const livePart = part({
       } else {
         const e = payload as { summary: string; groups: Array<{ key: string; name: string; count: number }> }
         const scene = this.insertEntity(w, {
-          boardId: g, type: 'SCENE', name: `Encounter: ${e.groups.map((x) => x.name).join(' and ')}`, position: this.freeGlobalSpot(),
+          boardId: g, type: 'ENCOUNTER', name: `Encounter: ${e.groups.map((x) => x.name).join(' and ')}`, position: this.freeGlobalSpot(),
           status, attributes: { summary: e.summary, generated: true }
         })
         ids.push(scene)

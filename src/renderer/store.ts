@@ -1,3 +1,4 @@
+import { isEncounterCard } from '../shared/schemas'
 import { share } from '../shared/share'
 import type { Sketch } from '../shared/sketch'
 import type { FollowSource } from '../shared/battlemap'
@@ -259,7 +260,7 @@ export const useBoard = create<BoardState>((set, get) => ({
         set({ view, history, desk, info: info ?? get().info, sheet: null, sheetId: null, screen: 'board' })
         return
       }
-      if (screen === 'sheet' && sheet?.entity.attributes.encounter === true) {
+      if (screen === 'sheet' && sheet && isEncounterCard(sheet.entity)) {
         // An encounter's page is Encounters (owner, 2026-10-18): its card and its linked name open it there.
         set({ screen: 'encounters', encounterId: sheet.entity.id, sheetId: null, sheet: null, mode: 'prep' })
         await get().refresh()
@@ -347,6 +348,13 @@ export const useBoard = create<BoardState>((set, get) => ({
 
 /** Current board view; components below the board screen can rely on it being loaded. */
 /** What the screens show: metric (default) or imperial (Campaign settings). */
+/** Add to prep sheet (encounters, owner 2026-10-21): that sheet, else the running or next session's. */
+export async function addEncounterToPrep(id: string, name: string, prepId?: string): Promise<void> {
+  const { act, say } = useBoard.getState()
+  const r = await act('encounter:toPrep', { id, prepId })
+  if (r) say(r.added ? `Added ${name} to the prep sheet for session ${r.number}. Ctrl+Z undoes it.` : `${name} is already on the prep sheet for session ${r.number}.`)
+}
+
 export const useUnits = (): Units => useBoard((s) => s.info?.units ?? 'imperial')
 
 export function useView(): BoardView {

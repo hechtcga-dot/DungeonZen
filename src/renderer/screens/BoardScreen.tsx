@@ -4,7 +4,7 @@ import {
   ConnectionMode, Controls, ReactFlow, ReactFlowProvider, applyEdgeChanges,
   applyNodeChanges, useReactFlow, useStore, type Connection, type EdgeChange, type NodeChange, type OnSelectionChangeParams, type Viewport
 } from '@xyflow/react'
-import { useBoard, useView } from '../store'
+import { addEncounterToPrep, useBoard, useView } from '../store'
 import { freshCard, freshNote } from '../fresh'
 import { CardNode, roman, type CardNodeType } from '../components/CardNode'
 import { NoteNode, type NoteNodeType } from '../components/NoteNode'
@@ -34,7 +34,7 @@ import { useBoardPrefs } from '../boardPrefs'
 
 /** Side panel folded away; kept while the app is open (owner, 2026-10-15). */
 let sideFoldedNow = false
-import { ENTITY_TYPES, RELATIONSHIP_TYPES, type EntityType } from '../../shared/schemas'
+import { ENTITY_TYPES, RELATIONSHIP_TYPES, isEncounterCard, type EntityType } from '../../shared/schemas'
 import type { BoardView, EntityView, MapScreenView } from '../../shared/types'
 import type { ManyOp } from '../../shared/ipc'
 import { useCtrlPan } from '../useCtrlPan'
@@ -368,6 +368,7 @@ function BoardLayout() {
 
   const cardItems = (e: EntityView, itemId: string): MenuItem[] => [
     { label: 'Open sheet', onClick: () => void openSheet(e.id) },
+    ...(isEncounterCard(e) ? [{ label: 'Add to prep sheet', hint: 'A Likely scene on the next session\'s prep sheet', onClick: () => void addEncounterToPrep(e.id, e.name) }] : []),
     { label: 'New link…', hint: 'Then click the card to link it to', onClick: () => { setLinking({ itemId, entity: e }); say(`Click the card to link ${e.name} to (Escape to cancel).`) } },
     { label: 'Edit in the panel', onClick: () => { select({ kind: 'entity', id: e.id }); setPanel('inspector') } },
     'separator',

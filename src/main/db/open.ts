@@ -260,6 +260,11 @@ export const MIGRATIONS: string[] = [
   // 2.8.x: the real-life date of each session (the DM's, labels its notes).
   `
   ALTER TABLE session_prep ADD COLUMN play_date TEXT;
+  `,
+  // 2026-10-21: encounters are their own card type (were SCENE cards with attributes.encounter, or named "Encounter…").
+  `
+  UPDATE entity SET type = 'ENCOUNTER', attributes = json_remove(attributes, '$.encounter')
+  WHERE type = 'SCENE' AND (json_extract(attributes, '$.encounter') = 1 OR lower(name) = 'encounter' OR lower(name) LIKE 'encounter %' OR lower(name) LIKE 'encounter:%');
   `
 ]
 

@@ -1,7 +1,7 @@
 import type { EntityType } from '../../shared/schemas'
 
 // Small line icons for card types (16 × 16, drawn in the card's light ink on its type colour).
-const PATHS: Record<EntityType | 'ENCOUNTER', string> = {
+const PATHS: Record<EntityType, string> = {
   NPC: 'M8 2.5a2.6 2.6 0 1 1 0 5.2a2.6 2.6 0 1 1 0-5.2M3 14c0-3 2.2-4.8 5-4.8s5 1.8 5 4.8', // head and shoulders
   PC: 'M8 1.8l5 2v4c0 3.2-2.2 5.3-5 6.4c-2.8-1.1-5-3.2-5-6.4v-4zM8 5v6M5.5 7.5h5', // shield
   MONSTER: 'M4 2.5l2.5 11M7.5 2l1.8 11.5M11 2.5l1 10', // claw marks

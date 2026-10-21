@@ -363,6 +363,9 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
 .here-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .here-list li { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .here-list .ledger-name { min-height: 26px; font-size: 15px; text-align: left; }
+.enc-side-row { position: relative; }
+.here-list button.enc-side-add { position: absolute; right: 0; top: 1px; min-height: 0; height: 24px; background: #f3e6c4; line-height: 1; padding: 0 8px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; }
+.enc-side-row:hover button.enc-side-add, .here-list button.enc-side-add:focus-visible { opacity: 1; pointer-events: auto; }
 .here-party { margin: 0; display: flex; align-items: center; gap: 8px; }
 .party-badge { background: var(--wax); }
 .region-notes { margin: 0; white-space: pre-wrap; font-size: 14px; }
@@ -608,6 +611,9 @@ button.ink-button.primary-ink:disabled { background: #8a7a5c; color: var(--parch
 .prep-row-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
 .prep-row-fields.two { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .prep-row-fields .wide { grid-column: span 2; }
+.enc-name-pick { display: flex; align-items: end; gap: 4px; }
+.enc-name-pick > .field { flex: 1; min-width: 0; }
+.enc-name-pick > select { width: 34px; padding: 0; flex: none; appearance: none; text-align: center; text-align-last: center; }
 .prep-row-fields .short, .prep-head .short { width: 72px; }
 .label-hidden > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .cheat-sheet .ink-list { font-size: 13px; }

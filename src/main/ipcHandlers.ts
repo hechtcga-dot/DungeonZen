@@ -1143,6 +1143,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('encounter:create', ({ name, locationId }) => current().createEncounter({ name, locationId }))
   handle('encounter:update', ({ id, patch }) => current().updateEncounter(id, patch))
   handle('encounter:toBoard', ({ id }) => current().encounterToBoard(id))
+  handle('encounter:toPrep', ({ id, prepId }) => current().encounterToPrep(id, prepId))
   handle('prep:addEncounter', ({ prepId }) => current().addPrepEncounter(prepId))
   handle('encounter:addCreature', ({ encounterId, entityId, count }) => current().addEncounterCreature(encounterId, entityId, count))
   handle('encounter:addSrd', ({ encounterId, groups }) => current().addSrdToEncounter(encounterId, groups, srdCopy))

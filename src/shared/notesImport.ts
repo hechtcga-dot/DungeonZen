@@ -6,7 +6,7 @@ import { ENTITY_TYPES } from './schemas'
 // "Create selected" (rule 2); AI guesses are marked (rule 10). A draft is kept in
 // the campaign folder (imports/) so the DM can come back to it.
 
-export const IMPORT_CARD_TYPES = ENTITY_TYPES.filter((t) => t !== 'PC')
+export const IMPORT_CARD_TYPES = ENTITY_TYPES.filter((t) => t !== 'PC' && t !== 'ENCOUNTER')
 export const Basis = z.enum(['stated', 'inferred'])
 export type Basis = z.infer<typeof Basis>
 

@@ -1,3 +1,4 @@
+import { isEncounterCard } from '../../shared/schemas'
 import { memo, type CSSProperties } from 'react'
 import { TypeIcon } from '../art/typeIcons'
 import { Handle, NodeResizer, Position, type Node, type NodeProps, type ResizeParams } from '@xyflow/react'
@@ -45,7 +46,7 @@ export function onResized(itemId: string) {
 function CardNodeImpl({ id, data, selected, width, height }: NodeProps<CardNodeType>) {
   const { entity, dimmed, match, tints, marks, colour } = data
   const resolved = entity.status === 'resolved'
-  const encounter = entity.attributes.encounter === true
+  const encounter = isEncounterCard(entity)
   const location = typeof entity.attributes.location === 'string' ? entity.attributes.location : ''
   const sb = HAS_STATBLOCK.has(entity.type) ? readStatBlock(entity.attributes.statblock) : null
   const summary = (typeof entity.attributes.summary === 'string' ? entity.attributes.summary : '') || (sb ? statLine(sb) : '')

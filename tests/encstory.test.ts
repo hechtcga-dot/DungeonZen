@@ -60,6 +60,10 @@ describe('encounter story and builder', () => {
     expect(e.creatures.map((x) => [x.name, x.count, x.notes])).toEqual([['Goblin Warrior', 6, 'archers'], ['Worg', 1, '']])
     expect(e.story.npcs[0].name).toBe('Miller Acerman')
     expect(c.encountersView().encounters.map((x) => x.id)).toContain(id)
+    // Put on the board: the encounter's card only, its new monster cards stay in the encounter.
+    const onBoard = Object.values(c.boardView(g).entities).map((x) => [x.type, x.name])
+    expect(onBoard).toContainEqual(['ENCOUNTER', 'Goblin ambush!'])
+    expect(onBoard.map((x) => x[1])).not.toContain('Goblin Warrior')
     c.undo()
     expect(c.encountersView().encounters.map((x) => x.id)).not.toContain(id)
   })

@@ -117,10 +117,7 @@ export function searchText(v: EntityView): string {
   return parts.join(' \n ').toLowerCase()
 }
 
-/** A SCENE card that is a planned encounter (planner) or was made by "Suggest an encounter". */
-export function isEncounter(e: EntityRow): boolean {
-  return e.attributes.encounter === true || /^encounter\b/i.test(e.name)
-}
+export { isEncounterCard as isEncounter } from '../../shared/schemas'
 
 export function toMapView(r: MapRow): MapView {
   return {

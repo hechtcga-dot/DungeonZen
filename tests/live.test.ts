@@ -107,7 +107,7 @@ describe('live session', () => {
     const ids = c.keepGenerated('encounter', e, srdCopy, keyOf, false)
     expect(ids).toHaveLength(1 + e.groups.length)
     const v = c.boardView(g)
-    expect(Object.values(v.entities).map((x) => x.type).sort()).toEqual(['SCENE', ...e.groups.map(() => 'MONSTER')].sort())
+    expect(Object.values(v.entities).map((x) => x.type).sort()).toEqual(['ENCOUNTER', ...e.groups.map(() => 'MONSTER')].sort())
     expect(v.relationships).toHaveLength(e.groups.length)
   })
 })

@@ -357,7 +357,7 @@ export const prepItem = sqliteTable('prep_item', {
   status: text('status').notNull()
 })
 
-// Who is in a planned encounter (the encounter is a SCENE card with attributes.encounter = true).
+// Who is in a planned encounter (the encounter is an ENCOUNTER card).
 export const encounterCreature = sqliteTable('encounter_creature', {
   id: text('id').primaryKey(),
   encounterId: text('encounter_id').notNull(),

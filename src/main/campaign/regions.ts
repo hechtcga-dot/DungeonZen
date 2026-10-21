@@ -102,7 +102,7 @@ export const regionsPart = part({
       region, location: loc,
       partyHere: !!party && party.locationId === r.locationId,
       hereNow: [...here.filter((e) => ['NPC', 'MONSTER', 'PC', 'FACTION'].includes(e.type) && !splitHere.some((p) => p.id === e.id)).map(brief), ...splitHere],
-      encounters: here.filter((e) => e.type === 'SCENE' && isEncounter(e)).map(brief),
+      encounters: here.filter(isEncounter).map(brief),
       plotPoints: here.filter((e) => ['QUEST', 'CLUE', 'ITEM', 'HANDOUT'].includes(e.type) || (e.type === 'SCENE' && !isEncounter(e))).map(brief),
       notes: [loc.attributes.description, loc.attributes.notes].filter((x) => typeof x === 'string' && x.trim()).join('\n\n'),
       subRegions: all.filter((e) => e.parentId === r.locationId && e.type === 'LOCATION').map((e) => ({ locationId: e.id, name: e.name }))
