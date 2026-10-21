@@ -1,19 +1,21 @@
-// Screenshot smoke test: opens a campaign in the built app and visits every screen.
+// Screenshot smoke test: opens a campaign in the built app and visits every screen, then the action round-trip.
 // Fails on a window error, a console error or an error message on screen. Screenshots in tests/e2e/shots/.
 // Needs `npm run build` and better-sqlite3 built for Electron (`npx electron-builder install-app-deps`;
 // `npm rebuild better-sqlite3` brings back the Node build for `npm test`). On Linux run it under xvfb-run.
-import { _electron } from 'playwright-core'
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { crc32, deflateSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { buttonSamples, layoutProblems, mapCentred, uiProblems } from './uiChecks.mjs'
+import { launch, png, scale } from './app.mjs'
+import { roundTrip } from './roundtrip.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
 // DZ_SKIN=adventure runs the same screens in the Adventure UI skin (3.1), screenshots in shots-adventure/.
+// DZ_SCALE=1.5 runs them at Windows display scaling 150 % (most laptops: 125–150 %), screenshots in shots-scale150/.
+// DZ_EXE=<path to DungeonZen.exe> runs the installed app instead of the built one (Windows installer workflow).
 const skin = process.env.DZ_SKIN ?? ''
-const shots = join(import.meta.dirname, skin ? `shots-${skin}` : 'shots')
+const shots = join(import.meta.dirname, ['shots', skin, scale && `scale${Math.round(scale * 100)}`].filter(Boolean).join('-'))
 const work = mkdtempSync(join(tmpdir(), 'dz-smoke-'))
 const folder = join(work, 'Smoke campaign')
 const userData = join(work, 'userData')
@@ -29,13 +31,6 @@ writeFileSync(join(userData, 'profile.json'), JSON.stringify({ recent: [{ folder
 const db = new DatabaseSync(join(folder, 'campaign.db'))
 db.exec(`UPDATE campaign_settings SET value = '"done"' WHERE key = 'getting_started'`)
 // A wide world map (a plain PNG made here), so Map, Desk and Live show one.
-const png = (w, h) => {
-  const chunk = (type, data) => { const b = Buffer.alloc(12 + data.length); b.writeUInt32BE(data.length, 0); b.write(type, 4); data.copy(b, 8); b.writeUInt32BE(crc32(b.subarray(4, 8 + data.length)), 8 + data.length); return b }
-  const head = Buffer.alloc(13); head.writeUInt32BE(w, 0); head.writeUInt32BE(h, 4); head[8] = 8; head[9] = 2
-  const rows = Buffer.alloc((w * 3 + 1) * h)
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * (w * 3 + 1) + 1 + x * 3; const land = (x - w / 2) ** 2 / (w * w / 9) + (y - h / 2) ** 2 / (h * h / 9) < 1; rows[i] = land ? 190 : 90; rows[i + 1] = land ? 170 : 130; rows[i + 2] = land ? 110 : 170 }
-  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', head), chunk('IDAT', deflateSync(rows)), chunk('IEND', Buffer.alloc(0))])
-}
 mkdirSync(join(folder, 'assets', 'maps'), { recursive: true })
 writeFileSync(join(folder, 'assets', 'maps', 'smoke-map.png'), png(1600, 500))
 // Long names, as real campaigns have them: the look checks must hold for those too.
@@ -47,21 +42,11 @@ db.exec(`UPDATE storyline SET title = 'Countdown to the Reign of Misule the Undy
 db.close()
 
 const problems = []
-const app = await _electron.launch({
-  // Linux CI runners block Chromium's sandbox helper.
-  args: [join(root, 'out', 'main', 'index.js'), ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
-  env: { ...process.env, DZ_USER_DATA: userData },
-  timeout: 60000
-})
-// The app's own output (a failed start shows here).
-app.process().stdout?.on('data', (d) => process.stdout.write(d))
-app.process().stderr?.on('data', (d) => process.stderr.write(d))
+let app
 try {
-  const page = await app.firstWindow()
-  page.setDefaultTimeout(15000)
-  page.on('pageerror', (e) => problems.push(`window error: ${e.message}`))
-  page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`) })
-  await page.setViewportSize({ width: 1440, height: 900 })
+  const started = await launch(userData, problems)
+  app = started.app
+  const { page, setSize, screenshot } = started
   if (skin) { await page.evaluate((s) => localStorage.setItem('dz.skin', s), skin); await page.reload(); await page.waitForLoadState() }
   let n = 0
   const shot = async (name) => {
@@ -72,12 +57,12 @@ try {
     for (const p of await page.evaluate(layoutProblems)) problems.push(`${name}: ${p}`)
     for (const p of await faintButtons()) problems.push(`${name}: ${p}`)
     // A smaller window too (a laptop): checked, no screenshot.
-    await page.setViewportSize({ width: 1280, height: 720 })
+    await setSize({ width: 1280, height: 720 })
     await page.waitForTimeout(400)
     for (const p of [...await page.evaluate(uiProblems), ...await page.evaluate(layoutProblems)]) problems.push(`${name} (1280×720): ${p}`)
-    await page.setViewportSize({ width: 1440, height: 900 })
+    await setSize({ width: 1440, height: 900 })
     await page.waitForTimeout(300)
-    await page.screenshot({ path: join(shots, `${String(++n).padStart(2, '0')}-${name}.png`) })
+    await screenshot(join(shots, `${String(++n).padStart(2, '0')}-${name}.png`))
   }
   // Button words readable on the button's real background (pixels of the window: painted parchment, wood…).
   const faintButtons = async () => {
@@ -121,11 +106,11 @@ try {
   await click('Board'); await click('Map'); await shot('map')
   // The map opens centred in what you can see of its frame (also in a smaller window).
   for (const size of [{ width: 1440, height: 900 }, { width: 1280, height: 720 }]) {
-    await page.setViewportSize(size); await page.waitForTimeout(400)
+    await setSize(size); await page.waitForTimeout(400)
     const off = await page.evaluate(mapCentred)
     if (off) problems.push(`map (${size.width}×${size.height}): ${off}`)
   }
-  await page.setViewportSize({ width: 1440, height: 900 })
+  await setSize({ width: 1440, height: 900 })
   await click('Board'); await click('Timeline'); await shot('timeline')
   // Board side panel: a card selected (Inspector), then History.
   await click('Board'); await page.locator('.react-flow__node', { hasText: 'Barliman Butterbur' }).first().click(); await shot('board-inspector')
@@ -139,9 +124,9 @@ try {
   await app.evaluate(({ dialog }, paths) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths }) }, sheets)
   await click('Import a character sheet…'); await page.getByRole('button', { name: 'Read with AI' }).waitFor(); await shot('charsheet-window')
   // A small window too (the file names in three columns get tight).
-  await page.setViewportSize({ width: 900, height: 700 }); await page.waitForTimeout(400)
+  await setSize({ width: 900, height: 700 }); await page.waitForTimeout(400)
   for (const p of [...await page.evaluate(uiProblems), ...await page.evaluate(layoutProblems)]) problems.push(`charsheet-window (900×700): ${p}`)
-  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300)
+  await setSize({ width: 1440, height: 900 }); await page.waitForTimeout(300)
   await click('Cancel')
   await click('Import notes…'); await click('Choose files…'); await page.getByRole('button', { name: 'Make a character card…' }).first().waitFor(); await shot('import-sheets')
   await click('Live desk'); await shot('live')
@@ -153,10 +138,12 @@ try {
   await click('Close')
   await click('Setup'); await page.getByText('Linking names…').click(); await shot('linking-names')
   await click('Close')
+  // Action round-trip (tests/e2e/roundtrip.mjs): two cards made, edited, undone, redone, to History and back, every screen checked.
+  problems.push(...await roundTrip(page))
 } catch (err) {
   problems.push(`step failed: ${err.message}`)
 } finally {
-  await app.close().catch(() => undefined)
+  await app?.close().catch(() => undefined)
   rmSync(work, { recursive: true, force: true })
 }
 if (problems.length) {

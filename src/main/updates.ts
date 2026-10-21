@@ -8,7 +8,8 @@ import { IPC_PREFIX } from '../shared/ipcPrefix'
 // The installer is not code-signed (owner), so Windows may ask once per update, as with a download by hand.
 
 export function startUpdates(): void {
-  if (!app.isPackaged) return
+  // DZ_USER_DATA = a test run of the installed app (Windows installer workflow): never download or install an update.
+  if (!app.isPackaged || process.env.DZ_USER_DATA) return
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.on('update-downloaded', (info) => {

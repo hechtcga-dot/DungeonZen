@@ -35,7 +35,7 @@ Electron + electron-vite, React 19 + Vite (no Next.js), SQLite better-sqlite3 + 
 - Assets `dz-asset://campaign/<path>`; AI images wait in `assets/pending` (cleared on open) until kept.
 
 ## Commands
-`npm install` · `npm run dev` · `npm test` · `npm run typecheck` · `npm run build` · `npm run smoke` (built app, every screen, screenshots; runs in CI, see `docs/STATE.md` M0) · `npm run dist:win` (installer; on Linux needs wine64 + wine32:i386).
+`npm install` · `npm run dev` · `npm test` (incl. `tests/undoall.test.ts`: undo for every IPC write; new channel → check, `npx vitest -u`) · `npm run typecheck` · `npm run build` · `npm run smoke` (built app, every screen, screenshots, action round-trip; `DZ_SKIN=adventure`, `DZ_SCALE=1.5`, `DZ_EXE=<installed exe>`; runs in CI, see `docs/STATE.md` M0 and Checks) · `npm run playtest` (a DM's evening, report + played campaign in `tests/e2e/playtest/`) · `npm run dist:win` (installer; on Linux needs wine64 + wine32:i386).
 
 ## Release
 Bump `package.json` + `package-lock.json` version. Push the session branch, fast-forward `main`. New build started on a new branch: first fast-forward `main` with the previous build branch, then delete that branch (owner, 2026-10-12; branch delete is blocked by the proxy and GitHub MCP has no delete tool, so ask the owner to delete it on the GitHub Branches page). Tag push is blocked (proxy 403): run workflow `windows-installer.yml` on `main` via GitHub MCP `actions_run_trigger` with input `release_tag: vX.Y.Z`; check with `get_latest_release`.

@@ -976,3 +976,26 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     CI runs both.
   - Not built from the plan: G5 renderer service layer, G6 first-run loop, Session prep / Encounters side columns,
     Notes 44 px controls (owner's favourite look kept as is).
+- Checks (2026-10-21, owner's list):
+  - Undo for every write (`tests/undoall.test.ts`): every IPC channel runs once (handlers registered with Electron
+    mocked, AI off) on a copy of the v2.10.1 fixture plus a map, a session under way, a link, a region, a note and a
+    prep sheet; inputs made from each channel's Zod schema (ids from the campaign by key name). A channel that changes
+    any table must have recorded a command: undo gives back the exact rows from before, redo the rows after. The
+    snapshot lists channels that wrote (105), only read, or failed with a made-up input (mostly AI, files, pictures):
+    a new channel changes it, so check and `npx vitest -u`. `DZ_WHY=1` prints why each failed.
+  - Action round-trip (`tests/e2e/roundtrip.mjs`, end of every smoke run): a PC and an encounter (tied to act I) made
+    on the board, PC renamed, Undo, Redo, both to History, Revive; after each step Board, the sheet, Live desk party,
+    Map tokens, Timeline act I encounters and Encounters' planned list are checked.
+  - Display scaling: `DZ_SCALE=1.5 npm run smoke` (CI third run, screenshots `shots-scale150/` in device pixels);
+    the scale is set again after each window resize (Playwright's resize puts it back to 100 %).
+  - Installed app: `DZ_EXE=<DungeonZen.exe>` runs smoke and playtest on it; the Windows installer workflow installs
+    the built .exe silently (`/S /D=`), then runs both (artifact `playtest-installed`). Installed test runs
+    (`DZ_USER_DATA` set) never check for updates.
+  - Playtest `npm run playtest` (`tests/e2e/playtest.mjs`, CI job `playtest` on every push, and on the installed
+    app before each release): a DM's evening from an empty computer (new campaign, world map, PCs with HP, NPC with
+    DM notes, storyline, act, party placed, prep sheet, encounter suggested from the SRD, live session with log,
+    damage, meeting and clock, review approved, What they know safe, new cards in sight, round-trip, close and open
+    again). Out in `tests/e2e/playtest/` (artifact `playtest`): `report.html` (each step: what was done, checks,
+    time, screenshot; What to improve: failures, slow steps, look findings, cut-off drop-downs, cards placed out of
+    sight, crowded SRD suggestions; what is not covered) and the played campaign folder (demo, without backups).
+  - Shared launch code: `tests/e2e/app.mjs` (launch, window size and scale, screenshots, PNG maker).

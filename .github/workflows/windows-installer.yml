@@ -34,6 +34,25 @@ jobs:
       - run: npx electron-builder --win --x64 --publish never
       # The installer and latest.yml (auto-update) must both be here.
       - run: dir dist
+      # The real installer: install silently, then the smoke test and the playtest on the installed app
+      # (catches what only packaging breaks: native modules, paths inside app.asar, missing files).
+      - name: Install silently
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\*.exe | Select-Object -First 1
+          Start-Process -FilePath $setup.FullName -ArgumentList '/S', "/D=$env:RUNNER_TEMP\DungeonZen" -Wait
+          if (-not (Test-Path "$env:RUNNER_TEMP\DungeonZen\DungeonZen.exe")) { throw 'The installer did not install DungeonZen.exe' }
+      - run: npm run smoke
+        env:
+          DZ_EXE: ${{ runner.temp }}\DungeonZen\DungeonZen.exe
+      - run: npm run playtest
+        env:
+          DZ_EXE: ${{ runner.temp }}\DungeonZen\DungeonZen.exe
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playtest-installed
+          path: tests/e2e/playtest/
       # GitHub zips every artifact itself: upload only the .exe, or the download holds the installer twice (once inside a .zip).
       - uses: actions/upload-artifact@v4
         with:

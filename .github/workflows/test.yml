@@ -35,6 +35,10 @@ jobs:
       - run: xvfb-run --auto-servernum npm run smoke
         env:
           DZ_SKIN: adventure
+      # Windows display scaling 150 % (most laptops): cut-off text and blurry art.
+      - run: xvfb-run --auto-servernum npm run smoke
+        env:
+          DZ_SCALE: '1.5'
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -42,3 +46,24 @@ jobs:
           path: |
             tests/e2e/shots/
             tests/e2e/shots-adventure/
+            tests/e2e/shots-scale150/
+
+  # A DM's evening from a new campaign (tests/e2e/playtest.mjs): report and the played campaign as artifact `playtest`.
+  playtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder install-app-deps
+      - run: xvfb-run --auto-servernum npm run playtest
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playtest
+          path: tests/e2e/playtest/
