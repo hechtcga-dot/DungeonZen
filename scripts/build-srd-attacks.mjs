@@ -25,7 +25,8 @@ const out = {
     key: pk, name: f.name, level: f.level, school: cap(f.school), time: f.casting_time.replace(/_/g, ' '), range: f.range_text ?? '',
     attack: !!f.attack_roll, save: cap(f.saving_throw_ability ?? ''), dice: f.damage_roll ?? '', types: (f.damage_types ?? []).map(cap),
     concentration: !!f.concentration, duration: f.duration ?? '', ritual: !!f.ritual,
-    classes: (f.classes ?? []).map((c) => cap(c.replace(/^srd-2024_/, ''))), desc: f.desc ?? '', higher: f.higher_level ?? ''
+    classes: (f.classes ?? []).map((c) => cap(c.replace(/^srd-2024_/, ''))), desc: f.desc ?? '', higher: f.higher_level ?? '',
+    components: [f.verbal && 'V', f.somatic && 'S', f.material && 'M'].filter(Boolean).join(', '), trigger: f.reaction_condition ?? ''
   })).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
 }
 writeFileSync(new URL('../resources/srd/srd-2024-attacks.json', import.meta.url), JSON.stringify(out))

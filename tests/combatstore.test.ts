@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest'
 import { Campaign } from '../src/main/campaign/campaign'
 import { srdCopy } from '../src/main/srd'
 import { changeHp, combatHints } from '../src/shared/combat'
+import { applyCast, srdSpellRules } from '../src/shared/spellcast'
 
 let dir: string
 let c: Campaign
@@ -56,4 +57,31 @@ it('follows the encounter while the fight runs, takes in new player characters, 
   expect(c.sheet(guardCard).entity.status).toBe('resolved')
   c.undo()
   expect(c.sheet(guardCard).entity.status).not.toBe('resolved')
+})
+
+it('a cast spends the slot on the card in the same undo step; rests refill Pact Magic and drop Sorcery Point slots; spell rule fields per campaign', () => {
+  const g = c.info().globalBoardId
+  const pc = c.createEntity({ boardId: g, type: 'PC', name: 'Raph', position: { x: 0, y: 0 }, attributes: { statblock: { hp: '30', ac: '17' }, spell_slots: [4, 3], slots_bonus: [1], pact_slots: { count: 2, level: 3 }, pact_used: 2 } }).id
+  const enc = c.createEncounter({ name: 'Ford' })
+  c.addSrdToEncounter(enc, [{ key: 'srd-2024_guard', count: 1 }], srdCopy)
+  const id = c.startCombat(enc)
+  const v = c.combatView(id)
+  const s = applyCast(v.state, { casterId: v.state.combatants[0].id, spell: 'Fire Bolt', rules: srdSpellRules({ name: 'Fire Bolt', level: 0, time: 'action', attack: true, save: '', types: ['Fire'], concentration: false, duration: 'instantaneous', desc: 'Make a ranged spell attack' } as never), how: 'cantrip', usesSlot: false, targets: [{ id: v.state.combatants[1].id, outcome: 'hit', conditions: [] }], amount: 6, damageType: 'fire', overrides: [] }, v.info)
+  c.updateCombat(id, s, 'Raph casts', [{ entityId: pc, attributes: { slots_used: [1] } }])
+  expect(c.combatView(id).state.combatants[1].hp).toBe(5)
+  expect(c.combatView(id).info[pc].slots.used[0]).toBe(1)
+  c.undo()
+  expect(c.combatView(id).state.combatants[1].hp).toBe(11)
+  expect(c.combatView(id).info[pc].slots.used[0]).toBe(0)
+  c.rest('short')
+  expect(c.combatView(id).info[pc].slots).toMatchObject({ bonus: [1, 0, 0, 0, 0, 0, 0, 0, 0], pact: { used: 0 } })
+  c.rest('long')
+  expect(c.combatView(id).info[pc].slots.bonus[0]).toBe(0)
+  const r = { ...srdSpellRules({ name: 'X', level: 1, time: 'action', attack: false, save: 'Constitution', types: [], concentration: false, duration: '', desc: '' } as never), conditions: ['Prone'] }
+  c.setSpellRules('Gust Barrier', r)
+  expect(c.combatView(id).spellRules['gust barrier']).toEqual(r)
+  c.setSpellRules('Gust Barrier', null)
+  expect(c.spellRules()).toEqual({})
+  c.undo()
+  expect(c.spellRules()['gust barrier']).toEqual(r)
 })

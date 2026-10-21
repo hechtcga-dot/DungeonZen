@@ -1890,3 +1890,31 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 /* Box controls show when the pointer or keyboard is on the box, on a folded box, or always with Setup › Arrange boxes (3.1). */
 .box-tools { visibility: hidden; }
 [data-box]:hover .box-tools, [data-box]:focus-within .box-tools, [data-folded] .box-tools, html[data-arrange] .box-tools { visibility: visible; }
+.cs-slot-left { font-size: 10px; font-weight: 700; margin-top: 2px; }
+.cs-slot-left.is-empty { color: #7a2230; }
+.cs-slot-ticks { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin-top: 2px; }
+.cs-slot-ticks .cs-tick { width: 11px; height: 11px; border-width: 1px; border-radius: 2px; }
+.cs-pact { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 6px 0; }
+.cs-pact input.cs-pact-n { width: 40px; min-height: 0; height: 24px; text-align: center; padding: 0; }
+.cs-pact select { min-height: 0; height: 24px; padding: 0 4px; }
+
+/* Cast a spell (CastPanel.tsx) */
+.cb-cast { margin: 0 0 8px; }
+.cast-lines { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.cast-lines li { padding: 2px 8px; border-left: 4px solid; border-radius: 2px; }
+.cast-red { color: #7a2230; font-weight: 600; }
+.cast-lines .cast-red { border-color: #b3261e; background: rgba(179, 38, 30, 0.1); }
+.cast-lines .cast-yellow { border-color: #b8860b; background: rgba(184, 134, 11, 0.12); color: #5a4100; }
+.cast-lines .cast-green { border-color: #2e7d4f; background: rgba(46, 125, 79, 0.1); color: #1f4d33; }
+.cast-lines .cast-note { border-color: #8a7a5a; color: #5a4c33; font-style: italic; }
+.cast-targets { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+.cast-target { padding: 4px 6px; border: 1px solid rgba(107, 63, 34, 0.2); border-radius: 4px; }
+.cast-target.is-on { border-color: #6b3f22; background: rgba(255, 250, 240, 0.5); }
+.cast-target input.short { width: 64px; }
+.cast-reaction { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 13px; padding: 4px 0; border-top: 1px dashed rgba(107, 63, 34, 0.3); }
+.cast-list { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.cast-list legend { width: 100%; }
+.cs-pact label { display: inline-flex; gap: 4px; align-items: center; }
+fieldset.cast-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0 12px; }
+fieldset.cast-list legend { grid-column: 1 / -1; }
+fieldset.cast-list .field.checkbox { margin: 0; }

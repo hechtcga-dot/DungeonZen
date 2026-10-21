@@ -1004,3 +1004,41 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   takes `partyPlace()`; SheetScreen PC opens on `sheet`; `Toast` in TopBar renders in `.screen-gap` (App's fixed one
   hidden by `body:has(.toast.in-bar)`); `button.brass:disabled` dark words; fold controls skip `.guide-screen`.
   Smoke `faintButtons` retries the first `capturePage` once (UnknownVizError on CI right after start).
+- 3.5.0 spell tracking (owner, 2026-10-21):
+  - Slots (`src/shared/slots.ts`: `slotState`, `slotsLeft`, `spendSlot`, `convertSorcery`, `slotsLine`): the most per
+    level (`spell_slots`) only changes on the sheet; casting ticks `slots_used`; `slots_bonus` (Sorcery Points) sit on
+    top; Pact Magic `pact_slots`/`pact_used`. Character sheet tab › Spell slots (`SpellSlots.tsx` `SlotsCard`): boxes =
+    most, under them left/most and used ticks, Pact Magic row (slots, level, ticks), Convert Sorcery Points… dialog
+    (make a slot 2/3/5/6/7 points, or a slot → points = its level; needs a Limited use named Sorcery Points). Spells
+    tab ticks count bonus slots; Cast falls back on a Pact slot. Run encounter rows and turn tips show Pact slots.
+    `party:rest`: short clears `pact_used`, long also `slots_used` and `slots_bonus`.
+  - Cast a spell… (Run encounter turn panel, `CastPanel.tsx` `CastDialog`; any combatant, PCs and monsters): spell
+    (sheet spells, plus a stat block's Spellcasting "At Will" / "n/Day Each" lists via `spellsInText`, n/Day spends
+    `used`), slot (levels with slots at or above the spell's, Pact), targets (any row). Per target: checks
+    (`checkTarget`: red wrong creature type / no effect on type / too big when the size stops the whole spell /
+    immune to every damage type or condition; yellow resists, immune to part, already has it, Magic Resistance,
+    Legendary Resistance left, too big for part; green the attack or DC line, vulnerable), roll box (attack total
+    vs AC → Hit/Miss, save total vs DC → Failed/Saved; buttons flip), conditions ticks (on a hit or failed save,
+    rounds from the duration), reactions (`reactionOptions`). Caster checks (`checkCaster`): incapacitated-type
+    condition, withdrawn/shell condition, Silence (effect or condition) with V, no slot/uses, 2024 bonus-action
+    spell rule on its own turn (`Combatant.cast`), yellow ends concentration. One damage (or healing) box, half on a
+    save when the spell says so, type picked when several; resistances apply through `changeHp`. Always notes
+    "Range, line of sight and cover: you check" (+ what text-read rules may miss). Red never blocks: "Cast anyway",
+    the log line ends "Cast despite: …". `applyCast` + slot on the card in one undo step (`combat:update` `cards`).
+    Concentration: `Combatant.conc`, Concentrating condition with the spell name; conditions it gave carry `src`
+    and go with it (`endConcentration`, also from the × on Concentrating). "No reactions" condition for 1 round
+    after a hit by a spell that takes reactions away.
+  - Spell rule fields (`SpellRules`): the DM's own (setting `spell_rules`, `spells:setRules`), else SRD 5.2
+    (`srdSpellRules`: build script now keeps components and reaction triggers), else read from the spell text
+    (`textSpellRules`: picker format and sheet short text such as "CON Save DC 20, Prone / Push"). Rule fields…
+    window (`SpellRulesEditor`) from the cast panel and Spells tab › Rules (cantrips too): every field editable,
+    Back to the SRD or its text, Fill rule fields with AI (`ai:spellRules`, `src/main/ai/spellrules.ts`; blue
+    dashed suggestion, Keep fills the boxes, Save keeps them).
+  - Reactions: target's REACTION actions and reaction-time spells; triggers from a name table (Shield,
+    Counterspell, Absorb Elements, Parry, Riposte, Uncanny Dodge, Deflect Missiles/Attacks, Hellish Rebuke, Silvery
+    Barbs, Protection, Redirect Attack), "casts Counterspell or Shield" text, or the words (melee/ranged attack,
+    casting a spell, takes damage, saving throw); unknown = "Check by hand". Not ready: used this round, an
+    incapacitated-type condition, No reactions, withdrawn, no slot for a reaction spell. Use reaction marks the round
+    and spends the lowest slot for a reaction spell (one undo step). Works both ways (monster on PC, PC on monster).
+  - Creatures: `CombatantInfo` gains `condImmune`, `magicResist`, `spellList`; SRD stat block fields already held
+    size, type, resistances, immunities, condition immunities (nothing new to import).

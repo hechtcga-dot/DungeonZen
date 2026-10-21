@@ -5,6 +5,7 @@ import { EncounterStory } from './encounterStory'
 import type { SrdAttacks } from './attacks'
 import type { BattlePlan } from './battleplan'
 import { CombatState } from './combat'
+import { SpellRules } from './spellcast'
 import { GRID_MAX, GRID_MIN } from './battlemap'
 import { ImportDraft, type ImportDraftSummary } from './notesImport'
 import { BIOMES, PLACE_KINDS, WORLD_CLIMATES, WORLD_SIZES, type PlaceShape } from './places'
@@ -391,7 +392,14 @@ export const ipcInputs = {
   }),
   'combat:start': z.object({ encounterId: Id }),
   'combat:view': z.object({ id: Id }),
-  'combat:update': z.object({ id: Id, state: CombatState, label: z.string().min(1).max(300) }),
+  'combat:update': z.object({
+    id: Id, state: CombatState, label: z.string().min(1).max(300),
+    /** Cards changed in the same undo step (a cast spends a slot kept on the card); type-checked on write. */
+    cards: z.array(z.object({ entityId: Id, attributes: z.record(z.string(), z.unknown()) })).max(20).optional()
+  }),
+  'spells:rules': z.void(),
+  'spells:setRules': z.object({ name: Name, rules: SpellRules.nullable() }),
+  'ai:spellRules': z.object({ name: Name, description: z.string().max(10000) }),
   'combat:end': z.object({ id: Id, resolveIds: z.array(Id).max(200).optional(), summary: z.string().max(5000).optional(), xp: z.object({ each: z.number().int().min(0).max(1000000), pcIds: z.array(Id).max(50) }).optional() }),
   'ai:combatAdvice': z.object({ id: Id, ask: z.string().max(1000), focusId: z.string().max(80).optional() }),
   'encounter:houseRules': z.object({ text: z.string().max(20000) }),
@@ -762,6 +770,9 @@ export interface IpcOutputs {
   'combat:start': string
   'combat:view': CombatView
   'combat:update': void
+  'spells:rules': Record<string, SpellRules>
+  'spells:setRules': void
+  'ai:spellRules': { rules: SpellRules; source: string }
   'combat:end': void
   'ai:combatAdvice': AiSuggestion
   'encounter:plan': BattlePlan

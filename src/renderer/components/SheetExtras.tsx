@@ -7,6 +7,9 @@ import { macroFor, spellLevel } from '../../shared/attacks'
 import { ACTIONS_IN_COMBAT, abilityRow, applyHp, classLine, classesOf, hitDice, usesOf, xpProgress, type ClassLevel, type LimitedUse } from '../../shared/charsheet'
 import { ABILITY_KEYS, abilityModifier, castingAbility, formatModifier, readStatBlock, statLine, type StatBlock } from '../../shared/statblock'
 import { AbilityKind } from '../../shared/schemas'
+import { slotsTotal, spendSlot, type SlotState } from '../../shared/slots'
+import { spellRulesFor, type SpellRules } from '../../shared/spellcast'
+import { SpellRulesEditor, useSrdSpells } from './CastPanel'
 import type { IpcInput } from '../../shared/ipc'
 import type { AbilityView, SheetView } from '../../shared/types'
 
@@ -19,7 +22,7 @@ const KIND_LABELS: Record<AbilityKind, string> = {
   ACTION: 'Action', BONUS_ACTION: 'Bonus action', REACTION: 'Reaction', LEGENDARY_ACTION: 'Legendary action', SPELL: 'Spell', OTHER: 'Other'
 }
 
-function useSetAttr(id: string) {
+export function useSetAttr(id: string) {
   const act = useBoard((s) => s.act)
   return (attributes: Record<string, unknown>) => void act('entity:update', { id, patch: { attributes } })
 }
@@ -243,7 +246,7 @@ function AbilityRows({ a, open, onToggle, cells, lead }: { a: AbilityView; open:
 }
 
 /** Spells tab: casting numbers, a table per level with slot boxes, prepared ticks, Cast spends a slot. */
-export function SpellsTable({ sheet, sb, prof, slots }: { sheet: SheetView; sb: StatBlock; prof: number | null; slots: number[] }) {
+export function SpellsTable({ sheet, sb, prof, slots: state }: { sheet: SheetView; sb: StatBlock; prof: number | null; slots: SlotState }) {
   const act = useBoard((s) => s.act)
   const e = sheet.entity
   const setAttr = useSetAttr(e.id)
@@ -255,7 +258,16 @@ export function SpellsTable({ sheet, sb, prof, slots }: { sheet: SheetView; sb: 
   const mod = abilityModifier(sb[caster])
   const bonus = typeof e.attributes.spell_bonus === 'number' ? e.attributes.spell_bonus : 0
   const prepared = new Set(Array.isArray(e.attributes.prepared) ? (e.attributes.prepared as string[]) : [])
-  const used = Array.from({ length: 9 }, (_, k) => Math.max(0, Number((Array.isArray(e.attributes.slots_used) ? e.attributes.slots_used as unknown[] : [])[k]) || 0))
+  const slots = slotsTotal(state)
+  const used = state.used
+  // Cast: a slot of the spell's level, else a Pact Magic slot of that level or higher.
+  const srd = useSrdSpells()
+  const [own, setOwn] = useState<Record<string, SpellRules>>({})
+  const [rulesFor, setRulesFor] = useState<AbilityView | null>(null)
+  // The DM's own rule fields: read again whenever the sheet changes (a save refreshes it).
+  useEffect(() => { void call('spells:rules', undefined).then(setOwn) }, [sheet])
+  const rulesBtn = (a: AbilityView) => <button type="button" className="link-button cs-small" title="What the checks on Run encounter know: target types, size, damage, conditions, components" onClick={() => setRulesFor(a)}>Rules</button>
+  const castPatch = (l: number) => spendSlot(state, l) ?? (state.pact.level >= l ? spendSlot(state, state.pact.level, true) : null)
   const spells = sheet.abilities.filter((a) => a.kind === 'SPELL')
   const levels = [...new Set(spells.map((a) => spellLevel(a.description)))].sort((a, b) => (a ?? 99) - (b ?? 99))
   const shown = levels.filter((l) => lv === 'all' || l === lv)
@@ -301,7 +313,7 @@ export function SpellsTable({ sheet, sb, prof, slots }: { sheet: SheetView; sb: 
                     <button key={x} type="button" className={`cs-tick${x < used[k] ? ' is-on' : ''}`} aria-label={`Level ${l} slot ${x + 1}`} aria-pressed={x < used[k]}
                       onClick={() => setUsed(k, x < used[k] ? x : x + 1)} />
                   ))}
-                  <span className="cs-small">slots</span>
+                  <span className="cs-small">slots{state.bonus[k] ? ` (${state.bonus[k]} from Sorcery Points)` : ''}</span>
                 </span>
               )}
             </div>
@@ -312,10 +324,11 @@ export function SpellsTable({ sheet, sb, prof, slots }: { sheet: SheetView; sb: 
                   const r = abilityRow(a.description, a.kind)
                   return (
                     <AbilityRows key={a.id} a={a} open={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)}
-                      lead={<td className="cs-cast">{l === 0 ? <span className="cs-small">At will</span> : (
+                      lead={<td className="cs-cast">{l === 0 ? <><span className="cs-small">At will</span> {rulesBtn(a)}</> : (
                         <>
                           <input type="checkbox" aria-label={`${a.name} prepared`} title="Prepared" checked={prepared.has(a.id)} onChange={(ev) => setPrepared(a.id, ev.target.checked)} />
-                          {l !== null && slots[k] > 0 && <button type="button" className="cs-cast-btn" disabled={used[k] >= slots[k]} title={`Cast: uses a level ${l} slot`} onClick={() => setUsed(k, used[k] + 1)}>Cast</button>}
+                          {rulesBtn(a)}
+                          {l !== null && (slots[k] > 0 || state.pact.level >= l) && <button type="button" className="cs-cast-btn" disabled={!castPatch(l)} title={`Cast: uses a level ${l} slot (or a Pact Magic slot)`} onClick={() => { const p = castPatch(l); if (p) setAttr(p) }}>Cast</button>}
                         </>
                       )}</td>}
                       cells={<><td>{r.time || '—'}</td><td>{r.range || '—'}</td><td>{r.hitDc || '—'}</td><td>{r.effect || '—'}</td><td className="cs-notes">{r.notes}</td></>} />
@@ -333,6 +346,7 @@ export function SpellsTable({ sheet, sb, prof, slots }: { sheet: SheetView; sb: 
       </div>
       <p className="hint">Your own spell: start its description like “Level 2 · action · 60 feet.” for the table columns.</p>
       {picker && <AttackPicker sheet={sheet} tab={picker} onClose={() => setPicker(null)} />}
+      {rulesFor && (() => { const f = spellRulesFor(rulesFor.name, rulesFor.description, own, srd); return <SpellRulesEditor name={rulesFor.name} description={rulesFor.description} rules={f.rules} source={f.source} onClose={() => setRulesFor(null)} /> })()}
     </>
   )
 }

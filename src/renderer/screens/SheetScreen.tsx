@@ -22,7 +22,8 @@ import type { IpcInput } from '../../shared/ipc'
 import type { SecretKind, SecretView, SheetView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
 import { FightSummary } from '../components/FightSummary'
-import { slotsFromText } from '../../shared/combat'
+import { slotState } from '../../shared/slots'
+import { SlotsCard } from '../components/SpellSlots'
 import { PicturePanel } from '../components/Pictures'
 import { useSheetFile } from '../components/ImportCharSheet'
 import { BuildingFillDialog, BuildingTab } from '../components/BuildingSheet'
@@ -578,9 +579,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
   const tempHp = typeof e.attributes.temp_hp === 'number' ? e.attributes.temp_hp : 0
   const walk = /\d+\s*(ft|m)\.?/i.exec(sb.speed)?.[0] ?? sb.speed
   const num = (v: string) => { const n = Number.parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : 0 }
-  const slots = Array.isArray(e.attributes.spell_slots)
-    ? Array.from({ length: 9 }, (_, k) => Math.max(0, Number((e.attributes.spell_slots as unknown[])[k]) || 0))
-    : slotsFromText(sb.traits.map((t) => `${t.name} ${t.desc}`).join('\n'))
+  const slotInfo = slotState(e.attributes, sb.traits.map((t) => `${t.name} ${t.desc}`).join('\n'))
   const defenses = [['Resistances', sb.resistances], ['Immunities', sb.immunities], ['Vulnerabilities', sb.vulnerabilities], ['Condition immunities', sb.conditionImmunities]].filter(([, v]) => v)
 
   return (
@@ -651,21 +650,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
             <CommitField id={`${p}-senses-inline`} label="Senses" value={sb.senses} placeholder="darkvision 60 ft." className="cs-inline" onCommit={(senses) => save({ senses })} />
           </div>
           {e.type === 'PC' && <VitalsCard sheet={sheet} sb={sb} />}
-          <div className="cs-card">
-            <h3 className="cs-title">Spell slots</h3>
-            <div className="cs-slots">
-              {Array.from({ length: 9 }, (_, k) => (
-                <label key={k}>{k + 1}
-                  <input inputMode="numeric" aria-label={`Level ${k + 1} spell slots`} defaultValue={slots[k] || ''} key={`${k}-${slots[k]}`} placeholder="–"
-                    onBlur={(ev) => {
-                      const n = Math.max(0, Math.min(9, Math.round(Number(ev.target.value)) || 0))
-                      if (n !== slots[k]) setAttr({ spell_slots: slots.map((x, j) => (j === k ? n : x)) })
-                    }} />
-                </label>
-              ))}
-            </div>
-            <p className="cs-small">Most slots per level. Used ones are ticked in a fight; Long rest refills them.{!Array.isArray(e.attributes.spell_slots) && slots.some(Boolean) ? ' Read from its Spellcasting text.' : ''}</p>
-          </div>
+          <SlotsCard sheet={sheet} slots={slotInfo} fromText={!Array.isArray(e.attributes.spell_slots) && slotInfo.max.some(Boolean)} />
           <div className="cs-card">
             <h3 className="cs-title">Proficiencies and languages</h3>
             {e.type === 'PC' && <CommitField id={`${p}-level`} label="Level" value={level} placeholder="9" onCommit={(v) => setAttr({ level: v })} />}
@@ -709,7 +694,7 @@ function StatBlockPanel({ sheet }: { sheet: SheetView }) {
             ))}
           </div>
           {right === 'actions' && <ActionsTable sheet={sheet} />}
-          {right === 'spells' && <SpellsTable sheet={sheet} sb={sb} prof={prof} slots={slots} />}
+          {right === 'spells' && <SpellsTable sheet={sheet} sb={sb} prof={prof} slots={slotInfo} />}
           {right === 'traits' && <><LimitedUses sheet={sheet} /><Traits sb={sb} save={save} entityId={e.id} /></>}
           {right === 'extras' && <Extras sheet={sheet} />}
           {right === 'defenses' && (

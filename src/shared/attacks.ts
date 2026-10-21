@@ -9,6 +9,8 @@ export interface SrdWeapon { key: string; name: string; dice: string; type: stri
 export interface SrdSpell {
   key: string; name: string; level: number; school: string; time: string; range: string; attack: boolean; save: string
   dice: string; types: string[]; concentration: boolean; duration: string; ritual: boolean; classes: string[]; desc: string; higher: string
+  /** "V, S, M" and, for reaction spells, when they are cast (3.5.0). */
+  components?: string; trigger?: string
 }
 export interface SrdAttacks { attribution: string; weapons: SrdWeapon[]; spells: SrdSpell[] }
 

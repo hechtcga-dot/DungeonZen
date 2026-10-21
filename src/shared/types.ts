@@ -1,5 +1,6 @@
 import type { Outline } from './outline'
 import type { CombatantInfo, CombatState } from './combat'
+import type { SpellRules } from './spellcast'
 import type { LengthUnit, Units } from './units'
 import type { StatBlock } from './statblock'
 import type { StyleTags } from './styleTags'
@@ -810,6 +811,8 @@ export interface CombatView {
   state: CombatState
   info: Record<string, CombatantInfo>
   sessionRunning: boolean
+  /** The DM's own spell rule fields, by lower-case spell name. */
+  spellRules: Record<string, SpellRules>
 }
 
 /** One creature an AI proposed for an encounter: an SRD monster, or a new one with its stat block. */

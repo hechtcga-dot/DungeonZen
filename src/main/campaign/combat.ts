@@ -8,8 +8,10 @@ import { ABILITY_KEYS, leadingNumber, passiveScore, readStatBlock, saveBonus } f
 import { battlePlan, spellRoles, type BattlePlan, type PlanFoe, type PlanPc } from '../../shared/battleplan'
 import { spellLevel } from '../../shared/attacks'
 import type { CombatView, LogView } from '../../shared/types'
-import { boostsAllies, CombatState, DAMAGE_TYPES, isLeaderName, legendaryCount, limitedUses, newCombatant, slotsFromText, type Combatant, type CombatantInfo } from '../../shared/combat'
+import { boostsAllies, CombatState, DAMAGE_TYPES, isLeaderName, legendaryCount, limitedUses, newCombatant, type Combatant, type CombatantInfo } from '../../shared/combat'
 import { xpForCr } from '../../shared/encounter'
+import { pactLeft, slotsLeft, slotState } from '../../shared/slots'
+import { SpellRules, spellsInText } from '../../shared/spellcast'
 import { part } from './part'
 
 
@@ -109,7 +111,6 @@ export const combatPart = part({
     const split = texts.find((t) => /^split\b/i.test(t.name) || /\bsplits? into two\b/i.test(t.text))
     const lvl = Number.parseInt(String(e.attributes.level ?? ''), 10)
     const level = e.type === 'PC' ? (Number.isFinite(lvl) && lvl > 0 ? lvl : null) : null
-    const nums = (v: unknown) => (Array.isArray(v) ? Array.from({ length: 9 }, (_, i) => Math.max(0, Number(v[i]) || 0)) : null)
     const dc = /spell save DC\s*(\d+)/i.exec(all) ?? /\bDC\s*(\d+)/.exec(all)
     return {
       creatureType: sb?.creatureType ?? '',
@@ -123,7 +124,8 @@ export const combatPart = part({
       pp: sb ? passiveScore(sb, 'Perception') : null,
       saveDc: dc ? Number(dc[1]) : null,
       dexMod: sb ? Math.floor((sb.dex - 10) / 2) : 0,
-      resist: sb?.resistances ?? '', immune: sb?.immunities ?? '', vuln: sb?.vulnerabilities ?? '',
+      resist: sb?.resistances ?? '', immune: sb?.immunities ?? '', vuln: sb?.vulnerabilities ?? '', condImmune: sb?.conditionImmunities ?? '',
+      magicResist: texts.some((t) => /^magic resistance\b/i.test(t.name)),
       limited: limitedUses(texts),
       legendaryActions: legendaryCount(texts.map((t) => t.text), acts.some((a) => a.kind === 'LEGENDARY_ACTION')),
       lair: /lair action/i.test(all),
@@ -132,8 +134,8 @@ export const combatPart = part({
       mirrorImage: /mirror image/i.test(all),
       displacement: texts.some((t) => /^displacement\b/i.test(t.name)),
       actions: acts.map((a) => ({ name: a.name, kind: a.kind, text: a.description.length > 300 ? `${a.description.slice(0, 300)}…` : a.description, full: a.description })),
-      slots: nums(e.attributes.spell_slots) ?? slotsFromText(all),
-      slotsUsed: nums(e.attributes.slots_used) ?? Array<number>(9).fill(0),
+      slots: slotState(e.attributes, all),
+      spellList: spellsInText(all),
       cardType: e.type,
       size: sb?.size ?? '',
       pc: e.type !== 'PC' ? null : (() => {
@@ -165,7 +167,7 @@ export const combatPart = part({
     })
     return {
       id, encounterId: row.encounterId, encounterName: this.nameOf(row.encounterId), status: row.status === 'ended' ? 'ended' : 'active',
-      state: { ...state, combatants }, info, sessionRunning: !!this.openSession()
+      state: { ...state, combatants }, info, sessionRunning: !!this.openSession(), spellRules: this.spellRules()
     }
   },
 
@@ -194,12 +196,12 @@ export const combatPart = part({
     const e = this.entityRow(entityId)
     const sb = readStatBlock(e.attributes.statblock)
     const acts = this.db.select().from(ability).where(and(eq(ability.entityId, entityId), eq(ability.status, 'active'))).all()
-    const nums = (v: unknown) => (Array.isArray(v) ? Array.from({ length: 9 }, (_, i) => Math.max(0, Number(v[i]) || 0)) : null)
-    const slots = nums(e.attributes.spell_slots) ?? slotsFromText((sb?.traits ?? []).map((t) => `${t.name} ${t.desc}`).join('\n'))
-    const used = nums(e.attributes.slots_used) ?? Array<number>(9).fill(0)
+    const slots = slotState(e.attributes, (sb?.traits ?? []).map((t) => `${t.name} ${t.desc}`).join('\n'))
+    const left = slotsLeft(slots)
+    if (pactLeft(slots)) left[slots.pact.level - 1] += pactLeft(slots)
     return {
       name: e.name, ac: sb ? leadingNumber(sb.ac) : null, hp, maxHp, down, concentrating,
-      slotsLeft: slots.map((n, i) => Math.max(0, n - used[i])),
+      slotsLeft: left,
       powers: acts.map((a) => ({
         name: a.name, level: a.kind === 'SPELL' ? spellLevel(a.description) : null, roles: spellRoles(a.name, a.description),
         save: /(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+Saving Throw/i.exec(a.description)?.[1] ?? '',
@@ -233,10 +235,34 @@ export const combatPart = part({
     return { s: n(d.s), f: n(d.f) }
   },
 
-  /** The DM's change to the fight (damage, a condition, the next turn…): one undo step each; changed death saves go to the card. */
-  updateCombat(id: string, state: CombatState, label: string): void {
+  /** The DM's own spell rule fields, by lower-case spell name (campaign setting `spell_rules`). */
+  spellRules(): Record<string, SpellRules> {
+    const v = this.setting('spell_rules')
+    const out: Record<string, SpellRules> = {}
+    for (const [k, r] of Object.entries(v && typeof v === 'object' ? v : {})) { const p = SpellRules.safeParse(r); if (p.success) out[k] = p.data }
+    return out
+  },
+
+  /** Keeps (or with null drops) the DM's own rule fields for a spell, for every caster in the campaign. One undo step. */
+  setSpellRules(name: string, rules: SpellRules | null): void {
+    const key = name.trim().toLowerCase()
+    const all = { ...this.spellRules() }
+    if (rules) all[key] = rules
+    else delete all[key]
+    this.setSetting('spell_rules', all, rules ? `Rule fields for ${name.trim()}` : `${name.trim()}: back to the SRD or its text`)
+  },
+
+  /**
+   * The DM's change to the fight (damage, a condition, the next turn…): one undo step each; changed death saves go to the card.
+   * `cards`: changes to cards in the same step (a cast spends a slot or a use kept on the card).
+   */
+  updateCombat(id: string, state: CombatState, label: string, cards: Array<{ entityId: string; attributes: Record<string, unknown> }> = []): void {
     this.log.run(label, (w) => {
       w.update('combat', id, { state })
+      for (const c of cards) {
+        const e = this.entityRow(c.entityId)
+        w.update('entity', e.id, { attributes: { ...e.attributes, ...c.attributes } })
+      }
       for (const c of state.combatants) {
         const saved = c.side === 'party' && c.entityId ? this.deathSavesOf(c.entityId) : null
         if (!saved || (saved.s === c.death.s && saved.f === c.death.f)) continue

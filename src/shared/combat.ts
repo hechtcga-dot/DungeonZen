@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { slotsLine, type SlotState } from './slots'
+
+export { slotsFromText } from './slots'
 
 // Run encounter (combat tracker). No dice, no initiative: the DM orders the list (owner,
 // 2026-10-06). The whole fight is one JSON state in the `combat` table, so every change is
@@ -9,7 +12,11 @@ export const CONDITIONS = [
   'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious', 'Concentrating', 'Bloodied'
 ]
 
-export const Condition = z.object({ name: z.string().min(1).max(60), rounds: z.number().int().min(1).max(1000).nullable() })
+export const Condition = z.object({
+  name: z.string().min(1).max(60), rounds: z.number().int().min(1).max(100000).nullable(),
+  /** Given by a concentration spell ("casterId:Spell"): goes when that concentration ends. */
+  src: z.string().max(300).optional()
+})
 export type Condition = z.infer<typeof Condition>
 
 const Count = z.number().int().min(0).max(1000)
@@ -40,7 +47,10 @@ export const Combatant = z.object({
   death: z.object({ s: z.number().int().min(0).max(3), f: z.number().int().min(0).max(3) }).default({ s: 0, f: 0 }),
   stable: z.boolean().default(false),
   /** Sizes smaller than its stat block (after splitting). */
-  shrink: z.number().int().min(0).max(5).default(0)
+  shrink: z.number().int().min(0).max(5).default(0),
+  // 3.5.0: the spell it concentrates on, and what it cast on its own turn this round (2024 one-slot-spell rule).
+  conc: z.string().max(200).nullable().default(null),
+  cast: z.object({ round: z.number().int().min(1).max(10000), bonus: z.boolean(), slot: z.boolean() }).nullable().default(null)
 })
 export type Combatant = z.infer<typeof Combatant>
 
@@ -98,6 +108,10 @@ export interface CombatantInfo {
   resist: string
   immune: string
   vuln: string
+  /** Condition immunities (stat block text). */
+  condImmune: string
+  /** Magic Resistance: Advantage on saves against spells. */
+  magicResist: boolean
   limited: Limited[]
   /** Legendary actions per round (0: none). */
   legendaryActions: number
@@ -108,9 +122,10 @@ export interface CombatantInfo {
   mirrorImage: boolean
   displacement: boolean
   actions: Array<{ name: string; kind: string; text: string; /** The whole description (text is cut to fit the panel). */ full?: string }>
-  /** Spell slots per level 1–9: the most, and how many are used (kept on the card). */
-  slots: number[]
-  slotsUsed: number[]
+  /** Spell slots kept on the card: the most, bonus ones from Sorcery Points, used, Pact Magic. */
+  slots: SlotState
+  /** Spells its Spellcasting text lists ("At Will: …", "2/Day Each: …"; useKey: its uses in `used`). */
+  spellList?: Array<{ name: string; useKey: string | null }>
   /** The card's type (NPC, MONSTER, PC…). */
   cardType: string
   size: string
@@ -156,13 +171,6 @@ export function limitedUses(texts: Array<{ name: string; text: string }>): Limit
     }
   }
   return out.filter((x, i) => out.findIndex((y) => y.key === x.key) === i)
-}
-
-/** Spell slots from a Spellcasting text ("1st level (4 slots)"), levels 1–9. */
-export function slotsFromText(text: string): number[] {
-  const slots = Array<number>(9).fill(0)
-  for (const m of text.matchAll(/(\d)(?:st|nd|rd|th)[ -]level\s*\((\d+)\s*slots?\)/gi)) slots[Number(m[1]) - 1] = Number(m[2])
-  return slots
 }
 
 /** Legendary actions per round from the text ("Legendary Action Uses: 3", "can take 3 legendary actions"). */
@@ -450,7 +458,7 @@ export function turnTips(s: CombatState, c: Combatant, i: CombatantInfo | undefi
   if (c.side === 'party' && c.hp === 0 && c.maxHp > 0) tips.push(c.stable ? 'Stable at 0 HP: no death saves.' : `At 0 HP: roll a death save (${c.death.s} success, ${c.death.f} failed).`)
   const rec = c.rounds[String(s.round)]
   if (rec?.r) tips.push('Reaction already used this round.')
-  if (rec?.c || c.conditions.some((k) => k.name === 'Concentrating')) tips.push('Concentrating: taking damage means a Constitution save (DC 10 or half the damage).')
+  if (rec?.c || c.conditions.some((k) => k.name === 'Concentrating')) tips.push(`Concentrating${c.conc ? ` on ${c.conc}` : ''}: taking damage means a Constitution save (DC 10 or half the damage).`)
   if (c.mirror) tips.push(`Mirror Image: ${c.mirror} duplicate${c.mirror === 1 ? '' : 's'} left (attackers roll to hit a duplicate; AC ${10 + (i?.dexMod ?? 0)}).`)
   if (c.displacement === 'on') tips.push('Displacement: attacks against it have disadvantage.')
   if (!i) return tips
@@ -461,8 +469,8 @@ export function turnTips(s: CombatState, c: Combatant, i: CombatantInfo | undefi
   }
   if (i.legendaryActions) tips.push(`Legendary actions: ${i.legendaryActions - c.legendaryUsed} of ${i.legendaryActions} left, at the end of other creatures' turns.`)
   if (i.lair) tips.push('Lair action on initiative 20 (losing ties).')
-  const left = i.slots.map((m, k) => (m ? `${k + 1}: ${Math.max(0, m - (i.slotsUsed[k] ?? 0))}/${m}` : '')).filter(Boolean)
-  if (left.length) tips.push(`Spell slots left (level: left/most): ${left.join(', ')}.`)
+  const left = slotsLine(i.slots)
+  if (left) tips.push(`Spell slots left (level: left/most): ${left}.`)
   if (c.side !== 'party') {
     const party = s.combatants.filter((x) => x.side === 'party' && !x.out && x.hp > 0)
     const bloodied = party.filter((x) => x.maxHp && x.hp <= x.maxHp / 2)

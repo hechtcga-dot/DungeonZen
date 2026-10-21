@@ -14,6 +14,9 @@ import {
   nextTurn, previousTurn, splitCombatant, turnTips, type Combatant, type CombatantInfo, type CombatState, type Effect
 } from '../../shared/combat'
 import { encounterBudget, RATING_LABELS, rateEncounter } from '../../shared/encounter'
+import { slotsTotal } from '../../shared/slots'
+import { endConcentration } from '../../shared/spellcast'
+import { CastDialog } from '../components/CastPanel'
 import type { AiSuggestion, CombatView } from '../../shared/types'
 
 const SIDES: Record<Combatant['side'], string> = { party: 'Party', foe: 'Foe', ally: 'Ally' }
@@ -340,8 +343,10 @@ function CombatantRow({ c, info, s, i, last, current, ended, selected, inGroup, 
         {c.side === 'party' && c.hp === 0 && c.maxHp > 0 && !ended && <DeathSaves c={c} s={s} onState={onState} />}
         <div className="cb-cond-row">
           {c.conditions.map((k, j) => (
-            <span key={j} className="cb-cond">{k.name}{k.rounds ? ` (${k.rounds} rd)` : ''}
-              {!ended && <button className="link-button" aria-label={`Remove ${k.name} from ${c.name}`} onClick={() => onEdit({ conditions: c.conditions.filter((_, x) => x !== j) }, `${c.name} is no longer ${k.name.toLowerCase()}`)}>×</button>}
+            <span key={j} className="cb-cond" title={k.src ? `From ${k.src.split(':').slice(1).join(':')} (ends with its concentration)` : undefined}>{k.name}{k.name === 'Concentrating' && c.conc ? `: ${c.conc}` : ''}{k.rounds ? ` (${k.rounds} rd)` : ''}
+              {!ended && <button className="link-button" aria-label={`Remove ${k.name} from ${c.name}`} onClick={() => (k.name === 'Concentrating' && c.conc
+                ? onState(endConcentration(s, c.id), `${c.name} stops concentrating on ${c.conc}`)
+                : onEdit({ conditions: c.conditions.filter((_, x) => x !== j) }, `${c.name} is no longer ${k.name.toLowerCase()}`))}>×</button>}
             </span>
           ))}
           {fx.map((e) => <span key={e.id} className="cb-cond cb-fx" title={effectLine(e)}>{e.name}</span>)}
@@ -456,13 +461,9 @@ function Details({ c, info, s, ended, onEdit, onState }: {
   const rec = (r: number) => c.rounds[String(r)] ?? { dmg: 0, heal: 0, r: false, c: false }
   const setRec = (r: number, patch: Partial<{ r: boolean; c: boolean }>, label: string) => onEdit({ rounds: { ...c.rounds, [String(r)]: { ...rec(r), ...patch } } }, label)
   const use = (key: string, n: number, label: string) => onEdit({ used: { ...c.used, [key]: Math.max(0, n) } }, label)
-  const slots = info?.slots ?? []
-  const slotsUsed = info?.slotsUsed ?? []
-  const setSlots = (k: number, used: number) => {
-    if (!c.entityId) return
-    const next = Array.from({ length: 9 }, (_, x) => (x === k ? used : slotsUsed[x] ?? 0))
-    void act('entity:update', { id: c.entityId, patch: { attributes: { slots_used: next } } })
-  }
+  const st = info?.slots
+  const slots = st ? slotsTotal(st) : []
+  const setSlots = (attributes: Record<string, unknown>) => { if (c.entityId) void act('entity:update', { id: c.entityId, patch: { attributes } }) }
   const lr = info?.limited.filter((l) => l.kind === 'legendaryResist') ?? []
   const lim = info?.limited.filter((l) => l.kind !== 'legendaryResist') ?? []
   return (
@@ -499,12 +500,15 @@ function Details({ c, info, s, ended, onEdit, onState }: {
             {!ended && (c.used[l.key] ?? 0) > 0 && <button className="link-button" onClick={() => use(l.key, 0, `${c.name}: ${l.name} refreshed`)}>Refresh</button>}
           </div>
         ))}
-        {slots.some((m) => m > 0) && (
+        {st && (slots.some((m) => m > 0) || st.pact.count > 0) && (
           <div className="cb-slots" aria-label="Spell slots">
             <span className="cb-small"><b>Spell slots</b> (kept on the card; Long rest refills)</span>
             {slots.map((m, k) => m > 0 && (
-              <Pips key={k} label={`Level ${k + 1}`} max={m} used={Math.min(m, slotsUsed[k] ?? 0)} disabled={ended || !c.entityId} onSet={(n) => setSlots(k, n)} />
+              <Pips key={k} label={`Level ${k + 1}`} max={m} used={Math.min(m, st.used[k])} disabled={ended || !c.entityId}
+                onSet={(n) => setSlots({ slots_used: st.used.map((u, x) => (x === k ? n : u)) })} />
             ))}
+            {st.pact.count > 0 && <Pips label={`Pact (level ${st.pact.level})`} max={st.pact.count} used={st.pact.used} disabled={ended || !c.entityId} hint="Back on a short rest"
+              onSet={(n) => setSlots({ pact_used: n || null })} />}
           </div>
         )}
         {!ended && (Object.values(c.used).some((n) => n > 0) || c.legendaryUsed > 0) && (
@@ -558,6 +562,7 @@ function TurnPanel({ v, c }: { v: CombatView; c: Combatant }) {
   const [ask, setAsk] = useState('')
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
+  const [casting, setCasting] = useState(false)
   useEffect(() => { setAdvice(null); setError('') }, [c.id])
   const askAi = async () => {
     setAsking(true); setError('')
@@ -566,6 +571,8 @@ function TurnPanel({ v, c }: { v: CombatView; c: Combatant }) {
   return (
     <div className="cb-turn">
       <h2 className="panel-title">{c.side === 'party' ? `${c.name}'s options` : `${c.name}: tactics`}</h2>
+      {v.status === 'active' && <button className="ink-button primary-ink cb-cast" onClick={() => setCasting(true)}>Cast a spell…</button>}
+      {casting && <CastDialog v={v} caster={c} onClose={() => setCasting(false)} />}
       {tips.length > 0 && <ul className="combat-hints">{tips.map((t, k) => <li key={k}><SpellText text={t} glossary={glossary} /></li>)}</ul>}
       {i && i.actions.length > 0 && (
         <details className="cb-actions" open>

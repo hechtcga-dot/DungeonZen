@@ -11,6 +11,7 @@ import { ProfileStore } from './profile'
 import { logError, logFolder } from './log'
 import { checkUpdates, restartToUpdate } from './updates'
 import type { KeyStore } from './ai/keys'
+import { parseSpellRules, SPELL_RULES_SYSTEM, spellRulesPrompt } from './ai/spellrules'
 import { checkConnection, generateImage, generateText, listModels, resolve } from './ai/client'
 import { SCENE_SYSTEM, scenePrompt } from './ai/scene'
 import { ASK_SYSTEM, askPrompt } from './ai/ask'
@@ -1261,7 +1262,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
 
   handle('combat:start', ({ encounterId }) => current().startCombat(encounterId))
   handle('combat:view', ({ id }) => current().combatView(id))
-  handle('combat:update', ({ id, state, label }) => current().updateCombat(id, state, label))
+  handle('combat:update', ({ id, state, label, cards }) => current().updateCombat(id, state, label, cards))
+  handle('spells:rules', () => current().spellRules())
+  handle('spells:setRules', ({ name, rules }) => current().setSpellRules(name, rules))
+  handle('ai:spellRules', async ({ name, description }) => {
+    const choice = profile.aiChoice('text')
+    const r = resolve(choice, choice.provider ? keys.get(choice.provider) : null)
+    const reply = await generateText(r, { system: SPELL_RULES_SYSTEM, prompt: spellRulesPrompt(name, description), json: true, maxTokens: 1000 })
+    return { rules: parseSpellRules(reply, description), source: `${r.info.name} · ${r.model || 'default model'}` }
+  })
   handle('combat:end', ({ id, resolveIds, summary, xp }) => current().endCombat(id, { resolveIds, summary, xp }))
   handle('ai:combatAdvice', async ({ id, ask, focusId }) => {
     const choice = profile.aiChoice('text')

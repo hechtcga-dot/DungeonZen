@@ -177,15 +177,16 @@ export const livePart = part({
         })
       }
       w.update('campaign_settings', 'clock_min', { value: now + minutes })
-      // Limited uses come back (short-rest ones on any rest); a long rest also restores hit points,
-      // spell slots and hit dice, clears death saves and takes off one level of exhaustion (2024 rules).
+      // Limited uses and Pact Magic slots come back (short-rest ones on any rest); a long rest also restores
+      // hit points, spell slots (slots made from Sorcery Points vanish) and hit dice, clears death saves and
+      // takes off one level of exhaustion (2024 rules).
       for (const p of this.partyHealth()) {
         const a = this.entityRow(p.id).attributes
         const uses = usesOf(a).map((u) => (kind === 'long' || u.reset === 'short' ? { ...u, used: 0 } : u))
         const exhaustion = typeof a.exhaustion === 'number' ? a.exhaustion : 0
         w.update('entity', p.id, {
-          attributes: kind === 'short' ? { ...a, uses }
-            : { ...a, uses, current_hp: p.maxHp, slots_used: null, hit_dice_used: 0, death_saves: null, exhaustion: Math.max(0, exhaustion - 1) }
+          attributes: kind === 'short' ? { ...a, uses, pact_used: null }
+            : { ...a, uses, pact_used: null, current_hp: p.maxHp, slots_used: null, slots_bonus: null, hit_dice_used: 0, death_saves: null, exhaustion: Math.max(0, exhaustion - 1) }
         })
       }
       if (kind === 'long') {
