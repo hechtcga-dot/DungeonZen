@@ -35,6 +35,10 @@ jobs:
       - run: xvfb-run --auto-servernum npm run smoke
         env:
           DZ_SKIN: adventure
+      # Windows display scaling 150% (most laptops).
+      - run: xvfb-run --auto-servernum -s "-screen 0 2560x1600x24" npm run smoke
+        env:
+          DZ_SCALE: '1.5'
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -42,3 +46,4 @@ jobs:
           path: |
             tests/e2e/shots/
             tests/e2e/shots-adventure/
+            tests/e2e/shots-scale-1.5/

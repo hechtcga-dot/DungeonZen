@@ -34,6 +34,16 @@ jobs:
       - run: npx electron-builder --win --x64 --publish never
       # The installer and latest.yml (auto-update) must both be here.
       - run: dir dist
+      # The real installer: installs silently (per user, no admin), then the smoke test runs on the installed app.
+      # Catches what only the packed app gets wrong (native SQLite module, asar paths, missing files).
+      - run: |
+          $exe = (Get-ChildItem dist\*.exe).FullName
+          Start-Process $exe -ArgumentList '/S' -Wait
+          $app = "$env:LOCALAPPDATA\Programs\DungeonZen\DungeonZen.exe"
+          if (!(Test-Path $app)) { throw "Installer did not install $app" }
+          "DZ_APP=$app" >> $env:GITHUB_ENV
+        shell: pwsh
+      - run: npm run smoke
       # GitHub zips every artifact itself: upload only the .exe, or the download holds the installer twice (once inside a .zip).
       - uses: actions/upload-artifact@v4
         with:

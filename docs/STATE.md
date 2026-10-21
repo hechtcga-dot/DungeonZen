@@ -860,6 +860,14 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     dialogs opened from Notes lost their button styles; link buttons in dialogs had a pale box; unavailable main
     buttons and Notes arrows too faint; Timeline lane names whole (no 2-line cut).
     `DZ_USER_DATA` env sets the userData folder (smoke only).
+  - Checks round 3 (2026-10-21): every vitest campaign is undone to how it opened and redone on close
+    (`tests/undoCheck.ts`, vitest setup file): a write outside `CommandLog.run` or a wrong undo/redo fails that test.
+    Smoke round trip (`roundTrip`): rename a card in the Inspector, then Board, Find and its sheet must show the new
+    name; Undo/Redo buttons bring each name back everywhere; Move to History takes it off the board; History › Revive
+    brings it back. Every smoke screen: no picture or font that failed to load. `DZ_SCALE=1.5` runs smoke at Windows
+    display scaling 150 % (CI, shots `shots-scale-1.5/`). A failed step saves `failed.png`. Release workflow installs
+    the built .exe silently (`/S`) and runs smoke on the installed app (`DZ_APP`). Locally: Xvfb needs a 24-bit screen
+    (`xvfb-run -s "-screen 0 1920x1080x24"`), or capturePage fails (UnknownVizError).
 
 - 3.0 M1 code structure (2026-10-19):
   - `src/main/campaign/`: `campaign.ts` (class core: open/save/backups, board reads/writes, sheet, desk, settings,

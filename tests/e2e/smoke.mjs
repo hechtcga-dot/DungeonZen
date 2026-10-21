@@ -13,7 +13,9 @@ import { buttonSamples, layoutProblems, mapCentred, uiProblems } from './uiCheck
 const root = join(import.meta.dirname, '..', '..')
 // DZ_SKIN=adventure runs the same screens in the Adventure UI skin (3.1), screenshots in shots-adventure/.
 const skin = process.env.DZ_SKIN ?? ''
-const shots = join(import.meta.dirname, skin ? `shots-${skin}` : 'shots')
+// DZ_SCALE=1.5 runs it as Windows display scaling 150% (most laptops), screenshots in shots-scale-1.5/.
+const scale = process.env.DZ_SCALE ?? ''
+const shots = join(import.meta.dirname, ['shots', skin, scale && `scale-${scale}`].filter(Boolean).join('-'))
 const work = mkdtempSync(join(tmpdir(), 'dz-smoke-'))
 const folder = join(work, 'Smoke campaign')
 const userData = join(work, 'userData')
@@ -47,9 +49,16 @@ db.exec(`UPDATE storyline SET title = 'Countdown to the Reign of Misule the Undy
 db.close()
 
 const problems = []
+// Pictures that failed to load and fonts that failed (runs in the window).
+const missingFiles = () => [
+  ...[...document.images].filter((i) => i.complete && i.naturalWidth === 0 && i.src).map((i) => `picture did not load: ${i.src.slice(0, 120)}`),
+  ...[...document.fonts].filter((f) => f.status === 'error').map((f) => `font did not load: ${f.family} ${f.weight}`)
+]
 const app = await _electron.launch({
   // Linux CI runners block Chromium's sandbox helper.
-  args: [join(root, 'out', 'main', 'index.js'), ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
+  // DZ_APP: an installed DungeonZen.exe instead of the build in out/ (the release workflow tests the real installer).
+  ...(process.env.DZ_APP ? { executablePath: process.env.DZ_APP } : {}),
+  args: [...(process.env.DZ_APP ? [] : [join(root, 'out', 'main', 'index.js')]), ...(process.platform === 'linux' ? ['--no-sandbox'] : []), ...(scale ? [`--force-device-scale-factor=${scale}`] : [])],
   env: { ...process.env, DZ_USER_DATA: userData },
   timeout: 60000
 })
@@ -71,6 +80,7 @@ try {
     for (const p of await page.evaluate(uiProblems)) problems.push(`${name}: ${p}`)
     for (const p of await page.evaluate(layoutProblems)) problems.push(`${name}: ${p}`)
     for (const p of await faintButtons()) problems.push(`${name}: ${p}`)
+    for (const p of await page.evaluate(missingFiles)) problems.push(`${name}: ${p}`)
     // A smaller window too (a laptop): checked, no screenshot.
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.waitForTimeout(400)
@@ -105,6 +115,48 @@ try {
     }, { list, width })
   }
   const click = (text) => page.getByRole('button', { name: text, exact: true }).first().click()
+  // A change shows on every screen it touches (owner, 2026-10-06), and undo, redo, History and Revive bring it back.
+  // Catches cards that vanish after a refresh, clicks that don't select, a screen that kept the old name.
+  // Esc first clears a filled field, then closes.
+  const closeDialogs = async () => { for (let i = 0; i < 3 && await page.locator('dialog[open]').count(); i++) await page.keyboard.press('Escape') }
+  const shows = async (step, name, want) => {
+    const where = {
+      board: async () => { await click('Board'); return page.locator('.react-flow__node', { hasText: name }).count() },
+      // Find lists it; Enter opens its sheet (the sheet shows the name).
+      find: async () => {
+        await page.keyboard.press('Control+f'); await page.getByRole('searchbox', { name: 'Find', exact: true }).fill(name); await page.waitForTimeout(300)
+        const n = await page.locator('.find-list .find-name').filter({ hasText: new RegExp(`^${name}$`) }).count()
+        if (!n) { await closeDialogs(); return 0 }
+        await page.keyboard.press('Enter'); await page.getByRole('tab', { name: /Links & secrets/ }).waitFor()
+        const onSheet = await page.locator(`input[value="${name}"], :text-is("${name}")`).count()
+        if (!onSheet) problems.push(`after ${step}: the sheet does not show "${name}"`)
+        return n
+      }
+    }
+    for (const [screen, count] of Object.entries(where)) {
+      const n = await count()
+      if ((n > 0) !== want) problems.push(`after ${step}: ${screen} ${want ? 'does not show' : 'still shows'} "${name}"`)
+    }
+  }
+  const roundTrip = async () => {
+    const [before, after] = ['Barliman Butterbur', 'Barliman the Smoke Tester']
+    await click('Board'); await page.locator('.react-flow__node', { hasText: before }).first().click()
+    const field = page.locator('.inspector').getByLabel('Name', { exact: true })
+    await field.fill(after); await field.press('Enter'); await page.waitForTimeout(400)
+    await shows('rename', after, true); await shows('rename', before, false)
+    await page.getByRole('button', { name: 'Undo', exact: true }).click(); await page.waitForTimeout(400)
+    await shows('undo', before, true); await shows('undo', after, false)
+    await page.getByRole('button', { name: 'Redo', exact: true }).click(); await page.waitForTimeout(400)
+    await shows('redo', after, true)
+    await click('Board'); await page.locator('.react-flow__node', { hasText: after }).first().click()
+    await page.locator('.inspector-more summary').click(); await click('Move to History'); await page.waitForTimeout(400)
+    if (await page.locator('.react-flow__node', { hasText: after }).count()) problems.push('after Move to History: card still on the board')
+    await page.getByRole('tab', { name: 'History', exact: true }).click()
+    await page.locator('li, .history-row, div').filter({ hasText: after }).getByRole('button', { name: 'Revive', exact: true }).first().click()
+    await page.waitForTimeout(400)
+    await shows('Revive', after, true)
+    await shot('round-trip')
+  }
 
   await shot('start')
   await page.getByRole('button', { name: /Old campaign/ }).first().click()
@@ -153,8 +205,11 @@ try {
   await click('Close')
   await click('Setup'); await page.getByText('Linking names…').click(); await shot('linking-names')
   await click('Close')
+  await roundTrip()
 } catch (err) {
   problems.push(`step failed: ${err.message}`)
+  // What was on screen when it stopped.
+  await app.windows()[0]?.screenshot({ path: join(shots, 'failed.png') }).catch(() => undefined)
 } finally {
   await app.close().catch(() => undefined)
   rmSync(work, { recursive: true, force: true })
