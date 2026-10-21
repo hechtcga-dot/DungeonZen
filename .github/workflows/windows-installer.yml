@@ -44,6 +44,9 @@ jobs:
           "DZ_APP=$app" >> $env:GITHUB_ENV
         shell: pwsh
       - run: npm run smoke
+      # The latest playtest's campaign (examples/example_<name>/, skill `playtest`) as a download beside the .exe.
+      - run: Get-ChildItem examples -Directory -Filter 'example_*' | ForEach-Object { Compress-Archive -Path "$($_.FullName)\*" -DestinationPath "dist\$($_.Name).zip" -Force }
+        shell: pwsh
       # GitHub zips every artifact itself: upload only the .exe, or the download holds the installer twice (once inside a .zip).
       - uses: actions/upload-artifact@v4
         with:
@@ -56,10 +59,12 @@ jobs:
           tag_name: ${{ inputs.release_tag || github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: Dungeon Zen ${{ inputs.release_tag || github.ref_name }}
-          # The .exe (owner, 2026-10-12: no second copy as a .zip) and latest.yml, which auto-update reads (3.0).
+          # The .exe (owner, 2026-10-12: no second copy as a .zip), latest.yml, which auto-update reads (3.0), and the
+          # playtest's example campaign (owner, 2026-10-21).
           files: |
             dist/*.exe
             dist/latest.yml
+            dist/example_*.zip
           body: |
             **Install:** download the `Dungeon-Zen-Setup-…exe` file below and run it
             (if your browser warns about it, choose Keep).
@@ -68,6 +73,9 @@ jobs:
             Windows SmartScreen may warn that the publisher is unknown (the installer is not code-signed):
             choose "More info", then "Run anyway".
             Uninstall from Settings › Apps; your campaigns and settings are kept.
+
+            **Example campaign:** `example_….zip` is the campaign our test DM made while trying this version.
+            Unzip it anywhere, then in Dungeon Zen choose Open a campaign folder… and pick the unzipped folder.
 
             **Updates:** from 3.0 on, Dungeon Zen downloads new versions by itself and installs them when you close it
             (or at once with Restart now). Coming from 2.x, install this one by hand once.

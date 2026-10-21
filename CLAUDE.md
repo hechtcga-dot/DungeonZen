@@ -53,7 +53,7 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 - Card colours: Item `#9c4f1f`, Handout `#6b5a3a`, Building `#5c6b73` (`entityStyle.ts`).
 - Draw windows (card picture, battle map, world map): style examples start unticked (owner, 2026-10-12).
 - Style tags on Library pictures (artist, period, medium, palette, light, details, composition): AI reads them only on the DM's click, DM keeps/edits; prompts blend all ticked pictures' tags; card pictures get "Include in the picture" and a composition picker (16 forms with sketches, default by card type, DM picks per drawing; maps keep their own layout) (owner, 2026-10-12).
-- Release assets: only the .exe, no .zip copy (owner, 2026-10-12).
+- Release assets: the .exe (no .zip copy of it) and the latest playtest's campaign `example_<name>.zip` from `examples/` (owner, 2026-10-12, 2026-10-21).
 - Battle map Draw window › Follow a picture: boxed part of a map/picture redrawn at 5 ft scale, no text/symbols; saved per encounter; too-big box = warning + button for the largest true-scale map, 300 ft (owner, 2026-10-14). Battle map window has Advanced style and composition (boxes from the ticked examples' style tags, battle map templates of their own) (owner, 2026-10-14).
 - Installer: per-user NSIS, no admin (`electron-builder.yml`, `build/installer.nsh`), `%LOCALAPPDATA%\Programs\DungeonZen`, HKCU. Not code-signed yet.
 - New campaign: getting started guide, world map first (1.1.0).

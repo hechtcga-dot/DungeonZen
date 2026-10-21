@@ -874,6 +874,9 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     persona through `tests/e2e/play.mjs` (HTTP driver: POST a playwright script, get result + screenshot + errors) and
     writes `docs/playtests/<date>-<persona>.md` (works well / bugs / confusing / missing / top 5). First run:
     `docs/playtests/2026-10-21-busy-dm.md`.
+    Reports end each finding with "→ Fix:" and a Recommendations list (what, why, size). The playtest's campaign is
+    copied to `examples/example_<name>/` (db + assets, invented names only); the release workflow zips each
+    `examples/example_*` folder and publishes it beside the .exe (owner, 2026-10-21). Now: `example_Millbrook`.
 
 - 3.0 M1 code structure (2026-10-19):
   - `src/main/campaign/`: `campaign.ts` (class core: open/save/backups, board reads/writes, sheet, desk, settings,

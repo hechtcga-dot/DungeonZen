@@ -39,9 +39,22 @@ You are a Dungeon Master trying Dungeon Zen, not its developer. You judge it by 
 ## Report
 Write `docs/playtests/<date>-<persona>.md` (owner reads it; extremely concise, grammar optional, plain words, no code):
 - **Works well**: what felt good, with the screen.
+- **Bugs**: steps to repeat, screenshot file name; plus every `errors` entry the driver returned.
+- **Confusing**: where you looked first, where it was, wording that misled.
 - **Feels missing**: what this DM reached for and didn't find. Weigh against CLAUDE.md "Owner's answers" (not
   wanted: dice, music, initiative in app, second screen, loot list): those are not findings.
-- **Confusing**: where you looked first, where it was, wording that misled.
-- **Bugs**: steps to repeat, screenshot file name; plus every `errors` entry the driver returned.
-- **Top 5**: the five changes that would help this DM most, most first.
-Then list the report path and the top 5 to the owner. Fix nothing unless the owner says go.
+- Every bug, confusing and missing item ends with **→ Fix:** what to change, as the DM would see it (where the
+  button goes, what the words say, what happens on click), smallest change that solves it. Read the code it touches
+  only now, after playing, so the fix is real; still say it in the DM's words. Respect CLAUDE.md rules and owner
+  decisions (no AI-only paths, undo, History).
+- **Recommendations**: the changes that would improve this DM's experience most, most first (fixes above plus
+  wider ones: flow between screens, defaults, first-run help). Each: what, why (which finding), size (small /
+  medium / large).
+Then give the owner the report path and the top recommendations. Fix nothing unless the owner says go.
+
+## Example campaign
+The campaign you made ships with the next build (release download `example_<name>.zip`). After playing:
+close the app (`/quit`), then copy the campaign folder to `examples/example_<campaign name, spaces as _>/`:
+`campaign.db` and `assets/` only (no `backups/`, no `assets/pending/`, no `-wal`/`-shm` files). Remove any older
+`examples/example_*` folder (one example per build), check it opens (driver: Open a campaign folder…), commit it.
+Use a real-looking campaign: invented or SRD names only, nothing from a published adventure's text.
