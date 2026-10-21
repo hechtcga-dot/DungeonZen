@@ -142,7 +142,7 @@ Defaults picked: sheets without spell slots get the 2024 class table (untickable
 Owner's decisions: text touching or near a box edge counts as cut off; buttons must never look see-through or missing; stacked content shares one alignment; pictures and icons sized to fill their place; the map opens centred.
 Defaults picked: edge clearance 3 px; checks also at 1280×720 (and Make a character card at 900×700); headings, form fields, lists and button rows left out of the alignment check; board cards left out of the overlap check (the DM places them); unavailable buttons held to the same 3:1; compact rail under 820 px high, rail scrolls if still too tall.
 
-## Next (built 2026-10-21, not released)
+## 3.3.0 (built 2026-10-21)
 Encounters are their own card type (old ones converted on open); prep encounter row ▾ links another encounter (typing still renames); Add to prep sheet on the prep side panel (hover button, right-click), board encounter cards and the Encounters list (right-click); encounter builder Put on the board puts only the encounter card (monsters stay in the encounter); Save for later is now Edit encounter. Details in `docs/STATE.md`.
 Owner's decisions: link by the row's name box (type or pick); Add to prep sheet adds a Likely scene, on board cards and the Encounters list too (next session's sheet); Edit encounter saves and opens it on Encounters; card type defaults as proposed (gold, crossed swords, double-click opens Encounters, old encounters switch over).
 Defaults picked: "Encounter…"-named Scenes count as encounters in the upgrade (as before); a sheet that has the encounter already is left alone with a message; board/list Add makes the next session's sheet if it has none.
