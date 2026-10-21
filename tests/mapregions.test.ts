@@ -113,6 +113,11 @@ describe('map regions and the party token', () => {
     expect(c.moveItems([{ itemId: item.id, x: 120, y: 100 }])).toEqual([]) // already there
     c.moveItems([{ itemId: item.id, x: 1000, y: 800 }]) // on the map, outside the region: keeps it
     expect(c.boardView(g).entities[npc.id].attributes.location).toBe('The Docks')
+    // Dropped on a town's name tag (beside its small region): that town wins over the region under the card.
+    const town = c.createRegion({ mapId, polygon: sq(900, 700, 20), newName: 'Westbridge' })
+    const townId = c.mapScreen(mapId).regions.find((r) => r.id === town)!.locationId
+    expect(c.moveItems([{ itemId: item.id, x: 90, y: 90, placeId: townId }])).toEqual(['Luna is now at Westbridge.'])
+    c.undo(); c.undo() // the drop, the town
     c.undo(); c.undo(); c.undo()
     expect(c.boardView(g).entities[npc.id].attributes.location).toBeUndefined()
     expect(c.boardView(g).items.find((i) => i.id === item.id)!.x).toBe(2000)

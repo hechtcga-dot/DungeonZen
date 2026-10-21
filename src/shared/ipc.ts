@@ -554,7 +554,8 @@ export const ipcInputs = {
   'note:create': z.object({ boardId: Id, position: Position, text: z.string().max(5000) }),
   'note:update': z.object({ itemId: Id, text: z.string().max(5000) }),
   'note:setStatus': z.object({ itemId: Id, status: RowStatus }),
-  'items:move': z.object({ moves: z.array(Position.extend({ itemId: Id })).max(500) }),
+  /** placeId: the card was dropped on that place's name tag on a board map (it wins over the region under the card's middle). */
+  'items:move': z.object({ moves: z.array(Position.extend({ itemId: Id, placeId: Id.optional() })).max(500) }),
   'item:resize': z.object({ itemId: Id, size: z.object({ w: z.number().min(40).max(20000), h: z.number().min(30).max(20000) }).nullable() }),
   'board:setHidden': z.object({ kind: z.enum(['entity', 'string', 'item']), id: Id, hidden: z.boolean() }),
   'act:mark': z.object({ entityId: Id, actId: Id, on: z.boolean() }),

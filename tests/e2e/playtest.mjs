@@ -155,6 +155,114 @@ try {
     expect('the party has a token (no more Place party token)', await page.getByRole('button', { name: 'Place party token' }).count() === 0)
   })
 
+  // The board is used on the world map (owner, 2026-10-21): the map behind the cards, its regions as places,
+  // NPCs, monsters and encounters dropped and moved on it to see where everything is.
+  const regionNames = () => page.locator('.react-flow__node-region').evaluateAll((els) => els.map((e) => e.querySelector('.board-region-name, strong, span')?.textContent?.trim() ?? e.textContent?.trim() ?? ''))
+  const regionOf = (name) => page.locator('.react-flow__node-region').filter({ has: page.locator('.board-region-here', { hasText: name }) })
+  /** Drags a card by its middle onto the middle of a region's name on the board; returns the message shown. */
+  const dropOn = async (card, region) => {
+    await click('Fit View'); await page.waitForTimeout(300)
+    const from = await page.locator('.react-flow__node-card', { hasText: card }).first().boundingBox()
+    const to = await page.locator('.react-flow__node-region').nth(region).boundingBox()
+    if (!from || !to) throw new Error(`${card}: card or region not on screen`)
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 + 4, { steps: 12 })
+    await page.mouse.up()
+    const toast = page.locator('.toast', { hasText: `${card} is now at` })
+    await toast.first().waitFor({ timeout: 4000 }).catch(() => undefined)
+    return (await toast.count()) ? await text(toast.first()) : ''
+  }
+  let placed = [] // [card, region index, region name]
+  /** Region name tags whose middle is not covered by another tag or a card (where a DM can drop a card). */
+  const clearTags = async () => { await click('Fit View'); await page.waitForTimeout(300); return page.locator('.react-flow__node-region').evaluateAll((els) => els.flatMap((e, i) => {
+    const r = e.getBoundingClientRect()
+    return e.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2 + 4)) ? [i] : []
+  })) }
+
+  await step('World map on the board', 'Board: Background › Use a map › the world map, so the cards sit on it and its regions are the places.', async (expect) => {
+    await click('Board'); await click('Fit View')
+    if (!await page.locator('.react-flow__node-image').count()) {
+      notes.push('Board: a new campaign\'s board does not start on its world map: the regions are laid out as a grid of Location cards and the DM has to put the map behind them (Background › Use a map).')
+      await click('Background')
+      await page.getByRole('menuitem', { name: /^Use a map/ }).hover()
+      await page.getByRole('menuitem').filter({ hasNotText: /Use a map|Add a picture|Region boundaries|background pictures/i }).first().click()
+      await page.waitForTimeout(800)
+    }
+    // Adding a map switches dragging to the background (to place the map); cards are moved again with Move cards.
+    if (await page.getByRole('button', { name: 'Move cards', exact: true }).count()) {
+      notes.push('Board: after Use a map the board stays on "Moving the background" (cards faded, not draggable) until the DM clicks Move cards or Drag moves › Cards.')
+      await click('Move cards')
+    }
+    await click('Fit View'); await page.waitForTimeout(300)
+    expect('the world map lies on the board', await page.locator('.react-flow__node-image').count() === 1)
+    expect('cards can be dragged again (not the background)', await page.getByRole('group', { name: 'What a drag moves' }).getByRole('button', { name: 'Cards', exact: true }).getAttribute('aria-pressed') === 'true')
+    const names = await regionNames()
+    expect(`its regions show by name on the map (${names.length})`, names.length >= 3)
+    // A place shown as a region name is not also a loose Location card on the same board.
+    const cards = await page.locator('.react-flow__node-card').allInnerTexts()
+    const twice = names.filter((n) => cards.some((c) => c.trim().startsWith(n)))
+    expect(`no place is both a region and a loose card${twice.length ? ` (${twice.slice(0, 3).join(', ')})` : ''}`, twice.length === 0)
+  })
+
+  await step('NPC, monster and encounter on the map', 'Board: Card › Monster "Drowned Ghoul", Card › Encounter "Shrine ambush"; drag Sister Maren, the ghoul and the ambush each onto a different region.', async (expect) => {
+    for (const [type, name] of [['Monster', 'Drowned Ghoul'], ['Encounter', 'Shrine ambush']]) {
+      await click('Card'); await page.getByRole('menuitem', { name: type, exact: true }).click()
+      await page.waitForFunction(() => document.activeElement?.id.endsWith('-name'))
+      const field = page.locator(`[id="${await page.evaluate(() => document.activeElement.id)}"]`)
+      await field.fill(name); await field.press('Control+Enter'); await page.waitForTimeout(400)
+    }
+    const names = await regionNames()
+    const clear = await clearTags()
+    if (clear.length < 4) throw new Error(`only ${clear.length} region names are not covered by others`)
+    const picks = [clear[0], clear[Math.floor(clear.length / 2)], clear[clear.length - 1]]
+    placed = ['Sister Maren', 'Drowned Ghoul', 'Shrine ambush'].map((card, i) => [card, picks[i], names[picks[i]]])
+    for (const [card, at, region] of placed) {
+      const said = await dropOn(card, at)
+      expect(`${card} dropped on ${region}: "${said || 'no message'}"`, said.includes(region))
+    }
+    await page.waitForTimeout(400)
+    // People and monsters show on their place's name; an encounter's place is its Location (next step).
+    for (const [card, , region] of placed.slice(0, 2)) expect(`${region} shows ${card} is there`, await regionOf(card).count() > 0 && (await text(regionOf(card).first())).includes(region))
+  })
+
+  await step('Move on the map', 'Board: drag the Drowned Ghoul from its region to another one.', async (expect) => {
+    const names = await regionNames()
+    const [, from, oldRegion] = placed[1]
+    const clear = await clearTags()
+    const to = clear.find((i) => i !== from && !placed.some((p) => p[1] === i))
+    const said = await dropOn('Drowned Ghoul', to)
+    expect(`the message says it is now at ${names[to]}`, said.includes(names[to]))
+    await page.waitForTimeout(400)
+    const now = await regionOf('Drowned Ghoul').allInnerTexts()
+    expect(`only ${names[to]} lists it now (not ${oldRegion})`, now.length === 1 && now[0].includes(names[to]))
+    placed[1] = ['Drowned Ghoul', to, names[to]]
+  })
+
+  await step('The map knows where they are', 'Map: click the region the ghoul went to; its side panel lists who is here. Sister Maren\'s and the Shrine ambush\'s Location in the board side panel say where they were dropped.', async (expect) => {
+    const [, , region] = placed[1]
+    await click('Map')
+    // The map takes clicks itself (it pans): click where the name is written.
+    const label = await page.locator('svg text').filter({ hasText: new RegExp(`^${region}$`) }).locator('visible=true').first().boundingBox()
+    if (!label) throw new Error(`${region}: name not on the map`)
+    // A town's name sits under its marker: the name, else the marker just above it.
+    for (const dy of [0, -14]) {
+      if ((await text(page.locator('.region-name').first())) !== region) { await page.mouse.click(label.x + label.width / 2, label.y + label.height / 2 + dy); await page.waitForTimeout(300) }
+    }
+    expect(`clicking the name ${region} opens ${region} in the side panel`, (await text(page.locator('.region-name').first())) === region)
+    const here = page.locator('h3', { hasText: 'Here now' }).locator('xpath=..')
+    await here.waitFor()
+    expect(`Map › ${region} › Here now lists the Drowned Ghoul`, (await text(here)).includes('Drowned Ghoul'))
+    await click('Board'); await click('Fit View')
+    // Each card's Location (board side panel) is the place it was dropped on.
+    for (const [card, , region] of [placed[0], placed[2]]) {
+      await page.locator('.react-flow__node-card', { hasText: card }).first().click()
+      const where = page.locator('select[id$="-location"]').first()
+      await where.waitFor({ state: 'attached' })
+      expect(`${card}: Location in the side panel says ${region}`, (await where.inputValue()) === region)
+    }
+  })
+
   await step('Session prep', 'Session prep: Start the prep sheet for session 1.', async (expect) => {
     await click('Session prep')
     await click('Start the prep sheet')
@@ -263,6 +371,10 @@ try {
     await click('Desk')
     const desk = await text(page.getByRole('region', { name: 'Campaign table' }))
     expect('the party is still there', desk.includes('Isolde Varn') && desk.includes('Tobin Ash'))
+    await click('Board'); await click('Fit View')
+    expect('the world map is still on the board', await page.locator('.react-flow__node-image').count() === 1)
+    for (const [card, , region] of placed.slice(0, 2)) expect(`${card} is still at ${region}`, await regionOf(card).count() > 0 && (await text(regionOf(card).first())).includes(region))
+    expect('the Shrine ambush card is still on the map', await page.locator('.react-flow__node-card', { hasText: 'Shrine ambush' }).count() > 0)
     await click('Timeline')
     expect('the act is still there', (await text(page.locator('.tl-act').first())).includes('The bell rings at midnight'))
     await click('Live desk')
@@ -303,7 +415,7 @@ img{max-width:100%;border:1px solid #d9cdb4;border-radius:4px}li{margin:2px 0}co
 ${improve.length ? `<ul>${improve.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p>Nothing found this run.</p>'}
 <h2>What was tested</h2>
 <p>Not in this playtest: AI services (writing, pictures, reading notes, Build with AI), importing notes or character sheets,
-exports (Word, PDF, Roll20, Foundry, Owlbear), battle maps, running a fight, links drawn between cards, the Library and Notes screens.
+exports (Word, PDF, Roll20, Foundry, Owlbear), battle maps, running a fight and casting spells, links drawn between cards, the Library and Notes screens.
 The smoke test visits those screens; <code>tests/undoall.test.ts</code> checks undo for every write behind them.</p>
 ${steps.map((s, i) => `<section><h3 class="${s.ok ? 'ok' : 'fail'}">${i + 1}. ${esc(s.title)}: ${s.ok ? 'passed' : 'FAILED'} <small>(${(s.ms / 1000).toFixed(1)} s)</small></h3>
 <p>${esc(s.what)}</p>

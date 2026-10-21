@@ -1042,3 +1042,17 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     and spends the lowest slot for a reaction spell (one undo step). Works both ways (monster on PC, PC on monster).
   - Creatures: `CombatantInfo` gains `condImmune`, `magicResist`, `spellList`; SRD stat block fields already held
     size, type, resistances, immunities, condition immunities (nothing new to import).
+- 3.5.0 board on the world map (owner, 2026-10-21: the board is used on the world map, NPCs, regions, monsters and
+  encounters placed and moved on it):
+  - Playtest steps (`tests/e2e/playtest.mjs`): World map on the board (Background › Use a map when the board has no
+    map picture, back to Move cards; one map picture, region names, no place both a region and a loose card), NPC,
+    monster and encounter on the map (Card › Monster / Encounter, dragged onto three region name tags not covered by
+    others; message and the tag's who-is-here), Move on the map (only the new region lists it), The map knows where
+    they are (Map › click the name › Here now; board side panel Location for the NPC and the encounter), Close and
+    open again (map picture and places kept). Notes to What to improve when the board did not start on the map or
+    stayed on moving the background.
+  - A card dropped on a place's name tag on a board map takes that place (`items:move` `placeId`, BoardScreen
+    `onNodeDragStop`: the pointer for the card held, the middle for others; the topmost tag where tags overlap),
+    before the region under the card's middle; a town's tag sits beside its small region, so drops on it used to
+    give the surrounding region.
+  - `vitest.config.ts` `testTimeout` 30 s (Windows CI runner timed out a campaign test at 5 s).

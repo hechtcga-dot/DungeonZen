@@ -843,7 +843,7 @@ export class Campaign {
   }
 
   /** Moves board items. A card dropped on a region of a map picture takes that place as its location (same undo step); returns what moved where. */
-  moveItems(moves: Array<{ itemId: string } & Position>): string[] {
+  moveItems(moves: Array<{ itemId: string; placeId?: string } & Position>): string[] {
     if (moves.length === 0) return []
     const placed = this.placesOnMaps(moves)
     const label = moves.length === 1 ? this.moveLabel(moves[0].itemId) + (placed[0] ? ` to ${placed[0].place}` : '') : `Moved ${moves.length} items`
@@ -859,11 +859,12 @@ export class Campaign {
   }
 
   /** Cards among the moves that land on a region of a map picture on their board, with a new location. */
-  placesOnMaps(moves: Array<{ itemId: string } & Position>): Array<{ entity: EntityRow; place: string }> {
+  placesOnMaps(moves: Array<{ itemId: string; placeId?: string } & Position>): Array<{ entity: EntityRow; place: string }> {
     const items = moves.map((m) => ({ m, item: this.itemRow(m.itemId) })).filter(({ item }) => item.kind === 'card' && item.entityId)
     if (items.length === 0) return []
     return items.flatMap(({ m, item }) => {
-      const r = regionOnBoard([m.x + (item.w ?? 220) / 2, m.y + (item.h ?? 120) / 2], this.mapPictures(item.boardId))
+      const tag = m.placeId ? this.db.select().from(entity).where(eq(entity.id, m.placeId)).get() : undefined
+      const r = tag ? { name: tag.name, locationId: tag.id } : regionOnBoard([m.x + (item.w ?? 220) / 2, m.y + (item.h ?? 120) / 2], this.mapPictures(item.boardId))
       const e = this.entityRow(item.entityId!)
       if (!r || r.locationId === e.id || e.attributes.location === r.name) return []
       return [{ entity: e, place: r.name }]

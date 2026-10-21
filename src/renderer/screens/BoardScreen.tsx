@@ -256,15 +256,24 @@ function BoardLayout() {
     openLink({ start: [{ sourceId: source.data.entity.id, targetId: target.data.entity.id, type: 'KNOWS' }], kind: 'connection', boardId: view.board.id })
   }, [nodes, openLink, view.board.id])
 
-  const onNodeDragStop = useCallback((_e: unknown, _n: BoardNode, dragged: BoardNode[]) => {
+  const onNodeDragStop = useCallback((e: MouseEvent | TouchEvent | React.MouseEvent, held: BoardNode, dragged: BoardNode[]) => {
+    // A card dropped on a place's name tag (a town's tag sits beside its small region) takes that place:
+    // where the pointer lets go for the card held, the middle for others dragged with it.
+    const pointer = 'clientX' in e ? screenToFlowPosition({ x: e.clientX, y: e.clientY }) : null
+    const tagUnder = (n: BoardNode) => {
+      if (n.type !== 'card') return undefined
+      const [cx, cy] = n.id === held.id && pointer ? [pointer.x, pointer.y] : [n.position.x + (n.measured?.width ?? 220) / 2, n.position.y + (n.measured?.height ?? 120) / 2]
+      // Tags overlap where places crowd: the one drawn on top (smaller places come later) wins.
+      return regionSpots.findLast((r) => cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h)?.entity.id
+    }
     const moves = dragged
-      .map((n) => ({ itemId: n.id, x: Math.round(n.position.x), y: Math.round(n.position.y) }))
+      .map((n) => ({ itemId: n.id, x: Math.round(n.position.x), y: Math.round(n.position.y), placeId: tagUnder(n) }))
       .filter((m) => {
         const item = view.items.find((i) => i.id === m.itemId)
         return item && (item.x !== m.x || item.y !== m.y)
       })
     if (moves.length > 0) void act('items:move', { moves }).then((placed) => { if (placed?.length) say(placed.join(' ')) })
-  }, [view.items, act, say])
+  }, [view.items, act, say, regionSpots, screenToFlowPosition])
 
   /** A free spot near the middle of the visible board, so new cards don't land on top of others. */
   const centre = useCallback(() => {
