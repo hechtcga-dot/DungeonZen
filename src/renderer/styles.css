@@ -204,7 +204,7 @@ textarea { padding: 10px 12px; resize: vertical; line-height: 1.45; }
 .card-resolved .react-flow__handle.pin { background: #6b727c; border-color: #3d434b; }
 .board-region {
   width: 100%; height: 100%; box-sizing: border-box; border-radius: 4px; cursor: pointer; position: relative;
-  display: flex; align-items: center; justify-content: center; padding: 6px 10px; white-space: nowrap;
+  display: flex; align-items: center; justify-content: center; padding: 6px 14px; white-space: nowrap;
   background: rgba(42, 31, 18, 0.88); color: var(--parchment-light); border-left: 7px solid var(--type, transparent); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
 }
 .board-region-name { font-family: var(--display, 'IM Fell English', Georgia, serif); font-size: 19px; }

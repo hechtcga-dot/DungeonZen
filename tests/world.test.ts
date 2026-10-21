@@ -148,8 +148,11 @@ describe('keeping a world map', () => {
     expect(placeColour(cityView)).toBe('#8f2a21')
     expect(c.regionDetail(v.regions.find((r) => r.name === w.regions[city.parent!].name)!.id).subRegions.map((s) => s.name)).toContain(city.name)
     // Cards on the board do not pile on top of each other.
-    const spots = new Set(c.boardView(c.info().globalBoardId).items.map((i) => `${i.x},${i.y}`))
+    const items = c.boardView(c.info().globalBoardId).items
+    const spots = new Set(items.filter((i) => i.kind === 'card').map((i) => `${i.x},${i.y}`))
     expect(spots.size).toBe(w.regions.length)
+    // The board is used on the world map: the map lies behind the cards (owner, 2026-10-21).
+    expect(items.filter((i) => i.kind === 'image').map((i) => i.content?.mapId)).toEqual([map.id])
     expect(() => c.keepWorldMap({ pendingId: pending.pendingId, name: 'Again', widthKm: null, source: 'x', prompt: null, regions: [] })).toThrow()
     c.undo()
     expect(c.maps()).toEqual([])
@@ -194,5 +197,12 @@ describe('place names on the map', () => {
     expect(pointInPolygon(a, land)).toBe(true)
     // Alone, a name sits in the middle.
     expect(placeLabels([{ polygon: land, name: 'The Green Plains', spot: false }], 1)[0]).toEqual([200, 200])
+  })
+  it('nudges overlapping board name tags apart, the first stays', async () => {
+    const { spreadTags } = await import('../src/shared/labels')
+    const tops = spreadTags([{ x: 0, y: 0, w: 100, h: 40 }, { x: 20, y: 10, w: 100, h: 40 }, { x: 500, y: 0, w: 100, h: 40 }])
+    expect(tops[0]).toBe(0)
+    expect(Math.abs(tops[1] - 10)).toBeGreaterThanOrEqual(40)
+    expect(tops[2]).toBe(0)
   })
 })

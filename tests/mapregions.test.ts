@@ -130,6 +130,8 @@ describe('map regions and the party token', () => {
     c.createRelationship({ sourceId: npc.id, targetId: place, type: 'KNOWS', isSecret: false })
     const card = c.boardView(g).items.find((i) => i.entityId === place)!
     c.setNoteStatus(card.id, 'defunct') // taken off the board: the region stands in for it
+    // The imported world map went behind the cards by itself; take it off to put it back below.
+    for (const i of c.boardView(g).items.filter((x) => x.kind === 'image')) c.setNoteStatus(i.id, 'defunct')
     expect(c.boardView(g).entities[place]).toBeUndefined()
     expect(c.history().removedNotes.map((n) => n.text)).toContain('Card: Old City')
     c.addBoardImage(g, { mapId }, { x: 0, y: 0 })

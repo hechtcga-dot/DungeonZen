@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TitleField } from '../components/fields'
 import { useBoard } from '../store'
 import { BattlePlanner } from '../components/BattlePlanner'
@@ -15,8 +15,9 @@ import {
 } from '../../shared/combat'
 import { encounterBudget, RATING_LABELS, rateEncounter } from '../../shared/encounter'
 import { slotsTotal } from '../../shared/slots'
-import { endConcentration } from '../../shared/spellcast'
-import { CastDialog } from '../components/CastPanel'
+import { endConcentration, spellRulesFor } from '../../shared/spellcast'
+import { CastDialog, useSrdSpells } from '../components/CastPanel'
+import { GROUP_LABEL, groupActions, likelyThisTurn } from '../../shared/turnplan'
 import type { AiSuggestion, CombatView } from '../../shared/types'
 
 const SIDES: Record<Combatant['side'], string> = { party: 'Party', foe: 'Foe', ally: 'Ally' }
@@ -558,11 +559,18 @@ function TurnPanel({ v, c }: { v: CombatView; c: Combatant }) {
   const i = c.entityId ? v.info[c.entityId] : undefined
   const tips = useMemo(() => turnTips(v.state, c, i), [v.state, c, i])
   const glossary = useMemo(() => Object.fromEntries((i?.actions ?? []).map((a) => [a.name, a.full ?? a.text])), [i])
+  const act = useBoard((st) => st.act)
+  const srd = useSrdSpells()
+  const rulesOf = useCallback((name: string, text: string) => spellRulesFor(name, text, v.spellRules, srd).rules, [v.spellRules, srd])
+  const groups = useMemo(() => (i ? groupActions(i, rulesOf, i.actionGroups ?? {}) : { combat: [], situational: [], other: [] }), [i, rulesOf])
+  const likely = useMemo(() => likelyThisTurn(v.state, c, i, v.info, rulesOf, i?.actionGroups ?? {}), [v.state, c, i, v.info, rulesOf])
+  const askHint = c.side === 'party' ? `What would ${c.name} do?` : `What does ${c.name} do now?`
   const [advice, setAdvice] = useState<AiSuggestion | null>(null)
   const [ask, setAsk] = useState('')
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
   const [casting, setCasting] = useState(false)
+  const [moving, setMoving] = useState<string | null>(null)
   useEffect(() => { setAdvice(null); setError('') }, [c.id])
   const askAi = async () => {
     setAsking(true); setError('')
@@ -573,18 +581,39 @@ function TurnPanel({ v, c }: { v: CombatView; c: Combatant }) {
       <h2 className="panel-title">{c.side === 'party' ? `${c.name}'s options` : `${c.name}: tactics`}</h2>
       {v.status === 'active' && <button className="ink-button primary-ink cb-cast" onClick={() => setCasting(true)}>Cast a spell…</button>}
       {casting && <CastDialog v={v} caster={c} onClose={() => setCasting(false)} />}
-      {tips.length > 0 && <ul className="combat-hints">{tips.map((t, k) => <li key={k}><SpellText text={t} glossary={glossary} /></li>)}</ul>}
-      {i && i.actions.length > 0 && (
-        <details className="cb-actions" open>
-          <summary>{c.side === 'party' ? 'Attacks, spells and features' : 'Attacks, spells and abilities'} ({i.actions.length})</summary>
-          <ul>{i.actions.map((a, k) => <li key={k}><strong><SpellName name={a.name} text={a.full ?? a.text} /></strong> <span className="ink-muted">{a.kind.replace(/_/g, ' ').toLowerCase()}</span>{a.text ? `: ${a.text}` : ''}</li>)}</ul>
-        </details>
+      {likely.length > 0 && (
+        <div className="cb-likely">
+          <h3 className="cb-small"><b>Likely this turn</b> <span className="ink-muted">(local rules, no AI)</span></h3>
+          <ol>{likely.map((t, k) => <li key={k}><SpellText text={t} glossary={glossary} /></li>)}</ol>
+        </div>
       )}
+      {tips.length > 0 && <ul className="combat-hints">{tips.map((t, k) => <li key={k}><SpellText text={t} glossary={glossary} /></li>)}</ul>}
+      {i && i.actions.length > 0 && (['combat', 'situational', 'other'] as const).map((gk) => groups[gk].length > 0 && (
+        <details key={gk} className="cb-actions" open={gk === 'combat'}>
+          <summary>{gk === 'combat' ? (c.side === 'party' ? 'Attacks, spells and features' : 'Attacks, spells and abilities') : GROUP_LABEL[gk]} ({groups[gk].length})</summary>
+          <ul>{groups[gk].map((a) => (
+            <li key={a.name} className={a.noSlot ? 'is-spent' : undefined}>
+              <strong><SpellName name={a.name} text={a.full ?? a.text} /></strong> <span className="ink-muted">{a.kind.replace(/_/g, ' ').toLowerCase()}{a.noSlot ? ', no slot left' : ''}</span>
+              {c.entityId && <button type="button" className="link-button cb-group" aria-expanded={moving === a.name} aria-label={`Move ${a.name} to another group`}
+                title="Move to another group (kept on the card)" onClick={() => setMoving(moving === a.name ? null : a.name)}>▾</button>}
+              {a.text ? `: ${a.text}` : ''}
+              {moving === a.name && c.entityId && (
+                <span className="cb-group-pick" role="group" aria-label={`Group for ${a.name}`}>Move to:
+                  {(['combat', 'situational', 'other'] as const).filter((o) => o !== gk).map((o) => (
+                    <button key={o} type="button" className="ink-button" onClick={() => { setMoving(null); void act('entity:update', { id: c.entityId!, patch: { attributes: { action_groups: { ...(i.actionGroups ?? {}), [a.name]: o } } } }) }}>{GROUP_LABEL[o]}</button>
+                  ))}
+                </span>
+              )}
+            </li>
+          ))}</ul>
+        </details>
+      ))}
       {i && !i.actions.length && <p className="ink-muted">No attacks or spells on {c.name}'s sheet yet.</p>}
       <div className="field">
         <label htmlFor="combat-ask">{c.side === 'party' ? `Ask AI: ${c.name}'s best options` : `Ask AI what ${c.name} does now`}</label>
         <div className="row tight">
-          <input id="combat-ask" value={ask} maxLength={1000} placeholder="Optional: would it take a hostage?" onChange={(ev) => setAsk(ev.target.value)} />
+          <input id="combat-ask" value={ask} maxLength={1000} placeholder={`${askHint} (Tab fills it in)`} onChange={(ev) => setAsk(ev.target.value)}
+            onKeyDown={(ev) => { if (ev.key === 'Tab' && !ev.shiftKey && !ask.trim()) { ev.preventDefault(); setAsk(askHint) } }} />
           <button className="ink-button" disabled={asking} onClick={() => void askAi()}>{asking ? 'Asking…' : 'Ask AI'}</button>
         </div>
       </div>

@@ -48,3 +48,19 @@ export function placeLabels(items: LabelInput[], unit: number, areaSize = 17, sp
   }
   return out
 }
+
+/**
+ * Name tags drawn as boxes (a board's region cards): moves each one up or down, in steps of half its
+ * height and at most twice its height, until it clears the tags before it (they stay put). Returns
+ * the new top of each. A tag with no clear spot nearby keeps its own.
+ */
+export function spreadTags(tags: Array<{ x: number; y: number; w: number; h: number }>, gap = 6): number[] {
+  const placed: Box[] = []
+  return tags.map((t) => {
+    const box = (y: number): Box => ({ x0: t.x - gap, x1: t.x + t.w + gap, y0: y - gap, y1: y + t.h + gap })
+    const steps = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2]
+    const y = steps.map((k) => t.y + k * t.h).find((y) => !placed.some((b) => overlaps(b, box(y)))) ?? t.y
+    placed.push(box(y))
+    return y
+  })
+}

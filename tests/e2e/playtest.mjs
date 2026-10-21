@@ -182,17 +182,14 @@ try {
 
   await step('World map on the board', 'Board: Background › Use a map › the world map, so the cards sit on it and its regions are the places.', async (expect) => {
     await click('Board'); await click('Fit View')
+    // A new campaign's world map goes behind the board's cards by itself (owner, 2026-10-21).
+    expect('a new campaign\'s board starts on its world map', await page.locator('.react-flow__node-image').count() > 0)
+    expect('no "world map" reminder while the map is there', !await page.locator('.board-map-hint').count())
     if (!await page.locator('.react-flow__node-image').count()) {
-      notes.push('Board: a new campaign\'s board does not start on its world map: the regions are laid out as a grid of Location cards and the DM has to put the map behind them (Background › Use a map).')
       await click('Background')
       await page.getByRole('menuitem', { name: /^Use a map/ }).hover()
       await page.getByRole('menuitem').filter({ hasNotText: /Use a map|Add a picture|Region boundaries|background pictures/i }).first().click()
       await page.waitForTimeout(800)
-    }
-    // Adding a map switches dragging to the background (to place the map); cards are moved again with Move cards.
-    if (await page.getByRole('button', { name: 'Move cards', exact: true }).count()) {
-      notes.push('Board: after Use a map the board stays on "Moving the background" (cards faded, not draggable) until the DM clicks Move cards or Drag moves › Cards.')
-      await click('Move cards')
     }
     await click('Fit View'); await page.waitForTimeout(300)
     expect('the world map lies on the board', await page.locator('.react-flow__node-image').count() === 1)

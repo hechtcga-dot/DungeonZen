@@ -1084,6 +1084,23 @@ export class Campaign {
     return toItemView(this.itemRow(id))
   }
 
+  /**
+   * A new world map goes behind the cards of the campaign board (owner, 2026-10-21: the board is used on the
+   * world map), unless that board already has a map picture. Inside the change that makes the map.
+   */
+  worldMapOnBoard(w: Writer, m: { id: string; imagePath: string; name: string; width: number | null; height: number | null }): void {
+    const boardId = this.globalBoard().id
+    const maps = new Set(this.db.select().from(map).all().map((x) => x.imagePath))
+    const has = this.db.select().from(boardItem).where(and(eq(boardItem.boardId, boardId), eq(boardItem.kind, 'image'), eq(boardItem.status, 'active'))).all()
+      .some((i) => !!i.content?.mapId || maps.has(String(i.content?.image ?? '')))
+    if (has) return
+    const wPx = 1200
+    w.insert('board_item', {
+      id: randomUUID(), boardId, kind: 'image', entityId: null, x: 0, y: 0, w: wPx, h: m.width && m.height ? Math.round((wPx * m.height) / m.width) : 800,
+      content: { image: m.imagePath, name: m.name, opacity: 0.6, locked: false, mapId: m.id }, status: 'active'
+    })
+  }
+
   updateBoardImage(itemId: string, patch: { opacity?: number; locked?: boolean; name?: string }): void {
     const item = this.itemRow(itemId)
     if (item.kind !== 'image') throw new Error('Not a picture')
@@ -1390,6 +1407,7 @@ export class Campaign {
       if (battle) return
       if (w.get('campaign_settings', 'active_map_id')) w.update('campaign_settings', 'active_map_id', { value: id })
       else w.insert('campaign_settings', { key: 'active_map_id', value: id })
+      this.worldMapOnBoard(w, { id, imagePath: rel, name: mapName, width: size?.width ?? null, height: size?.height ?? null })
     })
     return toMapView(this.db.select().from(map).where(eq(map.id, id)).get()!)
   }

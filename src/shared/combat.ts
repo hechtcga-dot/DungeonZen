@@ -124,6 +124,8 @@ export interface CombatantInfo {
   actions: Array<{ name: string; kind: string; text: string; /** The whole description (text is cut to fit the panel). */ full?: string }>
   /** Spell slots kept on the card: the most, bonus ones from Sorcery Points, used, Pact Magic. */
   slots: SlotState
+  /** The DM's own turn-panel group per line, by name (`attributes.action_groups`: combat, situational, other). */
+  actionGroups?: Record<string, string>
   /** Spells its Spellcasting text lists ("At Will: …", "2/Day Each: …"; useKey: its uses in `used`). */
   spellList?: Array<{ name: string; useKey: string | null }>
   /** The card's type (NPC, MONSTER, PC…). */

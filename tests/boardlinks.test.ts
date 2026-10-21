@@ -135,7 +135,8 @@ describe('pictures under the cards', () => {
     const m = c.importMap(join(dir, 'town.png'), 'World')
     const fromMap = c.addBoardImage(sb, { mapId: m.id }, at)
     expect(fromMap.content!.image).toBe(c.maps()[0].url.replace('dz-asset://campaign/', ''))
-    expect(c.boardView(g).items.filter((i) => i.kind === 'image')).toHaveLength(1)
+    // The file, and the imported world map (it goes behind the campaign board's cards by itself).
+    expect(c.boardView(g).items.filter((i) => i.kind === 'image').map((i) => i.content?.mapId ?? null)).toEqual([null, m.id])
     c.updateBoardImage(fromFile.id, { locked: true, opacity: 0.3 })
     expect(c.boardView(g).items[0].content).toMatchObject({ locked: true, opacity: 0.3, name: 'town' })
     c.setNoteStatus(fromFile.id, 'defunct')

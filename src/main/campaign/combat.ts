@@ -136,6 +136,7 @@ export const combatPart = part({
       actions: acts.map((a) => ({ name: a.name, kind: a.kind, text: a.description.length > 300 ? `${a.description.slice(0, 300)}…` : a.description, full: a.description })),
       slots: slotState(e.attributes, all),
       spellList: spellsInText(all),
+      actionGroups: e.attributes.action_groups && typeof e.attributes.action_groups === 'object' ? e.attributes.action_groups as Record<string, string> : {},
       cardType: e.type,
       size: sb?.size ?? '',
       pc: e.type !== 'PC' ? null : (() => {

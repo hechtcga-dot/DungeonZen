@@ -1056,3 +1056,24 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     before the region under the card's middle; a town's tag sits beside its small region, so drops on it used to
     give the surrounding region.
   - `vitest.config.ts` `testTimeout` 30 s (Windows CI runner timed out a campaign test at 5 s).
+- 3.6.0 board on the world map, turn panel (owner, 2026-10-21):
+  - A new world map (guide `keepWorldMap`, Map › import `importMap`) goes behind the campaign board's cards in the
+    same undo step (`worldMapOnBoard`: 1200 px wide at 0,0, only when that board has no map picture yet).
+  - Campaign board (View all cards) without a map picture: reminder at the bottom (`.board-map-hint`): "No world map
+    yet" › Make or import a world map (guide), or "The world map is not on this board" › Put the world map on the
+    board; Dismiss (until Dungeon Zen starts again, module flag), "Don't show this again" (board pref `mapHintOff`,
+    per computer); Display › World map reminder turns it back on.
+  - Background › Use a map keeps dragging on the cards (a plain picture still switches to moving the background).
+  - Display › Card types: Show all, Show none at the top.
+  - Region name tags on board maps: wider (`name.length * 10.5 + 44`, padding 14 px), nudged apart up/down where
+    they overlap (`spreadTags` in `src/shared/labels.ts`, the who-is-here line counted). Their who-is-here line (and
+    the Map's) lists encounters planned there too (location by name, LOCATED_AT or IN_ENCOUNTER string).
+  - Run encounter turn panel (`src/shared/turnplan.ts`): attacks, spells and features in Combat (open, most likely
+    first: spells with a slot (upcast counts), multiattack, cantrips and attacks, bonus actions; no slot left last,
+    faded), Situational (reactions, healing, defence, Shell Defense, Convert Sorcery Points…), Out of combat (utility
+    spells, rituals, longer casting); ▾ per line moves it to another group, kept on the card
+    (`attributes.action_groups` by name, `CombatantInfo.actionGroups`). Likely this turn (local rules, no AI): the two
+    best combat options with a legal target (checks as in the cast panel; Bloodied and low HP first; concentration
+    spells only while not concentrating), a defensive option when Bloodied, the best bonus action; up to three.
+    Ask AI box: placeholder "What would <name> do?" (monsters: "What does <name> do now?"), Tab in the empty box fills it.
+  - Playtest: the board must start on the world map with no reminder.

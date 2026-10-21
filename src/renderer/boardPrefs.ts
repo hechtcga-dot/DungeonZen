@@ -14,9 +14,11 @@ export interface BoardPrefs {
   hiddenTypes: string[]
   /** What a drag moves: the cards, or the background pictures under them. */
   layer: 'cards' | 'background'
+  /** "Don't show this again" on the no-world-map reminder (Display › World map reminder brings it back). */
+  mapHintOff: boolean
 }
 const KEY = 'dz-board-prefs'
-const DEFAULTS: BoardPrefs = { showHidden: false, pictures: true, tint: true, actMarks: true, greyCards: true, greyNotes: true, regionLines: false, hiddenTypes: [], layer: 'cards' }
+const DEFAULTS: BoardPrefs = { showHidden: false, pictures: true, tint: true, actMarks: true, greyCards: true, greyNotes: true, regionLines: false, hiddenTypes: [], layer: 'cards', mapHintOff: false }
 
 function load(): BoardPrefs {
   // The board always opens moving cards; moving the background is a short job.

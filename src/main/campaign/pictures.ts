@@ -203,6 +203,7 @@ export const picturesPart = part({
       if (w.get('campaign_settings', 'active_map_id')) w.update('campaign_settings', 'active_map_id', { value: id })
       else w.insert('campaign_settings', { key: 'active_map_id', value: id })
       this.insertRegions(w, id, input.regions)
+      this.worldMapOnBoard(w, { id, imagePath: rel, name: input.name, width: size?.width ?? null, height: size?.height ?? null })
     })
     return toMapView(this.mapRow(id))
   },

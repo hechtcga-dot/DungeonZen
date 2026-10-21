@@ -33,7 +33,11 @@ export const regionsPart = part({
         colour: typeof loc.attributes.colour === 'string' ? loc.attributes.colour : null,
         kind: isPlaceKind(loc.attributes.place_kind) ? loc.attributes.place_kind : null,
         biome: isBiome(loc.attributes.biome) ? loc.attributes.biome : null,
-        occupants: occupantsOf(loc, all, rels).map((e) => e.name).sort((a, b) => a.localeCompare(b))
+        // Who is there, and encounters planned there (owner, 2026-10-21: the board shows both on the place's name).
+        occupants: [...occupantsOf(loc, all, rels), ...all.filter((e) => e.status === 'active' && isEncounter(e) && (
+          String(e.attributes.location ?? '').trim().toLowerCase() === loc.name.trim().toLowerCase()
+          || rels.some((x) => x.sourceId === e.id && x.targetId === loc.id && ['LOCATED_AT', 'IN_ENCOUNTER'].includes(x.type))))]
+          .map((e) => e.name).sort((a, b) => a.localeCompare(b))
       }]
     })
   },

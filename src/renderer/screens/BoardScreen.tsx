@@ -11,7 +11,7 @@ import { NoteNode, type NoteNodeType } from '../components/NoteNode'
 import { ImageNode, type ImageNodeType } from '../components/ImageNode'
 import { RegionNode, type RegionNodeType } from '../components/RegionNode'
 import { isSpot } from '../components/MapOverlay'
-import { placeLabels } from '../../shared/labels'
+import { placeLabels, spreadTags } from '../../shared/labels'
 import { polygonArea } from '../../shared/geometry'
 import { StringEdge, type StringEdgeType } from '../components/StringEdge'
 import { Inspector } from '../components/Inspector'
@@ -44,6 +44,8 @@ type BoardNode = CardNodeType | NoteNodeType | ImageNodeType | RegionNodeType
 
 // Where each board was zoomed and panned: coming back (from a sheet, another screen) shows the same view.
 const lastViewport = new Map<string, Viewport>()
+/** The world map reminder was dismissed in this run of Dungeon Zen. */
+let mapHintDismissed = false
 const nodeTypes = { card: CardNode, note: NoteNode, image: ImageNode, region: RegionNode }
 const edgeTypes = { string: StringEdge }
 const ASSET = 'dz-asset://campaign/'
@@ -75,7 +77,7 @@ type Menu = { x: number; y: number; items: MenuItem[] }
 
 function BoardLayout() {
   const view = useView()
-  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, selection, openLink } = useBoard()
+  const { panel, search, focusEntityId, act, setPanel, select, setSearch, showBoard, openSheet, say, selection, openLink, goTo } = useBoard()
   // Links: the tool button shows every link; the panel tab shows the selected card's (the rest folded).
   const [linksAll, setLinksAll] = useState(false)
   const prefs = useBoardPrefs()
@@ -115,7 +117,10 @@ function BoardLayout() {
 
   const [maps, setMaps] = useState<Array<{ id: string; name: string; kind: string; url: string }>>([])
   const [mapView, setMapView] = useState<string | null>(null)
-  useEffect(() => { void useBoard.getState().query('desk:view', undefined).then((d) => setMaps((m) => share(m, d?.maps ?? []))) }, [view])
+  const [mapsRead, setMapsRead] = useState(false)
+  // Dismiss hides the world map reminder until Dungeon Zen starts again; the tick hides it for good.
+  const [hintGone, setHintGone] = useState(mapHintDismissed)
+  useEffect(() => { void useBoard.getState().query('desk:view', undefined).then((d) => { setMaps((m) => share(m, d?.maps ?? [])); setMapsRead(true) }) }, [view])
   /** The campaign map a background picture shows, if it is one. */
   const mapOf = useCallback((c: { mapId?: string; image?: string } | null) => maps.find((m) => m.id === c?.mapId || (!!c?.image && m.url.endsWith(c.image))), [maps])
   // Regions of the maps under the cards, by map id.
@@ -135,16 +140,19 @@ function BoardLayout() {
       const scale = item.w / rv.map.width
       const sorted = [...rv.regions].sort((a, b) => Math.abs(polygonArea(b.polygon)) - Math.abs(polygonArea(a.polygon)))
       const at = placeLabels(sorted.map((r) => ({ polygon: r.polygon, name: r.name, spot: isSpot(r) })), 1 / scale, 24, 19) // card-sized tags
-      return sorted.flatMap((r, i) => {
+      const tags = sorted.flatMap((r, i) => {
         const entity = view.entities[r.locationId]
         if (!entity || (entity.hidden && !prefs.showHidden)) return []
         const x = item.x + at[i][0] * scale
         const y = item.y + at[i][1] * scale
         // A card-sized name tag: under a settlement's marker, centred on an area (lifted when the party stands on it).
-        const w = r.name.length * 9.5 + 34
+        const w = r.name.length * 10.5 + 44
         const top = isSpot(r) ? y + 12 : (rv.party?.locationId === r.locationId ? y - 44 : y) - 22
         return [{ id: `region:${item.id}:${r.id}`, entity, occupants: r.occupants ?? [], x: x - w / 2, y: top, w, h: 44 }]
       })
+      // Crowded places: tags (with the who-is-here line under them) nudged apart so each can be read and dropped on.
+      const tops = spreadTags(tags.map((t) => ({ x: t.x, y: t.y, w: t.w, h: t.h + (t.occupants.length ? 22 : 0) })))
+      return tags.map((t, i) => ({ ...t, y: tops[i] }))
     })
   }, [view.items, view.entities, regionViews, mapOf, prefs.pictures, prefs.showHidden])
 
@@ -324,7 +332,11 @@ function BoardLayout() {
 
   const addPicture = useCallback(async (mapId: string | null, at?: { x: number; y: number }, file?: string) => {
     const item = await act('boardImage:add', { boardId: view.board.id, mapId, position: at ?? centre(), file })
-    if (item) {
+    // A map is ready to use (owner, 2026-10-21): cards keep moving. A picture is placed first: the background moves.
+    if (item && mapId) {
+      prefs.set({ pictures: true, layer: 'cards' })
+      say(`Put ${item.content?.name ?? 'the map'} behind the cards. Drop cards on its places. To move or resize the map: Drag moves › Background.`)
+    } else if (item) {
       prefs.set({ pictures: true, layer: 'background' })
       say(`Added ${item.content?.name ?? 'the picture'} as a background picture. Now moving the background: drag it, drag a corner to resize, right-click to lock it. Switch back with Move: Cards.`)
     }
@@ -536,10 +548,12 @@ function BoardLayout() {
     const flip = (t: string) => prefs.set({ hiddenTypes: off.includes(t) ? off.filter((x) => x !== t) : [...off, t] })
     return [
       { label: off.length ? `Card types (${off.length} off)` : 'Card types', items: [
-        ...ENTITY_TYPES.map((t): MenuItem => ({ label: ENTITY_LABELS[t], checked: !off.includes(t), onClick: () => flip(t) })),
+        { label: 'Show all', disabled: !off.length, onClick: () => prefs.set({ hiddenTypes: [] }) },
+        { label: 'Show none', disabled: off.length === ENTITY_TYPES.length, onClick: () => prefs.set({ hiddenTypes: [...ENTITY_TYPES] }) },
         'separator',
-        { label: 'Show all types', disabled: !off.length, onClick: () => prefs.set({ hiddenTypes: [] }) }
+        ...ENTITY_TYPES.map((t): MenuItem => ({ label: ENTITY_LABELS[t], checked: !off.includes(t), onClick: () => flip(t) }))
       ] },
+      { label: 'World map reminder', hint: 'When the board has no world map', checked: !prefs.mapHintOff, onClick: () => { prefs.set({ mapHintOff: !prefs.mapHintOff }); mapHintDismissed = false; setHintGone(false) } },
       { label: 'Show hidden things (greyed)', checked: prefs.showHidden, onClick: () => prefs.set({ showHidden: !prefs.showHidden }) },
       { label: 'Background pictures', checked: prefs.pictures, onClick: () => prefs.set({ pictures: !prefs.pictures }) },
       { label: 'Region boundaries on maps', hint: 'Names always show', checked: prefs.regionLines, onClick: () => prefs.set({ regionLines: !prefs.regionLines }) },
@@ -710,6 +724,22 @@ function BoardLayout() {
           >
             <Controls showInteractive={false} position="bottom-right" />
           </ReactFlow>
+          {mapsRead && !hintGone && !prefs.mapHintOff && !view.board.storylineId && !mapView && !view.items.some((i) => i.kind === 'image' && (!!i.content?.mapId || mapOf(i.content))) && (() => {
+            // The campaign board is used on the world map (owner, 2026-10-21): say so while it has none.
+            const world = maps.find((m) => m.kind !== 'battle')
+            return (
+              <div className="board-map-hint" role="note">
+                <strong>{world ? 'The world map is not on this board' : 'No world map yet'}</strong>
+                <span>Put people, monsters and encounters on the map to see where everything is.</span>
+                <span className="row tight wrap">
+                  {world ? <button className="brass" onClick={() => void addPicture(world.id)}>Put the world map on the board</button>
+                    : <button className="brass" onClick={() => goTo('guide')}>Make or import a world map</button>}
+                  <button className="ink-button" onClick={() => { mapHintDismissed = true; setHintGone(true) }}>Dismiss</button>
+                </span>
+                <label className="board-map-hint-off"><input type="checkbox" checked={prefs.mapHintOff} onChange={(e) => prefs.set({ mapHintOff: e.target.checked })} /> Don't show this again</label>
+              </div>
+            )
+          })()}
           {view.items.length === 0 && (
             <div className="empty-board">
               <p><strong>This board is empty.</strong></p>
