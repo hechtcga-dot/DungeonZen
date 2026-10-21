@@ -163,6 +163,11 @@ try {
   await page.locator('.rail').waitFor()
   await shot('desk')
   for (const [label, name] of [['Session prep', 'prep'], ['Encounters', 'encounters'], ['Board', 'board']]) { await click(label); await shot(name) }
+  // Every card's red pin can be grabbed (links are tied by dragging pin to pin): nothing clips or covers it.
+  for (const p of await page.evaluate(() => [...document.querySelectorAll('.react-flow__node .react-flow__handle')].filter((h) => {
+    const r = h.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + 2)
+    return !h.contains(top)
+  }).map((h) => `board: red pin can't be grabbed on "${h.closest('.react-flow__node').innerText.split('\n')[0]}"`))) problems.push(p)
   await page.getByText('Barliman Butterbur').first().dblclick()
   await shot('sheet')
   await click('Draw with AI…'); await page.locator('.draw-advanced').waitFor(); await shot('draw-window')

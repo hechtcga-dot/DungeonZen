@@ -868,6 +868,12 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     display scaling 150 % (CI, shots `shots-scale-1.5/`). A failed step saves `failed.png`. Release workflow installs
     the built .exe silently (`/S`) and runs smoke on the installed app (`DZ_APP`). Locally: Xvfb needs a 24-bit screen
     (`xvfb-run -s "-screen 0 1920x1080x24"`), or capturePage fails (UnknownVizError).
+    Board: every card's red pin must be grabbable (centre hit-tests to the pin). Fixed with it: sized cards clipped
+    their pin (`overflow: hidden`), so linking by drag panned the board; now `overflow: clip` + 24 px clip margin.
+  - Simulated user (2026-10-21): skill `playtest` (`.claude/skills/playtest/SKILL.md`) plays the built app as a DM
+    persona through `tests/e2e/play.mjs` (HTTP driver: POST a playwright script, get result + screenshot + errors) and
+    writes `docs/playtests/<date>-<persona>.md` (works well / bugs / confusing / missing / top 5). First run:
+    `docs/playtests/2026-10-21-busy-dm.md`.
 
 - 3.0 M1 code structure (2026-10-19):
   - `src/main/campaign/`: `campaign.ts` (class core: open/save/backups, board reads/writes, sheet, desk, settings,
