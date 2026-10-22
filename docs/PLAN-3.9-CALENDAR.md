@@ -1,15 +1,22 @@
 # Plan for 3.9: Calendar (draft, 2026-10-22)
 
 Owner request 2026-10-22, answers same day. Built in groups; each group with UI changes gets owner approval of its
-mockup first (as in `PLAN-3.0.md`). Time stays integer minutes from campaign start (rule 5); the calendar only turns
+mockup first (as in `PLAN-3.0.md`). Mockups: https://claude.ai/artifact/Mrg9TcDLFYkjhLYJKhXsjE Time stays integer minutes from campaign start (rule 5); the calendar only turns
 minutes into dates and back. Days stay 24 hours. Reference look: Fantasy Calendar month grid (owner screenshot).
 
 ## Owner decisions (2026-10-22)
-- Desk "Set…" opens a clock window only (day/date, hour, minute). Campaign settings move to the gear menu.
+- Desk "Set…" sets the time of day only (hour, minute; past midnight = next day). The date is set on the Calendar
+  screen. Campaign settings move to the gear menu (name, rules, measurements, prices).
 - Desk map button: "Full Map / Party Travel Options".
-- The party box leaves the Desk (party shown on Live, board, sheets); its place = calendar summary.
+- The party box leaves the Desk (party shown on Live, board, sheets); its place = Calendar box: the date, coming-up
+  events (one line each, cut with "…", full text on hover), one "Open calendar" button. Nothing else.
 - Calendar dates replace "Day 12" on every screen (Timeline, Live, log, Players' view); day number on hover.
-- More than one moon now. The moon box gets a "Set…" button like the clock (moon cycles); also in calendar settings.
+- More than one moon now. The moon box gets a "Set…" button like the clock (moon dates and cycles); also in calendar
+  settings. Per moon: "From the calendar" or "Manual Lunar Dates" (full-moon date + cycle; today's "moon is full on
+  day" setting becomes Manual Lunar Dates).
+- Calendar settings (preset, builder, Day 1 date, seasons, weather) open from the Calendar screen.
+- Seasons: named, with start dates, shown on the calendar.
+- Weather: rolled per day from the season (climate odds table), kept; DM can change any day (manual override).
 - Built-in calendars: Gregorian, Harptos (Forgotten Realms), Greyhawk Common Year, Eberron Galifar, Exandria,
   Barovia, plain 12 × 30. Custom calendar builder, easy to use.
 - Events repeat: yearly, monthly, weekly.
@@ -54,4 +61,4 @@ year; event window; calendar settings + builder; card Dates box; date underline 
 What they know date line.
 
 ## Open questions
-- Weather and seasons (the reference screenshot has weather icons and locations).
+- None; awaiting owner review of the mockups.
