@@ -999,6 +999,13 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     again). Out in `tests/e2e/playtest/` (artifact `playtest`): `report.html` (each step: what was done, checks,
     time, screenshot; What to improve: failures, slow steps, look findings, cut-off drop-downs, cards placed out of
     sight, crowded SRD suggestions; what is not covered) and the played campaign folder (demo, without backups).
+  - Long playtest `npm run longplay` (`tests/e2e/longplay.mjs`, script `tests/e2e/longplay/script.mjs`, 2026-10-22; not in CI):
+    three four-hour sessions for six level 3 PCs ("The Lantern Wars of Saltreach"): 41 beats incl. 14 off script. Per beat:
+    clicks/fields, lookups (found, clicks from Live), checks, screenshots. Does not stop on a failed beat. Out in
+    `tests/e2e/longplay/out/`: `report.html`, `results.json` (srdSwaps, mapMisses), shots, the played campaign. Setup picks
+    world map regions that Move party here can reach (misses logged). 35 of 41 as expected; the six not are app gaps
+    (fight HP not on Live, Start fight only logs + counts twice, Live heal past max, tavern without a place, late PC
+    can't join a fight, no hit dice without a class, Master notes without recaps). Memo: claude.ai artifact 46v21s2qriuQ7PZKWvNQmY.
   - Shared launch code: `tests/e2e/app.mjs` (launch, window size and scale, screenshots, PNG maker).
 - 3.4.0 playtest fixes (2026-10-21): BoardScreen `reveal` pans to a new card/note placed out of sight (same zoom);
   `maxCreatures` + `strongEnough` in `generators.ts` (both suggest functions); `createEncounter` with no locationId
