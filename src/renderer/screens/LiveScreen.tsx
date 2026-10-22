@@ -138,7 +138,7 @@ function Live({ v }: { v: LiveView }) {
         </div>
         <div className="live-map">
           <div className="parchment-sheet">
-            {v.map ? <MapView src={v.map.url} alt={`Map of ${v.map.name}`} className="desk-mapview" layer={readOnlyLayer(mapScreen, v.map.id)} />
+            {v.map ? <MapView src={v.map.url} alt={`Map of ${v.map.name}`} className="desk-mapview" fitToMap layer={readOnlyLayer(mapScreen, v.map.id)} />
               : <div className="map-empty"><h2>No map yet</h2><p>Import one on the desk or the Map screen.</p></div>}
             <div className="row tight wrap map-actions">
               <MetSomeoneNew disabled={!s} />

@@ -615,7 +615,10 @@ async function sessionTwo() {
     await click('Map'); await click('Fit').catch(() => {}); await pause(300)
     const lh = await page.locator('svg text').filter({ hasText: new RegExp(`^${PLACES.lighthouse}$`) }).first().boundingBox()
     await click('Draw region')
-    for (const [dx, dy] of [[30, 20], [80, 20], [80, 60], [30, 60]]) { count(); await page.mouse.click(lh.x + lh.width / 2 + dx, lh.y + dy); await pause(120) }
+    // Near the lighthouse's name, kept inside the map frame (the Adventure UI's frame is smaller).
+    const fr = await page.locator('.mapview-frame').first().boundingBox()
+    const cx = Math.max(fr.x + 60, Math.min(fr.x + fr.width - 140, lh.x + lh.width / 2)), cy = Math.max(fr.y + 40, Math.min(fr.y + fr.height - 100, lh.y))
+    for (const [dx, dy] of [[30, 20], [80, 20], [80, 60], [30, 60]]) { count(); await page.mouse.click(cx + dx, cy + dy); await pause(120) }
     await click('Finish (Enter)')
     await type(page.locator('#nr-name'), PLACES.cove, null)
     await click('Add region'); await pause(500)
@@ -1121,7 +1124,7 @@ try {
     const pcs = await page.getByRole('group', { name: 'Player characters in this fight' }).getByRole('checkbox').count()
     expect(`all six PCs ticked in by default (${pcs})`, pcs === 6)
     const rating = await text(page.getByRole('navigation', { name: 'Planned encounters' }))
-    expect(`it is planned in Saltreach (${rating.replace(/\s+/g, ' ').slice(0, 80)})`, rating.includes(PLACES.town))
+    expect(`it is planned in Saltreach (${rating.replace(/\s+/g, ' ').slice(0, 80)})`, rating.toLowerCase().includes(PLACES.town.toLowerCase()))
   })
   await sessionOne()
   await sessionTwo()

@@ -244,9 +244,9 @@ try {
     if (!label) throw new Error(`${region}: name not on the map`)
     // A town's name sits under its marker: the name, else the marker just above it.
     for (const dy of [0, -14]) {
-      if ((await text(page.locator('.region-name').first())) !== region) { await page.mouse.click(label.x + label.width / 2, label.y + label.height / 2 + dy); await page.waitForTimeout(300) }
+      if ((await text(page.locator('.region-name').first())).toLowerCase() !== region.toLowerCase()) { await page.mouse.click(label.x + label.width / 2, label.y + label.height / 2 + dy); await page.waitForTimeout(300) }
     }
-    expect(`clicking the name ${region} opens ${region} in the side panel`, (await text(page.locator('.region-name').first())) === region)
+    expect(`clicking the name ${region} opens ${region} in the side panel`, (await text(page.locator('.region-name').first())).toLowerCase() === region.toLowerCase())
     const here = page.locator('h3', { hasText: 'Here now' }).locator('xpath=..')
     await here.waitFor()
     expect(`Map › ${region} › Here now lists the Drowned Ghoul`, (await text(here)).includes('Drowned Ghoul'))

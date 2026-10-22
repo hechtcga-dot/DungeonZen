@@ -20,6 +20,8 @@ export function MapView(props: {
   src: string
   alt: string
   className?: string
+  /** The frame takes the map's own proportions (no blank parchment above and below; Live desk). */
+  fitToMap?: boolean
   layer?: (ctx: MapLayerContext) => ReactNode
   /** A click (not a drag) on the map, in image coordinates. */
   onMapClick?(p: [number, number]): void
@@ -133,7 +135,7 @@ export function MapView(props: {
 
   const percent = fitScale ? Math.round((t.scale / fitScale) * 100) : 100
   return (
-    <div className={`mapview ${props.className ?? ''}`}>
+    <div className={`mapview ${props.className ?? ''}`} style={props.fitToMap && natural ? { aspectRatio: `${natural.w} / ${natural.h}` } : undefined}>
       <div
         ref={frame}
         className="mapview-frame"
