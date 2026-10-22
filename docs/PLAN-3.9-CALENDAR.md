@@ -15,8 +15,8 @@ minutes into dates and back. Days stay 24 hours. Reference look: Fantasy Calenda
   settings. Per moon: "From the calendar" or "Manual Lunar Dates" (full-moon date + cycle; today's "moon is full on
   day" setting becomes Manual Lunar Dates).
 - Calendar settings (preset, builder, Day 1 date, seasons, weather) open from the Calendar screen.
-- Builder: months numbered 1–N; festival days indented under their month: on day X (or after the last day = extra
-  days outside the month and its weeks), lasting Y days, optional leap-years-only. Owner, 2026-10-22.
+- Builder: months numbered 1–N; festival days indented under their month: on day X (a number; a day past the month's
+  length, e.g. 31 of 30, is an extra day outside the month and its weeks), lasting Y days, optional leap-years-only. Owner, 2026-10-22.
 - Seasons: named, with start dates, shown on the calendar.
 - Weather: rolled per day from the season (climate odds table), kept; DM can change any day (manual override).
 - Built-in calendars: Gregorian, Harptos (Forgotten Realms), Greyhawk Common Year, Eberron Galifar, Exandria,
