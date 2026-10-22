@@ -167,3 +167,6 @@ Defaults picked: existing campaigns get the "Put the world map on the board" but
 ## 3.7.0 (built 2026-10-22)
 Owner's asks: Run encounter likely moves rank by damage and disruption (no more See Invisibility / Magic Missile over Fire Bolt); hit dice + button; spell slots on PC rows beside hit dice; Live › Where they are: Tonight's prep big on the left, Tips and Who is here stacked on the right; adventure skin fixes (Desk party slips overlapped, DM screen party names wrapped centred, folded DM screen's + ↑ ↓ sat out on the frame); Terrain and spell effects: no empty gap.
 Defaults picked: slot pips filled = used (same as limited uses); Wizard 17 slots wrap under the hit dice line; Prep head: all four boxes one height, title kept to one line (as on Encounters).
+
+## 3.7.1 (built 2026-10-22)
+Prep head: session title a plain one-line box like the other three, so all four line up on Windows (text level too); pacing hint on one line.
