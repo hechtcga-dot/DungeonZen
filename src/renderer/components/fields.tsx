@@ -30,6 +30,8 @@ export function CommitField(props: {
   required?: boolean
   rows?: number
   mono?: boolean
+  /** One line only (a plain input): same height and text position as the inputs beside it. */
+  line?: boolean
   className?: string
 }) {
   // Text boxes of several lines link card names (owner, 2026-10-15).
@@ -49,7 +51,7 @@ function PlainField(props: Parameters<typeof CommitField>[0]) {
     if (next !== props.value) props.onCommit(next)
   }
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || (!props.multiline && props.list))) { e.preventDefault(); (e.target as HTMLElement).blur() }
+    if (e.key === 'Enter' && (e.ctrlKey || (!props.multiline && (props.list || props.line)))) { e.preventDefault(); (e.target as HTMLElement).blur() }
     if (e.key === 'Escape') { setDraft(props.value); (e.target as HTMLElement).blur() }
   }
   return (
@@ -59,7 +61,7 @@ function PlainField(props: Parameters<typeof CommitField>[0]) {
         <textarea id={props.id} value={draft} rows={props.rows ?? 5} placeholder={props.placeholder}
           className={props.mono ? 'mono' : 'grow'} style={{ '--rows': props.rows ?? 5 } as CSSProperties}
           onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
-      ) : !props.list ? (
+      ) : !props.list && !props.line ? (
         // Starts as one line and grows as you type; Enter starts a new line (owner, 2026-10-14), Ctrl+Enter finishes.
         <textarea id={props.id} value={draft} rows={1} placeholder={props.placeholder} className="grow line"
           onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={onKey} />
