@@ -1,4 +1,4 @@
-# Plan for 3.9: Calendar (draft, 2026-10-22)
+# Plan for 3.9: Calendar (built 3.9.0, 2026-10-22)
 
 Owner request 2026-10-22, answers same day. Built in groups; each group with UI changes gets owner approval of its
 mockup first (as in `PLAN-3.0.md`). Mockups: https://claude.ai/artifact/Mrg9TcDLFYkjhLYJKhXsjE Time stays integer minutes from campaign start (rule 5); the calendar only turns
@@ -68,4 +68,4 @@ year; event window; calendar settings + builder; card Dates box; date underline 
 What they know date line.
 
 ## Open questions
-- None; awaiting owner review of the mockups.
+- None. Timeline stays its own screen for now (owner, 2026-10-22: "leave it in for now"); folding it into the Calendar as a Storylines view is the proposal on file.

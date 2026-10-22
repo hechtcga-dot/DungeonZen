@@ -19,6 +19,7 @@ const SheetScreen = lazy(() => import('./screens/SheetScreen').then((m) => ({ de
 const LibraryScreen = lazy(() => import('./screens/LibraryScreen').then((m) => ({ default: m.LibraryScreen })))
 const DeskScreen = lazy(() => import('./screens/DeskScreen').then((m) => ({ default: m.DeskScreen })))
 const MapScreen = lazy(() => import('./screens/MapScreen').then((m) => ({ default: m.MapScreen })))
+const CalendarScreen = lazy(() => import('./screens/CalendarScreen').then((m) => ({ default: m.CalendarScreen })))
 const TimelineScreen = lazy(() => import('./screens/TimelineScreen').then((m) => ({ default: m.TimelineScreen })))
 const LiveScreen = lazy(() => import('./screens/LiveScreen').then((m) => ({ default: m.LiveScreen })))
 const ReviewScreen = lazy(() => import('./screens/ReviewScreen').then((m) => ({ default: m.ReviewScreen })))
@@ -85,6 +86,7 @@ function MainApp() {
             : screen === 'desk' ? <DeskScreen />
               : screen === 'map' ? <MapScreen />
                 : screen === 'timeline' ? <TimelineScreen />
+                : screen === 'calendar' ? <CalendarScreen />
                 : screen === 'live' ? <LiveScreen />
                 : screen === 'review' ? <ReviewScreen />
                 : screen === 'prep' ? <PrepScreen />

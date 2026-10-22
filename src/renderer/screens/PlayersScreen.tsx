@@ -90,6 +90,14 @@ function Players({ p }: { p: PlayersView }) {
             <p className="region-notes">{p.recap.text}</p>
           </section>
         )}
+        {p.dates.length > 0 && (
+          <section className="parchment-note">
+            <h2 className="panel-title">Dates you know</h2>
+            <ul className="ink-list players-dates">
+              {p.dates.map((d, i) => <li key={i}><strong>{d.when}</strong>: {d.title}{d.notes && <span className="ink-muted"> {d.notes}</span>}</li>)}
+            </ul>
+          </section>
+        )}
         <section className="parchment-note">
           <h2 className="panel-title">People you have met</h2>
           {p.people.length === 0 ? <p className="ink-muted">Nobody yet.</p> : (

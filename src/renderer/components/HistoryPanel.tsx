@@ -19,7 +19,7 @@ function timeAgo(iso: string): string {
 type Sort = 'recent' | 'az' | 'type'
 const SORTS: Array<[Sort, string]> = [['recent', 'Recently removed'], ['az', 'A–Z'], ['type', 'Type']]
 let sortKept: Sort = 'recent' // kept while the app runs
-type Kind = z.infer<(typeof ipcInputs)['history:forget']>['items'][number]['kind'] | 'notedoc'
+type Kind = z.infer<(typeof ipcInputs)['history:forget']>['items'][number]['kind'] | 'notedoc' | 'event' | 'moon'
 interface Row { key: string; name: string; type: string; order: number; body: ReactNode }
 
 export function HistoryPanel() {
@@ -35,7 +35,8 @@ export function HistoryPanel() {
   if (!history) return <p className="muted">Loading…</p>
   const removedCount = history.removedEntities.length + history.removedSecrets.length + history.removedStrings.length + history.removedNotes.length +
     history.removedStorylines.length + history.removedMaps.length + history.removedActs.length +
-    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length + history.removedPrep.length + history.removedNoteDocs.length
+    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length + history.removedPrep.length + history.removedNoteDocs.length +
+    history.removedEvents.length + history.removedMoons.length
 
   const order = history.removedOrder
   const row = (kind: Kind, id: string, name: string, type: string, body: ReactNode): Row => ({ key: `${kind}:${id}`, name, type, order: order[id] ?? 0, body })
@@ -104,6 +105,16 @@ export function HistoryPanel() {
         <div className="removed-text"><strong>{r.name}</strong><span className="muted">Library picture</span></div>
         <button onClick={() => void act('style:setStatus', { id: r.id, status: 'active' })}>Restore</button>
       </>)),
+    ...history.removedEvents.map((r) => row('event', r.id, r.title, 'Calendar event',
+      <>
+        <div className="removed-text"><strong>{r.title}</strong><span className="muted">Calendar event · {r.when}</span></div>
+        <button onClick={() => void act('calendar:setEventRemoved', { id: r.id, removed: false })}>Restore</button>
+      </>)),
+    ...history.removedMoons.map((r) => row('moon', String(r.index), r.name, 'Moon',
+      <>
+        <div className="removed-text"><strong>{r.name}</strong><span className="muted">Moon</span></div>
+        <button onClick={() => void act('calendar:setMoonRemoved', { index: r.index, removed: false })}>Restore</button>
+      </>)),
     ...history.removedNoteDocs.map((r) => row('notedoc', r.id, r.title, 'Notes file',
       <>
         <div className="removed-text"><strong>{r.title}</strong><span className="muted">Notes file</span></div>
@@ -138,7 +149,8 @@ export function HistoryPanel() {
   }
   const forget = async (keys: string[]) => {
     const split = keys.map((k) => { const at = k.indexOf(':'); return { kind: k.slice(0, at) as Kind, id: k.slice(at + 1) } })
-    const items = split.filter((x): x is { kind: Exclude<Kind, 'notedoc'>; id: string } => x.kind !== 'notedoc')
+    // Calendar events and moons stay in History (no delete for good; they are campaign settings).
+    const items = split.filter((x): x is { kind: Exclude<Kind, 'notedoc' | 'event' | 'moon'>; id: string } => x.kind !== 'notedoc' && x.kind !== 'event' && x.kind !== 'moon')
     await act('history:forget', { items, noteDocs: split.filter((x) => x.kind === 'notedoc').map((x) => x.id) })
     setSel(new Set()); setConfirm(null)
     say(keys.length === 1 ? 'Deleted for good (Ctrl+Z brings it back)' : `Deleted ${keys.length} things for good (Ctrl+Z brings them back)`)

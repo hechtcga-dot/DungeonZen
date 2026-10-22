@@ -8,6 +8,7 @@ import { StorylineDialog, STORYLINE_STATUS_LABELS } from '../components/EditDial
 import { Dialog } from '../components/Dialog'
 import { moonOn } from '../../shared/sky'
 import { formatClock, fromClockParts, MINUTES_PER_DAY, toClockParts } from '../../shared/time'
+import { activeMoons, formatDay, moonAt } from '../../shared/calendar'
 import { StorylineStatus } from '../../shared/schemas'
 import type { ActView, TimelineStoryline, TimelineView, TriggerEffectView, TriggerView, WhatIfView } from '../../shared/types'
 import { useSidePanel } from '../components/Splitter'
@@ -107,11 +108,13 @@ function Timeline({ t }: { t: TimelineView }) {
   useEffect(() => { if (selected && !t.acts.some((a) => a.id === selected)) setSelected(null) }, [t, selected])
 
   // Day headers with notable moon phases.
+  const cal = useBoard((s) => s.calendar)
   const dayHeads = useMemo(() => Array.from({ length: days }, (_, d) => {
-    const moon = moonOn(d * MINUTES_PER_DAY + 22 * 60, t.moonOffsetDays)
+    const m = cal ? activeMoons(cal.def)[0] : undefined
+    const moon = cal && m ? moonAt(cal.def, m, d * MINUTES_PER_DAY + 22 * 60) : moonOn(d * MINUTES_PER_DAY + 22 * 60, t.moonOffsetDays)
     const note = moon.name === 'Full moon' ? 'Full moon' : moon.name === 'New moon' ? 'New moon' : ''
-    return { day: d + 1, note }
-  }), [days, t.moonOffsetDays])
+    return { day: d + 1, note, name: cal ? formatDay(cal.def, d, false) : `Day ${d + 1}` }
+  }), [days, t.moonOffsetDays, cal])
 
   return (
     <>
@@ -147,7 +150,7 @@ function Timeline({ t }: { t: TimelineView }) {
                   </div>
                   {dayHeads.map((d) => (
                     <div key={d.day} className="tl-day" style={{ width: pxPerDay }}>
-                      <span className="tl-day-name">Day {d.day}</span>
+                      <span className="tl-day-name" title={`Day ${d.day}`}>{d.name}</span>
                       {d.note && <span className={`tl-day-note${d.note === 'Full moon' ? ' full' : ''}`}>{d.note}</span>}
                       <span className="tl-grip" title="Drag to change the width of the days"
                         onPointerDown={(e) => { const p0 = pxPerDay; dragSize(e, (dx) => setPxPerDay(Math.min(800, Math.max(40, Math.round(p0 + dx / d.day))))) }} />

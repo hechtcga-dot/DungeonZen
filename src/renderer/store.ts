@@ -5,7 +5,8 @@ import type { FollowSource } from '../shared/battlemap'
 import { create } from 'zustand'
 import { call } from './api'
 import type { IpcChannel, IpcInput, IpcOutputs } from '../shared/ipc'
-import type { CombatView, BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView, WordLinksView } from '../shared/types'
+import { useCalendar } from '../shared/calendar'
+import type { CalendarView, CombatView, BoardView, CampaignInfo, DeskView, HistoryView, LiveView, MapScreenView, PrepScreenView, PrepView, ReviewView, WhereView, PlayersView, EncountersView, SheetView, TimelineView, WordLinksView } from '../shared/types'
 import type { Units } from '../shared/units'
 import type { LinkRequest } from './components/LinkWindow'
 
@@ -16,11 +17,11 @@ export type Selection =
   | null
 
 export type BoardPanel = 'inspector' | 'history' | 'connections' | 'storylines'
-export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'combat' | 'generators'
+export type Screen = 'desk' | 'board' | 'map' | 'timeline' | 'calendar' | 'live' | 'review' | 'sheet' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'combat' | 'generators'
 /** DM Prep has every screen; Live is trimmed to the table; Players is safe to show the players. */
 export type Mode = 'prep' | 'live' | 'players'
 export const SCREEN_NAMES: Record<Screen, string> = {
-  desk: 'the desk', board: 'the board', map: 'the map', timeline: 'the timeline', live: 'the live desk', review: 'the review',
+  desk: 'the desk', board: 'the board', map: 'the map', timeline: 'the timeline', calendar: 'the calendar', live: 'the live desk', review: 'the review',
   sheet: 'the previous card', library: 'the library', prep: 'session prep', players: 'player preview', encounters: 'encounters',
   import: 'notes', guide: 'getting started', combat: 'the fight', generators: 'generators'
 }
@@ -57,6 +58,12 @@ interface BoardState {
   timelineFocus: string | null
   /** Card names and the DM's linked words, for every text box. */
   wordLinks: WordLinksView | null
+  /** The campaign calendar, its events and weather (every screen shows dates). */
+  calendar: CalendarView | null
+  /** Calendar screen: the day it looks at (null: today) and its view. */
+  calendarDay: number | null
+  calendarMode: 'day' | 'week' | 'month' | 'year'
+  showCalendar(day: number | null, mode?: 'day' | 'week' | 'month' | 'year'): void
   /** The card behind the linked words under the cursor (outside sheets with their own side panel). */
   linkCard: string | null
   openEncounter(id: string | null): void
@@ -103,7 +110,7 @@ interface BoardState {
   openCampaign(info: CampaignInfo): Promise<void>
   closeCampaign(): Promise<void>
   showBoard(boardId: string): Promise<void>
-  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'generators'): void
+  goTo(screen: 'desk' | 'board' | 'map' | 'timeline' | 'calendar' | 'live' | 'library' | 'prep' | 'players' | 'encounters' | 'import' | 'guide' | 'generators'): void
   openSheet(entityId: string): Promise<void>
   showOnBoard(entityId: string): Promise<void>
   refresh(): Promise<void>
@@ -154,6 +161,13 @@ export const useBoard = create<BoardState>((set, get) => ({
   encounterId: null,
   timelineFocus: null,
   wordLinks: null,
+  calendar: null,
+  calendarDay: null,
+  calendarMode: 'month',
+  showCalendar(day, mode) {
+    set({ calendarDay: day, calendarMode: mode ?? get().calendarMode, screen: 'calendar', mode: 'prep', backStack: get().screen === 'calendar' ? get().backStack : pushed(get(), 'calendar') })
+    void get().refresh()
+  },
   linkCard: null,
   combatId: null,
   combat: null,
@@ -238,7 +252,7 @@ export const useBoard = create<BoardState>((set, get) => ({
     const { boardId, panel, screen, sheetId, reviewSessionId, prepNumber } = get()
     if (!boardId) return
     try {
-      const [view, history, sheet, desk, info, timeline, live, review, wordLinks] = await Promise.all([
+      const [view, history, sheet, desk, info, timeline, live, review, wordLinks, calendar] = await Promise.all([
         call('board:view', { boardId }),
         panel === 'history' ? call('history:view', undefined) : Promise.resolve(get().history),
         screen === 'sheet' && sheetId ? call('sheet:view', { entityId: sheetId }).catch(() => null) : Promise.resolve(null),
@@ -247,8 +261,10 @@ export const useBoard = create<BoardState>((set, get) => ({
         screen === 'timeline' ? call('timeline:view', undefined) : Promise.resolve(get().timeline),
         screen === 'live' ? call('live:view', undefined) : Promise.resolve(get().live),
         screen === 'review' && reviewSessionId ? call('review:view', { sessionId: reviewSessionId }).catch(() => null) : Promise.resolve(null),
-        call('links:view', undefined).catch(() => get().wordLinks)
+        call('links:view', undefined).catch(() => get().wordLinks),
+        call('calendar:view', undefined).catch(() => get().calendar)
       ])
+      if (calendar) useCalendar(calendar.def)
       if (screen === 'review' && !review) {
         // The session is gone, for example the whole session was undone.
         set({ view, history, desk, timeline, info: info ?? get().info, review: null, reviewSessionId: null, screen: 'live' })
@@ -291,7 +307,7 @@ export const useBoard = create<BoardState>((set, get) => ({
         timeline: share(st.timeline, timeline), live: share(st.live, live), review: share(st.review, review), mapScreen: share(st.mapScreen, mapScreen),
         prepScreen: share(st.prepScreen, prepScreen), prep: share(st.prep, prep), where: share(st.where, where), players: share(st.players, players),
         encounters: share(st.encounters, encounters), combat: share(st.combat, combat), info: share(st.info, info ?? st.info),
-        wordLinks: share(st.wordLinks, wordLinks)
+        wordLinks: share(st.wordLinks, wordLinks), calendar: share(st.calendar, calendar)
       })
     } catch (err) {
       get().say((err as Error).message, true)

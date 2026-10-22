@@ -5,6 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import { noteDoc, entity, knowledge, partyPosition,   relationship, relationshipKnown, session, sessionPrep, prepItem, type EntityRow } from '../db/schema'
 import type { EntityType,   RowStatus } from '../../shared/schemas'
 import { formatClock } from '../../shared/time'
+import { dayOfMinutes, formatDay, occurrences, timeText } from '../../shared/calendar'
 import { readStatBlock, statLine } from '../../shared/statblock'
 import type { PlayersView,   NoteDocView, NotesScreenView, NoteMeta } from '../../shared/types'
 import { skyAt } from '../../shared/sky'
@@ -398,7 +399,16 @@ export const notesPart = part({
       place: placeRow ? { name: placeRow.name, inside: where.place!.inside, notes: text(placeRow, 'player_notes') } : null,
       cameFrom: where.cameFrom?.name ?? null,
       headingTo: where.headingTo?.name ?? null,
-      people, discoveries, connections, map
+      people, discoveries, connections, map,
+      dates: (() => {
+        const def = this.calendar()
+        const day = dayOfMinutes(nowMin)
+        return occurrences(def, this.calendarEvents().filter((e) => e.known), day, day + 400)
+          .filter((o, i, all) => all.findIndex((x) => x.event.id === o.event.id) === i).slice(0, 12).map((o) => ({
+          when: o.startDay === day ? 'Today' : formatDay(def, o.startDay) + (o.event.allDay ? '' : ` · ${timeText(o.startMin)}`),
+          title: o.event.title, notes: o.event.showNotes ? o.event.notes : ''
+        }))
+      })()
     }
   },
 

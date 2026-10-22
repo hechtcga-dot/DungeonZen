@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useBoard } from '../store'
 import { DeskFrame } from '../components/DeskFrame'
 import { ScreenHeader } from '../components/TopBar'
@@ -11,7 +11,10 @@ import { WhereTheyAre } from '../components/WhereTheyAre'
 import { readOnlyLayer } from '../components/MapOverlay'
 import { Dialog } from '../components/Dialog'
 import { skyAt } from '../../shared/sky'
-import { formatClock, fromClockParts, toClockParts } from '../../shared/time'
+import { dayNumberText, formatClock, toClockParts } from '../../shared/time'
+import { ClockDialog, EventDialog, calendarNow, type EventDraft } from '../components/CalendarDialogs'
+import { dayOfMinutes, formatDay, occurrences, timeText, type CalEvent } from '../../shared/calendar'
+import type { CalendarView } from '../../shared/types'
 import type { LogKind } from '../../shared/schemas'
 import type { AiSuggestion, GeneratedView, LiveView, LogView, PartyHealth } from '../../shared/types'
 import { providerById } from '../../shared/aiProviders'
@@ -47,6 +50,8 @@ function Live({ v }: { v: LiveView }) {
   const adventure = useSkin()[0] === 'adventure'
   const [ending, setEnding] = useState(false)
   const [settings, setSettings] = useState(false)
+  const calendar = useBoard((st) => st.calendar)
+  const today = calendar ? calendarNow(calendar, v.nowMin) : null
   const sky = skyAt(v.nowMin)
   const s = v.session
 
@@ -64,21 +69,24 @@ function Live({ v }: { v: LiveView }) {
       <section className="dm-screen live-screen-bar" aria-label="DM screen">
         <div className="dm-panel clock-panel">
           <h2 className="panel-title">The hour</h2>
-          {adventure ? <HourScene minutes={v.nowMin} className="adv-art-hour" /> : <ClockDial minutes={v.nowMin} />}
+          {adventure ? <HourScene minutes={v.nowMin} weather={today?.weather} className="adv-art-hour" /> : <ClockDial minutes={v.nowMin} cloudy={!!today && today.weather !== 'clear'} />}
           <div className="clock-row">
             <div>
-              <div className="clock-text">{formatClock(v.nowMin)}</div>
-              <div className="ink-muted">{{ night: 'Night', dawn: 'Dawn', daylight: 'Daylight', dusk: 'Dusk' }[sky.light]}</div>
+              <div className="clock-text" title={dayNumberText(v.nowMin)}>{formatClock(v.nowMin).split(' · ').map((x, i) => <span key={i} className="clock-line">{x}</span>)}</div>
+              <div className="ink-muted">{{ night: 'Night', dawn: 'Dawn', daylight: 'Daylight', dusk: 'Dusk' }[sky.light]}{today ? ` · ${today.weatherWord}` : ''}</div>
+              {today && today.moons.length > 0 && <div className="ink-muted">{today.moons.slice(0, 3).map((m) => `${m.moon.name}: ${m.state.name.toLowerCase()}`).join(' · ')}</div>}
             </div>
           </div>
           <div className="row tight wrap">
             <button className="ink-button" aria-label="Clock back one hour" onClick={() => void act('clock:shift', { minutes: -60 })}>−1 h</button>
             <button className="ink-button" aria-label="Clock forward ten minutes" onClick={() => void act('clock:shift', { minutes: 10 })}>+10 m</button>
             <button className="ink-button" aria-label="Clock forward one hour" onClick={() => void act('clock:shift', { minutes: 60 })}>+1 h</button>
-            <button className="ink-button" aria-expanded={settings} onClick={() => setSettings((x) => !x)}>Set…</button>
+            <button className="ink-button" onClick={() => setSettings(true)} title="Set the time of day">Set…</button>
           </div>
-          {settings && <SetTime nowMin={v.nowMin} onDone={() => setSettings(false)} />}
+          <ClockDialog open={settings} onClose={() => setSettings(false)} />
         </div>
+
+        {calendar && <TodayPanel cal={calendar} nowMin={v.nowMin} />}
 
         <div className="dm-panel">
           <h2 className="panel-title">Party health</h2>
@@ -179,28 +187,62 @@ function Live({ v }: { v: LiveView }) {
   )
 }
 
-/** The exact time, typed (Live › The hour › Set…): day and hh:mm, one undo step. */
-function SetTime({ nowMin, onDone }: { nowMin: number; onDone(): void }) {
-  const act = useBoard((s) => s.act)
-  const now = toClockParts(nowMin)
-  const [day, setDay] = useState(String(now.day))
-  const [time, setTime] = useState(`${String(now.hour).padStart(2, '0')}:${String(now.minute).padStart(2, '0')}`)
-  const [h, m] = time.split(':').map(Number)
-  const d = Number(day)
-  const ok = Number.isInteger(d) && d >= 1 && Number.isInteger(h) && Number.isInteger(m)
+/**
+ * Live › Today and coming up (3.9): today's events (struck through once the clock passed them), the next ones, and a
+ * notice when moving the clock passes an event. Nothing changes by itself (rule 2): the DM opens the event and decides.
+ */
+let lastClock: number | null = null
+function TodayPanel({ cal, nowMin }: { cal: CalendarView; nowMin: number }) {
+  const showCalendar = useBoard((s) => s.showCalendar)
+  const [draft, setDraft] = useState<EventDraft | null>(null)
+  const [passed, setPassed] = useState<CalEvent[]>([])
+  const first = useRef(true)
+  const def = cal.def
+  const day = dayOfMinutes(nowMin)
+  useEffect(() => {
+    const prev = lastClock
+    lastClock = nowMin
+    if (first.current) { first.current = false; if (prev === null) return }
+    if (prev === null || nowMin <= prev) { if (prev !== null && nowMin < prev) setPassed([]); return }
+    const hit = occurrences(def, cal.events, dayOfMinutes(prev), day).filter((o) => o.startMin > prev && o.startMin <= nowMin).map((o) => o.event)
+    if (hit.length) setPassed(hit)
+  }, [nowMin]) // eslint-disable-line react-hooks/exhaustive-deps
+  const todays = occurrences(def, cal.events, day, day).filter((o) => o.startDay <= day)
+  const next = occurrences(def, cal.events, day + 1, day + 400).slice(0, 4)
   return (
-    <form className="row tight wrap set-time" onSubmit={async (e) => {
-      e.preventDefault()
-      if (!ok) return
-      await act('clock:set', { minutes: fromClockParts({ day: d, hour: h, minute: m }) })
-      onDone()
-    }}>
-      <label htmlFor="st-day">Day</label>
-      <input id="st-day" className="short" inputMode="numeric" value={day} autoFocus onChange={(e) => setDay(e.target.value)} />
-      <label htmlFor="st-time" className="visually-hidden">Time</label>
-      <input id="st-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-      <button type="submit" className="ink-button primary-ink" disabled={!ok}>Set</button>
-    </form>
+    <div className="dm-panel today-panel">
+      <h2 className="panel-title">Today and coming up</h2>
+      {passed.length > 0 && (
+        <div className="passed-note" role="status">
+          <strong>The clock passed {passed.length === 1 ? 'an event' : `${passed.length} events`}</strong>
+          {passed.map((e) => <button key={e.id} className="link-button" onClick={() => setDraft({ event: e })}>{e.title}</button>)}
+          <span className="ink-muted">Nothing was changed. Open it to decide what happened.</span>
+          <button className="ink-button" onClick={() => setPassed([])}>OK</button>
+        </div>
+      )}
+      <ul className="cal-box-next">
+        {todays.map((o) => (
+          <li key={o.event.id + o.startDay} className={!o.event.allDay && o.startMin < nowMin ? 'done' : undefined} title={o.event.title}>
+            <span className="cal-dot" style={{ background: o.event.colour }} aria-hidden="true" />
+            <span className="cal-when">{o.event.allDay ? 'today' : timeText(o.startMin)}</span>
+            <button className="cal-what link-button" onClick={() => setDraft({ event: o.event })}>{o.event.title}{!o.event.allDay && o.startMin < nowMin ? ' (passed)' : ''}</button>
+          </li>
+        ))}
+        {todays.length === 0 && <li className="ink-muted">Nothing today.</li>}
+        {next.map((o) => (
+          <li key={o.event.id + o.startDay} title={`${formatDay(def, o.startDay)}: ${o.event.title}`}>
+            <span className="cal-dot" style={{ background: o.event.colour }} aria-hidden="true" />
+            <span className="cal-when">{formatDay(def, o.startDay, false)}</span>
+            <button className="cal-what link-button" onClick={() => setDraft({ event: o.event })}>{o.event.title}</button>
+          </li>
+        ))}
+      </ul>
+      <div className="row tight wrap">
+        <button className="ink-button" onClick={() => setDraft({ start: day * 1440 })}>+ Add event today</button>
+        <button className="ink-button" onClick={() => showCalendar(null, 'month')}>Open calendar</button>
+      </div>
+      <EventDialog draft={draft} onClose={() => setDraft(null)} />
+    </div>
   )
 }
 

@@ -114,6 +114,13 @@ try {
   }
   await setSize({ width: 1440, height: 900 })
   await click('Board'); await click('Timeline'); await shot('timeline')
+  // Calendar (3.9): month, the side panel, week, day, year; the event window and Calendar settings.
+  await click('Calendar'); await shot('calendar-month')
+  await click('Settings ›'); await shot('calendar-panel')
+  await click('Calendar settings…'); await page.locator('.cal-settings').waitFor(); await shot('calendar-settings'); await click('Cancel')
+  await click('‹ Settings')
+  for (const v of ['Week', 'Day', 'Year']) { await click(v); await shot(`calendar-${v.toLowerCase()}`) }
+  await click('Month'); await click('+ Add event'); await page.locator('#ev-title').waitFor(); await shot('event-window'); await click('Cancel')
   // Board side panel: a card selected (Inspector), then History.
   await click('Board'); await page.locator('.react-flow__node', { hasText: 'Barliman Butterbur' }).first().click(); await shot('board-inspector')
   await page.getByRole('tab', { name: 'History', exact: true }).click(); await shot('board-history')

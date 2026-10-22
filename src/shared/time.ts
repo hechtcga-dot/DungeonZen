@@ -19,10 +19,22 @@ export function toClockParts(totalMinutes: number): ClockParts {
   return { day, hour: Math.floor(inDay / MINUTES_PER_HOUR), minute: inDay % MINUTES_PER_HOUR }
 }
 
+// The campaign calendar names the days (3.9, `calendar.ts` `useCalendar`); none set: "Day 12".
+let dateOf: ((day: number) => string) | null = null
+export function setDateFormatter(fn: ((day: number) => string) | null): void { dateOf = fn }
+
+/** The day's name: "14 Tarsakh 1492 DR" with a calendar, else "Day 12" (campaign day 0 = Day 1). */
+export function formatDayName(day: number): string {
+  return dateOf ? dateOf(day) : `Day ${day + 1}`
+}
+
 export function formatClock(totalMinutes: number): string {
   const { day, hour, minute } = toClockParts(totalMinutes)
-  return `Day ${day} · ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  return `${formatDayName(day - 1)} · ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
+
+/** "Day 12" for hover text next to a calendar date. */
+export const dayNumberText = (totalMinutes: number) => `Day ${Math.floor(totalMinutes / MINUTES_PER_DAY) + 1}`
 
 export function fromClockParts({ day, hour, minute }: ClockParts): number {
   return (day - 1) * MINUTES_PER_DAY + hour * MINUTES_PER_HOUR + minute

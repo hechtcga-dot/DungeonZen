@@ -38,6 +38,7 @@ import { combatPart } from './combat'
 import { notesPart } from './notes'
 import { prepPart } from './prep'
 import { buildingsPart } from './buildings'
+import { calendarPart } from './calendar'
 import { DB_FILE, ASSETS_DIR, PREP_LABELS, MAP_EXTENSIONS, storedExt, DEFAULT_RULES_EDITION, DEFAULT_CLOCK_MIN, Position, SettingKey, NewAbility, toEntityView, toRelationshipView, toItemView, toAbilityView, searchText, toMapView, ForgetKind, FORGET_TABLE } from './common'
 export * from './common'
 
@@ -249,6 +250,7 @@ export class Campaign {
 
   info(): CampaignInfo {
     const settings = new Map(this.db.select().from(campaignSetting).all().map((s) => [s.key, s.value]))
+    this.calendar() // every formatClock (labels too) shows this campaign's dates
     return {
       folder: this.folder,
       name: String(settings.get('name') ?? 'Untitled campaign'),
@@ -453,6 +455,8 @@ export class Campaign {
         .filter((r) => existsSync(join(this.folder, ASSETS_DIR, r.file))).map((r) => ({ id: r.id, title: r.title })),
       removedStyles: this.db.select().from(styleExample).where(eq(styleExample.status, 'defunct')).all()
         .map((r) => ({ id: r.id, name: r.name })),
+      removedEvents: this.removedCalendar().events,
+      removedMoons: this.removedCalendar().moons,
       removedOrder: this.log.lastTouched(),
       log: this.log.recent().map((c) => ({ id: c.id, label: c.label, at: c.at, undone: c.state === 'undone' }))
     }
@@ -1566,8 +1570,8 @@ export class Campaign {
 }
 
 // The areas in their own files (timeline.ts, live.ts…) are methods of Campaign too.
-const PARTS = [timelinePart, livePart, reviewPart, regionsPart, picturesPart, fillPart, notesImportPart, encountersPart, combatPart, notesPart, prepPart, buildingsPart]
-type Parts = typeof timelinePart & typeof livePart & typeof reviewPart & typeof regionsPart & typeof picturesPart & typeof fillPart & typeof notesImportPart & typeof encountersPart & typeof combatPart & typeof notesPart & typeof prepPart & typeof buildingsPart
+const PARTS = [timelinePart, livePart, reviewPart, regionsPart, picturesPart, fillPart, notesImportPart, encountersPart, combatPart, notesPart, prepPart, buildingsPart, calendarPart]
+type Parts = typeof timelinePart & typeof livePart & typeof reviewPart & typeof regionsPart & typeof picturesPart & typeof fillPart & typeof notesImportPart & typeof encountersPart & typeof combatPart & typeof notesPart & typeof prepPart & typeof buildingsPart & typeof calendarPart
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Campaign extends Parts {}
 for (const p of PARTS) Object.assign(Campaign.prototype, p)

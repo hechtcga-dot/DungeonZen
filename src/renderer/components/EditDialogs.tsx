@@ -4,15 +4,13 @@ import type { Units } from '../../shared/units'
 import { Dialog } from './Dialog'
 import { STORY_EMBLEMS, StoryEmblemArt, storyEmblemFor, type StoryEmblem } from '../art/emblems'
 import { RulesEdition, StorylineStatus } from '../../shared/schemas'
-import { LUNAR_CYCLE_DAYS } from '../../shared/sky'
-import { fromClockParts, toClockParts } from '../../shared/time'
 import type { MapView, StorylineDetail } from '../../shared/types'
 
 export const STORYLINE_STATUS_LABELS: Record<StorylineStatus, string> = {
   inactive: 'Not started', autonomous: 'Running on its own', player_active: 'Players active', concluded: 'Concluded'
 }
 
-/** Campaign name, rules edition, the exact time and the moon phase. */
+/** Campaign name, rules edition, measurements, prices (time, moons, calendar: their own windows since 3.9). */
 export function CampaignSettingsDialog({ open, onClose }: { open: boolean; onClose(): void }) {
   return (
     <Dialog title="Campaign settings" open={open} onClose={onClose}>
@@ -22,30 +20,17 @@ export function CampaignSettingsDialog({ open, onClose }: { open: boolean; onClo
 }
 
 function CampaignSettingsForm({ onClose }: { onClose(): void }) {
-  const { info, desk, act } = useBoard()
-  const clock = toClockParts(info?.clockMin ?? 0)
-  const offset = desk?.moonOffsetDays ?? 0
+  const { info, act } = useBoard()
   const [name, setName] = useState(info?.name ?? '')
   const [edition, setEdition] = useState<RulesEdition>(info?.rulesEdition ?? '2024')
   const [units, setUnits] = useState<Units>(info?.units ?? 'imperial')
   const [prices, setPrices] = useState(String(info?.priceScale ?? 100))
-  const [day, setDay] = useState(String(clock.day))
-  const [hour, setHour] = useState(String(clock.hour))
-  const [minute, setMinute] = useState(String(clock.minute).padStart(2, '0'))
-  // With offset 0 the moon is full on Day 1; "full on day N" means offset -(N-1) within one cycle.
-  const [fullDay, setFullDay] = useState(String(Math.round(((1 - offset - 1) % LUNAR_CYCLE_DAYS + LUNAR_CYCLE_DAYS) % LUNAR_CYCLE_DAYS) + 1))
-
-  const d = Number(day), h = Number(hour), m = Number(minute), f = Number(fullDay)
-  const timeValid = Number.isInteger(d) && d >= 1 && Number.isInteger(h) && h >= 0 && h < 24 && Number.isInteger(m) && m >= 0 && m < 60
-  const moonValid = Number.isFinite(f) && f >= 1
   const pct = Math.round(Number(prices))
-  const valid = name.trim() !== '' && timeValid && moonValid && pct >= 1 && pct <= 10000
+  const valid = name.trim() !== '' && pct >= 1 && pct <= 10000
 
   const save = async () => {
     if (!valid || !info) return
-    await act('campaign:update', { name: name.trim(), rulesEdition: edition, moonOffsetDays: -(f - 1), units, priceScale: pct })
-    const minutes = fromClockParts({ day: d, hour: h, minute: m })
-    if (minutes !== info.clockMin) await act('clock:set', { minutes })
+    await act('campaign:update', { name: name.trim(), rulesEdition: edition, units, priceScale: pct })
     onClose()
   }
 
@@ -75,24 +60,7 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
         <input id="cs-prices" className="short" type="number" min={1} max={10000} value={prices} onChange={(e) => setPrices(e.target.value)} />
         <div className="hint">100 is the standard 5e price. Every shop and tavern uses this, times its own scale (its Price settings).</div>
       </div>
-      <fieldset className="field">
-        <legend>Campaign time</legend>
-        <div className="row tight wrap">
-          <label htmlFor="cs-day">Day</label>
-          <input id="cs-day" className="short" inputMode="numeric" value={day} onChange={(e) => setDay(e.target.value)} />
-          <label htmlFor="cs-hour">Hour</label>
-          <input id="cs-hour" className="short" inputMode="numeric" value={hour} onChange={(e) => setHour(e.target.value)} />
-          <label htmlFor="cs-minute">Minute</label>
-          <input id="cs-minute" className="short" inputMode="numeric" value={minute} onChange={(e) => setMinute(e.target.value)} />
-        </div>
-        {!timeValid && <div className="field-error">Day from 1, hour 0 to 23, minute 0 to 59.</div>}
-        <div className="hint">Moving the clock is one undoable change. Later, the timeline will use it to move storylines on.</div>
-      </fieldset>
-      <div className="field">
-        <label htmlFor="cs-moon">The moon is full on day</label>
-        <input id="cs-moon" className="short" inputMode="numeric" value={fullDay} onChange={(e) => setFullDay(e.target.value)} />
-        <div className="hint">The moon then follows a 29.5-day cycle. Custom calendars come later.</div>
-      </div>
+      <div className="hint">The time is set with the clock's Set…; the date, calendar, moons and weather on the Calendar screen.</div>
       <div className="dz-actions">
         <button type="button" onClick={onClose}>Cancel</button>
         <button type="submit" className="primary" disabled={!valid}>Save</button>

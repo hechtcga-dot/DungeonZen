@@ -8,6 +8,7 @@ import { ContextMenu } from './ContextMenu'
 import { Dialog } from './Dialog'
 import { ExportDialog } from './ExportDialog'
 import { DEFAULT_LINK_RULES } from '../../shared/noteLinks'
+import { CampaignSettingsDialog } from './EditDialogs'
 
 type About = { version: string; campaignFolder: string | null; dataFolder: string; installed: boolean }
 
@@ -19,7 +20,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
   const [arrange, setArrange] = useArrange()
   const campaignName = useBoard((s) => s.info?.name ?? 'this campaign')
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | 'tidy' | 'linking' | null>(null)
+  const [dialog, setDialog] = useState<'new' | 'export' | 'about' | 'uninstall' | 'delete' | 'backups' | 'vtt' | 'tidy' | 'linking' | 'settings' | null>(null)
   const [name, setName] = useState('')
   const [about, setAbout] = useState<About | null>(null)
 
@@ -38,6 +39,8 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
       </button>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={[
+          { label: 'Campaign settings…', hint: 'Name, rules edition, measurements, prices', onClick: () => setDialog('settings') },
+          'separator',
           { label: 'New campaign…', onClick: () => { setName(''); setDialog('new') } },
           { label: 'Open campaign…', onClick: () => void open(() => call('campaign:openDialog', undefined)) },
           { label: 'Save', hint: 'Every change is saved the moment you make it', onClick: () => void attempt(async () => {
@@ -133,6 +136,7 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
       {dialog === 'vtt' && <VttDialog onClose={() => setDialog(null)} />}
       {dialog === 'tidy' && <TidyDialog onClose={() => setDialog(null)} />}
       {dialog === 'linking' && <LinkingDialog onClose={() => setDialog(null)} />}
+      <CampaignSettingsDialog open={dialog === 'settings'} onClose={() => setDialog(null)} />
 
       <Dialog title="Delete this campaign?" open={dialog === 'delete'} onClose={() => setDialog(null)}>
         <p>Are you sure you want to delete <strong>{campaignName}</strong>?</p>

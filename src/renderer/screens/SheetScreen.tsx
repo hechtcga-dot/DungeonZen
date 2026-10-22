@@ -1,4 +1,5 @@
 import { InYourNotes } from '../components/InYourNotes'
+import { DateWordContext, DatesPanel } from '../components/CalendarDialogs'
 import { LinkNameTick } from '../components/LinkField'
 import { useEffect, useState } from 'react'
 import { useBoard } from '../store'
@@ -43,7 +44,7 @@ export function SheetScreen() {
   const sheet = useBoard((s) => s.sheet)
   return (
     <DeskFrame>
-      {sheet ? <Sheet key={sheet.entity.id} sheet={sheet} /> : <><ScreenHeader title="Card" /><p className="muted page-pad">Loading…</p></>}
+      {sheet ? <DateWordContext.Provider value={{ entityId: sheet.entity.id, entityName: sheet.entity.name }}><Sheet key={sheet.entity.id} sheet={sheet} /></DateWordContext.Provider> : <><ScreenHeader title="Card" /><p className="muted page-pad">Loading…</p></>}
     </DeskFrame>
   )
 }
@@ -133,6 +134,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
             <>
               <DetailsPanel sheet={sheet} lab={lab} />
               <CustomFields sheet={sheet} />
+              <DatesPanel entityId={sheet.entity.id} entityName={sheet.entity.name} />
               <PartyKnows sheet={sheet} />
             </>
   )
@@ -225,6 +227,7 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                 hint="Private to you. Never shown to players."
                 onCommit={(notes) => update({ attributes: { notes } })} />
             </section>
+            {creature && <DatesPanel entityId={e.id} entityName={e.name} />}
             <section className="panel"><InYourNotes entityId={e.id} /></section>
             {Array.isArray(e.attributes.provenance) && e.attributes.provenance.length > 0 && (
               <section className="panel provenance">

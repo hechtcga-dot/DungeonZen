@@ -8,6 +8,8 @@ export interface SceneContext {
   when: string
   light: 'night' | 'dawn' | 'daylight' | 'dusk'
   moon: string
+  /** The day's weather (3.9). */
+  weather?: string
   place: { name: string; notes: string; inside: string | null; looks?: string } | null
   /** Who and what the cards place there (names and types only). */
   present: Array<{ name: string; type: string }>
@@ -27,7 +29,7 @@ export const SCENE_SYSTEM = [
 ].join(' ')
 
 export function scenePrompt(ctx: SceneContext, ask: string): string {
-  const lines: string[] = [`Campaign: ${ctx.campaignName}.`, `Time: ${ctx.when} (${ctx.light}). Moon: ${ctx.moon}.`]
+  const lines: string[] = [`Campaign: ${ctx.campaignName}.`, `Time: ${ctx.when} (${ctx.light}). Moon: ${ctx.moon}.${ctx.weather ? ` Weather: ${ctx.weather}.` : ''}`]
   if (ctx.place) {
     lines.push(`Where the party is: ${ctx.place.name}${ctx.place.inside ? `, in ${ctx.place.inside}` : ''}.`)
     if (ctx.place.looks?.trim()) lines.push(`What the players see there: ${clip(ctx.place.looks, 800)}`)

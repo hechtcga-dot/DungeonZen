@@ -189,13 +189,18 @@ const regionList = async () => page.locator('svg text').evaluateAll((els) => els
 const beat = (n, id) => SESSIONS[n - 1].beats.find((b) => b.id === id)
 const B = (n, id, fn) => { const b = beat(n, id); return step(id, `S${n} ${b.at} ${b.title}`, fn) }
 
-/** Live desk: sets the clock with Set… (the campaign settings window). */
+/** Sets the clock (3.9): the date on Calendar › Settings › Go to a date (campaign day N = N Hammer, Harptos), then the
+ * time with Live › The hour › Set… (the Clock window, time only). */
 async function setClock(day, hour, minute = 0) {
+  await click('Calendar')
+  if (!(await page.locator('#side-date-day').count())) await click('Settings ›')
+  await page.locator('#side-date-day').selectOption(String(day)); count()
+  await pause(300)
   await live()
   await click('Set…')
-  await type(page.locator('#st-day'), day, null)
-  await type(page.locator('#st-time'), `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`, null)
-  await click('Set')
+  await type(page.locator('#clk-hour'), String(hour), null)
+  await type(page.locator('#clk-minute'), String(minute).padStart(2, '0'), null)
+  await click('Set the clock')
   await pause(300)
 }
 /** Quick-log a line with a time choice ('No time', '10 min', '30 min', '1 h', '4 h'). */

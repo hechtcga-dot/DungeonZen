@@ -349,7 +349,7 @@ describe('scene text', () => {
       c.startSession()
       c.addLog({ kind: 'note', text: 'They bought rope' })
       const s = c.sceneContext()
-      expect(s).toMatchObject({ campaignName: 'The Mistreach', when: 'Day 1 · 21:00', light: 'night', place: { name: 'Old Harbour', inside: null } })
+      expect(s).toMatchObject({ campaignName: 'The Mistreach', when: '1 Hammer 1492 DR · 21:00', light: 'night', place: { name: 'Old Harbour', inside: null } })
       expect(s.present).toEqual([{ name: 'Ciaf Crol', type: 'NPC' }])
       expect(s.recent.at(-1)).toContain('They bought rope')
     } finally {

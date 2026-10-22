@@ -53,11 +53,15 @@ const PHASE_NAMES = [
 
 /** `offsetDays` shifts the cycle; with 0 the moon is full on Day 1. */
 export function moonOn(totalMinutes: number, offsetDays = 0): MoonState {
-  const days = totalMinutes / MINUTES_PER_DAY + offsetDays
-  const phase = (((days / LUNAR_CYCLE_DAYS + 0.5) % 1) + 1) % 1
+  return moonFrom(totalMinutes / MINUTES_PER_DAY + offsetDays, LUNAR_CYCLE_DAYS)
+}
+
+/** A moon `daysSinceFull` days after one of its full moons, on a `cycle`-day cycle (3.9 calendars). */
+export function moonFrom(daysSinceFull: number, cycle: number): MoonState {
+  const phase = (((daysSinceFull / cycle + 0.5) % 1) + 1) % 1
   const illumination = (1 - Math.cos(phase * 2 * Math.PI)) / 2
   const name = PHASE_NAMES[Math.round(phase * 8) % 8]
-  const toFull = ((0.5 - phase + 1) % 1) * LUNAR_CYCLE_DAYS
+  const toFull = ((0.5 - phase + 1) % 1) * cycle
   // While the moon still counts as full (just past its peak), it is full tonight.
   const nightsUntilFull = name === 'Full moon' && phase >= 0.5 ? 0 : Math.round(toFull)
   return { phase, name, illumination, nightsUntilFull }

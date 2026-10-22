@@ -14,7 +14,7 @@ import type { IpcOutputs } from '../../shared/ipc'
 type Found = IpcOutputs['find:index'][number]
 type Action = { kind: 'action'; id: string; name: string; detail: string; run(): void | Promise<unknown> }
 type Item = Found | { kind: 'screen'; id: Screen; name: string; detail: string } | Action
-const SCREENS: Screen[] = ['desk', 'prep', 'encounters', 'board', 'timeline', 'map', 'library', 'import', 'live', 'players', 'generators']
+const SCREENS: Screen[] = ['desk', 'prep', 'encounters', 'board', 'timeline', 'calendar', 'map', 'library', 'import', 'live', 'players', 'generators']
 const screenItem = (s: Screen): Item => ({ kind: 'screen', id: s, name: s === 'import' ? 'Notes' : SCREEN_NAMES[s].replace(/^the /, '').replace(/^./, (c) => c.toUpperCase()), detail: 'Go to' })
 
 // Recently opened cards, notes and sessions (this computer), newest first.

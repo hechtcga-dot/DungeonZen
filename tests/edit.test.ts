@@ -29,7 +29,7 @@ describe('the DM can change everything', () => {
   it('sets the clock to an exact time', () => {
     c.setClock(3 * 1440 + 22 * 60 + 15)
     expect(c.info().clockMin).toBe(5655)
-    expect(c.history().log[0].label).toBe('Set the clock to Day 4 · 22:15')
+    expect(c.history().log[0].label).toBe('Set the clock to 4 Hammer 1492 DR · 22:15')
   })
 
   it('edits a storyline and renames its board view', () => {

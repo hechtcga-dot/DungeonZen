@@ -1,10 +1,9 @@
-import { moonOn, skyAt } from '../../shared/sky'
+import { skyAt, type MoonState } from '../../shared/sky'
 import { formatClock } from '../../shared/time'
 
 /** Brass dial with the sky: the sun or moon travels the arc, the colour follows the light. */
-export function ClockDial({ minutes, moonOffsetDays = 0 }: { minutes: number; moonOffsetDays?: number }) {
+export function ClockDial({ minutes, moonLit = 1, cloudy = false }: { minutes: number; moonLit?: number; cloudy?: boolean }) {
   const sky = skyAt(minutes)
-  const moonLit = moonOn(minutes, moonOffsetDays).illumination
   // Arc from left (180°) to right (0°) over a semicircle of radius 62 centred at (100, 100).
   const angle = Math.PI * (1 - sky.progress)
   const bx = 100 + Math.cos(angle) * 62
@@ -40,6 +39,7 @@ export function ClockDial({ minutes, moonOffsetDays = 0 }: { minutes: number; mo
           ? <><circle cx={bx} cy={by} r="16" fill="url(#sunglow)" /><circle cx={bx} cy={by} r="8" fill="#ffe27a" /></>
           : <><circle cx={bx} cy={by} r="8" fill="#f4f0dc" />
             {moonLit < 0.85 && <circle cx={bx + 3 + moonLit * 6} cy={by - 2} r="7" fill={sky.top} opacity="0.9" />}</>}
+        {cloudy && <g fill="#7d858c" opacity="0.85"><ellipse cx="70" cy="50" rx="34" ry="11" /><ellipse cx="104" cy="42" rx="26" ry="10" /><ellipse cx="140" cy="54" rx="34" ry="11" /></g>}
         <path d="M24 100 L24 90 L34 90 L34 84 L40 78 L46 84 L46 92 L58 92 L58 80 L64 80 L64 74 L68 70 L72 74 L72 92 L86 92 L86 86 L96 86 L96 92 L110 92 L110 78 L116 72 L122 78 L122 92 L132 92 L132 84 L142 84 L142 76 L146 72 L150 76 L150 92 L162 92 L162 86 L176 86 L176 100 Z" fill="#1d150c" />
       </g>
       {Array.from({ length: 13 }, (_, i) => {
@@ -51,8 +51,7 @@ export function ClockDial({ minutes, moonOffsetDays = 0 }: { minutes: number; mo
 }
 
 /** The moon's face for a given time, lit portion drawn from the phase. */
-export function MoonDisc({ minutes, offsetDays }: { minutes: number; offsetDays: number }) {
-  const moon = moonOn(minutes, offsetDays)
+export function MoonDisc({ moon }: { moon: MoonState }) {
   // Terminator: an ellipse whose width follows the phase; waxing lights the right side.
   const r = 34
   const waxing = moon.phase < 0.5

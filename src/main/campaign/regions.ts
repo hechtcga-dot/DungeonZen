@@ -1,4 +1,5 @@
 import { type LengthUnit } from '../../shared/units'
+import { WEATHER_WORDS, activeMoons, dayOfMinutes, moonAt, weatherOn, type WeatherDays } from '../../shared/calendar'
 import { randomUUID } from 'node:crypto'
 import { and, asc, eq } from 'drizzle-orm'
 import { entity, partyPosition, regionShape, relationship, session, type RegionRow } from '../db/schema'
@@ -7,7 +8,7 @@ import type { EntityStatus, EntityType,   RowStatus } from '../../shared/schemas
 import { formatClock } from '../../shared/time'
 import type { MapScreenView, PartyMarker, RegionDetail, RegionView } from '../../shared/types'
 import type { SceneContext } from '../ai/scene'
-import { moonOn, skyAt } from '../../shared/sky'
+import { skyAt } from '../../shared/sky'
 import { type Point } from '../../shared/geometry'
 import { isBiome, isPlaceKind } from '../../shared/places'
 import { occupantsOf } from '../../shared/building'
@@ -116,7 +117,9 @@ export const regionsPart = part({
   /** What the AI scene writer is told: time, light, moon, where the party is and who is there. */
   sceneContext(): SceneContext {
     const nowMin = this.info().clockMin
-    const moon = moonOn(nowMin, Number(this.setting('moon_offset_days') ?? 0))
+    const def = this.calendar()
+    const moons = activeMoons(def).map((m) => `${m.name} ${moonAt(def, m, nowMin).name.toLowerCase()}`)
+    const weather = WEATHER_WORDS[weatherOn(def, (this.setting('weather_days') ?? {}) as WeatherDays, dayOfMinutes(nowMin)).kind][skyAt(nowMin).light === 'daylight' ? 'day' : 'night']
     const party = this.partyNow()
     let place: SceneContext['place'] = null
     let present: SceneContext['present'] = []
@@ -137,7 +140,8 @@ export const regionsPart = part({
       campaignName: this.info().name,
       when: formatClock(nowMin),
       light: skyAt(nowMin).light,
-      moon: moon.name,
+      moon: moons.join(', ') || 'none',
+      weather,
       place,
       present,
       recent: [...live.log].reverse().map((l) => [l.kind, l.entityName, l.text].filter(Boolean).join(': ')),

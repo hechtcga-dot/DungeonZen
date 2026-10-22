@@ -7,6 +7,8 @@ import type { EntityType } from '../../shared/schemas'
 import type { EntityBrief, WordLinksView } from '../../shared/types'
 import { useBoard } from '../store'
 import { autoNames, DEFAULT_LINK_RULES, linksByItself } from '../../shared/noteLinks'
+import { DateWordContext, DateWordDialog, EventDialog, type EventDraft } from './CalendarDialogs'
+import { dayOfMinutes, findDateWords, type DateWord } from '../../shared/calendar'
 
 /** auto: a card's own name, linked only as whole words; exact: only as written (a one-word name with its capital). */
 export type WordLink = { text: string; entityId: string; auto?: boolean; exact?: boolean }
@@ -123,6 +125,37 @@ export function LinkField(props: {
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const [picking, setPicking] = useState<string | null>(null)
   const hits = ctx ? findLinks(draft, ctx.links) : []
+  // Date words (3.9, card sheets only, not in history/background boxes): dotted until the DM adds them, solid once added.
+  const dateCtx = useContext(DateWordContext)
+  const calendar = useBoard((s) => (dateCtx ? s.calendar : null))
+  const nowMin = useBoard((s) => s.info?.clockMin ?? 0)
+  const [dateWord, setDateWord] = useState<{ phrase: string; day: number; sentence: string } | null>(null)
+  const [eventDraft, setEventDraft] = useState<EventDraft | null>(null)
+  const dateWords: Array<DateWord & { eventId?: string }> = useMemo(() => {
+    if (!dateCtx || !calendar || /history|background|backstory|past|recap/i.test(props.label)) return []
+    const off = calendar.dateWordsOff[dateCtx.entityId] ?? []
+    const mine = calendar.events.filter((e) => e.links.some((l) => l.kind === 'card' && l.id === dateCtx.entityId) && e.source)
+    return findDateWords(calendar.def, draft, nowMin).filter((w) => !off.includes(w.phrase.trim().toLowerCase()))
+      .map((w) => ({ ...w, eventId: mine.find((e) => e.source!.includes(`“${w.phrase}”`))?.id }))
+  }, [dateCtx, calendar, draft, nowMin, props.label])
+  const dates = dateWords.filter((w) => !hits.some((h) => w.from < h.to && w.to > h.from))
+  const sentenceOf = (w: { from: number; to: number }) => {
+    const start = Math.max(draft.lastIndexOf('.', w.from - 1), draft.lastIndexOf('\n', w.from - 1)) + 1
+    const ends = ['.', '!', '?', '\n'].map((c) => draft.indexOf(c, w.to)).filter((i) => i >= 0)
+    return draft.slice(start, ends.length ? Math.min(...ends) + 1 : draft.length)
+  }
+  const openDate = (w: DateWord & { eventId?: string }) => {
+    const e = w.eventId ? calendar?.events.find((x) => x.id === w.eventId) : undefined
+    if (e) setEventDraft({ event: e })
+    else setDateWord({ phrase: w.phrase, day: w.day, sentence: sentenceOf(w) })
+  }
+  const dateUnder = (x: number, y: number) => {
+    const marks = back.current?.querySelectorAll<HTMLElement>('mark.date-word') ?? []
+    for (const m of marks) {
+      if ([...m.getClientRects()].some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return dates.find((w) => w.from === Number(m.dataset.from))
+    }
+    return undefined
+  }
   // Linked words take their card's colour (its own, else its type's).
   const typeColour = useTypeColour()
   const colourOf = (id: string) => {
@@ -180,10 +213,17 @@ export function LinkField(props: {
     if (!ctx || !a) return
     const words = draft.slice(a.selectionStart, a.selectionEnd).trim()
     const hit = under(e.clientX, e.clientY) ?? at()
+    const dw = !words && !hit ? dateUnder(e.clientX, e.clientY) : undefined
+    if (dw) { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, items: [{ label: dw.eventId ? 'Open the event' : `Add “${dw.phrase}” to the calendar…`, onClick: () => openDate(dw) }] }); return }
     if (!words && !hit) return // the usual menu (spelling)
     e.preventDefault()
     const items: MenuItem[] = []
     if (words) items.push({ label: `Link “${words.length > 30 ? `${words.slice(0, 30)}…` : words}” to a card…`, onClick: () => setPicking(words) })
+    if (words && dateCtx && calendar) {
+      const from = a.selectionStart, to = a.selectionEnd
+      const found = findDateWords(calendar.def, words, nowMin)[0]
+      items.push({ label: `Add “${words.length > 30 ? `${words.slice(0, 30)}…` : words}” to the calendar…`, onClick: () => setDateWord({ phrase: words, day: found?.day ?? dayOfMinutes(nowMin) + 1, sentence: sentenceOf({ from, to }) }) })
+    }
     const card = hit && ctx.cards.find((c) => c.id === hit.link.entityId)
     if (hit && card && hit.link.auto && draft.slice(hit.from, hit.to) !== card.name) {
       items.push({ label: `Write it as “${card.name}”`, onClick: () => {
@@ -202,9 +242,12 @@ export function LinkField(props: {
   // The marks are drawn on a copy of the text behind the (see-through) box, scrolled with it.
   const marked: ReactNode[] = []
   let k = 0
-  for (const h of hits) {
-    marked.push(draft.slice(k, h.from), <mark key={h.from} data-from={h.from} style={{ '--lc': colourOf(h.link.entityId) } as CSSProperties}>{draft.slice(h.from, h.to)}</mark>)
-    k = h.to
+  const spans = [...hits.map((h) => ({ from: h.from, to: h.to, h })), ...dates.map((w) => ({ from: w.from, to: w.to, w }))].sort((a, b) => a.from - b.from)
+  for (const s of spans) {
+    marked.push(draft.slice(k, s.from), 'h' in s
+      ? <mark key={s.from} data-from={s.from} style={{ '--lc': colourOf(s.h.link.entityId) } as CSSProperties}>{draft.slice(s.from, s.to)}</mark>
+      : <mark key={s.from} data-from={s.from} className={`date-word${s.w.eventId ? ' added' : ''}`}>{draft.slice(s.from, s.to)}</mark>)
+    k = s.to
   }
   marked.push(draft.slice(k), '\n')
   return (
@@ -216,10 +259,14 @@ export function LinkField(props: {
           className={props.multiline ? 'grow' : 'grow line'} style={{ '--rows': props.multiline ? props.rows ?? 5 : 1, ...(props.minHeight ? { minHeight: props.minHeight } : {}) } as CSSProperties}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit} onKeyDown={onKey} onSelect={check} onContextMenu={onMenu}
+          onClick={(e) => { const a = area.current; if (a && a.selectionStart === a.selectionEnd) { const w = dateUnder(e.clientX, e.clientY); if (w) openDate(w) } }}
+          title={dates.length ? 'Blue dotted words are dates: click one to add it to the calendar' : undefined}
           onScroll={(e) => { if (back.current) { back.current.scrollTop = e.currentTarget.scrollTop; back.current.scrollLeft = e.currentTarget.scrollLeft } }} />
       </div>
       {props.hint && <span className="hint">{props.hint}</span>}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {dateCtx && <DateWordDialog word={dateWord ? { ...dateWord, entityId: dateCtx.entityId, entityName: dateCtx.entityName, field: props.label } : null} onClose={() => setDateWord(null)} />}
+      {dateCtx && <EventDialog draft={eventDraft} onClose={() => setEventDraft(null)} />}
       {ctx && picking !== null && (
         <CardPicker words={picking} cards={ctx.cards} onClose={() => setPicking(null)}
           onPick={(entityId, made) => {

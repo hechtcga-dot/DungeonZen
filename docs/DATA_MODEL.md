@@ -109,6 +109,12 @@ scenario            id, name, status                   -- draft | promoted | dis
 ```
 `delta.scenario_id` null means canon.
 
+Calendar (3.9, campaign settings, Zod in `src/shared/calendar.ts`; time stays minutes, the calendar only names days):
+`calendar` = CalendarDef (months, festivals, weekdays, leap rules, Day 1 date, moons, seasons, weather odds);
+`calendar_events` = CalEvent[] (start/end minutes, may be before Day 1; repeat none/weekly/monthly/yearly; links to
+card/secret/storyline; known, showNotes; status defunct = History); `weather_days` = { campaign day: kind } (the DM's
+changes; other days roll from the season); `date_words_off` = { entity id: phrases }.
+
 ## Sessions
 ```
 session             id, number, started_at, ended_at, start_min, end_min

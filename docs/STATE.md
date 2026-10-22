@@ -1118,3 +1118,25 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
 - 3.8.1 Desk DM screen (owner, 2026-10-22): `.party-panel` is a size container; below 380 px every ledger row puts the
   numbers under the name (left), above it one line with the name shortened (title = full name). Moon title full width.
   Session panel: `.session-title-text` and prep lines clamp at two lines.
+- 3.9.0 Calendar (owner, 2026-10-22; plan `docs/PLAN-3.9-CALENDAR.md`):
+  - Engine `src/shared/calendar.ts` (pure, `tests/calendar.test.ts`): `CalendarDef` (months with leap days and festivals
+    "on day N lasting M", weekdays, weeks restart per month, leap rules, Day 1 `start`, moons, seasons, climate + weather
+    odds per season), 7 presets, campaign day ↔ date (`dateOfDay`, `dayOfDate`; days past a month's length are festival days
+    outside it), `formatDay`, moons (`moonAt`, `nextFullDay`), seasons, weather (`rolledWeather` fixed hash per day,
+    `weatherOn` with the DM's changes), events (`CalEvent`, `occurrences` with weekly/monthly/yearly repeats and spans),
+    `findDateWords` (forward date words, past wording skipped). `useCalendar(def)` makes `formatClock` show dates in
+    main (set in `info()`/`calendar()`) and renderer (store refresh); no calendar: "Day N".
+  - Main `src/main/campaign/calendar.ts`: settings `calendar`, `calendar_events`, `weather_days`, `date_words_off`; old
+    `moon_offset_days` becomes Manual Lunar Dates of moon 1 until a calendar is saved. IPC `calendar:view|set|saveEvent|
+    setEventRemoved|setMoonRemoved|setWeather|dateWordOff`. History lists removed events and moons (Restore only).
+    `playersView().dates` (known events, next date each); AI scene context gets the weather; `tests/calendarCampaign.test.ts`.
+  - Renderer: store `calendar` (every refresh), `showCalendar(day, mode)`; `screens/CalendarScreen.tsx` (rail › Calendar);
+    `components/CalendarDialogs.tsx`: ClockDialog (time only; top bar clock, Desk and Live Set…), MoonsDialog, EventDialog,
+    CalendarSettingsDialog, DateWordDialog, DatesPanel (card sheet side column; creatures: Notes tab), MoonIcon, WeatherIcon.
+    LinkField marks date words (`mark.date-word`, dotted; solid once added from the card) on card sheets (`DateWordContext`);
+    click or right-click adds; selected text › Add to the calendar….
+  - Desk: hour picture `HourScene weather` (clouds, rain, snow, storm, fog), Desk UI dial greys over; Moons box (up to 3,
+    Set…); Calendar box replaces The party (date, weekday · season, next 3, Open calendar); map button renamed; gear menu
+    › Campaign settings… (name, rules, units, prices). Live: The hour shows date and time on two lines, weather and moons;
+    Today and coming up panel with the passed-event notice. Timeline day heads show calendar dates and the first moon.
+    Smoke visits Calendar month, side panel, settings, week, day, year and the event window.

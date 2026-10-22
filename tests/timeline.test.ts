@@ -66,7 +66,7 @@ describe('timeline', () => {
     const w = c.whatIf(a1, win)
     expect(w.lines).toEqual(expect.arrayContaining([
       expect.stringContaining('Main quest · Act 1 (The bell): ends "Players ring the bell"'),
-      'Side storyline · Act 2 (The escape): starts Day 4 · 00:00 instead of Day 3 · 00:00'
+      'Side storyline · Act 2 (The escape): starts 4 Hammer 1492 DR · 00:00 instead of 3 Hammer 1492 DR · 00:00'
     ]))
     expect(c.history().log.length).toBe(before)
   })

@@ -57,11 +57,11 @@
 .rail-item span { text-align: center; line-height: 1.15; }
 /* Rail buttons never squeeze (a short window used to shrink the Session prep icon and spill labels): the rail scrolls instead. */
 .rail-item, .rail-item svg { flex: none; }
-@media (max-height: 820px) {
-  .rail { gap: 2px; }
+@media (max-height: 960px) { /* 3.9: Calendar on the rail too */
+  .rail { gap: 2px; padding: 8px 5px; }
   .rail .rail-item { min-height: 0; gap: 2px; padding: 3px 4px; }
   .rail-item svg { width: 18px; height: 18px; }
-  .rail-item span { line-height: 1.1; }
+  .rail-item span { line-height: 1.1; font-size: 11px; }
 }
 /* A screen open in a window of its own: small mark on its rail button, faint picture in the main window. */
 .rail-item { position: relative; }
@@ -1981,3 +1981,155 @@ fieldset.cast-list .field.checkbox { margin: 0; }
 .carried-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 12px; }
 .set-time { margin-top: 6px; align-items: center; }
 .set-time input[type='time'] { width: 120px; }
+
+/* 3.9.0 Calendar: Desk box, moons, Live Today, Calendar screen, calendar windows, card Dates box, date words. */
+.dm-screen .calendar-panel { min-width: 0; }
+.cal-box-date { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+.cal-box-next { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+.cal-box-next li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cal-box-next li.done .cal-what { text-decoration: line-through; opacity: 0.7; }
+.cal-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.cal-when { flex: none; width: 76px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.cal-box-actions { justify-content: flex-end; margin-top: auto; padding-top: 4px; }
+.moon-list { display: flex; flex-direction: column; gap: 6px; flex: 1; justify-content: center; }
+.moon-list.many .adv-art-moon, .moon-list.many .moon-disc { width: 44px; height: 44px; flex: 0 0 44px; }
+.moon-list.many .moon-name { font-size: 15px; }
+.moon-of { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.moon-set { justify-content: flex-end; }
+.live-screen-bar { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.passed-note { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 2px solid var(--wax); border-radius: 4px; background: rgba(255, 248, 228, 0.6); }
+
+.calendar-screen { flex: 1; min-height: 0; display: flex; gap: 14px; padding: 14px; overflow: hidden; }
+.cal-side { width: 280px; flex: none; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding: 12px; }
+.cal-side-steps { display: flex; flex-direction: column; gap: 4px; }
+.cal-side-steps .ink-button { min-width: 30px; padding: 2px 6px; }
+.cal-side-val { flex: 1; text-align: center; background: rgba(255, 250, 240, 0.8); border: 1px solid var(--border); border-radius: 3px; padding: 3px 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-show { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font-size: 13px; }
+.cal-key { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.cal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.cal-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cal-title { margin: 0; min-width: 240px; text-align: center; font-size: 20px; }
+.seg { display: inline-flex; flex-wrap: wrap; }
+.seg > button { border-radius: 0; margin-left: -1px; }
+.seg > button:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+.seg > button:last-child { border-radius: 0 4px 4px 0; }
+.cal-tip { margin: 0; font-size: 12px; color: var(--muted); }
+.cal-month { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; overflow: auto; }
+.cal-weekdays { display: grid; background: #3b2414; color: #f0e3c6; font-size: 12px; text-align: center; }
+.cal-weekdays > div { padding: 5px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-grid { flex: 1; display: grid; grid-auto-rows: minmax(92px, 1fr); }
+.cal-cell { border-right: 1px solid rgba(110, 82, 53, 0.45); border-bottom: 1px solid rgba(110, 82, 53, 0.45); padding: 4px; display: flex; flex-direction: column; gap: 3px; min-width: 0; overflow: hidden; cursor: pointer; background: rgba(255, 248, 228, 0.35); }
+.cal-cell.blank { background: repeating-linear-gradient(135deg, rgba(110, 82, 53, 0.08) 0 8px, transparent 8px 16px); cursor: default; }
+.cal-cell.past { background: rgba(110, 82, 53, 0.12); }
+.cal-cell.today { background: rgba(255, 244, 214, 0.9); box-shadow: inset 0 0 0 2px var(--wax); }
+.cal-cell.selected:not(.today) { box-shadow: inset 0 0 0 2px var(--muted); }
+.cal-cell:focus-visible { outline: 2px solid var(--wax); outline-offset: -2px; }
+.cal-cell-head { display: flex; align-items: center; gap: 3px; min-width: 0; }
+.cal-num { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-cell.today .cal-num { color: var(--wax); }
+.cal-fest { font-size: 11px; font-weight: 700; color: #3f6b3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-chip { display: block; width: 100%; min-height: 0; text-align: left; font-size: 11px; line-height: 1.25; border: 0; border-radius: 3px; padding: 2px 4px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-key .cal-chip { display: inline-block; width: auto; }
+.cal-chip.beat { background: #f6ecd2; color: #3a2414; border: 1px solid #5c6b73; }
+.cal-chip.past { opacity: 0.6; }
+.cal-extra { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; padding: 6px 8px; border-top: 2px solid var(--muted); }
+.cal-extra .cal-cell { width: 180px; min-height: 70px; border: 1px solid rgba(110, 82, 53, 0.45); }
+.cal-extra .hint { align-self: center; }
+.cal-week { flex: 1; min-height: 0; display: grid; gap: 0; padding: 0; overflow: auto; }
+.cal-week-day { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-right: 1px solid rgba(110, 82, 53, 0.45); min-width: 0; }
+.cal-week-day.today { background: rgba(255, 244, 214, 0.9); box-shadow: inset 0 0 0 2px var(--wax); }
+.cal-week-day.past { background: rgba(110, 82, 53, 0.12); }
+.cal-week-head { display: flex; flex-direction: column; align-items: flex-start; min-height: 0; padding: 2px; border: 0; background: transparent; font-size: 12px; text-align: left; }
+.cal-week-day .cal-chip { white-space: normal; overflow-wrap: anywhere; }
+.cal-week-weather { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.cal-day { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.cal-day-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.cal-box { border: 1px solid var(--border); border-radius: 4px; padding: 8px; background: rgba(255, 250, 240, 0.5); display: flex; flex-direction: column; gap: 4px; }
+.cal-day-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cal-day-list li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 10px; align-items: start; }
+.cal-day-item { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; border: 1px solid var(--border); border-left: 6px solid #5c6b73; border-radius: 4px; padding: 6px 8px; background: rgba(255, 250, 240, 0.7); min-height: 0; overflow-wrap: anywhere; }
+.cal-year { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-content: start; }
+.cal-year-month { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.cal-year-month.now { box-shadow: inset 0 0 0 2px var(--wax); }
+.cal-year-name { align-self: flex-start; min-height: 0; padding: 0; border: 0; background: transparent; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+.cal-year-days { display: grid; gap: 2px; }
+.cal-year-day { min-height: 0; padding: 1px 0; border: 0; border-radius: 2px; background: transparent; font-size: 11px; }
+.cal-year-day.past { color: #8a7050; }
+.cal-year-day.busy { font-weight: 700; border-bottom: 2px solid #2f6f8f; }
+.cal-year-day.full { background: rgba(255, 250, 230, 0.9); }
+.cal-year-day.today { background: var(--wax); color: #f6e6c8; font-weight: 700; }
+.cal-year-season { height: 5px; border-radius: 2px; }
+.weather-set { align-items: center; }
+.moon-icon, .weather-icon { flex: none; }
+
+/* calendar windows */
+.date-pick select, .date-pick input { min-width: 0; }
+input.tiny { width: 64px; }
+.ev-when { gap: 18px; align-items: flex-start; }
+.swatches { flex-wrap: wrap; }
+.swatch { display: inline-block; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.35); cursor: pointer; }
+.swatch.on, .swatch:has(:focus-visible) { outline: 3px solid #2a1f12; outline-offset: 2px; }
+.dz-dialog label > input[type='checkbox'], .cal-show input[type='checkbox'] { width: 18px; height: 18px; min-height: 18px; padding: 0; margin: 0; flex: none; accent-color: #8e2a1d; }
+.cal-settings input:not([type='checkbox']):not([type='color']), .cal-settings select, .moons-edit input:not([type='checkbox']):not([type='color']), .moons-edit select, .date-pick select, .date-pick input { min-height: 32px; height: 32px; padding: 2px 6px; font-size: 14px; }
+.date-pick input.short { width: 80px; }
+.cal-settings-grid { height: calc(100vh - 230px); }
+.cal-settings-grid > .cal-col { height: 100%; overflow-y: auto; padding-right: 6px; }
+@media (max-width: 1150px) { .cal-settings-grid { height: auto; } .cal-settings-grid > .cal-col { height: auto; overflow: visible; } }
+.cal-side-val.mono { flex: 0 0 auto; }
+.clock-text .clock-line { display: block; }
+.link-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border: 1px solid var(--stitch, #a8884f); border-radius: 999px; background: #fffaf0; font-size: 13px; max-width: 100%; overflow-wrap: anywhere; }
+.link-chip button { min-height: 0; padding: 0 6px; border: 0; background: transparent; }
+.known-box { border: 1px solid var(--stitch, #a8884f); border-radius: 4px; padding: 8px 10px; background: rgba(255, 250, 240, 0.6); }
+.dz-actions .spacer { flex: 1; }
+.clock-now { margin: 0; font-size: 17px; font-weight: 600; }
+.moons-edit { display: flex; flex-direction: column; gap: 10px; }
+.moon-row { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--stitch, #a8884f); border-radius: 4px; padding: 8px 10px; margin: 0; min-width: 0; }
+.moon-row input[type='color'] { width: 40px; padding: 0 2px; }
+.moon-row .row { align-items: center; }
+.dz-dialog.wide:has(.cal-settings) { width: min(1320px, calc(100vw - 32px)); }
+.cal-settings-grid { display: grid; grid-template-columns: 250px minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+@media (max-width: 1150px) { .cal-settings-grid { grid-template-columns: minmax(0, 1fr); } }
+.cal-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cal-h { margin: 6px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(110, 82, 53, 0.3); padding-bottom: 2px; }
+.preset-list { display: flex; flex-direction: column; gap: 4px; }
+.preset { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 0; padding: 5px 9px; min-height: 0; }
+.preset span { font-size: 11px; opacity: 0.85; font-weight: 400; }
+.cal-months, .cal-seasons, .cal-weather { border-collapse: collapse; width: 100%; font-size: 13px; }
+.cal-months th, .cal-seasons th, .cal-weather th { text-align: left; font-size: 12px; color: var(--muted); padding: 2px 4px; }
+.cal-months td, .cal-seasons td, .cal-weather td { padding: 2px 4px; border-top: 1px solid rgba(110, 82, 53, 0.2); vertical-align: middle; }
+.cal-months button, .cal-seasons button { min-height: 28px; padding: 0 8px; }
+.cal-months input.month-name { width: 100%; min-width: 90px; }
+.festival-row { background: rgba(63, 122, 58, 0.1); }
+.festival-row input.month-name { font-size: 13px; }
+.cal-weather input.tiny { width: 50px; padding: 2px 4px; }
+.cal-seasons input[type='color'] { width: 32px; padding: 0 2px; }
+input.weekday { width: 96px; }
+.cal-week-leap { gap: 18px; align-items: flex-start; }
+.cal-week-leap > .field { flex: 1 1 260px; }
+
+/* card sheet › Dates, and date words in text boxes */
+.dates-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.dates-list li { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid rgba(110, 82, 53, 0.25); }
+.dates-list li:first-child { border-top: 0; }
+.dates-when { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.dates-what { display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; flex-wrap: wrap; }
+.dates-list button { min-height: 28px; padding: 0 8px; }
+.lf-back mark.date-word { background: transparent; border-bottom: 2px dotted #2f6f8f; border-radius: 0; }
+.lf-back mark.date-word.added { border-bottom-style: solid; }
+.ev-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.ev-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 760px) { .ev-grid { grid-template-columns: minmax(0, 1fr); } }
+.ev-col .date-pick select { max-width: 120px; }
+.date-pick input.short { flex: none; width: 82px; }
+.dz-dialog label > input[type='checkbox'], .cal-show input[type='checkbox'] {
+  appearance: none; background: #fffaf0; border: 1.5px solid #6e5235; border-radius: 3px; display: inline-grid; place-content: center; cursor: pointer;
+}
+.dz-dialog label > input[type='checkbox']:checked, .cal-show input[type='checkbox']:checked { background: #8e2a1d; border-color: #4a0f09; }
+.dz-dialog label > input[type='checkbox']:checked::after, .cal-show input[type='checkbox']:checked::after { content: ''; width: 9px; height: 5px; border: solid #fff; border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+.dz-dialog label > input[type='checkbox']:disabled { opacity: 0.45; cursor: default; }
+.moon-row .row { flex-wrap: wrap; }
+.moon-row .row > input:not([type='color']) { flex: 1 1 140px; min-width: 0; }
+.moon-row input[type='color'], .cal-seasons input[type='color'] { width: 34px; height: 32px; min-height: 32px; padding: 1px; flex: none; }
+.cal-weather input.tiny { width: 40px; padding: 1px 3px; }
+.cal-weather td, .cal-weather th { padding: 2px 2px; }

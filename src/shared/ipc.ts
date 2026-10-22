@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Outline } from './outline'
+import { CalendarDef, CalEvent, WEATHER_KINDS } from './calendar'
 import { StatBlock } from './statblock'
 import { EncounterStory } from './encounterStory'
 import type { SrdAttacks } from './attacks'
@@ -14,7 +15,7 @@ import {
   RulesEdition, StorylineStatus, Tags, PrepKind, SceneType
 } from './schemas'
 import type { BuiltCreature, CombatView, SrdMonsterRow,
-  AbilityView, BoardItemView, BoardSummary, BoardView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
+  AbilityView, BoardItemView, BoardSummary, BoardView, CalendarView, CampaignInfo, DeskView, EntityView, MapView, HistoryView, LibrarySearch,
   RecentCampaign, RelationshipView, SheetView, SrdSearch, TimelineView, WhatIfView, WordLinksView, LiveView, SessionView, LogView,
   GeneratedView, ReviewView, MapScreenView, RegionDetail, TravelEstimateView, AiSettingsView, AiSuggestion,
   StyleExampleView, PendingImageView, BattleMapContext, PrepScreenView, PrepView, WhereView, PlayersView, EncountersView, Roll20Export, PicturesView
@@ -257,6 +258,13 @@ export const ipcInputs = {
   'storyline:setRemoved': z.object({ storylineId: Id, removed: z.boolean() }),
   'map:rename': z.object({ mapId: Id, name: Name }),
   'timeline:view': z.void(),
+  'calendar:view': z.void(),
+  'calendar:set': z.object({ calendar: CalendarDef, label: z.string().trim().min(1).max(120).optional() }),
+  'calendar:saveEvent': CalEvent.omit({ status: true }),
+  'calendar:setEventRemoved': z.object({ id: z.string().min(1).max(64), removed: z.boolean() }),
+  'calendar:setMoonRemoved': z.object({ index: z.number().int().min(0).max(19), removed: z.boolean() }),
+  'calendar:setWeather': z.object({ day: z.number().int().min(-1_000_000).max(1_000_000), kind: z.enum(WEATHER_KINDS).nullable() }),
+  'calendar:dateWordOff': z.object({ entityId: Id, phrase: z.string().trim().min(1).max(200) }),
   'links:view': z.void(),
   'links:rules': z.object({ never: z.array(z.string().trim().min(1).max(100)).max(1000), minLength: z.number().int().min(1).max(30), capitalOnly: z.boolean() }),
   'links:set': z.object({ own: z.array(z.object({ text: z.string().min(1).max(200), entityId: Id })), off: z.array(z.string().max(200)) }),
@@ -684,6 +692,13 @@ export interface IpcOutputs {
   'storyline:setRemoved': void
   'map:rename': void
   'timeline:view': TimelineView
+  'calendar:view': CalendarView
+  'calendar:set': void
+  'calendar:saveEvent': void
+  'calendar:setEventRemoved': void
+  'calendar:setMoonRemoved': void
+  'calendar:setWeather': void
+  'calendar:dateWordOff': void
   'links:view': WordLinksView
   'links:rules': void
   'links:set': void

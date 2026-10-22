@@ -15,9 +15,11 @@ import { MapView } from '../components/MapView'
 import { readOnlyLayer } from '../components/MapOverlay'
 import { DeskFrame } from '../components/DeskFrame'
 import { ScreenHeader } from '../components/TopBar'
-import { lightingAt, moonOn, skyAt } from '../../shared/sky'
+import { lightingAt, skyAt } from '../../shared/sky'
+import { ClockDialog, MoonsDialog, calendarNow } from '../components/CalendarDialogs'
+import { dayOfMinutes, formatDay, occurrences, timeText, weekdayOf, dateOfDay, seasonOn } from '../../shared/calendar'
 import { useLightingPref } from '../art/TableLighting'
-import { formatClock } from '../../shared/time'
+import { dayNumberText, formatClock } from '../../shared/time'
 import { ImportCharSheet } from '../components/ImportCharSheet'
 import { PopOut } from '../components/PopOut'
 import { xpProgress } from '../../shared/charsheet'
@@ -35,12 +37,16 @@ export function DeskScreen() {
 }
 
 function Desk({ desk }: { desk: DeskView }) {
-  const { info, act, showBoard, openSheet, goTo, mapScreen } = useBoard()
+  const { info, act, showBoard, openSheet, goTo, mapScreen, calendar } = useBoard()
   const minutes = info?.clockMin ?? 0
   const sky = skyAt(minutes)
-  const moon = moonOn(minutes, desk.moonOffsetDays)
+  const today = calendar ? calendarNow(calendar, minutes) : null
+  const moons = today?.moons ?? []
+  const moon = moons[0]?.state ?? { phase: 0.5, name: 'Full moon', illumination: 1, nightsUntilFull: 0 }
   const [newStory, setNewStory] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [clockOpen, setClockOpen] = useState(false)
+  const [moonsOpen, setMoonsOpen] = useState(false)
   const [editStory, setEditStory] = useState<DeskView['storylines'][number] | null>(null)
   const [mapOpen, setMapOpen] = useState(false)
   const [pcChoice, setPcChoice] = useState(false)
@@ -73,48 +79,43 @@ function Desk({ desk }: { desk: DeskView }) {
       {/* The DM screen: a wooden frame with parchment panels. */}
       <section className="dm-screen" aria-label="DM screen">
         {/* More than three PCs make the panels tall: time and buttons go under a bigger dial (owner, 2026-10-19). */}
-        <div className={`dm-panel clock-panel${desk.party.length > 3 ? ' tall' : ''}`}>
+        <div className="dm-panel clock-panel">
           <h2 className="panel-title">The hour</h2>
           <div className="dm-panel-row">
-            {adventure ? <HourScene minutes={minutes} className="adv-art-hour" /> : <ClockDial minutes={minutes} moonOffsetDays={desk.moonOffsetDays} />}
+            {adventure ? <HourScene minutes={minutes} weather={today?.weather} className="adv-art-hour" />
+              : <ClockDial minutes={minutes} moonLit={moon.illumination} cloudy={!!today && today.weather !== 'clear'} />}
             <div className="clock-side">
-              <div className="clock-text">{formatClock(minutes)}</div>
-              <div className="ink-muted">{{ night: 'Night', dawn: 'Dawn', daylight: 'Daylight', dusk: 'Dusk' }[sky.light]}</div>
+              <div className="clock-text" title={dayNumberText(minutes)}>{formatClock(minutes)}</div>
+              <div className="ink-muted">{{ night: 'Night', dawn: 'Dawn', daylight: 'Daylight', dusk: 'Dusk' }[sky.light]}{today ? ` · ${today.weatherWord}` : ''}</div>
               <div className="row tight wrap">
                 <button className="ink-button" aria-label="Move the clock back one hour" onClick={() => void act('clock:shift', { minutes: -60 })}>−1 h</button>
                 <button className="ink-button" aria-label="Move the clock forward one hour" onClick={() => void act('clock:shift', { minutes: 60 })}>+1 h</button>
-                <button className="ink-button" onClick={() => setSettingsOpen(true)} title="Set an exact day and time">Set…</button>
+                <button className="ink-button" onClick={() => setClockOpen(true)} title="Set the time of day">Set…</button>
               </div>
             </div>
           </div>
         </div>
 
         <div className="dm-panel moon-panel">
-          <h2 className="panel-title">The moon</h2>
-          <div className="dm-panel-row">
-            {adventure ? <MoonArt phase={moon.phase} name={moon.name} className="adv-art-moon" /> : <MoonDisc minutes={minutes} offsetDays={desk.moonOffsetDays} />}
-            <div>
-              <div className="moon-name">{moon.name}</div>
-              <div className="ink-muted">{moon.nightsUntilFull === 0 ? 'Full tonight' : `Full in ${moon.nightsUntilFull} night${moon.nightsUntilFull === 1 ? '' : 's'}`}</div>
-            </div>
+          <h2 className="panel-title">{moons.length > 1 ? 'The moons' : 'The moon'}</h2>
+          <div className={`moon-list${moons.length > 1 ? ' many' : ''}`}>
+            {moons.slice(0, 3).map(({ moon: m, state: st }) => (
+              <div key={m.name} className="dm-panel-row">
+                {adventure ? <MoonArt phase={st.phase} name={`${m.name}: ${st.name}`} className="adv-art-moon" /> : <MoonDisc moon={st} />}
+                <div>
+                  {moons.length > 1 && <div className="moon-of">{m.name}</div>}
+                  <div className="moon-name">{st.name}</div>
+                  <div className="ink-muted">{st.nightsUntilFull === 0 ? 'Full tonight' : `Full in ${st.nightsUntilFull} night${st.nightsUntilFull === 1 ? '' : 's'}`}</div>
+                </div>
+              </div>
+            ))}
+            {moons.length === 0 && <p className="ink-muted">No moons.</p>}
+            {moons.length > 3 && <span className="ink-muted">and {moons.length - 3} more (Calendar)</span>}
           </div>
+          <div className="row tight moon-set"><button className="ink-button" onClick={() => setMoonsOpen(true)} title="Moon dates and cycles">Set…</button></div>
         </div>
 
-        <div className="dm-panel party-panel">
-          <h2 className="panel-title">The party</h2>
-          {desk.party.length === 0
-            ? <><p className="ink-muted">No player characters yet.</p><button className="ink-button" onClick={() => void newCard('PC')}>Add a player character</button></>
-            : (
-              <ul className="ledger">
-                {desk.party.map((p) => (
-                  <li key={p.id}>
-                    <button className="ledger-name" title={p.name} onClick={() => void openSheet(p.id)}>{p.name}</button>
-                    <span className="mono">{p.hp ? `HP ${p.hp}` : ''}{p.ac ? ` · AC ${p.ac}` : ''} · XP {p.xp.toLocaleString()}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-        </div>
+        <CalendarBox minutes={minutes} />
 
         <SessionPanel desk={desk} />
       </section>
@@ -179,7 +180,7 @@ function Desk({ desk }: { desk: DeskView }) {
                 <MapDialog open={mapOpen} onClose={() => setMapOpen(false)} map={desk.map} />
                 <MapView src={desk.map.url} alt={`Map of ${desk.map.name}`} className="desk-mapview" layer={readOnlyLayer(mapScreen, desk.map.id)} />
                 <div className="row tight wrap map-actions">
-                  <button className="ink-button" onClick={() => goTo('map')}>Open the full map</button>
+                  <button className="ink-button" onClick={() => goTo('map')}>Full Map / Party Travel Options</button>
                   <button className="ink-button" onClick={() => void act('map:importDialog', undefined)}>Import another map</button>
                   {desk.maps.length > 1 && (
                     <>
@@ -232,12 +233,49 @@ function Desk({ desk }: { desk: DeskView }) {
         </div>
       </section>
       <CampaignSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ClockDialog open={clockOpen} onClose={() => setClockOpen(false)} />
+      <MoonsDialog open={moonsOpen} onClose={() => setMoonsOpen(false)} />
       {editStory && (
         <StorylineDialog open onClose={() => setEditStory(null)} storylineId={editStory.storylineId}
           detail={{ title: editStory.title, status: editStory.status, isMajor: editStory.isMajor, emblem: editStory.emblem, colour: editStory.colour }} />
       )}
     </main>
     </>
+  )
+}
+
+/** Desk › Calendar (3.9, replaces The party; owner 2026-10-22): the date, the next events, Open calendar. */
+function CalendarBox({ minutes }: { minutes: number }) {
+  const { calendar, showCalendar } = useBoard()
+  if (!calendar) return <div className="dm-panel calendar-panel"><h2 className="panel-title">Calendar</h2></div>
+  const def = calendar.def
+  const day = dayOfMinutes(minutes)
+  const date = dateOfDay(def, day)
+  const wd = weekdayOf(def, date)
+  const s = seasonOn(def, date)
+  const beats = calendar.acts.filter((a) => a.startMin >= minutes).map((a) => ({ key: a.id, at: a.startMin, day: dayOfMinutes(a.startMin), title: `${a.title}`, colour: '#5c6b73' }))
+  const next = [
+    ...occurrences(def, calendar.events, day, day + 400).filter((o) => o.startDay > day || o.event.allDay || o.startMin >= minutes)
+      .map((o) => ({ key: o.event.id + o.startDay, at: o.startMin, day: o.startDay, title: o.event.title, colour: o.event.colour })),
+    ...beats
+  ].sort((a, b) => a.at - b.at).slice(0, 3)
+  return (
+    <div className="dm-panel calendar-panel">
+      <h2 className="panel-title">Calendar</h2>
+      <div className="cal-box-date" title={`Day ${day + 1}`}>{formatDay(def, day)}</div>
+      <div className="ink-muted">{[wd !== null ? def.weekdays[wd] : null, s >= 0 ? def.seasons[s].name : null].filter(Boolean).join(' · ')}</div>
+      <ul className="cal-box-next" aria-label="Coming up">
+        {next.map((n) => (
+          <li key={n.key} title={`${formatDay(def, n.day)}: ${n.title}`}>
+            <span className="cal-dot" style={{ background: n.colour }} aria-hidden="true" />
+            <span className="cal-when">{n.day === day ? (n.at % 1440 ? timeText(n.at) : 'Today') : formatDay(def, n.day, false)}</span>
+            <span className="cal-what">{n.title}</span>
+          </li>
+        ))}
+        {next.length === 0 && <li className="ink-muted">Nothing coming up.</li>}
+      </ul>
+      <div className="row tight cal-box-actions"><button className="ink-button primary-ink" onClick={() => showCalendar(null, 'month')}>Open calendar</button></div>
+    </div>
   )
 }
 

@@ -4,6 +4,7 @@ import type { SpellRules } from './spellcast'
 import type { LengthUnit, Units } from './units'
 import type { StatBlock } from './statblock'
 import type { StyleTags } from './styleTags'
+import type { CalendarDef, CalEvent, WeatherDays } from './calendar'
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, BoardItemContent, RowStatus,
@@ -163,6 +164,8 @@ export interface HistoryView {
   removedStyles: Array<{ id: string; name: string }>
   removedPrep: Array<{ id: string; name: string; what: string }>
   removedNoteDocs: Array<{ id: string; title: string }>
+  removedEvents: Array<{ id: string; title: string; when: string }>
+  removedMoons: Array<{ index: number; name: string }>
   /** Row id → order of the last change to it (higher = more recent), for sorting History by most recently removed. */
   removedOrder: Record<string, number>
   log: LogEntryView[]
@@ -370,6 +373,20 @@ export interface DeskPartyMember {
   exhaustion: number
   /** Portrait in the campaign assets (dz-asset path), when the card has one. */
   picture: string | null
+}
+
+/** Calendar (3.9): the campaign's calendar, events, weather changes, and what events can link to. */
+export interface CalendarView {
+  def: CalendarDef
+  events: CalEvent[]
+  weather: WeatherDays
+  /** Date words the DM said are not dates, per card (lower case). */
+  dateWordsOff: Record<string, string[]>
+  /** Timeline acts (shown on the calendar; click opens the Timeline). */
+  acts: Array<{ id: string; storylineId: string; title: string; startMin: number; endMin: number; storyNumber: number; storyTitle: string; cardIds: string[] }>
+  cards: Array<{ id: string; name: string; type: string }>
+  secrets: Array<{ id: string; text: string }>
+  storylines: Array<{ id: string; title: string; number: number }>
 }
 
 export interface DeskView {
@@ -788,6 +805,8 @@ export interface PlayersView {
   people: Array<{ id: string; name: string; type: EntityType; facts: Array<{ label: string; value: string }> }>
   discoveries: Array<{ id: string; title: string; text: string; session: number }>
   connections: string[]
+  /** Events the DM marked "The party knows this" (3.9), today and the next year: date, title, notes only if shown. */
+  dates: Array<{ when: string; title: string; notes: string }>
   /** The map with only the places the party has been, and what the players see there. */
   map: { view: MapScreenView; notes: Record<string, string> } | null
 }

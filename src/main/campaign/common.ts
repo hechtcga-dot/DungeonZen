@@ -60,6 +60,7 @@ export interface Position { x: number; y: number }
 export type SettingKey =
   'name' | 'rules_edition' | 'units' | 'clock_min' | 'moon_offset_days' | 'dm_notes' | 'active_map_id' | 'party_level' | 'last_long_rest_min'
   | 'heading_location_id' | 'house_rules' | 'getting_started' | 'link_positions' | 'shared_strings' | 'string_types' | 'picture_folders' | 'art_style' | 'backup_folder' | 'roll_tables' | 'master_notes' | 'type_colours' | 'price_scale' | 'campaign_secrets' | 'world_outline' | 'prompt_templates' | 'word_links' | 'note_meta' | 'notes_starred' | 'notes_folders' | 'note_folder_links' | 'link_rules' | 'spell_rules'
+  | 'calendar' | 'calendar_events' | 'weather_days' | 'date_words_off'
 
 export interface GeneratedPerson {
   name: string; species: string; occupation: string; attitude: string; quirk: string; wants: string; statblockName: string; summary: string

@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { useBoard } from '../store'
-import { formatClock } from '../../shared/time'
+import { dayNumberText, formatClock } from '../../shared/time'
 import { useLightingPref } from '../art/TableLighting'
-import { CampaignSettingsDialog } from './EditDialogs'
+import { ClockDialog } from './CalendarDialogs'
 import { Candle } from '../art/props'
 import { lightingAt } from '../../shared/sky'
 
@@ -67,8 +67,8 @@ export function ScreenHeader({ title, eyebrow, middle, candle, children }: { tit
           </svg>
         </button>
       </div>
-      <button className="clock mono" title="Set the campaign time" onClick={() => setSettings(true)}>{info ? formatClock(info.clockMin) : ''}</button>
-      <CampaignSettingsDialog open={settings} onClose={() => setSettings(false)} />
+      <button className="clock mono" title={info ? `${dayNumberText(info.clockMin)} · set the time` : 'Set the time'} onClick={() => setSettings(true)}>{info ? formatClock(info.clockMin) : ''}</button>
+      <ClockDialog open={settings} onClose={() => setSettings(false)} />
     </header>
   )
 }

@@ -1,12 +1,13 @@
 import { useId } from 'react'
 import { SUNRISE_MIN, SUNSET_MIN } from '../../shared/sky'
 import { hourPalette } from '../../shared/hourPalette'
+import type { WeatherKind } from '../../shared/calendar'
 
 // Adventure UI art for the Desk (3.1, owner's approved mockup): the hour through an arched bronze window and the
 // moon in a round night-sky window. Drawn in code; replaceable by commissioned art later.
 
 /** The sky over the town at this campaign time; colours blend smoothly through dawn, day, dusk and night. */
-export function HourScene({ minutes, className }: { minutes: number; className?: string }) {
+export function HourScene({ minutes, className, weather = 'clear' }: { minutes: number; className?: string; weather?: WeatherKind }) {
   const id = useId().replace(/:/g, '')
   const m = ((minutes % 1440) + 1440) % 1440
   const p = hourPalette(m)
@@ -34,12 +35,15 @@ export function HourScene({ minutes, className }: { minutes: number; className?:
         <g fill="#fdf6dc" opacity={p.stars}>
           {[[20, 22, 0.8], [40, 12, 0.6], [62, 26, 0.7], [84, 10, 0.9], [100, 24, 0.6], [136, 20, 0.8], [30, 40, 0.5], [74, 44, 0.6], [146, 44, 0.6], [52, 8, 0.5]].map(([x, y, r]) => <circle key={`${x}`} cx={x} cy={y} r={r} />)}
         </g>
-        <circle cx={bx} cy={by} r="34" fill={u('bloom')} />
-        <circle cx={bx} cy={by} r={day ? 7.5 : 6.5} fill={p.sun} />
-        {!day && <circle cx={bx + 3} cy={by - 2} r="6.5" fill={p.s1} />}
+        <g opacity={weather === 'clear' ? 1 : weather === 'cloudy' || weather === 'fog' ? 0.45 : 0.25}>
+          <circle cx={bx} cy={by} r="34" fill={u('bloom')} />
+          <circle cx={bx} cy={by} r={day ? 7.5 : 6.5} fill={p.sun} />
+          {!day && <circle cx={bx + 3} cy={by - 2} r="6.5" fill={p.s1} />}
+        </g>
         <g filter={u('soft')} fill={p.cloud} opacity={p.co}>
           <path d="M86 34q2-9 11-8q4-7 12-4q8-2 10 6q7 1 6 7h-41q-3-1 2-1z" /><path d="M14 30q2-6 8-5q4-5 9-1q6 0 6 6h-24z" />
         </g>
+        {weather !== 'clear' && <WeatherSky weather={weather} night={!day} soft={u('soft')} />}
         <ellipse cx="80" cy="66" rx="90" ry="6" fill={p.haze} opacity=".5" filter={u('haze')} />
         <path d="M0 72q22-12 44-6q20-9 42-3q24-10 46-2q16-4 28 0v43H0z" fill={p.far} />
         <path d="M0 82q26-11 56-4q30-8 58 0q24-6 46 0v26H0z" fill={p.mid} />
@@ -58,6 +62,31 @@ export function HourScene({ minutes, className }: { minutes: number; className?:
       <path d="M4 104V52a76 50 0 0 1 152 0v52" fill="none" stroke="#6b4b24" strokeWidth="5" />
       <path d="M4 104V52a76 50 0 0 1 152 0v52" fill="none" stroke="#e0c488" strokeWidth="1.2" />
     </svg>
+  )
+}
+
+/** The day's weather over the Hour picture (3.9): grey sky and clouds, then rain, snow, a lightning stroke or fog bands. */
+function WeatherSky({ weather, night, soft }: { weather: WeatherKind; night: boolean; soft: string }) {
+  const grey = night ? '#2a3038' : '#6f7a84'
+  const heavy = weather === 'rain' || weather === 'storm' || weather === 'snow'
+  return (
+    <g>
+      <rect width="160" height="104" fill={grey} opacity={weather === 'storm' ? 0.6 : heavy ? 0.45 : 0.3} />
+      {weather !== 'fog' && (
+        <g fill={night ? '#3b424c' : weather === 'storm' ? '#4c535b' : '#8d969e'} filter={soft}>
+          <ellipse cx="40" cy="24" rx="34" ry="10" /><ellipse cx="78" cy="16" rx="26" ry="10" /><ellipse cx="122" cy="26" rx="38" ry="11" />
+          {heavy && <><ellipse cx="20" cy="34" rx="24" ry="8" /><ellipse cx="100" cy="34" rx="30" ry="8" /><ellipse cx="148" cy="38" rx="20" ry="7" /></>}
+        </g>
+      )}
+      {(weather === 'rain' || weather === 'storm') && (
+        <g stroke="#dfe6ea" strokeWidth=".9" opacity=".75" strokeLinecap="round">
+          {[14, 30, 46, 62, 78, 94, 110, 126, 142, 22, 54, 86, 118, 150].map((x, i) => <path key={i} d={`M${x} ${36 + (i % 3) * 8}l-3 9`} />)}
+        </g>
+      )}
+      {weather === 'storm' && <path d="M96 30l-7 14h6l-5 12 12-17h-6l5-9z" fill="#fff6c0" />}
+      {weather === 'snow' && <g fill="#ffffff" opacity=".9">{[12, 28, 44, 60, 76, 92, 108, 124, 140, 20, 52, 84, 116, 148].map((x, i) => <circle key={i} cx={x} cy={38 + (i % 4) * 9} r="1.3" />)}</g>}
+      {weather === 'fog' && <g fill="#d8dcdf" opacity=".55" filter={soft}><rect x="0" y="52" width="160" height="7" /><rect x="0" y="64" width="160" height="6" /><rect x="0" y="76" width="160" height="7" /></g>}
+    </g>
   )
 }
 
