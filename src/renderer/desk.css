@@ -595,10 +595,9 @@ button.ink-button.primary-ink:disabled { background: #8a7a5c; color: var(--parch
 .prep-empty p { margin: 0; }
 .prep-head, .prep-section { display: flex; flex-direction: column; gap: 10px; color: var(--ink); }
 .prep-head-grid { display: grid; grid-template-columns: minmax(0, 1fr) 90px 160px 110px; gap: 12px; align-items: start; }
-/* The four boxes: labels on one line, one height, so their tops and bottoms line up (owner, 2026-10-22); the title stays one line, as on Encounters. */
-.prep-head-grid label { white-space: nowrap; }
-.prep-head-grid :is(input, textarea) { box-sizing: border-box; height: 44px; margin: 0; vertical-align: top; }
-.prep-head-grid textarea { field-sizing: fixed; min-height: 0; resize: none; overflow: hidden; white-space: nowrap; padding-top: 13px; padding-bottom: 0; line-height: 20px; }
+/* The four boxes: all plain inputs, labels on one line, one height, so they line up (owner, 2026-10-22). */
+.prep-head-grid label, .prep-head .hint { white-space: nowrap; }
+.prep-head-grid input { box-sizing: border-box; height: 44px; margin: 0; }
 .prep-head.parchment-sheet { padding: 12px 18px; gap: 4px; }
 .prep-head .hint { font-size: 11px; }
 .prep-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }

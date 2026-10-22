@@ -129,7 +129,7 @@ function Sheet({ p, s, only }: { p: PrepView; s: PrepScreenView; only?: string }
       <div className="prep-main" onMouseDown={() => setShown(null)}>
         {!only && <section className="parchment-sheet prep-head" aria-label="Session">
           <div className="prep-head-grid">
-            <CommitField id="prep-title" label="Session title" value={p.title} placeholder="The Drowned Bell" onCommit={(v) => up({ title: v })} />
+            <CommitField id="prep-title" line label="Session title" value={p.title} placeholder="The Drowned Bell" onCommit={(v) => up({ title: v })} />
             <div className="field">
               <label htmlFor="prep-number">For session</label>
               <input id="prep-number" className="short" type="number" min={1} defaultValue={p.number} key={p.number}
