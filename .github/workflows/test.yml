@@ -34,7 +34,7 @@ jobs:
       - run: xvfb-run --auto-servernum npm run smoke
       - run: xvfb-run --auto-servernum npm run smoke
         env:
-          DZ_SKIN: adventure
+          DZ_SKIN: desk
       # Windows display scaling 150 % (most laptops): cut-off text and blurry art.
       - run: xvfb-run --auto-servernum npm run smoke
         env:
@@ -45,7 +45,7 @@ jobs:
           name: smoke-screenshots
           path: |
             tests/e2e/shots/
-            tests/e2e/shots-adventure/
+            tests/e2e/shots-desk/
             tests/e2e/shots-scale150/
 
   # A DM's evening from a new campaign (tests/e2e/playtest.mjs): report and the played campaign as artifact `playtest`.

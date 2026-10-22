@@ -84,7 +84,7 @@ export function FindAnything() {
       a('rest-long', 'Long rest', 'Party', () => s().act('party:rest', { kind: 'long' })),
       a('undo', 'Undo', s().view?.undo.undoLabel ?? 'Nothing to undo', () => s().undo()),
       a('redo', 'Redo', s().view?.undo.redoLabel ?? 'Nothing to redo', () => s().redo()),
-      a('look', skin === 'adventure' ? 'Look: Desk' : 'Look: Adventure UI', 'How the app looks on this computer', () => setSkin(readSkin() === 'adventure' ? 'desk' : 'adventure')),
+      a('look', skin === 'adventure' ? 'Look: Desk UI' : 'Look: Adventure UI', 'How the app looks on this computer', () => setSkin(readSkin() === 'adventure' ? 'desk' : 'adventure')),
       a('lighting', lighting ? 'Lighting: always bright' : 'Lighting: day and night', 'Follows the campaign clock; candles burn at night', () => setLighting(!lighting)),
       a('arrange', arrange ? 'Hide box controls until pointed at' : 'Arrange boxes (always show − ↑ ↓)', 'Fold and move boxes', () => setArrange(!arrange)),
       a('ai', 'AI services', 'Writing and battle map services', () => s().setAiSettingsOpen(true))

@@ -93,6 +93,22 @@ function Sheet({ sheet }: { sheet: SheetView }) {
                   onCommit={(summary) => update({ attributes: { summary } })} />
                 {e.type !== 'BUILDING' && <LocationPick id={`${p}-location`} value={str('location')} exclude={e.id}
                   onChange={(location) => update({ attributes: { location } })} />}
+                {e.type === 'ITEM' && (
+                  <div className="field">
+                    <label htmlFor={`${p}-carried`}>Carried by</label>
+                    <select id={`${p}-carried`} value={str('carried_by')} onChange={(ev) => update({ attributes: { carried_by: ev.target.value || null } })}>
+                      <option value="">Nobody</option>
+                      {sheet.others.filter((o) => o.type === 'PC' && o.status === 'active').map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </select>
+                    <div className="hint">Listed on that character's sheet.</div>
+                  </div>
+                )}
+                {e.type === 'PC' && sheet.carried.length > 0 && (
+                  <div className="field">
+                    <span className="field-label">Carrying</span>
+                    <ul className="carried-list">{sheet.carried.map((x) => <li key={x.id}><button className="link-button" onClick={() => void openSheet(x.id)}>{x.name}</button></li>)}</ul>
+                  </div>
+                )}
                 {e.type === 'LOCATION' && <CommitField id={`${p}-biome`} label="Biome" value={str('biome')} placeholder="Forest, city, swamp…"
                   onCommit={(biome) => update({ attributes: { biome } })} />}
                 <CommitField id={`${p}-tags`} label="Tags" value={e.tags.join(', ')} hint="Separate tags with commas."

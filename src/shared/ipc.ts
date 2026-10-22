@@ -586,7 +586,7 @@ export interface IpcOutputs {
   'campaign:close': void
   'campaign:delete': string
   'export:vtt': { folder: string; count: number }
-  'notes:master': Array<{ id: string; title: string; kind: 'dm' | 'session' | 'doc'; blocks: Block[]; linked: boolean; picture: string | null }>
+  'notes:master': Array<{ id: string; title: string; kind: 'dm' | 'session' | 'doc'; blocks: Block[]; linked: boolean; picture: string | null; recap: string }>
   'notes:masterLink': void
   'notes:masterSave': void
   'notes:masterDocx': string | null

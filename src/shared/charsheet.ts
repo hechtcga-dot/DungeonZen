@@ -35,10 +35,52 @@ const CLASS_DIE: Record<string, number> = {
 }
 
 /** Hit dice from the stat block text ("7d8 + 8d8 + 15" → 15 dice: 7d8, 8d8), else from the classes. */
-export function hitDice(text: string, classes: ClassLevel[] = []): { total: number; dice: string } {
+export function hitDice(text: string, classes: ClassLevel[] = [], level = 0): { total: number; dice: string; guessed?: boolean } {
   let parts = [...text.matchAll(/(\d+)\s*d\s*(\d+)/gi)].map((m) => ({ n: Number(m[1]), d: Number(m[2]) }))
   if (!parts.length) parts = classes.filter((c) => c.level && CLASS_DIE[c.name.trim().toLowerCase()]).map((c) => ({ n: c.level, d: CLASS_DIE[c.name.trim().toLowerCase()] }))
+  // Only a level typed in (no class yet): that many d8, until a class gives the right die (long playtest, 2026-10-22).
+  if (!parts.length && level > 0) return { total: level, dice: `${level}d8`, guessed: true }
   return { total: parts.reduce((s, p) => s + p.n, 0), dice: parts.map((p) => `${p.n}d${p.d}`).join(' + ') }
+}
+
+/** The character level typed on the sheet (attributes.level), 0 when none. */
+export const levelOf = (attrs: Record<string, unknown>) => Math.max(0, Math.min(20, Number.parseInt(String(attrs.level ?? ''), 10) || 0))
+
+const FULL_CASTERS = new Set(['bard', 'cleric', 'druid', 'sorcerer', 'wizard'])
+const HALF_CASTERS = new Set(['paladin', 'ranger'])
+/** Spell slots per level 1–9 for a caster level 1–20 (the 2024 table; multiclass: full levels + half casters' levels / 2, rounded up). */
+const SLOT_TABLE = [[2], [3], [4, 2], [4, 3], [4, 3, 2], [4, 3, 3], [4, 3, 3, 1], [4, 3, 3, 2], [4, 3, 3, 3, 1], [4, 3, 3, 3, 2], [4, 3, 3, 3, 2, 1], [4, 3, 3, 3, 2, 1],
+  [4, 3, 3, 3, 2, 1, 1], [4, 3, 3, 3, 2, 1, 1], [4, 3, 3, 3, 2, 1, 1, 1], [4, 3, 3, 3, 2, 1, 1, 1], [4, 3, 3, 3, 2, 1, 1, 1, 1], [4, 3, 3, 3, 3, 1, 1, 1, 1],
+  [4, 3, 3, 3, 3, 2, 1, 1, 1], [4, 3, 3, 3, 3, 2, 2, 1, 1]]
+
+export function classSlots(classes: ClassLevel[]): number[] {
+  const n = (c: ClassLevel) => c.name.trim().toLowerCase()
+  const lvl = classes.reduce((s, c) => s + (FULL_CASTERS.has(n(c)) ? c.level : HALF_CASTERS.has(n(c)) ? Math.ceil(c.level / 2) : 0), 0)
+  const row = lvl > 0 ? SLOT_TABLE[Math.min(20, lvl) - 1] : []
+  return Array.from({ length: 9 }, (_, i) => row[i] ?? 0)
+}
+
+/**
+ * Level up one class (sheet › Level up): the class and character level +1, maximum and current hit points + the class
+ * die's fixed value (half + 1) + Con modifier (at least 1), spell slots up to the class table (never fewer than the DM set),
+ * a warlock's Pact Magic slots. Returns the card's attribute changes (one undo step) and the hit points gained.
+ */
+export function levelUp(attrs: Record<string, unknown>, sbHp: string, con: number, index: number): { patch: Record<string, unknown>; gain: number; maxHp: number } {
+  const classes = classesOf(attrs).map((c, i) => (i === index ? { ...c, level: Math.min(20, c.level + 1) } : c))
+  const c = classes[index]
+  const die = CLASS_DIE[c.name.trim().toLowerCase()] ?? 8
+  const gain = Math.max(1, die / 2 + 1 + Math.floor((con - 10) / 2))
+  const max = (Number.parseInt(sbHp, 10) || 0) + gain
+  const cur = typeof attrs.current_hp === 'number' ? attrs.current_hp + gain : max
+  const had = Array.isArray(attrs.spell_slots) ? attrs.spell_slots.map((x) => Number(x) || 0) : []
+  const table = classSlots(classes)
+  const patch: Record<string, unknown> = {
+    classes, level: String(classes.reduce((s, x) => s + x.level, 0)), current_hp: Math.min(cur, max),
+    statblock: { ...(attrs.statblock as Record<string, unknown> ?? {}), hp: String(max) }
+  }
+  if (table.some((x) => x > 0)) patch.spell_slots = table.map((t, i) => Math.max(t, had[i] ?? 0))
+  if (c.name.trim().toLowerCase() === 'warlock') patch.pact_slots = { count: c.level >= 17 ? 4 : c.level >= 11 ? 3 : c.level >= 2 ? 2 : 1, level: Math.min(5, Math.ceil(c.level / 2)) }
+  return { patch, gain, maxHp: max }
 }
 
 /** Damage takes temporary hit points first; healing never passes the maximum. */

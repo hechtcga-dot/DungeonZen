@@ -6,11 +6,13 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { launch } from './app.mjs'
+import { launch, scale } from './app.mjs'
 import { layoutProblems, uiProblems } from './uiChecks.mjs'
 import { CAMPAIGN, NPCS, PARTY, PLACES, SESSIONS } from './longplay/script.mjs'
 
-const out = join(import.meta.dirname, 'longplay', 'out')
+// DZ_SKIN=desk and DZ_SCALE=1.5 run the same evenings in the Desk UI / at that display scaling (out-desk-scale150…).
+const skin = process.env.DZ_SKIN ?? ''
+const out = join(import.meta.dirname, 'longplay', ['out', skin, scale && `scale${Math.round(scale * 100)}`].filter(Boolean).join('-'))
 const work = mkdtempSync(join(tmpdir(), 'dz-longplay-'))
 const userData = join(work, 'userData')
 rmSync(out, { recursive: true, force: true })
@@ -104,7 +106,21 @@ async function pcValue(pc, read) {
   await goBack()
   return { value, clicks: cur.actions - start }
 }
-const skill = (pc, name) => pcValue(pc, () => tb(`${name} bonus`).inputValue())
+/** A skill bonus read on the Live party card's Saves and skills (3.8.0); the sheet's own number is checked too. */
+async function skill(pc, name) {
+  const start = cur.actions
+  await live()
+  const card = page.locator('.pc-live', { hasText: pc }).first()
+  const fold = card.locator('.pc-live-checks')
+  if ((await fold.getAttribute('open')) === null) await press(fold.locator('summary'))
+  const row = await text(fold.locator('li', { hasText: new RegExp(`^${name}`) }).first())
+  const value = row.match(/[+−-]\d+/)?.[0]?.replace('−', '-') ?? null
+  const clicks = cur.actions - start
+  const sheet = await pcValue(pc, () => tb(`${name} bonus`).inputValue())
+  if (sheet.value !== value) cur.notes.push(`${pc} ${name}: Live card says ${value}, sheet says ${sheet.value}`)
+  cur.actions = start + clicks
+  return { value, clicks }
+}
 const passive = (pc, what = 'Perception') => pcValue(pc, async () => (await text(page.locator('body'))).match(new RegExp(`(\\d+)\\s*Passive ${what}`))?.[1] ?? null)
 
 /** Ctrl+K find, type, Enter: opens a card's sheet. */
@@ -127,14 +143,16 @@ async function openRegion(name) {
   const label = await page.locator('svg text').filter({ hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\']/g, '\\$&')}$`) }).locator('visible=true').first().boundingBox()
   if (!label) throw new Error(`${name}: name not on the map`)
   for (const dy of [0, -14, 10]) {
-    if ((await text(page.locator('.region-name').first())) !== name) { count(); await page.mouse.click(label.x + label.width / 2, label.y + label.height / 2 + dy); await pause(300) }
+    if ((await text(page.locator('.region-name').first())).toLowerCase() !== name.toLowerCase()) { count(); await page.mouse.click(label.x + label.width / 2, label.y + label.height / 2 + dy); await pause(300) }
   }
-  if ((await text(page.locator('.region-name').first())) !== name) throw new Error(`${name}: clicking its name did not open it`)
+  // The Adventure UI writes headings in capitals (CSS), so compare without case.
+  if ((await text(page.locator('.region-name').first())).toLowerCase() !== name.toLowerCase()) throw new Error(`${name}: clicking its name did not open it`)
 }
 
 const start = async () => {
   ({ app, page, screenshot } = await launch(userData, errors))
   await app.evaluate(({ dialog }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }) }, work)
+  if (skin) { await page.evaluate((x) => localStorage.setItem('dz.skin', x), skin); await page.reload(); await page.waitForLoadState() }
   page.setDefaultTimeout(8000)
 }
 
@@ -173,8 +191,9 @@ const B = (n, id, fn) => { const b = beat(n, id); return step(id, `S${n} ${b.at}
 async function setClock(day, hour, minute = 0) {
   await live()
   await click('Set…')
-  await type(page.locator('#cs-day'), day, null); await type(page.locator('#cs-hour'), hour, null); await type(page.locator('#cs-minute'), minute, null)
-  await click('Save')
+  await type(page.locator('#st-day'), day, null)
+  await type(page.locator('#st-time'), `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`, null)
+  await click('Set')
   await pause(300)
 }
 /** Quick-log a line with a time choice ('No time', '10 min', '30 min', '1 h', '4 h'). */
@@ -279,6 +298,19 @@ async function sessionOne() {
     })
     need('Live desk layout: where the quick-log and party start (px from top; window 900 high)', JSON.stringify(lay), 0, 'Live desk')
     await page.locator('.quicklog').scrollIntoViewIfNeeded(); await snap('log-and-party')
+    // 3.8.0: numbers at hand. Open a party card's saves and skills and an NPC's notes (the look checks run on them open).
+    await press(page.locator('.pc-live-checks summary').first())
+    const oona = await text(page.locator('.pc-live', { hasText: 'Oona' }).first())
+    expect(`Oona's Live card shows AC and passive Perception (${oona.replace(/\s+/g, ' ').slice(0, 60)})`, /AC 15/.test(oona) && /Passive Perception 13/.test(oona))
+    await press(page.locator('.pc-live', { hasText: 'Oona' }).locator('.pc-live-checks summary'))
+    const oonaChecks = await text(page.locator('.pc-live', { hasText: 'Oona' }).locator('.pc-live-checks'))
+    expect('Oona\'s Sleight of Hand +7 on her Live card', /Sleight of Hand\s*\+7/.test(oonaChecks))
+    await press(page.locator('.here-more summary').first())
+    const here = await text(page.locator('.here-more').first())
+    expect(`Who is here folds out the mayor's DM notes (${here.replace(/\s+/g, ' ').slice(0, 60)})`, /Deception \+5/.test(here))
+    await snap('numbers-at-hand')
+    const lay2 = await page.evaluate(() => Math.round(document.querySelector('.quicklog')?.getBoundingClientRect().top + (document.querySelector('.desk.live')?.closest('main')?.scrollTop ?? 0)))
+    need('Quick-log top after 3.8.0 (px; window 900 high)', String(lay2), 0, 'Live desk')
     expect('Where they are: Mayor Edda is in town', where.includes('Mayor Edda'))
     expect('Where they are: Sister Calla is in town', where.includes('Sister Calla'))
     need('Who is in Saltreach right now', where.includes('Mayor Edda') ? 'Mayor Edda Hollins, Sister Calla' : null, 1, 'Live desk › Where they are › Who is here')
@@ -292,6 +324,7 @@ async function sessionOne() {
     const res = page.locator('.otf-result')
     await res.waitFor()
     const tavern = (await text(res.locator('h3'))).trim()
+    const keeper = (await text(res.locator('li').first())).match(/^Keeper:\s*([^,]+)/)?.[1]?.trim() ?? '?'
     need('A tavern name, keeper and a rumour', tavern, 1, 'Live desk › On the fly › Fill a tavern')
     await click('Put on the board'); await pause(500)
     expect(`tavern made in ${((Date.now() - t0) / 1000).toFixed(1)} s`, Date.now() - t0 < 10000)
@@ -300,7 +333,7 @@ async function sessionOne() {
     expect(`"${tavern}" is on the board`, cards.includes(tavern.split(':')[0].trim()) || cards.includes(tavern))
     await live()
     const where = await text(page.getByRole('region', { name: 'Where they are' }))
-    expect('the new tavern people show in Who is here (the party is in Saltreach)', where.split('\n').length > 0 && /keeper|Keeper/.test(where) || false)
+    expect(`the tavern keeper ${keeper} shows in Who is here (the party is in Saltreach)`, where.includes(keeper))
   })
 
   await B(1, 's1-mayor', async (expect, need) => {
@@ -310,8 +343,12 @@ async function sessionOne() {
     const sel = await skill('Sel Mirrowind', 'Insight')
     need('Sel: Insight bonus', sel.value, sel.clicks, 'Live desk › party › Sel › Character sheet › Skills')
     expect(`Sel's Insight is +2 (Wis 10, proficient): ${sel.value}`, sel.value === '+2')
-    const m = await dmNotes('Mayor Edda')
-    need('Mayor: Deception and secret', /Deception \+5/.test(m.value) ? m.value : null, m.clicks, 'Ctrl+K › Mayor › Notes tab › DM notes')
+    await live()
+    const st = cur.actions
+    const fold = page.locator('.here-list li', { hasText: 'Mayor Edda' }).locator('.here-more')
+    if (!(await fold.getAttribute('open').catch(() => null) !== null)) await press(fold.locator('summary'))
+    const mv = await text(fold)
+    need('Mayor: Deception and secret', /Deception \+5/.test(mv) ? mv.replace(/\s+/g, ' ').slice(0, 140) : null, cur.actions - st, 'Live › Who is here › Notes and stats')
     const logText = await text(page.getByRole('region', { name: 'Table' }))
     await live()
     expect('the meeting with the mayor is logged', (await text(page.locator('.session-log'))).includes('Mayor Edda'))
@@ -332,7 +369,13 @@ async function sessionOne() {
     await type(page.getByRole('textbox', { name: 'DM notes' }).first(), 'Carried by Oona. Opens the mayor\'s desk and ledger.', 'Control+Enter')
     await log('Oona lifted the mayor\'s key ring while Sel flattered her (SoH 22 vs PP 13).')
     expect('the key ring is a card on the board', (await page.locator('.react-flow__node', { hasText: "Mayor's key ring" }).count()) > 0 || true)
-    note('No inventory: an item the party carries is an Item card with a note, not on Oona\'s sheet.')
+    // 3.8.0: Carried by on the item, listed on Oona's sheet.
+    await find("Mayor's key ring")
+    await page.getByRole('tablist', { name: 'Sheet sections' }).waitFor()
+    await pickStarting(page.locator('select[id$="-carried"]').first(), 'Oona Fairbrook')
+    await goBack()
+    const carrying = await pcValue('Oona Fairbrook', () => text(page.locator('.carried-list')))
+    expect(`Oona's sheet lists the key ring under Carrying (${carrying.value})`, /key ring/i.test(carrying.value))
   })
 
   await B(1, 's1-guard', async (expect, need) => {
@@ -447,6 +490,7 @@ async function sessionOne() {
     const before = await clockText()
     const t = await travel(PLACES.lighthouse, 2)
     need('Travel time (the map\'s own estimate)', t.est, 2, 'Map › region › Move party here › Confirm travel')
+    if (Number.parseInt(t.est ?? '0', 10) >= 24) expect('Confirm travel warns that the trip is over a day', t.said.includes('More than a day'))
     note(`Confirm travel said: "${t.said.slice(0, 160)}"; estimate ${t.est}. The DM typed 2 h.`)
     const after = await clockText()
     expect(`clock moved 2 h (${before} → ${after})`, after === 'Day 1 · 22:10')

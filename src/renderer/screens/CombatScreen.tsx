@@ -122,7 +122,7 @@ function Fight({ v }: { v: CombatView }) {
                 onRemove={() => void save({ ...s, combatants: s.combatants.filter((x) => x.id !== c.id), turn: Math.min(s.turn, Math.max(0, s.combatants.length - 2)) }, `Took ${c.name} out of the list`)} />
             ))}
           </ol>
-          <p className="hint ink-hint">To add creatures, add them to the encounter (Encounters screen): the fight follows it. New player characters join by themselves.</p>
+          <p className="hint ink-hint">To add creatures, add them to the encounter (Encounters screen): the fight follows it. A character ticked on the encounter (or a new one) joins the fight.</p>
         </section>
         <aside className="parchment-note combat-side">
           {side.grip}

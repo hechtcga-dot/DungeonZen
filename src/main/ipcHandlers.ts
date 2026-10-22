@@ -936,10 +936,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const screen = c.notesScreen()
     const copies = c.masterCopies()
     const out: IpcOutputs['notes:master'] = []
-    const add = (id: string, title: string, kind: 'dm' | 'session' | 'doc', blocks: Block[], picture: string | null = null) =>
-      out.push({ id, title, kind, blocks: (copies[id] as Block[] | undefined) ?? blocks, linked: !copies[id], picture })
+    const add = (id: string, title: string, kind: 'dm' | 'session' | 'doc', blocks: Block[], picture: string | null = null, recap = '') =>
+      out.push({ id, title, kind, blocks: (copies[id] as Block[] | undefined) ?? blocks, linked: !copies[id], picture, recap })
     add('dm', 'DM notes between sessions', 'dm', textToBlocks(screen.dmNotes))
-    for (const s of [...screen.sessions].sort((a, b) => a.number - b.number)) add(`session:${s.id}`, `Session ${s.number}`, 'session', textToBlocks(s.dmNotes))
+    // A session's recap ("What happened") reads first, so the master tells the story so far (long playtest, 2026-10-22).
+    for (const s of [...screen.sessions].sort((a, b) => a.number - b.number)) add(`session:${s.id}`, `Session ${s.number}${s.title ? ` · ${s.title}` : ''}`, 'session', textToBlocks(s.dmNotes), null, s.recap.trim())
     for (const d of [...screen.docs].sort((a, b) => a.title.localeCompare(b.title))) {
       const file = c.noteFile(d.id)
       const rel = file.slice(join(c.folder, ASSETS_DIR).length + 1).replace(/\\/g, '/')
@@ -955,7 +956,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   })
   handle('notes:masterSave', ({ section, blocks }) => current().setMasterCopy(section, blocks, 'Edited the master notes'))
   handle('notes:masterDocx', async () => {
-    const blocks = (await masterSections()).flatMap((s) => [{ kind: 'h1' as const, runs: [{ text: s.title }] }, ...s.blocks.map((b) => (b.kind === 'h1' ? { ...b, kind: 'h2' as const } : b.kind === 'h2' ? { ...b, kind: 'h3' as const } : b))])
+    const blocks = (await masterSections()).flatMap((s) => [{ kind: 'h1' as const, runs: [{ text: s.title }] },
+      ...(s.recap ? [{ kind: 'h2' as const, runs: [{ text: 'What happened' }] }, ...textToBlocks(s.recap)] : []), ...s.blocks.map((b) => (b.kind === 'h1' ? { ...b, kind: 'h2' as const } : b.kind === 'h2' ? { ...b, kind: 'h3' as const } : b))])
     const file = await saveAs('Save the master notes as Word', 'Master notes.docx', [{ name: 'Word document', extensions: ['docx'] }])
     if (!file) return null
     writeFileSync(file, writeDocx(blocks))

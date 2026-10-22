@@ -13,7 +13,7 @@ import { FindRegions } from './GuideScreen'
 import { OpenFolder } from '../components/OpenFolder'
 import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { formatClock } from '../../shared/time'
-import { centroid, regionAt, type Point } from '../../shared/geometry'
+import { centroid, regionAt, spotIn, type Point } from '../../shared/geometry'
 import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
 import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
@@ -374,7 +374,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         {side.grip}
         {region && detail ? (
           <RegionPanel detail={detail} view={view}
-            onMoveHere={() => void askTravel(centroid(region.polygon))}
+            onMoveHere={() => void askTravel(spotIn(region, view.regions))}
             onEditShape={() => { setEditPts(region.polygon); setMode('edit') }}
             onSelect={(locationId) => setSelected(view.regions.find((r) => r.locationId === locationId)?.id ?? null)} />
         ) : (
@@ -541,6 +541,10 @@ function ConfirmTravel({ view, pending, onDone, onSetScale }: { view: MapScreenV
             <input id="tr-m" className="short" type="number" min={0} max={59} value={mins} onChange={(e) => setMins(e.target.value)} />
           </div>
           {est.saved && <p className="ink-muted">The time you remembered for this route.</p>}
+          {!est.saved && start != null && start > 24 * 60 && (
+            <p className="travel-warn" role="note">More than a day on the road: this map is drawn at {view.map.widthKm ? fmtTrip(view.map.widthKm, units) : 'a large scale'} across.
+              For a shorter trip, type the time, or use Set map scale… below.</p>
+          )}
           {est.fromName && est.toName && (
             <div className="field checkbox">
               <input id="tr-remember" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />

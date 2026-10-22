@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-// Look of the app on this computer (3.1): Desk skin or Adventure UI, and whether box controls always show.
+// Look of the app on this computer (3.1): Adventure UI (the default since 3.8.0, owner) or Desk UI, and whether box controls always show.
 // Kept like the lighting switch: localStorage, shared by every window of the app.
 export type Skin = 'desk' | 'adventure'
 const SKIN = 'dz.skin'
@@ -9,7 +9,7 @@ const ARRANGE = 'dz.arrange'
 const read = (key: string) => { try { return localStorage.getItem(key) } catch { return null } }
 const write = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* not kept */ } }
 
-export const readSkin = (): Skin => (read(SKIN) === 'adventure' ? 'adventure' : 'desk')
+export const readSkin = (): Skin => (read(SKIN) === 'desk' ? 'desk' : 'adventure')
 const readArrange = () => read(ARRANGE) === 'on'
 
 /** Puts the look on <html> (data-skin, data-arrange); every window, and again when another window changes it. */

@@ -1,6 +1,6 @@
 # Dungeon Zen (for Claude; owner does not read this file)
 
-Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 3.7.0 (`package.json`).
+Local-first Windows Electron app for D&D 5e DMs: detective board, storylines over time (engine + Timeline), clickable map, live-session desk, AI creation from notes. Old name Chronosboard. Version 3.8.0 (`package.json`).
 
 Docs: `docs/STATE.md` (what is built, per area: read the part you touch, update it after), `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/FEATURES.md`, `docs/UI_SPEC.md`.
 
@@ -35,14 +35,14 @@ Electron + electron-vite, React 19 + Vite (no Next.js), SQLite better-sqlite3 + 
 - Assets `dz-asset://campaign/<path>`; AI images wait in `assets/pending` (cleared on open) until kept.
 
 ## Commands
-`npm install` · `npm run dev` · `npm test` (incl. `tests/undoall.test.ts`: undo for every IPC write; new channel → check, `npx vitest -u`) · `npm run typecheck` · `npm run build` · `npm run smoke` (built app, every screen, screenshots, action round-trip; `DZ_SKIN=adventure`, `DZ_SCALE=1.5`, `DZ_EXE=<installed exe>`; runs in CI, see `docs/STATE.md` M0 and Checks) · `npm run playtest` (a DM's evening, report + played campaign in `tests/e2e/playtest/`) · `npm run dist:win` (installer; on Linux needs wine64 + wine32:i386).
+`npm install` · `npm run dev` · `npm test` (incl. `tests/undoall.test.ts`: undo for every IPC write; new channel → check, `npx vitest -u`) · `npm run typecheck` · `npm run build` · `npm run smoke` (built app, every screen, screenshots, action round-trip; `DZ_SKIN=adventure`, `DZ_SCALE=1.5`, `DZ_EXE=<installed exe>`; runs in CI, see `docs/STATE.md` M0 and Checks) · `npm run playtest` (a DM's evening, report + played campaign in `tests/e2e/playtest/`) · `npm run longplay` (three sessions, six players, beat-by-beat report in `tests/e2e/longplay/out/`; `DZ_SKIN=desk`, `DZ_SCALE`; not in CI) · `npm run dist:win` (installer; on Linux needs wine64 + wine32:i386).
 
 ## Release
 Bump `package.json` + `package-lock.json` version. Push the session branch, fast-forward `main`. New build started on a new branch: first fast-forward `main` with the previous build branch, then delete that branch (owner, 2026-10-12; branch delete is blocked by the proxy and GitHub MCP has no delete tool, so ask the owner to delete it on the GitHub Branches page). Tag push is blocked (proxy 403): run workflow `windows-installer.yml` on `main` via GitHub MCP `actions_run_trigger` with input `release_tag: vX.Y.Z`; check with `get_latest_release`.
 
 ## Decided (owner)
 - Rules edition default 2024 (SRD 5.2), per campaign.
-- Adventure UI skin (owner, 2026-10-19): second skin, adventure look (dark brown rail/top bar/ground, aged parchment panels, Cinzel capital headings, deep red buttons); Notes keeps its clean layout inside that frame (`docs/PLAN-3.1-UI.md` G7). Desk skin stays, DM picks.
+- Adventure UI skin (owner, 2026-10-19; default since 3.8.0, owner 2026-10-22, the other is named Desk UI): adventure look (dark brown rail/top bar/ground, aged parchment panels, Cinzel capital headings, deep red buttons); Notes keeps its clean layout inside that frame (`docs/PLAN-3.1-UI.md` G7). Desk UI stays as the second choice, DM picks.
 - Desk style everywhere (painted tabletop: wood, old map, tarot, candles, leather). Art drawn in code in `src/renderer/art/` (replaceable); painted art later from commissions/licensed packs, never generated; never the 1971 U.S. Games Rider-Waite scans.
 - Map zooms and pans (`MapView.tsx`).
 - Roll20: paste-in macros and API script.

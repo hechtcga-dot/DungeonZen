@@ -1,6 +1,6 @@
 import { sessionLabel } from '../src/shared/time'
 import { describe, expect, it } from 'vitest'
-import { centroid, estimateTravel, gridDistance, pointInPolygon, polygonArea, regionAt, regionOnBoard, type Point } from '../src/shared/geometry'
+import { centroid, estimateTravel, gridDistance, pointInPolygon, polygonArea, regionAt, regionOnBoard, spotIn, type Point } from '../src/shared/geometry'
 
 const square = (x: number, y: number, s: number): Point[] => [[x, y], [x + s, y], [x + s, y + s], [x, y + s]]
 
@@ -61,4 +61,18 @@ describe('regionOnBoard', () => {
 it('labels session notes with title and real-life date', () => {
   expect(sessionLabel(3, ' The Drowned Bell ', '2026-10-17')).toBe('Session 3 · The Drowned Bell · Oct 17, 2026')
   expect(sessionLabel(1, '', null)).toBe('Session 1')
+})
+
+describe('spotIn', () => {
+  it('finds a spot inside a C-shaped region, outside the town inside it', () => {
+    // A "C": its centroid falls in the gap.
+    const c = { id: 'c', polygon: [[0, 0], [100, 0], [100, 20], [20, 20], [20, 80], [100, 80], [100, 100], [0, 100]] as Point[] }
+    const town = { id: 't', polygon: [[0, 0], [20, 0], [20, 20], [0, 20]] as Point[] }
+    const p = spotIn(c, [c, town])
+    expect(regionAt(p, [c, town])).toBe(c)
+  })
+  it('keeps the centroid when it is inside', () => {
+    const sq = { id: 's', polygon: [[0, 0], [10, 0], [10, 10], [0, 10]] as Point[] }
+    expect(spotIn(sq, [sq])).toEqual([5, 5])
+  })
 })

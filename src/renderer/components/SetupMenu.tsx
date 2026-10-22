@@ -55,8 +55,8 @@ export function SetupMenu({ icon }: { icon: React.ReactNode }) {
           { label: 'Print or save cards…', onClick: () => setDialog('export') },
           { label: 'Export to Foundry VTT or Owlbear Rodeo…', hint: 'Battle maps with their grid, character and monster sheets, handouts', onClick: () => setDialog('vtt') },
           { label: 'Look', hint: 'How the app looks on this computer', items: [
-            { label: 'Desk', hint: 'Wooden table, leather mat, tarot cards', checked: skin === 'desk', onClick: () => setSkin('desk') },
-            { label: 'Adventure UI', hint: 'Dark frame, aged parchment, red buttons', checked: skin === 'adventure', onClick: () => setSkin('adventure') }
+            { label: 'Adventure UI', hint: 'Dark frame, aged parchment, red buttons', checked: skin === 'adventure', onClick: () => setSkin('adventure') },
+            { label: 'Desk UI', hint: 'Wooden table, leather mat, tarot cards', checked: skin === 'desk', onClick: () => setSkin('desk') }
           ] },
           { label: 'Arrange boxes', hint: 'Always show − ↑ ↓ on box titles (otherwise they show when the pointer is on a box)', checked: arrange, onClick: () => setArrange(!arrange) },
           { label: 'AI services…', onClick: () => setAiSettingsOpen(true) },

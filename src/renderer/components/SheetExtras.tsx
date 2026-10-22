@@ -4,7 +4,7 @@ import { useBoard } from '../store'
 import { CommitField } from './fields'
 import { AttackPicker, type PickerTab } from './AttackPicker'
 import { macroFor, spellLevel } from '../../shared/attacks'
-import { ACTIONS_IN_COMBAT, abilityRow, applyHp, classLine, classesOf, hitDice, usesOf, xpProgress, type ClassLevel, type LimitedUse } from '../../shared/charsheet'
+import { ACTIONS_IN_COMBAT, abilityRow, applyHp, classLine, classesOf, hitDice, levelOf, levelUp, usesOf, xpProgress, type ClassLevel, type LimitedUse } from '../../shared/charsheet'
 import { ABILITY_KEYS, abilityModifier, castingAbility, formatModifier, readStatBlock, statLine, type StatBlock } from '../../shared/statblock'
 import { AbilityKind } from '../../shared/schemas'
 import { slotsTotal, spendSlot, type SlotState } from '../../shared/slots'
@@ -50,6 +50,13 @@ export function ClassStrip({ sheet, sb, save }: { sheet: SheetView; sb: StatBloc
             <CommitField id={`${p}-${i}-sub`} label="Subclass" value={c.subclass} placeholder="College of Lore" className="cs-inline" onCommit={(subclass) => put(classes.map((x, j) => (j === i ? { ...x, subclass } : x)))} />
             <CommitField id={`${p}-${i}-lvl`} label="Level" value={c.level ? String(c.level) : ''} placeholder="1" className="cs-inline cs-narrow"
               onCommit={(v) => put(classes.map((x, j) => (j === i ? { ...x, level: Math.max(0, Math.min(20, Number.parseInt(v, 10) || 0)) } : x)))} />
+            {e.type === 'PC' && c.name.trim() && c.level < 20 && <button className="link-button" aria-label={`Level up ${c.name}`}
+              title="Class level +1; hit points + the class die's fixed value + Con modifier; spell slots from the class table (Ctrl+Z undoes)"
+              onClick={() => {
+                const up = levelUp(e.attributes, sb.hp, sb.con, i)
+                setAttr(up.patch)
+                useBoard.getState().say(`${e.name}: ${c.name} ${c.level + 1}, hit points +${up.gain} (now ${up.maxHp})`)
+              }}>Level up</button>}
             <button className="link-button danger-ink" aria-label={`Remove class ${c.name}`} onClick={() => put(classes.filter((_, j) => j !== i))}>Remove</button>
           </div>
         ))}
@@ -108,7 +115,7 @@ export function HpAdjust({ sheet, cur, temp, max }: { sheet: SheetView; cur: num
 export function VitalsCard({ sheet, sb }: { sheet: SheetView; sb: StatBlock }) {
   const a = sheet.entity.attributes
   const setAttr = useSetAttr(sheet.entity.id)
-  const hd = hitDice(sb.hitDice || sb.hp, classesOf(a))
+  const hd = hitDice(sb.hitDice || sb.hp, classesOf(a), levelOf(a))
   const used = typeof a.hit_dice_used === 'number' ? Math.min(a.hit_dice_used, hd.total) : 0
   const ds = (a.death_saves && typeof a.death_saves === 'object' ? a.death_saves : {}) as { s?: number; f?: number }
   const exhaustion = typeof a.exhaustion === 'number' ? a.exhaustion : 0
@@ -130,8 +137,9 @@ export function VitalsCard({ sheet, sb }: { sheet: SheetView; sb: StatBlock }) {
           <button type="button" aria-label="Spend a hit die" disabled={used >= hd.total} onClick={() => setAttr({ hit_dice_used: used + 1 })}>−</button>
           <strong>{hd.total - used}/{hd.total}</strong>
           <button type="button" aria-label="Get a hit die back" disabled={used <= 0} onClick={() => setAttr({ hit_dice_used: used - 1 })}>+</button>
+          {hd.guessed && <span className="cs-small muted">d8 until a class is added above</span>}
         </div>
-      ) : <p className="cs-small muted">Hit dice: add classes above, or set them under Details (e.g. 7d8 + 8d8).</p>}
+      ) : <p className="cs-small muted">Hit dice: add a class or the level above, or set them under Details (e.g. 7d8 + 8d8).</p>}
       {boxes('s', 'Successes')}
       {boxes('f', 'Failures')}
       <div className="field cs-inline">

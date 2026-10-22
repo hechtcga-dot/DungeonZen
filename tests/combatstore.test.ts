@@ -85,3 +85,39 @@ it('a cast spends the slot on the card in the same undo step; rests refill Pact 
   c.undo()
   expect(c.spellRules()['gust barrier']).toEqual(r)
 })
+
+it('keeps one hit point count per character: fight, Live desk and sheet', () => {
+  const g = c.info().globalBoardId
+  const pc = c.createEntity({ boardId: g, type: 'PC', name: 'Brakka', position: { x: 0, y: 0 }, attributes: { statblock: { hp: '31', ac: '18' } } })
+  const enc = c.createEncounter({ name: 'Docks' })
+  c.addSrdToEncounter(enc, [{ key: 'srd-2024_bandit', count: 1 }], srdCopy)
+  const id = c.startCombat(enc)
+  const v = c.combatView(id)
+  c.updateCombat(id, changeHp(v.state, v.state.combatants[0].id, -7), 'hit')
+  expect(c.sheet(pc.id).entity.attributes.current_hp).toBe(24)
+  c.setHp(pc.id, 30)
+  expect(c.combatView(id).state.combatants[0].hp).toBe(30)
+  c.setHp(pc.id, 99)
+  expect(c.sheet(pc.id).entity.attributes.current_hp).toBe(31)
+})
+
+it('adds a fresh SRD copy, never a named card that shares the stat block', () => {
+  const g = c.info().globalBoardId
+  const copy = srdCopy('srd-2024_guard')
+  c.createEntity({ boardId: g, type: 'NPC', name: 'Quill Reed', position: { x: 0, y: 0 }, attributes: copy.attributes })
+  const enc = c.createEncounter({ name: 'Gate' })
+  c.addSrdToEncounter(enc, [{ key: 'srd-2024_guard', count: 1 }], srdCopy)
+  expect(c.encounterView(enc).creatures.map((x) => x.name)).toEqual(['Guard'])
+})
+
+it('a character ticked back on the encounter joins the running fight', () => {
+  const g = c.info().globalBoardId
+  const wren = c.createEntity({ boardId: g, type: 'PC', name: 'Wren', position: { x: 0, y: 0 } })
+  const enc = c.createEncounter({ name: 'Lamp room' })
+  c.addSrdToEncounter(enc, [{ key: 'srd-2024_bandit', count: 1 }], srdCopy)
+  c.updateEncounter(enc, { pcsOut: [wren.id] })
+  const id = c.startCombat(enc)
+  expect(c.combatView(id).state.combatants.some((x) => x.name === 'Wren')).toBe(false)
+  c.updateEncounter(enc, { pcsOut: [] })
+  expect(c.combatView(id).state.combatants.filter((x) => x.name === 'Wren')).toHaveLength(1)
+})

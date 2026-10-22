@@ -30,7 +30,7 @@ function useElapsed(since: string | null): number | null {
  */
 export function WhereTheyAre({ v }: { v: LiveView }) {
   const where = useBoard((s) => s.where)
-  const { act, openSheet, goTo, openEncounter } = useBoard()
+  const { act, openSheet, goTo, openEncounter, openCombat } = useBoard()
   if (!where) return null
   const prep = where.prep
   const discoveries = prep?.items.filter((i) => i.kind === 'discovery') ?? []
@@ -84,7 +84,8 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
                     <li key={e.id}>
                       <button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>
                       <span className="met-badge">{e.rating}{e.runs ? ` · run ${e.runs}×` : ''}</span>
-                      {v.session && <button className="link-button" onClick={() => void act('encounter:run', { encounterId: e.id })}>Start fight</button>}
+                      {v.session && <button className="link-button" title="Opens the fight tracker; End combat logs the fight"
+                        onClick={async () => { const id = await act('combat:start', { encounterId: e.id }); if (id) await openCombat(id) }}>Start fight</button>}
                     </li>
                   ))}
                 </ul>
@@ -104,6 +105,13 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
                     <span className={`met-badge${p.met ? ' is-met' : ''}`}>{p.met ? 'Met' : 'Not met'}</span>
                     {!p.met && v.session && (
                       <button className="link-button" onClick={() => void act('log:add', { kind: 'meeting', text: '', entityId: p.id })}>They meet</button>
+                    )}
+                    {(p.notes || p.stat) && (
+                      <details className="here-more">
+                        <summary>Notes and stats <span className="dm-only">DM only</span></summary>
+                        {p.stat && <p className="mono here-stat">{p.stat}</p>}
+                        {p.notes && <p className="here-notes"><LinkedText text={p.notes} /></p>}
+                      </details>
                     )}
                   </li>
                 ))}

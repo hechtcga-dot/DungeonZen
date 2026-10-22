@@ -1185,7 +1185,10 @@ export class Campaign {
     const others = [...briefs.values()]
       .filter((e) => e.id !== entityId && e.status !== 'defunct')
       .sort((a, b) => a.name.localeCompare(b.name))
-    return { entity: view, abilities, connections, partyKnows, others, secrets: this.secretViews(), undo: this.log.state() }
+    const carried = this.db.select().from(entity).where(eq(entity.type, 'ITEM')).all()
+      .filter((x) => x.attributes.carried_by === entityId && (x.status === 'active' || x.status === 'resolved'))
+      .map((x) => briefs.get(x.id)!).sort((a, b) => a.name.localeCompare(b.name))
+    return { entity: view, abilities, connections, partyKnows, others, secrets: this.secretViews(), carried, undo: this.log.state() }
   }
 
   addAbility(entityId: string, a: NewAbility): AbilityView {

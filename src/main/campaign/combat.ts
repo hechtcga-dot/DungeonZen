@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
-import { classesOf, hitDice, usesOf } from '../../shared/charsheet'
-import { combat, ability, entity, encounterCreature } from '../db/schema'
+import { classesOf, hitDice, levelOf, usesOf } from '../../shared/charsheet'
+import { combat, ability, entity, encounterCreature, logEntry } from '../db/schema'
 import { type Writer } from './commandLog'
 import type { RowStatus } from '../../shared/schemas'
 import { ABILITY_KEYS, leadingNumber, passiveScore, readStatBlock, saveBonus } from '../../shared/statblock'
@@ -91,10 +91,12 @@ export const combatPart = part({
     w.update('combat', row.id, { state: { ...st, combatants: list, log, turn: Math.min(st.turn, Math.max(0, list.length - 1)) } })
   },
 
-  /** A new player character joins every running fight on the party side. */
-  joinFights(w: Writer, entityId: string): void {
+  /** A player character joins every running fight (or the one for `encounterId`) on the party side, once. */
+  joinFights(w: Writer, entityId: string, encounterId?: string): void {
     for (const row of this.db.select().from(combat).where(eq(combat.status, 'active')).all()) {
+      if (encounterId && row.encounterId !== encounterId) continue
       const st = CombatState.parse(row.state)
+      if (st.combatants.some((x) => x.entityId === entityId)) continue
       const c = this.fightCombatant(entityId, 'party', this.entityRow(entityId).name)
       w.update('combat', row.id, { state: { ...st, combatants: [...st.combatants, c], log: [...st.log, `Round ${st.round}: ${c.name} joins the fight.`] } })
     }
@@ -140,7 +142,7 @@ export const combatPart = part({
       cardType: e.type,
       size: sb?.size ?? '',
       pc: e.type !== 'PC' ? null : (() => {
-        const hd = hitDice(sb?.hitDice || sb?.hp || '', classesOf(e.attributes))
+        const hd = hitDice(sb?.hitDice || sb?.hp || '', classesOf(e.attributes), levelOf(e.attributes))
         return {
           inspiration: e.attributes.inspiration === true,
           exhaustion: typeof e.attributes.exhaustion === 'number' ? e.attributes.exhaustion : 0,
@@ -161,10 +163,10 @@ export const combatPart = part({
       const i = this.combatantInfo(entityId, partyLevel)
       if (i) info[entityId] = i
     }
-    // A character's death saves live on its card (the full sheet shows the same ticks).
+    // A character's hit points and death saves live on its card (Live desk, sheet and fight show the same).
     const combatants = state.combatants.map((c) => {
       const saved = c.side === 'party' && c.entityId ? this.deathSavesOf(c.entityId) : null
-      return saved ? { ...c, death: saved } : c
+      return saved ? { ...c, ...this.cardHp(c.entityId!, c), death: saved } : c
     })
     return {
       id, encounterId: row.encounterId, encounterName: this.nameOf(row.encounterId), status: row.status === 'ended' ? 'ended' : 'active',
@@ -228,6 +230,12 @@ export const combatPart = part({
     }
   },
 
+  /** A character's hit points as its card holds them (none typed yet = full). */
+  cardHp(entityId: string, c: Combatant): { hp: number; tempHp: number } {
+    const a = this.entityRow(entityId).attributes
+    return { hp: typeof a.current_hp === 'number' ? a.current_hp : c.maxHp, tempHp: typeof a.temp_hp === 'number' ? a.temp_hp : 0 }
+  },
+
   deathSavesOf(entityId: string): { s: number; f: number } | null {
     const e = this.db.select().from(entity).where(eq(entity.id, entityId)).get()
     if (!e || e.type !== 'PC') return null
@@ -266,9 +274,11 @@ export const combatPart = part({
       }
       for (const c of state.combatants) {
         const saved = c.side === 'party' && c.entityId ? this.deathSavesOf(c.entityId) : null
-        if (!saved || (saved.s === c.death.s && saved.f === c.death.f)) continue
+        if (!saved) continue
+        const was = this.cardHp(c.entityId!, c)
+        if (saved.s === c.death.s && saved.f === c.death.f && was.hp === c.hp && was.tempHp === c.tempHp) continue
         const e = this.entityRow(c.entityId!)
-        w.update('entity', e.id, { attributes: { ...e.attributes, death_saves: c.death.s || c.death.f ? c.death : null } })
+        w.update('entity', e.id, { attributes: { ...e.attributes, current_hp: c.hp, temp_hp: c.tempHp, death_saves: c.death.s || c.death.f ? c.death : null } })
       }
     })
   },
@@ -289,7 +299,11 @@ export const combatPart = part({
         const e = this.db.select().from(entity).where(eq(entity.id, eid)).get()
         if (e && e.status === 'active') w.update('entity', eid, { status: 'resolved' })
       }
-      if (open && opts.summary?.trim()) {
+      // One log line per fight: "Log it in the session" earlier in this session gets the summary instead of a second line.
+      const logged = open ? this.db.select().from(logEntry).where(and(eq(logEntry.sessionId, open.id), eq(logEntry.encounterId, row.encounterId), eq(logEntry.kind, 'fight'), eq(logEntry.status, 'active'))).all()
+        .find((l) => l.createdAt >= row.createdAt) : undefined
+      if (logged && opts.summary?.trim()) w.update('log_entry', logged.id, { text: opts.summary.trim().slice(0, 5000) })
+      else if (open && opts.summary?.trim()) {
         w.insert('log_entry', {
           id: randomUUID(), sessionId: open.id, atMin: this.info().clockMin, kind: 'fight', text: opts.summary.trim().slice(0, 5000),
           entityId: null, minutesTaken: 0, createdAt: new Date().toISOString(), status: 'active', encounterId: row.encounterId

@@ -425,12 +425,16 @@ function ActPanel({ t, a, onClose }: { t: TimelineView; a: ActView; onClose(): v
           onClick={(e) => setEncMenu({ x: e.clientX, y: e.clientY, items: encItems() })}>+</button>
         {encMenu && <ContextMenu x={encMenu.x} y={encMenu.y} items={encMenu.items} onClose={() => setEncMenu(null)} />}
       </div>
-      <div className="row tight wrap tl-times">
+      {/* Saved when the DM leaves the time boxes (long playtest: typed days were lost without Save times). */}
+      <div className="row tight wrap tl-times" onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null) && timesChanged && end > start) void act('act:update', { id: a.id, patch: { startMin: start, endMin: end } })
+      }}>
         <DayTime id={`act-${a.id}-start`} label="Planned start" value={start} onChange={setStart} />
         <DayTime id={`act-${a.id}-end`} label="Planned end" value={end} onChange={setEnd} />
       </div>
       {timesChanged && (
         <div className="row tight">
+          {end <= start && <span className="field-error">The end must come after the start.</span>}
           <button className="primary" disabled={end <= start} onClick={() => void act('act:update', { id: a.id, patch: { startMin: start, endMin: end } })}>Save times</button>
           <button onClick={() => { setStart(a.plannedStartMin); setEnd(a.plannedEndMin) }}>Cancel</button>
         </div>

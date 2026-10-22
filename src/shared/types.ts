@@ -202,6 +202,8 @@ export interface SheetView {
   others: EntityBrief[]
   /** Every secret, clue and connection (this card's, and the others to bring in). */
   secrets: SecretView[]
+  /** Items whose Carried by is this card (a player character's things). */
+  carried: EntityBrief[]
   undo: UndoState
 }
 
@@ -501,6 +503,10 @@ export interface PartyHealth {
   tempHp: number
   /** Conditions the DM typed (desk party card or full sheet). */
   conditions: string
+  /** For checks at the table (Live party card): passive Perception, the six saves and the 18 skills from the sheet. */
+  pp: number | null
+  saves: Array<{ name: string; bonus: number; prof: boolean }>
+  skills: Array<{ name: string; bonus: number; prof: boolean }>
 }
 
 export interface AdvisorNote {
@@ -758,7 +764,8 @@ export interface WhereView {
   /** Location cards to choose where they are heading. */
   places: EntityBrief[]
   /** People and creatures the cards put here, and whether the party has met them. */
-  people: Array<{ id: string; name: string; type: EntityType; met: boolean; keyNpc: boolean }>
+  /** notes = the card's DM notes, stat = its stat line (Live › Who is here fold-out). */
+  people: Array<{ id: string; name: string; type: EntityType; met: boolean; keyNpc: boolean; notes: string; stat: string }>
   /** Things the party could find out here (DM eyes only). */
   secrets: Array<{ text: string; source: 'string' | 'card' | 'clue'; id: string; done?: boolean }>
   /** Prep sheet for the running (or next) session. */

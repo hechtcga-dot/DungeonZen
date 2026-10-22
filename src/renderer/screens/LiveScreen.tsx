@@ -10,9 +10,8 @@ import { MapView } from '../components/MapView'
 import { WhereTheyAre } from '../components/WhereTheyAre'
 import { readOnlyLayer } from '../components/MapOverlay'
 import { Dialog } from '../components/Dialog'
-import { CampaignSettingsDialog } from '../components/EditDialogs'
 import { skyAt } from '../../shared/sky'
-import { formatClock, toClockParts } from '../../shared/time'
+import { formatClock, fromClockParts, toClockParts } from '../../shared/time'
 import type { LogKind } from '../../shared/schemas'
 import type { AiSuggestion, GeneratedView, LiveView, LogView, PartyHealth } from '../../shared/types'
 import { providerById } from '../../shared/aiProviders'
@@ -22,7 +21,7 @@ import { useSidePanel } from '../components/Splitter'
 const KIND_LABELS: Record<LogKind, string> = {
   note: 'Note', fight: 'Fight', meeting: 'Met', quest: 'Quest delivered', rest: 'Rest', travel: 'Travel'
 }
-const TIME_CHOICES: Array<[number, string]> = [[0, 'No time'], [10, '10 min'], [30, '30 min'], [60, '1 h'], [240, '4 h']]
+const TIME_CHOICES: Array<[number, string]> = [[0, 'No time'], [5, '5 min'], [10, '10 min'], [15, '15 min'], [30, '30 min'], [60, '1 h'], [120, '2 h'], [240, '4 h']]
 
 export function LiveScreen() {
   const live = useBoard((s) => s.live)
@@ -76,8 +75,9 @@ function Live({ v }: { v: LiveView }) {
             <button className="ink-button" aria-label="Clock back one hour" onClick={() => void act('clock:shift', { minutes: -60 })}>−1 h</button>
             <button className="ink-button" aria-label="Clock forward ten minutes" onClick={() => void act('clock:shift', { minutes: 10 })}>+10 m</button>
             <button className="ink-button" aria-label="Clock forward one hour" onClick={() => void act('clock:shift', { minutes: 60 })}>+1 h</button>
-            <button className="ink-button" onClick={() => setSettings(true)}>Set…</button>
+            <button className="ink-button" aria-expanded={settings} onClick={() => setSettings((x) => !x)}>Set…</button>
           </div>
+          {settings && <SetTime nowMin={v.nowMin} onDone={() => setSettings(false)} />}
         </div>
 
         <div className="dm-panel">
@@ -129,8 +129,6 @@ function Live({ v }: { v: LiveView }) {
         </div>
       </section>
 
-      <WhereTheyAre v={v} />
-
       <section className="mat live-mat" aria-label="Table" style={{ ...left.style, ...side.style }}>
         <D20 className="mat-d20" />
         <div className="live-left">
@@ -156,6 +154,8 @@ function Live({ v }: { v: LiveView }) {
         </div>
       </section>
 
+      {/* Quick-log and the party right under the DM screen (long playtest: they started below a 900 px window). */}
+      <WhereTheyAre v={v} />
       <SetTheScene v={v} />
       <OnTheFly partySize={v.party.length} partyLevel={v.partyLevel} />
       {v.sessions.length > 0 && (
@@ -174,9 +174,33 @@ function Live({ v }: { v: LiveView }) {
       )}
 
       {ending && s && <EndSessionDialog v={v} onClose={() => setEnding(false)} />}
-      <CampaignSettingsDialog open={settings} onClose={() => setSettings(false)} />
     </main>
     </>
+  )
+}
+
+/** The exact time, typed (Live › The hour › Set…): day and hh:mm, one undo step. */
+function SetTime({ nowMin, onDone }: { nowMin: number; onDone(): void }) {
+  const act = useBoard((s) => s.act)
+  const now = toClockParts(nowMin)
+  const [day, setDay] = useState(String(now.day))
+  const [time, setTime] = useState(`${String(now.hour).padStart(2, '0')}:${String(now.minute).padStart(2, '0')}`)
+  const [h, m] = time.split(':').map(Number)
+  const d = Number(day)
+  const ok = Number.isInteger(d) && d >= 1 && Number.isInteger(h) && Number.isInteger(m)
+  return (
+    <form className="row tight wrap set-time" onSubmit={async (e) => {
+      e.preventDefault()
+      if (!ok) return
+      await act('clock:set', { minutes: fromClockParts({ day: d, hour: h, minute: m }) })
+      onDone()
+    }}>
+      <label htmlFor="st-day">Day</label>
+      <input id="st-day" className="short" inputMode="numeric" value={day} autoFocus onChange={(e) => setDay(e.target.value)} />
+      <label htmlFor="st-time" className="visually-hidden">Time</label>
+      <input id="st-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+      <button type="submit" className="ink-button primary-ink" disabled={!ok}>Set</button>
+    </form>
   )
 }
 
@@ -280,6 +304,8 @@ function MetSomeoneNew({ disabled }: { disabled: boolean }) {
   )
 }
 
+const signed = (n: number) => (n < 0 ? `−${-n}` : `+${n}`)
+
 function PartyCard({ p, i }: { p: PartyHealth; i: number }) {
   const act = useBoard((s) => s.act)
   const openSheet = useBoard((s) => s.openSheet)
@@ -304,6 +330,14 @@ function PartyCard({ p, i }: { p: PartyHealth; i: number }) {
       <div className="hp-bar" role="img" aria-label={`${p.name}: ${p.hp} of ${p.maxHp} hit points`}>
         <span style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
+      {(p.ac || p.pp !== null) && <p className="pc-live-stats mono">{p.ac && <span>AC {p.ac}</span>}{p.pp !== null && <span>Passive Perception {p.pp}</span>}</p>}
+      {p.skills.length > 0 && (
+        <details className="pc-live-checks">
+          <summary>Saves and skills</summary>
+          <ul aria-label={`${p.name} saves`}>{p.saves.map((x) => <li key={x.name} className={x.prof ? 'is-prof' : undefined}><span>{x.name}</span><span className="mono">{signed(x.bonus)}</span></li>)}</ul>
+          <ul aria-label={`${p.name} skills`}>{p.skills.map((x) => <li key={x.name} className={x.prof ? 'is-prof' : undefined}><span>{x.name}</span><span className="mono">{signed(x.bonus)}</span></li>)}</ul>
+        </details>
+      )}
       {p.maxHp === 0 && <p className="pc-live-hint">Set hit points on the sheet.</p>}
       {p.conditions && <p className="pc-live-hint" title="Conditions (change them on the desk card or the character sheet)">{p.conditions}</p>}
       <div className="hp-buttons">

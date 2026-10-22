@@ -7,7 +7,7 @@ import { charSheetPrompt, parseCharSheet } from '../src/main/ai/charsheet'
 import { emptyStatBlock, profFor, rebase, setListed, skillBonus } from '../src/shared/statblock'
 import { buildAttack, cantripDice, macroFor, spellLevel, spellSpec, weaponSpec, type SrdSpell } from '../src/shared/attacks'
 import srd from '../resources/srd/srd-2024-attacks.json'
-import { abilityRow, applyHp, classLine, hitDice, usesOf } from '../src/shared/charsheet'
+import { abilityRow, applyHp, classLine, hitDice, usesOf, classSlots, levelUp } from '../src/shared/charsheet'
 
 let dir: string
 let c: Campaign
@@ -198,5 +198,25 @@ describe('the fight and the sheet', () => {
     expect(c.combatView(id).state.combatants.find((x) => x.entityId === pc.id)!.death).toEqual({ s: 2, f: 2 })
     c.undo(); c.undo()
     expect(c.sheet(pc.id).entity.attributes.death_saves).toBeUndefined()
+  })
+})
+
+describe('levelling (long playtest, 2026-10-22)', () => {
+  it('counts hit dice from the level when no class is set', () => {
+    expect(hitDice('31', [], 3)).toEqual({ total: 3, dice: '3d8', guessed: true })
+    expect(hitDice('31', [{ name: 'Fighter', subclass: '', level: 3 }], 3)).toEqual({ total: 3, dice: '3d10' })
+  })
+  it('slots by the 2024 table, multiclass and half casters rounded up', () => {
+    expect(classSlots([{ name: 'Cleric', subclass: '', level: 3 }]).slice(0, 3)).toEqual([4, 2, 0])
+    expect(classSlots([{ name: 'Ranger', subclass: '', level: 1 }])[0]).toBe(2)
+    expect(classSlots([{ name: 'Fighter', subclass: '', level: 5 }]).every((x) => x === 0)).toBe(true)
+  })
+  it('levels a class up: hit points, slots never fewer than set, pact magic', () => {
+    const up = levelUp({ classes: [{ name: 'Cleric', subclass: '', level: 3 }], current_hp: 20, spell_slots: [4, 3, 0, 0, 0, 0, 0, 0, 0], statblock: { hp: '24' } }, '24', 14, 0)
+    expect(up.gain).toBe(7)
+    expect(up.patch).toMatchObject({ level: '4', current_hp: 27, statblock: { hp: '31' }, spell_slots: [4, 3, 0, 0, 0, 0, 0, 0, 0] })
+    const w = levelUp({ classes: [{ name: 'Warlock', subclass: '', level: 2 }], statblock: { hp: '17' } }, '17', 14, 0)
+    expect(w.patch.pact_slots).toEqual({ count: 2, level: 2 })
+    expect(w.patch.current_hp).toBe(24)
   })
 })

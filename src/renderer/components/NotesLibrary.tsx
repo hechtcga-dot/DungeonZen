@@ -627,7 +627,7 @@ function MasterNotes({ onOpen }: { onOpen(o: Open): void }) {
   useEffect(load, [load, view?.undo])
   if (!secs) return <p className="ink-muted">Loading…</p>
   const lower = q.trim().toLowerCase()
-  const shown = lower ? secs.filter((s) => `${s.title}\n${blockLines(s.blocks).join('\n')}`.toLowerCase().includes(lower)) : secs
+  const shown = lower ? secs.filter((s) => `${s.title}\n${s.recap}\n${blockLines(s.blocks).join('\n')}`.toLowerCase().includes(lower)) : secs
   const headings = (s: Section) => s.blocks.filter((b) => b.kind === 'h1' || b.kind === 'h2' || b.kind === 'h3')
     .map((b) => ({ level: b.kind, text: 'runs' in b ? b.runs.map((r) => r.text).join('') : '' }))
   const jump = (id: string, n = -1) => {
@@ -679,9 +679,10 @@ function MasterNotes({ onOpen }: { onOpen(o: Open): void }) {
                 <button className="link-button" onClick={() => onOpen(s.kind === 'dm' ? { kind: 'dm' } : s.kind === 'session' ? { kind: 'session', id: s.id.slice(8) } : { kind: 'doc', id: s.id.slice(4) })}>Open the note</button>
               </span>
             </div>
+            {s.recap && <div className="master-recap"><h3 className="panel-subheading">What happened</h3><p>{s.recap}</p></div>}
             {s.picture ? <img className="notes-picture" src={s.picture} alt={s.title} />
               : editing === s.id ? <NoteEditor ref={ed} initial={s.blocks} label={s.title} onDirty={() => undefined} />
-                : s.blocks.length ? <NoteEditor initial={s.blocks} readOnly label={s.title} onDirty={() => undefined} /> : <p className="ink-muted">Empty.</p>}
+                : s.blocks.length ? <NoteEditor initial={s.blocks} readOnly label={s.title} onDirty={() => undefined} /> : !s.recap && <p className="ink-muted">Empty.</p>}
           </section>
         ))}
       </div>

@@ -11,7 +11,7 @@ import { launch, png, scale } from './app.mjs'
 import { roundTrip } from './roundtrip.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
-// DZ_SKIN=adventure runs the same screens in the Adventure UI skin (3.1), screenshots in shots-adventure/.
+// The app starts in the Adventure UI (default since 3.8.0); DZ_SKIN=desk runs the same screens in the Desk UI, screenshots in shots-desk/.
 // DZ_SCALE=1.5 runs them at Windows display scaling 150 % (most laptops: 125–150 %), screenshots in shots-scale150/.
 // DZ_EXE=<path to DungeonZen.exe> runs the installed app instead of the built one (Windows installer workflow).
 const skin = process.env.DZ_SKIN ?? ''

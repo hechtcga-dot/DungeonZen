@@ -16,6 +16,15 @@ import { readSketch, type Sketch } from '../../shared/sketch'
 import { part } from './part'
 import { ASSETS_DIR, SrdCopy, MAP_EXTENSIONS, storedExt, NewAbility, isEncounter } from './common'
 
+/**
+ * The campaign's plain copy of an SRD monster, to reuse: same SRD entry, still a Monster under the SRD name. A rolled
+ * NPC or a renamed copy with that stat block is someone else (long playtest, 2026-10-22: "Guard" pulled in a named NPC).
+ */
+function srdCard<T extends { type: string; name: string; attributes: Record<string, unknown> }>(cards: T[], key: string, copy: (key: string) => SrdCopy): T | undefined {
+  const name = copy(key).name
+  return cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === key && x.type === 'MONSTER' && x.name === name)
+}
+
 export const encountersPart = part({
   // ---- encounter planner (an encounter is an ENCOUNTER card; isEncounter also takes pre-3.3 SCENE ones)
 
@@ -190,6 +199,11 @@ export const encountersPart = part({
       if (patch.follow !== undefined) attrs.follow = patch.follow
       if (patch.story !== undefined) attrs.story = patch.story
       w.update('entity', id, { name: patch.name, attributes: { ...e.attributes, ...attrs } })
+      // A character ticked back in joins the fight already running (long playtest: Wren arrived in round 2).
+      if (patch.pcsOut !== undefined) {
+        const was = new Set(Array.isArray(e.attributes.pcs_out) ? e.attributes.pcs_out as string[] : [])
+        for (const pc of [...was].filter((x) => !patch.pcsOut!.includes(x))) this.joinFights(w, pc, id)
+      }
       if (patch.locationId !== undefined) {
         for (const r of this.db.select().from(relationship).where(and(eq(relationship.sourceId, id), eq(relationship.type, 'LOCATED_AT'), eq(relationship.status, 'active'))).all()) {
           w.update('relationship', r.id, { status: 'defunct' })
@@ -324,7 +338,7 @@ export const encountersPart = part({
     const cards = this.db.select().from(entity).all().filter((x) => x.status !== 'defunct')
     this.log.run(`Added ${groups.map((g) => `${g.count} × ${copy(g.key).name}`).join(', ')} to ${e.name}`, (w) => {
       for (const g of groups) {
-        const existing = cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === g.key)
+        const existing = srdCard(cards, g.key, copy)
         let id = existing?.id
         if (!id) {
           const c = copy(g.key)
@@ -346,7 +360,7 @@ export const encountersPart = part({
     const cards = this.db.select().from(entity).all().filter((x) => x.status !== 'defunct')
     this.log.run(`AI built ${e.name}: ${items.map((i) => `${i.count} × ${i.name}`).join(', ')}`, (w) => {
       for (const it of items) {
-        let id = it.srdKey ? cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === it.srdKey)?.id : undefined
+        let id = it.srdKey ? srdCard(cards, it.srdKey, copy)?.id : undefined
         if (!id && it.srdKey) {
           const c = copy(it.srdKey)
           id = this.insertEntity(w, { boardId: this.globalBoard().id, type: c.type, name: c.name, position: this.freeGlobalSpot(), status: 'stashed', attributes: c.attributes, abilities: c.abilities })
@@ -467,7 +481,7 @@ export const encountersPart = part({
       })
       if (d.locationId && cards.some((x) => x.id === d.locationId)) w.insert('relationship', { id: randomUUID(), sourceId: id, targetId: d.locationId, type: 'LOCATED_AT', isSecret: false, status: 'active' })
       for (const g of d.groups) {
-        let cid = cards.find((x) => (x.attributes.source as { key?: string } | undefined)?.key === g.key)?.id
+        let cid = srdCard(cards, g.key, copy)?.id
         if (!cid) {
           const c = copy(g.key)
           cid = this.insertEntity(w, { boardId: this.globalBoard().id, type: c.type, name: c.name, position: this.freeGlobalSpot(), status: 'stashed', attributes: c.attributes, abilities: c.abilities })

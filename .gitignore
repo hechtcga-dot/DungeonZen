@@ -9,3 +9,4 @@ tests/e2e/shots*/
 tests/e2e/playtest/
 tests/fixtures/*.db-shm
 tests/fixtures/*.db-wal
+tests/e2e/longplay/out*/

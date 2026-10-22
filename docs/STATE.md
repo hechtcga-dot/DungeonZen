@@ -297,7 +297,7 @@ built.
     monsters ticked and added; added cards are stashed, i.e. only in the encounter, until Put on board).
   - Run encounter (`CombatScreen.tsx`, `combat` table with one JSON state, `src/shared/combat.ts`): no
     dice, no initiative, the DM orders the list; rounds and turns (out-of-fight skipped), damage (temp
-    first, concentration DC logged), heal, set HP (PC HP typed by hand, not linked to Live), temp HP,
+    first, concentration DC logged), heal, set HP (a PC's HP is its card's `current_hp`/`temp_hp`: Live desk, sheet and fight show one number since 3.8.0), temp HP,
     conditions with rounds (count down at round end), down/fled/surrendered, notes, add or remove
     combatants; morale and tactics hints from local rules (half a group down, guards hold while a
     leader stands, fallen leader, badly hurt, last one standing, allies' boosts from trait text,
@@ -1087,3 +1087,29 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     spells only while not concentrating), a defensive option when Bloodied, the best bonus action; up to three.
     Ask AI box: placeholder "What would <name> do?" (monsters: "What does <name> do now?"), Tab in the empty box fills it.
   - Playtest: the board must start on the world map with no reminder.
+- 3.8.0 long playtest fixes (owner, 2026-10-22; `tests/combatstore.test.ts`, `tests/charsheet.test.ts`, `tests/geometry.test.ts`, `tests/encounter.test.ts`):
+  - One HP per PC: `combatView` reads party rows' hp/tempHp from the card (`cardHp`, none typed = full), `updateCombat` writes changed
+    hp/temp/death saves back in the same undo step. `setHp` (Live) caps at the stat block's maximum.
+  - SRD add (`addSrdToEncounter`, AI proposals, generated encounters) reuses only `srdCard`: same SRD key, type Monster, SRD name.
+  - Map › Move party here aims at `spotIn(region, regions)` (centroid when `regionAt` gives the region back, else the nearest
+    of a 24 × 24 grid point that does).
+  - Live › Where they are › Start fight = `combat:start` + open the tracker (no log line); `endCombat` puts its summary on a
+    fight line already logged for that encounter this session instead of adding a second.
+  - `updateEncounter` pcsOut: a PC ticked back in joins the running fight (`joinFights(w, id, encounterId)`, never twice).
+  - Live party cards (`PartyHealth` pp/saves/skills): AC, Passive Perception, "Saves and skills" fold-out (proficient in bold).
+    Who is here rows: "Notes and stats · DM only" fold-out (card DM notes, `statLine`). The Table mat (Quick-log, map, party)
+    comes right after the DM screen, Where they are under it.
+  - Live › The hour › Set…: inline day + time (`SetTime`, `clock:set`); quick-log steps 0, 5, 10, 15, 30 min, 1, 2, 4 h.
+  - `notes:master` session sections carry `recap` (title "Session N · prep title"), shown first as What happened; Word export too.
+  - Fill a tavern › Put on the board: a BUILDING (`building_kind` tavern) with `location` + LOCATED_AT the party's place.
+  - `hitDice(text, classes, level)`: level only = Nd8 (`guessed`, hint on the sheet). Class rows: Level up (`levelUp`: class +1,
+    HP + die/2 + 1 + Con mod, current HP too, `classSlots` 2024 table never below typed slots, warlock `pact_slots`).
+  - Confirm travel: "More than a day on the road" note when the map's own estimate is over 24 h.
+  - Timeline act panel: times save when focus leaves the time boxes (end after start), Save times stays; error line when not.
+  - Item sheet: Carried by (PCs; `carried_by`); PC sheet lists Carrying (`SheetView.carried`).
+  - Look (owner, 2026-10-22): `readSkin` defaults to Adventure UI (stored 'desk' keeps Desk UI); Start screen, Setup › Look and
+    Ctrl+K list "Adventure UI" first and call the other "Desk UI". Smoke: default run = Adventure, `DZ_SKIN=desk` = Desk (CI artifact shots-desk/).
+    Long playtest takes `DZ_SKIN`/`DZ_SCALE` (out-desk-scale150/…).
+  - Live mat: `align-items: start`, map `position: sticky` with its own height (min(520px, 62vh)); ≤ 1280 px: Quick-log | party,
+    map under the Quick-log. Where they are grid stretches (no wood gap under Tonight's prep). Disabled ink buttons darker
+    (#6d5f45 / #6f6048) for contrast; Adventure brass buttons on the board's world map reminder are red with cream words.

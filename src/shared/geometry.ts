@@ -42,6 +42,25 @@ export function regionAt<T extends { polygon: Point[] }>(p: Point, regions: T[])
     .sort((a, b) => polygonArea(a.polygon) - polygonArea(b.polygon))[0] ?? null
 }
 
+/**
+ * A spot in the region that `regionAt` gives back as that region (Move party here): the centroid when it is, else
+ * the nearest point of a 24 × 24 grid over the shape that is. Odd shapes and regions with towns inside missed before.
+ */
+export function spotIn<T extends { polygon: Point[] }>(region: T, regions: T[]): Point {
+  const c = centroid(region.polygon)
+  if (regionAt(c, regions) === region) return c
+  const xs = region.polygon.map((p) => p[0]), ys = region.polygon.map((p) => p[1])
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
+  let best: Point | null = null
+  for (let i = 0; i <= 24; i++) {
+    for (let j = 0; j <= 24; j++) {
+      const p: Point = [x0 + ((x1 - x0) * i) / 24, y0 + ((y1 - y0) * j) / 24]
+      if (regionAt(p, regions) === region && (!best || distance(p, c) < distance(best, c))) best = p
+    }
+  }
+  return best ?? c
+}
+
 export function distance(a: Point, b: Point): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1])
 }

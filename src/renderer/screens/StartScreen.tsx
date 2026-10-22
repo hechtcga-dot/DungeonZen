@@ -83,8 +83,8 @@ export function StartScreen() {
         <h2 id="look-heading">Look</h2>
         <p className="hint">How Dungeon Zen looks on this computer. Change it any time in Setup › Look.</p>
         <div className="segmented" role="group" aria-label="Look">
-          <button aria-pressed={skin === 'desk'} onClick={() => setSkin('desk')}>Desk</button>
           <button aria-pressed={skin === 'adventure'} onClick={() => setSkin('adventure')}>Adventure UI</button>
+          <button aria-pressed={skin === 'desk'} onClick={() => setSkin('desk')}>Desk UI</button>
         </div>
       </section>
     </main>

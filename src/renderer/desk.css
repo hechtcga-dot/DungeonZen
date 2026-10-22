@@ -101,7 +101,7 @@ button.ink-button {
   border: 1px solid #7a6440; font-weight: 600;
 }
 button.ink-button:hover:not(:disabled) { background: rgba(255, 250, 236, 0.9); border-color: var(--ink); }
-button.ink-button:disabled { color: #8a7a5c; }
+button.ink-button:disabled, .desk-theme button.ink-button:disabled { color: #6d5f45; }
 button.wax {
   min-height: 48px; padding: 0 22px; border-radius: 999px; color: #fbe9d0; font-family: var(--display); font-size: 18px;
   background: radial-gradient(circle at 40% 35%, #b5392d, var(--wax) 60%, #5e1812); border: 2px solid #4a120d;
@@ -344,6 +344,7 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
   box-shadow: 0 10px 24px rgba(20, 12, 4, 0.45);
 }
 .confirm-travel h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 21px; }
+.confirm-travel .travel-warn { margin: 0; padding: 6px 8px; font-size: 13px; background: #f5e2b0; border-left: 3px solid #b5852f; color: var(--ink); }
 .confirm-travel p { margin: 0; font-size: 14px; }
 .confirm-travel input.short { width: 64px; }
 .confirm-travel .drag-title { cursor: move; user-select: none; touch-action: none; }
@@ -364,6 +365,10 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
 .here-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .here-list li { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .here-list .ledger-name { min-height: 26px; font-size: 15px; text-align: left; }
+.here-more { flex-basis: 100%; margin: 0 0 4px 12px; font-size: 13px; }
+.here-more summary { cursor: pointer; color: var(--ink-muted); }
+.here-more p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.here-stat { font-size: 12px; }
 .enc-side-row { position: relative; }
 .here-list button.enc-side-add { position: absolute; right: 0; top: 1px; min-height: 0; height: 24px; background: #f3e6c4; line-height: 1; padding: 0 8px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; }
 .enc-side-row:hover button.enc-side-add, .here-list button.enc-side-add:focus-visible { opacity: 1; pointer-events: auto; }
@@ -432,6 +437,10 @@ button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; color: 
 .live-mat { grid-template-columns: var(--left-w, 340px) minmax(0, 1fr) var(--side-w, 300px); grid-template-areas: 'left map party'; }
 .live-left { grid-area: left; display: flex; flex-direction: column; gap: 16px; min-width: 0; z-index: 1; }
 .live-map { grid-area: map; min-width: 0; z-index: 1; }
+/* The map keeps its own height and stays in view while a long party (six cards) scrolls past (was stretched: blank parchment). */
+.live-mat { align-items: start; }
+.live-map { position: sticky; top: 84px; }
+.live-map .desk-mapview { height: min(520px, 62vh); min-height: 320px; flex: none; }
 .live-party { grid-area: party; display: flex; flex-direction: column; gap: 12px; min-width: 0; z-index: 1; }
 .quicklog textarea { color: var(--ink); background: rgba(255, 252, 240, 0.85); border: 1px solid #8a7350; font-family: var(--display); font-size: 17px; }
 .time-choices { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -442,7 +451,7 @@ button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; color: 
 .chip-radio:focus-within { outline: 2px solid var(--wax); outline-offset: 2px; }
 button.ink-button.primary-ink { color: var(--parchment-light); background: #2a1f12; border-color: #000; }
 button.ink-button.primary-ink:hover:not(:disabled) { background: #3d2c18; color: #fff; }
-button.ink-button.primary-ink:disabled { background: #8a7a5c; color: var(--parchment); }
+button.ink-button.primary-ink:disabled { background: #6f6048; color: var(--parchment); }
 .met-row select { flex: 1; min-width: 0; }
 .session-log { background: #1d140c; color: var(--parchment-light); border: 1px solid #6b4a26; border-radius: 4px; padding: 12px 14px; }
 .session-log .panel-title { color: var(--parchment-light); font-size: 20px; margin-bottom: 6px; }
@@ -477,7 +486,7 @@ button.ink-button.primary-ink:disabled { background: #8a7a5c; color: var(--parch
   box-shadow: inset 0 0 0 2px var(--tint), 0 6px 12px rgba(0, 0, 0, 0.5);
 }
 .pc-live-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.pc-live-name { min-height: 36px; padding: 0; border: 0; background: transparent; color: #fbf3df; font-family: var(--display); font-size: 19px; text-decoration: underline; text-underline-offset: 3px; text-align: left; }
+.pc-live-name { min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: #fbf3df; font-family: var(--display); font-size: 19px; text-decoration: underline; text-underline-offset: 3px; text-align: left; }
 .pc-live-hp { min-height: 36px; padding: 0 6px; border: 1px solid transparent; background: transparent; color: #fbf3df; font-size: 14px; }
 .desk-theme .pc-live-name:hover:not(:disabled), .desk-theme .pc-live-hp:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.3); }
 .pc-live .hp-bar { background: rgba(0, 0, 0, 0.35); border-color: rgba(0, 0, 0, 0.5); }
@@ -486,6 +495,13 @@ button.ink-button.primary-ink:disabled { background: #8a7a5c; color: var(--parch
 .hp-buttons button { min-height: 44px; padding: 0; font-weight: 700; color: var(--ink); background: var(--parchment); border: 1px solid #3b2a14; }
 .desk-theme .hp-buttons button:hover:not(:disabled) { background: #fffaf0; border-color: #000; }
 .pc-live-hint { margin: 0; font-size: 12px; opacity: 0.85; }
+.pc-live-stats { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+.pc-live-checks summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
+.pc-live-checks ul { list-style: none; margin: 4px 0 0; padding: 6px 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 2px 12px;
+  background: var(--parchment-light); color: var(--ink); border-radius: 4px; font-size: 12.5px; }
+.pc-live-checks li { display: flex; justify-content: space-between; gap: 6px; min-width: 0; }
+.pc-live-checks li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-live-checks li.is-prof { font-weight: 700; }
 .pc-live input.short { color: var(--ink); background: var(--parchment-light); width: 80px; }
 
 .mat-heading.on-wood { margin: 6px 0 10px; }
@@ -517,10 +533,13 @@ button.ink-button.primary-ink:disabled { background: #8a7a5c; color: var(--parch
 .otf-result h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; }
 .otf-result ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 @media (max-width: 1280px) {
-  .live-mat { grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); grid-template-areas: 'map party' 'left left'; }
+  /* Quick-log first, the map under it, the party down the right (1280 × 720 = a 1920 laptop at 150 %). */
+  .live-mat { grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); grid-template-areas: 'left party' 'map party'; }
+  .live-map { position: static; }
 }
 @media (max-width: 900px) {
   .live-mat { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'left' 'map' 'party'; }
+  .live-map { position: static; }
   .scene-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -634,7 +653,7 @@ button.ink-button.primary-ink:disabled { background: #8a7a5c; color: var(--parch
 .where-heading { display: flex; align-items: center; gap: 8px; }
 .where-heading select { width: auto; min-width: 160px; }
 .ink-muted-light { color: #cdb98f; font-size: 13px; }
-.where-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.where-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
 .where-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .where-panel { gap: 8px; min-width: 0; }
 .where-tips li { font-size: 14px; }
@@ -1411,6 +1430,8 @@ main.journal-window textarea { background: transparent; color: #24180b; border: 
 .master-toc .toc-h2 { padding-left: 8px; } .master-toc .toc-h3 { padding-left: 16px; font-size: 13px; }
 .master-doc { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .master-section .note-page[contenteditable='false'] { border: 0; background: transparent; min-height: 0; }
+.master-recap { margin: 6px 0 10px; }
+.master-recap p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Easter eggs on the Desk: the header candle and the d20 on the mat. */
 .egg-candle-wrap { position: relative; flex: none; display: inline-block; }
@@ -1947,3 +1968,8 @@ fieldset.cast-list .field.checkbox { margin: 0; }
 .cb-group-pick .ink-button { min-height: 0; height: 24px; padding: 0 8px; font-size: 12px; }
 .board-map-hint-off { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; cursor: pointer; white-space: nowrap; }
 .board-map-hint-off input { width: 16px; height: 16px; min-height: 0; margin: 0; flex: none; }
+
+/* 3.8.0: things a character carries (sheet), the exact time on Live. */
+.carried-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.set-time { margin-top: 6px; align-items: center; }
+.set-time input[type='time'] { width: 120px; }

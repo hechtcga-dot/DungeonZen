@@ -6,7 +6,7 @@ import { type Writer } from './commandLog'
 import type { EntityAttributes, EntityStatus, EntityType, LogKind,   RowStatus } from '../../shared/schemas'
 import { MINUTES_PER_DAY } from '../../shared/time'
 import { formatClock } from '../../shared/time'
-import { leadingNumber, readStatBlock } from '../../shared/statblock'
+import { ABILITY_KEYS, leadingNumber, passiveScore, readStatBlock, saveBonus, skillBonus, SKILLS, statLine } from '../../shared/statblock'
 import type { LiveView, LogView, PartyMarker, WhereView,   SessionView } from '../../shared/types'
 import { advise } from '../advisor'
 import { centroid } from '../../shared/geometry'
@@ -89,7 +89,10 @@ export const livePart = part({
           colour: typeof e.attributes.colour === 'string' ? e.attributes.colour : null,
           tempHp: typeof e.attributes.temp_hp === 'number' ? e.attributes.temp_hp : 0,
           conditions: typeof e.attributes.conditions === 'string' ? e.attributes.conditions : '',
-          level: classesOf(e.attributes).reduce((n, c) => n + c.level, 0)
+          level: classesOf(e.attributes).reduce((n, c) => n + c.level, 0),
+          pp: sb ? passiveScore(sb, 'Perception') : null,
+          saves: sb ? ABILITY_KEYS.map((k) => { const b = saveBonus(sb, k); return { name: k.toUpperCase(), bonus: b.bonus, prof: b.proficient } }) : [],
+          skills: sb ? SKILLS.map(([name, k]) => { const b = skillBonus(sb, name, k); return { name, bonus: b.bonus, prof: b.proficient } }) : []
         }
       })
   },
@@ -155,10 +158,11 @@ export const livePart = part({
     this.log.run(status === 'defunct' ? 'Removed a log entry' : 'Restored a log entry', (w) => { w.update('log_entry', id, { status }) })
   },
 
-  /** Sets a player character's current hit points (never below 0). */
+  /** Sets a player character's current hit points (0 up to the maximum; temporary hit points are their own box). */
   setHp(entityId: string, hp: number): void {
     const e = this.entityRow(entityId)
-    const value = Math.max(0, Math.round(hp))
+    const max = leadingNumber(readStatBlock(e.attributes.statblock)?.hp ?? '')
+    const value = Math.max(0, Math.min(max || Infinity, Math.round(hp)))
     this.log.run(`${e.name}: ${value} HP`, (w) => {
       w.update('entity', entityId, { attributes: { ...e.attributes, current_hp: value } })
     })
@@ -231,10 +235,13 @@ export const livePart = part({
       if (kind === 'character') person(w, payload as GeneratedPerson)
       else if (kind === 'tavern') {
         const t = payload as { name: string; keeper: GeneratedPerson; patrons: GeneratedPerson[]; rumour: string; dish: string; summary: string }
+        // A tavern building where the party is, so it and its people show under Who is here (long playtest, 2026-10-22).
+        const at = stash ? null : this.partyPlace()
         const place = this.insertEntity(w, {
-          boardId: g, type: 'LOCATION', name: t.name, position: this.freeGlobalSpot(), status,
-          attributes: { summary: t.summary, description: `Tonight: ${t.dish}. Rumour: ${t.rumour}`, generated: true }
+          boardId: g, type: 'BUILDING', name: t.name, position: this.freeGlobalSpot(), status,
+          attributes: { summary: t.summary, description: `Tonight: ${t.dish}. Rumour: ${t.rumour}`, building_kind: 'tavern', generated: true, ...(at ? { location: at.name } : {}) }
         })
+        if (at) w.insert('relationship', { id: randomUUID(), sourceId: place, targetId: at.id, type: 'LOCATED_AT', isSecret: false, status: 'active' })
         ids.push(place)
         for (const c of [t.keeper, ...t.patrons]) {
           const id = person(w, c, { location: t.name })
@@ -311,7 +318,12 @@ export const livePart = part({
       const detail = region ? this.regionDetail(region.id) : null
       const keyNpcs = new Set((prep?.items ?? []).filter((i) => i.kind === 'npc' && i.entityId).map((i) => i.entityId!))
       people = (detail?.hereNow ?? []).filter((e) => e.type !== 'PC')
-        .map((e) => ({ id: e.id, name: e.name, type: e.type, met: met.has(e.id), keyNpc: keyNpcs.has(e.id) }))
+        .map((e) => {
+          const a = this.entityRow(e.id).attributes
+          const sb = readStatBlock(a.statblock)
+          const stat = sb && (sb.hp || sb.ac || sb.cr) ? statLine(sb) : ''
+          return { id: e.id, name: e.name, type: e.type, met: met.has(e.id), keyNpc: keyNpcs.has(e.id), notes: typeof a.notes === 'string' ? a.notes.trim() : '', stat }
+        })
         .sort((a, b) => Number(b.keyNpc) - Number(a.keyNpc) || Number(b.met) - Number(a.met) || a.name.localeCompare(b.name))
       // Secrets: secret strings the party does not know yet that touch this place or someone here.
       const here = new Set([loc.id, ...people.map((p) => p.id)])

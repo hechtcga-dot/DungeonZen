@@ -109,6 +109,20 @@ describe('encounter planner', () => {
     expect(c.encounterView(id).difficulty.factor).toBe(1.2)
   })
 
+  it('a tavern filled on the fly stands where the party is; its people and NPC notes show under Who is here', () => {
+    const png = Buffer.alloc(24); png.write('\x89PNG\r\n\x1a\n', 0, 'latin1'); png.writeUInt32BE(1000, 16); png.writeUInt32BE(800, 20)
+    writeFileSync(join(dir, 'm.png'), png)
+    const mapId = c.importMap(join(dir, 'm.png')).id
+    c.createRegion({ mapId, polygon: [[0, 0], [200, 0], [200, 200], [0, 200]], newName: 'Saltreach' })
+    c.moveParty({ mapId, x: 100, y: 100, minutes: 0 })
+    const keeper = { name: 'Hob Tally', species: 'human', occupation: 'innkeeper', attitude: 'friendly', quirk: 'hums', wants: 'quiet', summary: 'Innkeeper', statblockName: '' }
+    c.keepGenerated('tavern', { name: 'The Gull', keeper, patrons: [], rumour: 'r', dish: 'd', summary: 's' }, srdCopy, () => null, false)
+    const w = c.liveWhere()
+    expect(w.people.map((p) => p.name)).toContain('Hob Tally')
+    const mayor = c.createEntity({ boardId: c.info().globalBoardId, type: 'NPC', name: 'Mayor Edda', position: { x: 0, y: 0 }, attributes: { location: 'Saltreach', notes: 'Deception +5' } })
+    expect(c.liveWhere().people.find((p) => p.id === mayor.id)?.notes).toBe('Deception +5')
+  })
+
   it('shows encounters planned where the party is on the live desk', () => {
     const png = Buffer.alloc(24); png.write('\x89PNG\r\n\x1a\n', 0, 'latin1'); png.writeUInt32BE(1000, 16); png.writeUInt32BE(800, 20)
     writeFileSync(join(dir, 'm.png'), png)

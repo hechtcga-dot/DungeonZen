@@ -54,7 +54,7 @@
 [data-skin='adventure'] .desk-theme :is(.dm-panel, .parchment-note, .parchment-sheet, .panel, .side, .journal-page, .chest, .library-templates) :is(button.outline, button.ghost):not(.nb *):not([aria-pressed='true']) {
   background: var(--adv-paper-btn); border: 1px solid var(--adv-paper-line); color: var(--adv-ink);
 }
-[data-skin='adventure'] :is(.dm-panel, .parchment-note, .parchment-sheet, .panel, .side, .journal-page, .chest, .library-templates) button.brass,
+[data-skin='adventure'] :is(.dm-panel, .parchment-note, .parchment-sheet, .panel, .side, .journal-page, .chest, .library-templates, .board-map-hint) button.brass,
 [data-skin='adventure'] button.wax, [data-skin='adventure'] .desk-theme button.primary:not(.nb *),
 [data-skin='adventure'] .desk-theme button[aria-pressed='true']:not(.nb *), [data-skin='adventure'] .desk-theme .viewbar button[aria-pressed='true'] {
   background: var(--adv-red); border: 1px solid var(--adv-red-edge); color: #f6e6c8; font-family: var(--adv-sans); font-weight: 500;
