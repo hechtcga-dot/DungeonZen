@@ -9,7 +9,10 @@ minutes into dates and back. Days stay 24 hours. Reference look: Fantasy Calenda
   screen. Campaign settings move to the gear menu (name, rules, measurements, prices).
 - Desk map button: "Full Map / Party Travel Options".
 - The party box leaves the Desk (party shown on Live, board, sheets); its place = Calendar box, same width as the
-  other DM-screen boxes: the date (day, month, year, weekday, season) and "Open calendar". Events only in the calendar.
+  other DM-screen boxes: date in one line ("14 Tarsakh 1492 DR"), weekday · season,
+  the next 3 events (one line each, cut with "…", full on hover), "Open calendar". Plain font.
+- The hour picture shows the day's weather (clouds, rain, snow, fog, storm over the sky colours); its words read
+  "Daylight · Light rain" (Desk and Live).
 - Calendar dates replace "Day 12" on every screen (Timeline, Live, log, Players' view); day number on hover.
 - More than one moon now. The moon box gets a "Set…" button like the clock (moon dates and cycles); also in calendar
   settings. Per moon: "From the calendar" or "Manual Lunar Dates" (full-moon date + cycle; today's "moon is full on
