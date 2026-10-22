@@ -140,7 +140,7 @@ select.ink-select.on-wood { background: var(--parchment); }
 .clock-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .clock-text { font-family: var(--mono); font-size: 18px; }
 .moon-panel { align-items: center; text-align: center; }
-.moon-panel .panel-title { align-self: flex-start; }
+.moon-panel .panel-title { align-self: stretch; text-align: left; }
 .moon-disc { width: 104px; height: 104px; }
 .moon-name { font-family: var(--display); font-size: 20px; }
 .ledger { list-style: none; margin: 0; padding: 0; flex: 1; }
@@ -1711,26 +1711,34 @@ input.title-field.title-field, input.title-field.title-field:hover, input.title-
 .dm-screen .ink-button { min-height: 28px; padding: 0 8px; font-size: 13px; white-space: nowrap; }
 .dm-screen .ledger li { min-height: 24px; }
 .dm-screen .ledger-name { min-height: 24px; font-size: 16px; }
-/* A long name keeps its line, left; the numbers go under it on the right, never split. */
-.dm-screen .ledger li { flex-wrap: wrap; column-gap: 8px; row-gap: 0; }
-.dm-screen .ledger-name { text-align: left; }
+/* Name and numbers on one line when the panel is wide; long names shorten (full name on hover). */
+.dm-screen .ledger li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
+.dm-screen .ledger-name { text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dm-screen .ledger .mono { margin-left: auto; white-space: nowrap; }
+/* A narrow party panel: every character's numbers under the name (all rows alike, nothing cut; owner, 2026-10-22). */
+.dm-screen .party-panel { container-type: inline-size; }
+@container (max-width: 380px) {
+  .dm-screen .ledger li { grid-template-columns: minmax(0, 1fr); justify-items: start; padding: 2px 0 4px; }
+  .dm-screen .ledger .ledger-name { min-height: 0; line-height: 1.25; }
+  .dm-screen .ledger .mono { margin-left: 0; font-size: 12.5px; line-height: 1.3; }
+}
 .dm-screen .row.tight { gap: 4px; }
 @media (max-width: 1200px) { .dm-screen { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .session-panel { min-height: 0; }
-.session-panel .panel-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Title and lines up to two lines each (owner, 2026-10-22: cut off at one). */
+.session-title-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .session-nav { display: flex; align-items: center; gap: 4px; }
 .session-nav .ink-button.icon { width: 28px; padding: 0; font-size: 16px; flex: 0 0 28px; }
 .session-part { flex: 1; min-width: 0; min-height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 6px; border: 0; background: transparent; box-shadow: none; color: var(--ink); font-family: var(--display); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .session-part:hover:not(:disabled) { background: rgba(120, 80, 30, 0.12); }
 .session-part .prep-n { width: 20px; height: 20px; font-size: 12px; flex: 0 0 20px; font-family: var(--sans, inherit); }
-.session-lines { list-style: none; margin: 0; padding: 0; max-height: 104px; overflow-y: auto; font-size: 13px; }
-.session-lines li { display: flex; align-items: center; gap: 6px; min-height: 24px; border-bottom: 1px dashed rgba(90, 74, 50, 0.35); cursor: default; }
+.session-lines { list-style: none; margin: 0; padding: 0; max-height: 132px; overflow-y: auto; font-size: 13px; }
+.session-lines li { display: flex; align-items: flex-start; gap: 6px; min-height: 24px; padding: 3px 0; border-bottom: 1px dashed rgba(90, 74, 50, 0.35); cursor: default; }
 .session-lines li:last-child { border-bottom: 0; }
-.session-lines li span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-lines li span { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .session-lines li.is-done span { text-decoration: line-through; color: var(--ink-muted); }
-.session-lines input { margin: 0; width: 15px; height: 15px; min-height: 0; flex: 0 0 15px; }
+.session-lines input { margin: 1px 0 0; width: 15px; height: 15px; min-height: 0; flex: 0 0 15px; }
 .session-empty { margin: 4px 0; }
 
 /* DM notes title on one line beside ⧉. */

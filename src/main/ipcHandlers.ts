@@ -212,14 +212,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('profile:recent', () => profile.recent())
 
   handle('campaign:create', async ({ name }) => {
-    const win = getWindow()
     wakeCursor()
     const options = {
       title: 'Choose where to keep the campaign folder',
       buttonLabel: 'Create campaign here',
       properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'>
     }
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    // No parent window (owner, 2026-10-22: pointer still gone in 3.8.0): a folder window owned by the app shares its
+    // pointer state, and the app hid the pointer while the DM typed the name; on its own the window shows the pointer.
+    const result = await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
     const folder = join(result.filePaths[0], safeFolderName(name))
     Campaign.create(folder, name).close()
@@ -227,14 +228,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   })
 
   handle('campaign:openDialog', async () => {
-    const win = getWindow()
     wakeCursor()
     const options = {
       title: 'Open a campaign folder',
       buttonLabel: 'Open campaign',
       properties: ['openDirectory'] as Array<'openDirectory'>
     }
-    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    // On its own, like the new campaign folder window (pointer).
+    const result = await dialog.showOpenDialog(options)
     if (result.canceled || result.filePaths.length === 0) return null
     return openFolder(result.filePaths[0])
   })

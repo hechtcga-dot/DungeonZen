@@ -108,7 +108,7 @@ function Desk({ desk }: { desk: DeskView }) {
               <ul className="ledger">
                 {desk.party.map((p) => (
                   <li key={p.id}>
-                    <button className="ledger-name" onClick={() => void openSheet(p.id)}>{p.name}</button>
+                    <button className="ledger-name" title={p.name} onClick={() => void openSheet(p.id)}>{p.name}</button>
                     <span className="mono">{p.hp ? `HP ${p.hp}` : ''}{p.ac ? ` · AC ${p.ac}` : ''} · XP {p.xp.toLocaleString()}</span>
                   </li>
                 ))}
@@ -280,7 +280,7 @@ function SessionPanel({ desk }: { desk: DeskView }) {
     <div className="dm-panel session-panel">
       <div className="session-head">
         <PopOut title="Open the whole Session prep in a window of its own" onClick={() => void call('window:popScreen', { screen: 'prep' })} />
-        <h2 className="panel-title" title={prep.title ? `Session ${prep.number}: ${prep.title}` : undefined}>Session {prep.number}{prep.title ? `: ${prep.title}` : ''}</h2>
+        <h2 className="panel-title" title={prep.title ? `Session ${prep.number}: ${prep.title}` : undefined}><span className="session-title-text">Session {prep.number}{prep.title ? `: ${prep.title}` : ''}</span></h2>
       </div>
       <div className="session-nav">
         <button className="ink-button icon" aria-label="Previous section" title="Previous section" onClick={() => flip(-1)}>‹</button>
