@@ -430,7 +430,8 @@ built.
     Rests (Live): a short rest refills short-rest uses; a long rest refills all uses, hit dice, clears death saves,
     one exhaustion level off. Not taken: rest buttons on the sheet (5), inventory (9). Sheet keeps the desk style.
   - Run encounter PC rows show the sheet's Heroic Inspiration (toggle), exhaustion (with its −d20 / −speed),
-    hit dice left (− spends one) and limited uses (ticks), written to the card (`CombatantInfo.pc`). Death saves
+    hit dice left (− spends one, + gives one back), spell slots (pip per slot per level and Pact Magic, filled = used;
+    click spends or gives back; beside the hit dice, wraps under when too wide; 2026-10-22) and limited uses (ticks), written to the card (`CombatantInfo.pc`). Death saves
     live on the card (`attributes.death_saves`): the fight reads them (`combatView`) and writes changes back in the
     same undo step (`updateCombat`); the full sheet shows the same ticks.
   - Battle planner (`BattlePlanner.tsx`, `src/shared/battleplan.ts`, `Campaign.battlePlan`, `encounter:plan`) on the encounter
@@ -1069,8 +1070,10 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
     they overlap (`spreadTags` in `src/shared/labels.ts`, the who-is-here line counted). Their who-is-here line (and
     the Map's) lists encounters planned there too (location by name, LOCATED_AT or IN_ENCOUNTER string).
   - Run encounter turn panel (`src/shared/turnplan.ts`): attacks, spells and features in Combat (open, most likely
-    first: spells with a slot (upcast counts), multiattack, cantrips and attacks, bonus actions; no slot left last,
-    faded), Situational (reactions, healing, defence, Shell Defense, Convert Sorcery Points…), Out of combat (utility
+    first by `harmValue` (owner, 2026-10-22): average damage × darts/attacks ("x 3", "three darts"), ×2 for an area,
+    +30 for Paralyzed/Stunned/Restrained/Incapacitated, +8 for Prone/Frightened/Blinded…, +5 no reactions or
+    disadvantage, +2 per spell level; bonus actions 30 below actions; lines that harm nobody low; no slot left last,
+    faded; conditions only on the caster (See Invisibility) are Situational, not Combat), Situational (reactions, healing, defence, Shell Defense, Convert Sorcery Points…), Out of combat (utility
     spells, rituals, longer casting); ▾ per line moves it to another group, kept on the card
     (`attributes.action_groups` by name, `CombatantInfo.actionGroups`). Likely this turn (local rules, no AI): the two
     best combat options with a legal target (checks as in the cast panel; Bloodied and low HP first; concentration

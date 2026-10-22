@@ -178,8 +178,8 @@ function Effects({ v, ended, save }: { v: CombatView; ended: boolean; save(st: C
         <h2 className="panel-title">Terrain and spell effects</h2>
         {!ended && !adding && <button className="ink-button" onClick={() => setAdding(blank)}>Add effect…</button>}
       </div>
-      {s.effects.length === 0 && !adding && <p className="ink-muted"><SpellText text="None. Add strong wind, Spike Growth, a Web…" glossary={{ Web: '' }} /></p>}
-      <ul className="cb-effect-list">
+      {s.effects.length === 0 && !adding && <p className="ink-muted cb-effects-none"><SpellText text="None. Add strong wind, Spike Growth, a Web…" glossary={{ Web: '' }} /></p>}
+      {s.effects.length > 0 && <ul className="cb-effect-list">
         {s.effects.map((e) => (
           <li key={e.id}>
             <span><strong>{effectLine(e)}</strong>{e.rounds ? ` · ${e.rounds} rd` : ''}{e.source ? ` · from ${e.source}` : ''}
@@ -187,7 +187,7 @@ function Effects({ v, ended, save }: { v: CombatView; ended: boolean; save(st: C
             {!ended && <button className="link-button danger-link" onClick={() => void save({ ...s, effects: s.effects.filter((x) => x.id !== e.id), log: [...s.log, `Round ${s.round}: ${e.name} ends.`] }, `${e.name} ends`)}>End</button>}
           </li>
         ))}
-      </ul>
+      </ul>}
       {adding && (
         <form className="cb-effect-form" onSubmit={(ev) => {
           ev.preventDefault()
@@ -340,7 +340,7 @@ function CombatantRow({ c, info, s, i, last, current, ended, selected, inGroup, 
           )}
         </div>
         {startFx.length > 0 && <ul className="cb-fx-now">{startFx.map((e) => <li key={e.id}>{effectLine(e)}</li>)}</ul>}
-        {c.entityId && info?.pc && <PcLine entityId={c.entityId} pc={info.pc} name={c.name} />}
+        {c.entityId && info?.pc && <PcLine entityId={c.entityId} pc={info.pc} slots={info.slots} name={c.name} />}
         {c.side === 'party' && c.hp === 0 && c.maxHp > 0 && !ended && <DeathSaves c={c} s={s} onState={onState} />}
         <div className="cb-cond-row">
           {c.conditions.map((k, j) => (
@@ -394,8 +394,8 @@ function NotesDialog({ c, ended, onSave, onClose }: { c: Combatant; ended: boole
   )
 }
 
-/** A character's sheet tracking on its row: Heroic Inspiration, exhaustion, hit dice, limited uses (same as the full sheet). */
-function PcLine({ entityId, pc, name }: { entityId: string; pc: NonNullable<CombatantInfo['pc']>; name: string }) {
+/** A character's sheet tracking on its row: Heroic Inspiration, exhaustion, hit dice, spell slots, limited uses (same as the full sheet). */
+function PcLine({ entityId, pc, slots, name }: { entityId: string; pc: NonNullable<CombatantInfo['pc']>; slots: CombatantInfo['slots']; name: string }) {
   const act = useBoard((st) => st.act)
   const set = (attributes: Record<string, unknown>) => void act('entity:update', { id: entityId, patch: { attributes } })
   const hdLeft = pc.hitDice.total - pc.hitDice.used
@@ -414,6 +414,31 @@ function PcLine({ entityId, pc, name }: { entityId: string; pc: NonNullable<Comb
       {pc.hitDice.total > 0 && (
         <span className="cb-hd" title={pc.hitDice.dice}>Hit dice <strong>{hdLeft}/{pc.hitDice.total}</strong>
           <button type="button" className="ink-button" aria-label={`${name}: spend a hit die`} disabled={hdLeft <= 0} onClick={() => set({ hit_dice_used: pc.hitDice.used + 1 })}>−</button>
+          <button type="button" className="ink-button" aria-label={`${name}: get a hit die back`} disabled={pc.hitDice.used <= 0} onClick={() => set({ hit_dice_used: pc.hitDice.used - 1 })}>+</button>
+        </span>
+      )}
+      {/* Spell slots beside the hit dice (owner, 2026-10-22): a pip per slot, click to spend or give back. */}
+      {(slotsTotal(slots).some((t) => t > 0) || slots.pact.count > 0) && (
+        <span className="cb-slots" role="group" aria-label={`${name} spell slots`}>
+          Slots
+          {slotsTotal(slots).map((t, k) => t > 0 && (
+            <span key={k} className="cb-pips" title={`Level ${k + 1}: ${Math.max(0, t - slots.used[k])} of ${t} left`}>
+              <b>{k + 1}</b>
+              {Array.from({ length: t }, (_, j) => (
+                <button key={j} type="button" className={`cb-pip${j < slots.used[k] ? ' is-used' : ''}`} aria-label={`Level ${k + 1} slot ${j + 1}${j < slots.used[k] ? ' used' : ''}`}
+                  onClick={() => set({ slots_used: slots.used.map((u, i) => (i === k ? (j < u ? j : j + 1) : u)) })} />
+              ))}
+            </span>
+          ))}
+          {slots.pact.count > 0 && (
+            <span className="cb-pips" title={`Pact Magic, level ${slots.pact.level}: back on a short rest`}>
+              <b>Pact {slots.pact.level}</b>
+              {Array.from({ length: slots.pact.count }, (_, j) => (
+                <button key={j} type="button" className={`cb-pip${j < slots.pact.used ? ' is-used' : ''}`} aria-label={`Pact slot ${j + 1}${j < slots.pact.used ? ' used' : ''}`}
+                  onClick={() => set({ pact_used: j < slots.pact.used ? j : j + 1 })} />
+              ))}
+            </span>
+          )}
         </span>
       )}
       {pc.uses.map((u, i) => (

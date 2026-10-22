@@ -26,8 +26,9 @@ export function actionGroup(a: Action, r: SpellRules | null, own?: unknown): Act
   if (r) {
     if (r.time === 'reaction' || r.heal) return 'situational'
     if (r.time === 'other') return 'other'
-    if (r.attack || r.save || r.damage.length || r.conditions.length) return 'combat'
-    return 'other'
+    if (r.attack || r.save || r.damage.length || r.conditions.some((k) => FOE_CONDITION.test(k))) return 'combat'
+    // Only conditions on the caster (See Invisibility, Invisibility): not an attack.
+    return r.conditions.length ? 'situational' : 'other'
   }
   if (SITUATIONAL.test(text) && !/attack roll|to hit/i.test(text)) return 'situational'
   return HARMS.test(text) ? 'combat' : 'situational'
@@ -46,17 +47,35 @@ export function hasSlotFor(i: CombatantInfo, level: number): boolean {
   return slotsLeft(i.slots).some((n, k) => k + 1 >= level && n > 0) || (pactLeft(i.slots) > 0 && i.slots.pact.level >= level)
 }
 
-/** How likely in a fight (higher first): spells with a slot, then cantrips and attacks, then bonus actions; no slot left last. */
+// Conditions that take a foe out of the fight, and ones that hamper it; Invisible and the like help the caster.
+const STRONG = /paralyzed|stunned|incapacitated|restrained|unconscious|petrified/i
+const FOE_CONDITION = /paralyzed|stunned|incapacitated|restrained|unconscious|petrified|frightened|charmed|blinded|grappled|poisoned|prone|deafened/i
+const COUNT: Record<string, number> = { two: 2, three: 3, four: 4, five: 5 }
+
+/** What a line does to the foes: average damage (times darts or attacks, doubled for an area) plus how much it disrupts. */
+export function harmValue(a: Action, r: SpellRules | null): number {
+  const text = a.full ?? a.text
+  const times = Number(/\d+d\d+[^.]*?[x×]\s*(\d)/i.exec(text)?.[1] ?? 0) || COUNT[/\b(two|three|four|five)\s+(?:glowing\s+)?(?:darts|rays|beams|bolts|attacks)/i.exec(text)?.[1]?.toLowerCase() ?? ''] || 1
+  const area = /\b(?:radius|sphere|cone|cube|line|cylinder|emanation)\b/i.test(text) ? 2 : 1
+  const conditions = r ? r.conditions : text.match(new RegExp(FOE_CONDITION.source, 'gi')) ?? []
+  const control = conditions.some((k) => STRONG.test(k)) ? 30 : conditions.some((k) => FOE_CONDITION.test(k)) ? 8 : 0
+  const hamper = r?.noReactions || /can'?t take reactions|disadvantage on/i.test(text) ? 5 : 0
+  return lineDamage(text) * times * area + control + hamper
+}
+
+/**
+ * How likely in a fight (higher first): the most damage or disruption (owner, 2026-10-22), bonus actions below
+ * actions, lines that harm nobody low, spells with no slot left last.
+ */
 export function combatScore(a: Action, r: SpellRules | null, i: CombatantInfo): number {
   const text = `${a.name}. ${a.full ?? a.text}`
-  const dmg = lineDamage(a.full ?? a.text)
-  const control = r?.conditions.some((k) => /paralyzed|stunned|restrained|incapacitated|frightened|charmed|blinded|prone/i.test(k)) ? 15 : 0
+  const value = harmValue(a, r)
   const bonus = a.kind === 'BONUS_ACTION' || r?.time === 'bonus'
-  if (r && r.level > 0 && !hasSlotFor(i, r.level) && !i.spellList?.some((s) => s.name.toLowerCase() === a.name.toLowerCase() && s.useKey)) return -100 + dmg
-  if (bonus) return 20 + dmg + control
-  if (/^multiattack/i.test(a.name)) return 90
-  if (r && r.level > 0) return 100 + r.level * 5 + dmg + control
-  return 50 + dmg + control + (HARMS.test(text) ? 0 : -20)
+  if (r && r.level > 0 && !hasSlotFor(i, r.level) && !i.spellList?.some((s) => s.name.toLowerCase() === a.name.toLowerCase() && s.useKey)) return -100 + value
+  if (/^multiattack/i.test(a.name)) return 90 + value
+  const harms = value > 0 || (r ? !!(r.attack || r.save) : HARMS.test(text))
+  if (!harms) return 10
+  return (bonus ? 20 : 50) + value + (r ? r.level * 2 : 0)
 }
 
 export interface GroupedAction extends Action { group: ActionGroup; score: number; noSlot: boolean }

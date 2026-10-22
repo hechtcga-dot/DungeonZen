@@ -124,8 +124,12 @@
 [data-skin='adventure'] .tarot-plus { font-size: 18px; }
 [data-skin='adventure'] .tarot-edit { width: 28px; height: 28px; min-height: 0; top: 6px; right: 6px; }
 [data-skin='adventure'] .tarot-slot > .tarot { padding-right: 42px; }
-[data-skin='adventure'] .party-row { gap: 10px; flex-wrap: wrap; }
-[data-skin='adventure'] .tarot-pc { width: 220px; }
+[data-skin='adventure'] .party-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+[data-skin='adventure'] .tarot-pc { width: 240px; }
+/* Party slips: numeral and name on top, class under them, the table numbers across the whole slip. */
+[data-skin='adventure'] .party-row > .tarot-pc { grid-template-areas: 'n t' 'n s' 'f f'; align-items: start; align-content: start; row-gap: 2px; padding: 8px 10px; }
+[data-skin='adventure'] .tarot-pc .tarot-footer { margin-top: 6px; color: var(--adv-ink); }
+[data-skin='adventure'] .tarot-pc .pc-stats { justify-content: space-between; }
 
 /* The new art on the Desk (HourScene, MoonArt) replaces the dial and the disc. */
 [data-skin='adventure'] .adv-art-hour { width: 160px; height: 104px; flex: none; }

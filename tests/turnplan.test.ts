@@ -18,7 +18,7 @@ const raph = {
     a('Convert Sorcery Points', 'BONUS_ACTION', 'Gain additional spell slots by spending sorcery points, or sacrifice spell slots to regain sorcery points.'),
     a('Fire Bolt', 'SPELL', 'Cantrip Evocation, 1 Action, Range 120 ft., Spell Attack +12, 2d10 Fire damage.'),
     a('Hold Person', 'SPELL', 'Level 2 Enchantment · action · 60 feet · V, S, M · Concentration, 1 minute. Wisdom Saving Throw: DC 20'),
-    a('Fireball', 'SPELL', 'Level 3 Evocation · action · 150 feet. Dexterity Saving Throw: DC 20. 8d6 Fire damage.'),
+    a('Fireball', 'SPELL', 'Level 3 Evocation · action · 150 feet. Dexterity Saving Throw: DC 20. 8d6 Fire damage. A bright streak flashes to a point and explodes in a 20 ft radius sphere.'),
     a('Absorb Elements', 'SPELL', 'Level 1 Abjuration, 1 Reaction, Self. Grants resistance to incoming elemental damage.'),
     a('Detect Magic', 'SPELL', 'Level 1 Divination, 1 Action, Self, Concentration 10 min. Senses the presence of magic within 30 ft.'),
     a('Shape Water', 'SPELL', 'Cantrip Transmutation, 1 Action, Range 30 ft., Utility / Control. Manipulates an area of water.')
@@ -57,5 +57,23 @@ describe('likely this turn', () => {
     expect(likelyThisTurn(s, busy, raph, info, rulesOf, {})[1]).toBe('Fire Bolt → Goblin (AC 15, Bloodied, 4/10 HP).')
     const hurt = { ...s.combatants[0], hp: 20 }
     expect(likelyThisTurn(s, hurt, raph, info, rulesOf, {}).at(-1)).toBe('Bloodied (20/65 HP): Shell Defense: Withdraw?')
+  })
+})
+
+describe('most damage or disruption first (owner, 2026-10-22)', () => {
+  it('a self buff is no attack; three darts count three times; Fire Bolt beats a slot spell that only helps', () => {
+    const r2 = {
+      ...raph, slots: slotState({ spell_slots: [4, 3, 3, 3, 1], slots_used: [0, 0, 3, 3, 1] }),
+      actions: [
+        a('See Invisibility', 'SPELL', 'Level 2 Divination, 1 Action, Self, Duration 1 hr. See invisible creatures and objects as if they were visible.'),
+        a('Magic Missile', 'SPELL', 'Level 1 Evocation, 1 Action, Range 120 ft., 1d4+1 Force damage x 3. Creates three magical darts that automatically hit targets.'),
+        a('Gust Barrier', 'SPELL', 'Cantrip Evocation, 1 Action, Self, CON Save DC 20, Prone / Push. Creates a whirling barrier of air around self for 1 round.'),
+        a('Fire Bolt', 'SPELL', 'Cantrip Evocation, 1 Action, Range 120 ft., Spell Attack +12, 2d10 Fire damage. Hits a target with a beam of fire.'),
+        a('Dagger', 'ACTION', 'Ranged or Melee Attack Roll: +5, range 20/60 ft., reach 5 ft. 1d4 + 1 Piercing damage.')
+      ]
+    } as unknown as CombatantInfo
+    const g = groupActions(r2, rulesOf, {})
+    expect(g.combat.map((x) => x.name)).toEqual(['Magic Missile', 'Fire Bolt', 'Gust Barrier', 'Dagger'])
+    expect(g.combat.map((x) => x.name)).not.toContain('See Invisibility')
   })
 })

@@ -57,58 +57,8 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
       </div>
 
       <div className="where-grid">
-        <div className="parchment-note where-panel">
-          <h3 className="side-h">Tips</h3>
-          {where.tips.length ? <ul className="ink-list where-tips">{where.tips.map((t, i) => <li key={i}><LinkedText text={t} /></li>)}</ul> : <p className="ink-muted">Nothing to point out.</p>}
-          {where.encounters.length > 0 && (
-            <>
-              <h3 className="side-h">Encounters here</h3>
-              <ul className="here-list">
-                {where.encounters.map((e) => (
-                  <li key={e.id}>
-                    <button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>
-                    <span className="met-badge">{e.rating}{e.runs ? ` · run ${e.runs}×` : ''}</span>
-                    {v.session && <button className="link-button" onClick={() => void act('encounter:run', { encounterId: e.id })}>Start fight</button>}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {where.place?.notes && (<><h3 className="side-h">Notes on {where.place.name}</h3><p className="region-notes"><LinkedText text={where.place.notes} /></p></>)}
-        </div>
-
-        <div className="parchment-note where-panel">
-          <h3 className="side-h">Who is here</h3>
-          {where.people.length === 0 ? <p className="ink-muted">Nobody, as far as your cards say.</p> : (
-            <ul className="here-list">
-              {where.people.map((p) => (
-                <li key={p.id}>
-                  <button className="ledger-name" onClick={() => void openSheet(p.id)}>{p.name}</button>
-                  {p.keyNpc && <span className="badge key-badge">KEY</span>}
-                  <span className={`met-badge${p.met ? ' is-met' : ''}`}>{p.met ? 'Met' : 'Not met'}</span>
-                  {!p.met && v.session && (
-                    <button className="link-button" onClick={() => void act('log:add', { kind: 'meeting', text: '', entityId: p.id })}>They meet</button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          <h3 className="side-h">Secrets here <span className="dm-only">DM only</span></h3>
-          {where.secrets.length === 0 ? <p className="ink-muted">No secrets tied to this place or the people here.</p> : (
-            <ul className="secret-list">
-              {where.secrets.map((x) => (
-                <li key={x.id} className={x.done ? 'is-done' : undefined}>
-                  {x.source === 'clue'
-                    ? <label><input type="checkbox" checked={!!x.done} onChange={(e) => void act('prepItem:done', { id: x.id, done: e.target.checked })} /> <LinkedText text={x.text} /></label>
-                    : <span><LinkedText text={x.text} /></span>}
-                  <span className="secret-src">{x.source === 'string' ? 'secret string' : x.source === 'card' ? 'clue card' : 'prep secret'}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="parchment-note where-panel">
+        {/* Tonight's prep is the big one; tips and who is here stacked beside it (owner, 2026-10-22). */}
+        <div className="parchment-note where-panel where-prep">
           <h3 className="side-h">Tonight's prep {prep ? `(session ${prep.number})` : ''}</h3>
           {!prep ? (
             <p className="ink-muted">No prep sheet for this session. <button className="link-button" onClick={() => goTo('prep')}>Start one</button></p>
@@ -121,6 +71,58 @@ export function WhereTheyAre({ v }: { v: LiveView }) {
               {threads.length > 0 && <PrepTicks title="Loose threads" one="Thread" items={threads} label="Followed up" />}
             </>
           )}
+        </div>
+        <div className="where-side">
+          <div className="parchment-note where-panel">
+            <h3 className="side-h">Tips</h3>
+            {where.tips.length ? <ul className="ink-list where-tips">{where.tips.map((t, i) => <li key={i}><LinkedText text={t} /></li>)}</ul> : <p className="ink-muted">Nothing to point out.</p>}
+            {where.encounters.length > 0 && (
+              <>
+                <h3 className="side-h">Encounters here</h3>
+                <ul className="here-list">
+                  {where.encounters.map((e) => (
+                    <li key={e.id}>
+                      <button className="ledger-name" onClick={() => openEncounter(e.id)}>{e.name}</button>
+                      <span className="met-badge">{e.rating}{e.runs ? ` · run ${e.runs}×` : ''}</span>
+                      {v.session && <button className="link-button" onClick={() => void act('encounter:run', { encounterId: e.id })}>Start fight</button>}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {where.place?.notes && (<><h3 className="side-h">Notes on {where.place.name}</h3><p className="region-notes"><LinkedText text={where.place.notes} /></p></>)}
+          </div>
+
+          <div className="parchment-note where-panel">
+            <h3 className="side-h">Who is here</h3>
+            {where.people.length === 0 ? <p className="ink-muted">Nobody, as far as your cards say.</p> : (
+              <ul className="here-list">
+                {where.people.map((p) => (
+                  <li key={p.id}>
+                    <button className="ledger-name" onClick={() => void openSheet(p.id)}>{p.name}</button>
+                    {p.keyNpc && <span className="badge key-badge">KEY</span>}
+                    <span className={`met-badge${p.met ? ' is-met' : ''}`}>{p.met ? 'Met' : 'Not met'}</span>
+                    {!p.met && v.session && (
+                      <button className="link-button" onClick={() => void act('log:add', { kind: 'meeting', text: '', entityId: p.id })}>They meet</button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <h3 className="side-h">Secrets here <span className="dm-only">DM only</span></h3>
+            {where.secrets.length === 0 ? <p className="ink-muted">No secrets tied to this place or the people here.</p> : (
+              <ul className="secret-list">
+                {where.secrets.map((x) => (
+                  <li key={x.id} className={x.done ? 'is-done' : undefined}>
+                    {x.source === 'clue'
+                      ? <label><input type="checkbox" checked={!!x.done} onChange={(e) => void act('prepItem:done', { id: x.id, done: e.target.checked })} /> <LinkedText text={x.text} /></label>
+                      : <span><LinkedText text={x.text} /></span>}
+                    <span className="secret-src">{x.source === 'string' ? 'secret string' : x.source === 'card' ? 'clue card' : 'prep secret'}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
       <AskAi where={where} hasSession={!!v.session} />
