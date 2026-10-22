@@ -17,6 +17,8 @@ minutes into dates and back. Days stay 24 hours. Reference look: Fantasy Calenda
 - More than one moon now. The moon box gets a "Set…" button like the clock (moon dates and cycles); also in calendar
   settings. Per moon: "From the calendar" or "Manual Lunar Dates" (full-moon date + cycle; today's "moon is full on
   day" setting becomes Manual Lunar Dates).
+- Calendar screen side panel (now/date ± controls, weather, Show ticks, key, "Calendar settings…") folds away under a
+  "Settings ›" button left of the month title; folded by default, so the grid gets the full width.
 - Calendar settings (preset, builder, Day 1 date, seasons, weather) open from the Calendar screen.
 - Builder: months numbered 1–N; festival days indented under their month: on day X (a number; a day past the month's
   length, e.g. 31 of 30, is an extra day outside the month and its weeks), lasting Y days, optional leap-years-only. Owner, 2026-10-22.
