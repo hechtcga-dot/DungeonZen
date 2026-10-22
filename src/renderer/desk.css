@@ -441,6 +441,7 @@ button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; color: 
 .live-mat { align-items: start; }
 .live-map { position: sticky; top: 84px; }
 .live-map .desk-mapview { height: auto; max-height: 70vh; min-height: 0; flex: none; }
+.live-map .parchment-sheet { height: auto; min-height: 0; }
 .live-party { grid-area: party; display: flex; flex-direction: column; gap: 12px; min-width: 0; z-index: 1; }
 .quicklog textarea { color: var(--ink); background: rgba(255, 252, 240, 0.85); border: 1px solid #8a7350; font-family: var(--display); font-size: 17px; }
 .time-choices { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }

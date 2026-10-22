@@ -1113,3 +1113,5 @@ Connections → Links); card sheet tab names Stat block / Character sheet.
   - Live mat: `align-items: start`, map `position: sticky` with its own height (min(520px, 62vh)); ≤ 1280 px: Quick-log | party,
     map under the Quick-log. Where they are grid stretches (no wood gap under Tonight's prep). Disabled ink buttons darker
     (#6d5f45 / #6f6048) for contrast; Adventure brass buttons on the board's world map reminder are red with cream words.
+  - Live map (3.8.0): `MapView fitToMap` (frame takes the picture's aspect ratio), its parchment sheet no taller than the map.
+    Adventure: "Logged this session" title cream on its dark panel, advisor "All quiet" in the muted ink.

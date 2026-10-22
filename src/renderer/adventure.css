@@ -197,3 +197,7 @@
 [data-skin='adventure'] .desk-title h1 { font-family: var(--adv-cinzel); font-weight: 700; font-size: 30px; letter-spacing: 0.04em; text-transform: uppercase; text-shadow: none; color: var(--adv-cream); }
 [data-skin='adventure'] .desk-eyebrow { font-family: var(--adv-sans); font-style: normal; color: var(--adv-cream-muted); font-size: 13px; }
 [data-skin='adventure'] .desk-head .candle { display: none; }
+
+/* Live › Logged this session sits on a dark panel: its title in cream (3.8.0). */
+[data-skin='adventure'] .live-left .session-log .panel-title:not(.nb *) { color: var(--adv-cream); }
+[data-skin='adventure'] .advisor-quiet { color: var(--adv-muted); }

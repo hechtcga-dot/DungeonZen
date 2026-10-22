@@ -35,6 +35,8 @@ const type = async (loc, value, commit = 'Tab') => { count(); await loc.fill(Str
 const pick = async (loc, option) => { count(); await loc.selectOption(option) }
 /** A drop-down choice whose words start with `name` (places read "Saltreach (from map)"). */
 const pickStarting = async (loc, name) => {
+  // Place lists fill a moment after the sheet opens: wait up to 3 s for the choice.
+  await loc.evaluate((el, n) => new Promise((ok) => { const t0 = Date.now(); const go = () => ([...el.options].some((o) => o.text.trim().startsWith(n)) || Date.now() - t0 > 3000 ? ok(null) : setTimeout(go, 100)); go() }), name).catch(() => {})
   const v = await loc.evaluate((el, n) => [...el.options].find((o) => o.text.trim().startsWith(n))?.value ?? null, name)
   if (v == null) throw new Error(`no choice "${name}" in the drop-down`)
   await pick(loc, v)
