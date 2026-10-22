@@ -8,8 +8,8 @@ minutes into dates and back. Days stay 24 hours. Reference look: Fantasy Calenda
 - Desk "Set…" sets the time of day only (hour, minute; past midnight = next day). The date is set on the Calendar
   screen. Campaign settings move to the gear menu (name, rules, measurements, prices).
 - Desk map button: "Full Map / Party Travel Options".
-- The party box leaves the Desk (party shown on Live, board, sheets); its place = Calendar box: the date, coming-up
-  events (one line each, cut with "…", full text on hover), one "Open calendar" button. Nothing else.
+- The party box leaves the Desk (party shown on Live, board, sheets); its place = Calendar box, same width as the
+  other DM-screen boxes: the date (day, month, year, weekday, season) and "Open calendar". Events only in the calendar.
 - Calendar dates replace "Day 12" on every screen (Timeline, Live, log, Players' view); day number on hover.
 - More than one moon now. The moon box gets a "Set…" button like the clock (moon dates and cycles); also in calendar
   settings. Per moon: "From the calendar" or "Manual Lunar Dates" (full-moon date + cycle; today's "moon is full on
