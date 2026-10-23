@@ -65,6 +65,18 @@ export function distance(a: Point, b: Point): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1])
 }
 
+/** The polygon with `p` added as a corner on its nearest edge. */
+export function insertOnEdge(poly: Point[], p: Point): Point[] {
+  let best = 0, bestD = Infinity
+  poly.forEach((a, i) => {
+    const b = poly[(i + 1) % poly.length], dx = b[0] - a[0], dy = b[1] - a[1]
+    const t = dx || dy ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy))) : 0
+    const d = distance(p, [a[0] + t * dx, a[1] + t * dy])
+    if (d < bestD) { bestD = d; best = i }
+  })
+  return [...poly.slice(0, best + 1), p, ...poly.slice(best + 1)]
+}
+
 /** Travel grid (invisible): 200 squares across the map; each end snaps to its square's centre. */
 const GRID = 200
 export function gridDistance(a: Point, b: Point, imageWidth: number): number {

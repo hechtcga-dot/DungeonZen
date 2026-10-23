@@ -1,6 +1,6 @@
 import { sessionLabel } from '../src/shared/time'
 import { describe, expect, it } from 'vitest'
-import { centroid, estimateTravel, gridDistance, pointInPolygon, polygonArea, regionAt, regionOnBoard, spotIn, type Point } from '../src/shared/geometry'
+import { centroid, estimateTravel, gridDistance, insertOnEdge, pointInPolygon, polygonArea, regionAt, regionOnBoard, spotIn, type Point } from '../src/shared/geometry'
 
 const square = (x: number, y: number, s: number): Point[] => [[x, y], [x + s, y], [x + s, y + s], [x, y + s]]
 
@@ -74,5 +74,12 @@ describe('spotIn', () => {
   it('keeps the centroid when it is inside', () => {
     const sq = { id: 's', polygon: [[0, 0], [10, 0], [10, 10], [0, 10]] as Point[] }
     expect(spotIn(sq, [sq])).toEqual([5, 5])
+  })
+})
+
+describe('insertOnEdge', () => {
+  it('adds the point on the nearest edge', () => {
+    expect(insertOnEdge(square(0, 0, 10), [11, 5])).toEqual([[0, 0], [10, 0], [11, 5], [10, 10], [0, 10]])
+    expect(insertOnEdge(square(0, 0, 10), [-1, 4])).toEqual([[0, 0], [10, 0], [10, 10], [0, 10], [-1, 4]])
   })
 })

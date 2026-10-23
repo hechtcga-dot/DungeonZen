@@ -7,13 +7,14 @@ import { MapView, type MapLayerContext } from '../components/MapView'
 import { MapOverlay, PartyToken, PcTokenMark, ScaleBar, scaleKeyLayout } from '../components/MapOverlay'
 import { CompassRose } from '../art/props'
 import { Dialog } from '../components/Dialog'
+import { ContextMenu, type MenuItem } from '../components/ContextMenu'
 import { CommitField, TitleField } from '../components/fields'
 import { MapDialog } from '../components/EditDialogs'
 import { FindRegions } from './GuideScreen'
 import { OpenFolder } from '../components/OpenFolder'
 import { ENTITY_LABELS, useTypeColour } from '../entityStyle'
 import { formatClock } from '../../shared/time'
-import { centroid, regionAt, spotIn, type Point } from '../../shared/geometry'
+import { centroid, insertOnEdge, regionAt, spotIn, type Point } from '../../shared/geometry'
 import { GRID_MAX, GRID_MIN } from '../../shared/battlemap'
 import { BIOMES, PLACE_KINDS, PLACE_KIND_LABELS } from '../../shared/places'
 import type { EntityBrief, MapScreenView, RegionDetail, RegionView, TravelEstimateView } from '../../shared/types'
@@ -136,6 +137,10 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
   const [draw, setDraw] = useState<Point[]>([])
   const [finishing, setFinishing] = useState<Point[] | null>(null)
   const [editPts, setEditPts] = useState<Point[] | null>(null)
+  // Shape editing: the picked corner, "Add point" waiting for a click, and the right-click menu.
+  const [corner, setCorner] = useState<number | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [shapeMenu, setShapeMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const [tokenAt, setTokenAt] = useState<Point | null>(null)
   const [pcDrag, setPcDrag] = useState<{ id: string; at: Point } | null>(null)
   const centre: Point = [(view.map.width ?? 1000) / 2, (view.map.height ?? 1000) / 2]
@@ -185,10 +190,25 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
 
   const onMapClick = (p: Point) => {
     if (mode === 'draw') { setDraw((d) => [...d, p]); return }
-    if (mode === 'edit') return
+    if (mode === 'edit') { if (adding) addPoint(p); return }
     const r = regionAt(p, view.regions)
     setSelected(r?.id ?? null)
   }
+
+  const shapeNow = () => editPts ?? region?.polygon ?? []
+  const addPoint = (p: Point) => {
+    const next = insertOnEdge(shapeNow(), p)
+    setEditPts(next)
+    setCorner(next.indexOf(p))
+    setAdding(false)
+  }
+  const deletePoint = (i: number) => {
+    const pts = shapeNow()
+    if (pts.length <= 3) return
+    setEditPts(pts.filter((_, j) => j !== i))
+    setCorner(null)
+  }
+  const startEdit = () => { if (region) { setEditPts(region.polygon); setCorner(null); setAdding(false); setMode('edit') } }
 
   const finishDrawing = () => { if (draw.length >= 3) { setFinishing(draw); setDraw([]) } }
 
@@ -210,7 +230,13 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
 
   return (
     <div className="map-layout" style={side.style}>
-      <div className="parchment-sheet map-sheet">
+      <div className="parchment-sheet map-sheet" onContextMenu={mode === 'edit' && region ? (e) => {
+        // Right-click on the map while editing a shape: add a point there.
+        if (!ctxRef.current || !(e.target as Element).closest('.mapview-frame')) return
+        e.preventDefault()
+        const p = ctxRef.current.toImage(e.clientX, e.clientY)
+        setShapeMenu({ x: e.clientX, y: e.clientY, items: [{ label: 'Add a point here', onClick: () => addPoint(p) }] })
+      } : undefined}>
         {mode === 'draw' && (
           <div className="map-toolbar" role="status">
             <strong>Drawing a region:</strong> click around its edge. {draw.length} point{draw.length === 1 ? '' : 's'}.
@@ -239,7 +265,11 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         )}
         {mode === 'edit' && region && (
           <div className="map-toolbar" role="status">
-            <strong>Editing {region.name}:</strong> drag the corners.
+            <strong>Editing {region.name}:</strong> {adding ? 'click the map where the new point goes.' : 'drag the corners, right-click for more.'}
+            <button className="ink-button" aria-pressed={adding} onClick={() => setAdding(!adding)}>{adding ? 'Stop adding' : 'Add point'}</button>
+            <button className="ink-button" disabled={corner == null || shapeNow().length <= 3}
+              title={corner == null ? 'Click a corner first' : shapeNow().length <= 3 ? 'A region needs at least 3 corners' : undefined}
+              onClick={() => corner != null && deletePoint(corner)}>Delete point</button>
             <button className="ink-button primary-ink" onClick={async () => {
               if (editPts) await act('region:update', { id: region.id, patch: { polygon: editPts } })
               setMode('view')
@@ -317,10 +347,20 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
                   <>
                     <polygon points={shape.map((p) => p.join(',')).join(' ')} fill="#8f2a21" fillOpacity="0.15" stroke="#8f2a21" strokeWidth={3 * s} />
                     {shape.map((p, i) => (
-                      <circle key={i} cx={p[0]} cy={p[1]} r={9 * s} className="vertex"
-                        onPointerDown={(e) => startDrag(e,
-                          (q) => setEditPts((pts) => (pts ?? region!.polygon).map((x, j) => (j === i ? q : x))),
-                          () => undefined)} />
+                      <circle key={i} cx={p[0]} cy={p[1]} r={9 * s} className={`vertex${corner === i ? ' is-picked' : ''}`}
+                        onContextMenu={(e) => {
+                          e.preventDefault(); e.stopPropagation(); setCorner(i)
+                          const next = shape[(i + 1) % shape.length]
+                          setShapeMenu({ x: e.clientX, y: e.clientY, items: [
+                            { label: 'Add a point after this one', onClick: () => addPoint([(p[0] + next[0]) / 2, (p[1] + next[1]) / 2]) },
+                            { label: 'Delete this point', danger: true, disabled: shape.length <= 3, hint: shape.length <= 3 ? 'A region needs at least 3 corners' : undefined, onClick: () => deletePoint(i) },
+                          ] })
+                        }}
+                        onPointerDown={(e) => {
+                          if (e.button !== 0) return
+                          setCorner(i)
+                          startDrag(e, (q) => setEditPts((pts) => (pts ?? region!.polygon).map((x, j) => (j === i ? q : x))), () => undefined)
+                        }} />
                     ))}
                   </>
                 )}
@@ -375,7 +415,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         {region && detail ? (
           <RegionPanel detail={detail} view={view}
             onMoveHere={() => void askTravel(spotIn(region, view.regions))}
-            onEditShape={() => { setEditPts(region.polygon); setMode('edit') }}
+            onEditShape={startEdit}
             onSelect={(locationId) => setSelected(view.regions.find((r) => r.locationId === locationId)?.id ?? null)} />
         ) : (
           <>
@@ -394,6 +434,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         {view.map.kind !== 'battle' && <ScaleSection view={view} onSetScale={startScale} />}
         <PartyTokens view={view} onPlace={() => void askTravel(centre)} />
       </aside>
+      {shapeMenu && <ContextMenu {...shapeMenu} onClose={() => setShapeMenu(null)} />}
       {finishing && <NewRegionDialog view={view} polygon={finishing} onClose={() => { setFinishing(null); setMode('view') }}
         onCreated={(id) => setSelected(id)} />}
     </div>

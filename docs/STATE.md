@@ -20,7 +20,10 @@ Phase 1 so far:
   parchment (zoomable), DM notes journal, party tarot cards, decorative props.
 - Map screen: imported map, zoom and pan (wheel, drag, keys, buttons), map
   picker, rename or remove. Maps are copied into `assets/maps` and served via `dz-asset://`.
-  Regions: draw (click corners, Enter), edit corners, tie to a new or existing
+  Regions: draw (click corners, Enter), edit corners (Edit shape: drag; click picks
+  a corner; Add point (then click the map) / Delete point buttons; right-click a corner:
+  Add a point after this one / Delete this point, right-click the map: Add a point here,
+  on the nearest edge (`insertOnEdge`); at least 3 corners; Save shape), tie to a new or existing
   Location card, sub-regions ("Inside"), remove to History. Click a region:
   Here now (cards located or tied there), planned encounters, plot points,
   notes, sub-regions. Party banner: Move party here or drag it, Confirm travel

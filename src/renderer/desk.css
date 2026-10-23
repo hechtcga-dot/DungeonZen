@@ -379,6 +379,7 @@ button.ink-button.danger-ink { color: #7a1e16; border-color: #7a1e16; }
 button.ink-button.danger-ink:hover:not(:disabled) { background: #7a1e16; color: #fff3e0; }
 .mapview-svg .vertex { fill: var(--gold); stroke: #2a1f12; stroke-width: 2px; vector-effect: non-scaling-stroke; cursor: move; }
 .mapview-svg .vertex:hover { fill: #fff3c4; }
+.mapview-svg .vertex.is-picked { fill: #fff3c4; stroke: var(--wax); stroke-width: 3px; }
 .mapview-svg .party-token { filter: drop-shadow(0 3px 3px rgba(20, 12, 4, 0.6)); }
 .mapview-svg .party-token.is-draggable { cursor: grab; }
 .mapview-svg .party-token.is-dragging { cursor: grabbing; opacity: 0.85; }
