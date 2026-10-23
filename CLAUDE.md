@@ -61,6 +61,8 @@ Bump `package.json` + `package-lock.json` version. Push the session branch, fast
 - 3.0 plan `docs/PLAN-3.0.md` (M0–M5). Owner, 2026-10-19: name stays Dungeon Zen; installer stays unsigned; auto-linking filtered (length, common words, capital letter for one-word names) with a per-card "Link this name by itself" tick, on for NPC/PC/Location/Faction, off for others.
 - Delete campaign = folder to the Recycle Bin after an are-you-sure. Battle grid off by default. Encounters: every PC in by default, tick per PC.
 
+- Web edition (owner, 2026-10-23): web app anyone can sign up for; subscription = hosted AI (no keys), free users get limited trial AI; selling from Canada. Plan and rule changes for the web edition: `docs/PLAN-WEB.md`.
+
 ## Owner's answers (2026-10-09)
 - Dice, music, initiative, battle maps at the table stay in Roll20: do not build them in.
 - Not wanted (dropped from the plan): player view on a second window/TV; party loot/treasure list.
