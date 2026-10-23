@@ -65,9 +65,10 @@ export const regionsPart = part({
       .filter((p) => p.atMin <= nowMin && !p.entityId).sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
     let route: Array<[number, number]> = []
     if (current) {
-      const inSession = moves.filter((p) => p.sessionId === current.id)
+      // After Clear travel only later trips count; the route starts where the party was.
+      const inSession = moves.filter((p) => p.sessionId === current.id && (!m.routeFrom || p.createdAt > m.routeFrom))
       if (inSession.length) {
-        const before = moves.filter((p) => p.atMin <= inSession[0].atMin && p.sessionId !== current.id).at(-1)
+        const before = moves[moves.indexOf(inSession[0]) - 1]
         route = [...(before ? [before] : []), ...inSession].map((p) => [p.x, p.y])
       }
     }
@@ -77,6 +78,7 @@ export const regionsPart = part({
       party: this.partyAt(mapId, nowMin),
       pcs: this.pcTokens(nowMin),
       route,
+      travel: { canUndo: moves.some((p) => !p.entityId), canRedo: this.partyTrips(mapId, 'undone').length > 0, canClear: route.length > 1 },
       sessionRunning: current !== null && current.endedAt === null,
       unplacedLocations: this.db.select().from(entity).all()
         .filter((e) => e.type === 'LOCATION' && e.status !== 'defunct' && !placed.has(e.id))

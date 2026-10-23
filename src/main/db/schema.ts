@@ -139,6 +139,7 @@ export const map = sqliteTable('map', {
   scaleKey: integer('scale_key', { mode: 'boolean' }).notNull().default(true), // scale key shown on the map
   scaleKeyX: real('scale_key_x'), // its top-left corner, image pixels (null = bottom left)
   scaleKeyY: real('scale_key_y'),
+  routeFrom: text('route_from'), // Clear travel: the dotted route shows only trips made after this (ISO time)
   kind: text('kind').notNull().default('world'), // world | battle
   gridCols: integer('grid_cols'), // squares across, when the map has a grid (5 ft each)
   gridShown: integer('grid_shown', { mode: 'boolean' }).notNull().default(false), // draw the grid lines over it
@@ -182,7 +183,10 @@ export const partyPosition = sqliteTable('party_position', {
   status: text('status').notNull(),
   // Set for a player character's own token (split from the party); joined = back with the party.
   entityId: text('entity_id'),
-  joined: integer('joined', { mode: 'boolean' }).notNull().default(false)
+  joined: integer('joined', { mode: 'boolean' }).notNull().default(false),
+  // A party trip: its travel time and log line (Undo travel winds both back). Status undone = Redo travel brings it back.
+  minutes: integer('minutes').notNull().default(0),
+  logId: text('log_id')
 })
 
 // Run encounter: a fight in progress (status active) or finished (ended); the state is the whole tracker.

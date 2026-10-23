@@ -140,6 +140,7 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
   // Shape editing: the picked corner, "Add point" waiting for a click, and the right-click menu.
   const [corner, setCorner] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
+  const [clearTravel, setClearTravel] = useState(false)
   const [shapeMenu, setShapeMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const [tokenAt, setTokenAt] = useState<Point | null>(null)
   const [pcDrag, setPcDrag] = useState<{ id: string; at: Point } | null>(null)
@@ -405,6 +406,14 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
             {view.party ? <>Party location: <strong>{view.party.locationName ?? 'between places'}</strong> since {formatClock(view.party.atMin)}. Drag the banner to move them.</>
               : <>The party is not on this map yet. <button className="link-button" onClick={() => void askTravel(centre)}>Place party token</button></>}
             {!view.map.widthKm && ' Set the map scale to get travel time estimates.'}
+            <span className="map-travel" role="group" aria-label="Party travel">
+              <button className="ink-button" disabled={!view.travel.canUndo} title="Party back to where they were; the clock goes back by the trip's time and its log line goes to History"
+                onClick={() => void act('party:travel', { mapId: view.map.id, action: 'undo' })}>Undo travel</button>
+              <button className="ink-button" disabled={!view.travel.canRedo} title="The undone trip again"
+                onClick={() => void act('party:travel', { mapId: view.map.id, action: 'redo' })}>Redo travel</button>
+              <button className="ink-button" disabled={!view.travel.canClear} title="Clears the dotted travel line on this map"
+                onClick={() => setClearTravel(true)}>Clear travel</button>
+            </span>
             {' · '}<button className="link-button" title="A new version of the picture; regions and the party stay on their places" onClick={() => void act('map:reimport', { mapId: view.map.id })}>Re-import picture…</button>
             {' · '}<OpenFolder sub="maps" label="Open maps folder" />
           </p>
@@ -434,6 +443,14 @@ function MapWorkspace({ view, mode, setMode }: { view: MapScreenView; mode: Mode
         {view.map.kind !== 'battle' && <ScaleSection view={view} onSetScale={startScale} />}
         <PartyTokens view={view} onPlace={() => void askTravel(centre)} />
       </aside>
+      <Dialog title="Clear party travel?" open={clearTravel} onClose={() => setClearTravel(false)}>
+        <p>Are you sure? This clears all party travel shown on this map.</p>
+        <p className="hint">The trips still show in the session log, and the party stays where it is. Undo brings the line back.</p>
+        <div className="dz-actions">
+          <button autoFocus onClick={() => setClearTravel(false)}>Cancel</button>
+          <button className="danger" onClick={() => { setClearTravel(false); void act('party:travel', { mapId: view.map.id, action: 'clear' }) }}>Yes, clear it</button>
+        </div>
+      </Dialog>
       {shapeMenu && <ContextMenu {...shapeMenu} onClose={() => setShapeMenu(null)} />}
       {finishing && <NewRegionDialog view={view} polygon={finishing} onClose={() => { setFinishing(null); setMode('view') }}
         onCreated={(id) => setSelected(id)} />}

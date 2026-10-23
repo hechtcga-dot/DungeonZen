@@ -284,6 +284,7 @@ exports[`every write can be undone and redone exactly 1`] = `
     "party:rest",
     "party:setHp",
     "party:setLevel",
+    "party:travel",
     "pc:move",
     "pictures:addFolder",
     "prep:addEncounter",

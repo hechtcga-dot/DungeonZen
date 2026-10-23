@@ -337,6 +337,7 @@ button.tarot-new:hover:not(:disabled) { background: rgba(10, 25, 22, 0.55); colo
 }
 .map-toolbar strong { font-family: var(--display); font-weight: 400; font-size: 17px; }
 .map-foot { margin: 8px 0 0; font-size: 13px; }
+.map-foot .map-travel { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 8px; vertical-align: middle; }
 .confirm-travel {
   position: absolute; right: 26px; top: 26px; z-index: 5; width: min(340px, calc(100% - 52px));
   display: flex; flex-direction: column; gap: 8px; padding: 14px 16px;

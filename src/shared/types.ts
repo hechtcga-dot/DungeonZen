@@ -644,6 +644,8 @@ export interface MapScreenView {
   pcs: PcToken[]
   /** Where the party went during the current (or last) session, oldest first. */
   route: Array<[number, number]>
+  /** Party travel buttons on this map: a trip to undo, an undone trip to redo, a route to clear. */
+  travel: { canUndo: boolean; canRedo: boolean; canClear: boolean }
   /** True while a session is running (travel is then logged in it). */
   sessionRunning: boolean
   /** Location cards not yet drawn on this map, to tie a new region to. */

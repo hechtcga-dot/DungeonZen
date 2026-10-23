@@ -505,6 +505,7 @@ export const ipcInputs = {
   'pc:move': z.object({ entityId: Id, mapId: Id, x: z.number().finite().optional(), y: z.number().finite().optional(), joined: z.boolean().optional() }),
   'party:estimate': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite() }),
   'party:move': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite(), minutes: z.number().int().min(0).max(525600), rememberTime: z.boolean().optional() }),
+  'party:travel': z.object({ mapId: Id, action: z.enum(['undo', 'redo', 'clear']) }),
   'review:decide': z.object({
     sessionId: Id, key: z.string().min(1).max(200),
     action: z.enum(['approve', 'reject', 'flag', 'explain', 'revive', 'remove_entry', 'reopen']),
@@ -867,6 +868,7 @@ export interface IpcOutputs {
   'pc:move': void
   'party:estimate': TravelEstimateView
   'party:move': void
+  'party:travel': void
   'review:decide': void
   'review:approveAll': number
   'review:feedback': void

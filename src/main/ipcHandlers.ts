@@ -1450,6 +1450,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('map:setScaleKey', ({ mapId, ...patch }) => current().setMapScaleKey(mapId, patch))
   handle('party:estimate', ({ mapId, x, y }) => current().travelEstimate(mapId, [x, y]))
   handle('party:move', (i) => current().moveParty(i))
+  handle('party:travel', ({ mapId, action }) => current().partyTravel(mapId, action))
   handle('pc:move', (i) => current().movePc(i))
   handle('review:decide', ({ sessionId, ...input }) => current().decide(sessionId, input))
   handle('review:approveAll', ({ sessionId }) => current().approveAllUnflagged(sessionId))

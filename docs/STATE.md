@@ -29,7 +29,10 @@ Phase 1 so far:
   notes, sub-regions. Party banner: Move party here or drag it, Confirm travel
   (estimate from the map scale or a remembered trip time) moves the clock and
   logs the trip in a running session, one undo step. Route of the session's
-  moves. Desk and live maps show the regions and party (read only).
+  moves. Map foot: Undo travel (party back, clock back by the trip's time, log line to
+  History; `party_position.minutes`/`log_id`, status `undone`), Redo travel (a new trip ends
+  it), Clear travel (are-you-sure; `map.route_from`: route only shows later trips, trips and
+  log stay); `party:travel`, one undo step each. Desk and live maps show the regions and party (read only).
   Geometry in `src/shared/geometry.ts`. Renderer reads that change nothing use
   `useBoard().query` (no refresh); `act` refreshes the store after each call.
 - Day and night lighting on desk-style screens (darkens 17:00 to 20:00,

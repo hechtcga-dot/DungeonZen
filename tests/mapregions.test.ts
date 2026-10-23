@@ -93,6 +93,43 @@ describe('map regions and the party token', () => {
     expect(c.info().clockMin).toBe(9 * 60)
   })
 
+  it('undoes, redoes and clears party travel on the map', () => {
+    c.createRegion({ mapId, polygon: sq(0, 0, 200), newName: 'District A' })
+    c.createRegion({ mapId, polygon: sq(600, 0, 200), newName: 'District C' })
+    c.moveParty({ mapId, x: 100, y: 100, minutes: 0 })
+    c.startSession()
+    c.moveParty({ mapId, x: 650, y: 150, minutes: 180 })
+    c.moveParty({ mapId, x: 100, y: 150, minutes: 60 })
+    expect(c.mapScreen(mapId).travel).toEqual({ canUndo: true, canRedo: false, canClear: true })
+    // Undo travel: party, clock and log line go back; Redo brings them again.
+    c.partyTravel(mapId, 'undo')
+    let v = c.mapScreen(mapId)
+    expect(v.party?.locationName).toBe('District C')
+    expect(c.info().clockMin).toBe(12 * 60)
+    expect(v.route).toEqual([[100, 100], [650, 150]])
+    expect(c.live().log.filter((l) => l.kind === 'travel')).toHaveLength(1)
+    expect(v.travel.canRedo).toBe(true)
+    c.partyTravel(mapId, 'redo')
+    expect(c.info().clockMin).toBe(13 * 60)
+    expect(c.live().log.filter((l) => l.kind === 'travel')).toHaveLength(2)
+    expect(c.mapScreen(mapId).route).toHaveLength(3)
+    // A new trip after an undo ends Redo travel.
+    c.partyTravel(mapId, 'undo')
+    c.moveParty({ mapId, x: 700, y: 100, minutes: 30 })
+    expect(c.mapScreen(mapId).travel.canRedo).toBe(false)
+    expect(() => c.partyTravel(mapId, 'redo')).toThrow(/No party travel to redo/)
+    // Clear travel: the line goes, the party and log stay; the next trip draws from where the party is.
+    c.partyTravel(mapId, 'clear')
+    v = c.mapScreen(mapId)
+    expect(v.route).toEqual([])
+    expect(v.party).toMatchObject({ x: 700, y: 100 })
+    expect(c.live().log.filter((l) => l.kind === 'travel')).toHaveLength(2)
+    c.moveParty({ mapId, x: 100, y: 100, minutes: 30 })
+    expect(c.mapScreen(mapId).route).toEqual([[700, 100], [100, 100]])
+    c.undo(); c.undo()
+    expect(c.mapScreen(mapId).route).toHaveLength(3)
+  })
+
   it('puts regions in History and back', () => {
     const r = c.createRegion({ mapId, polygon: sq(0, 0, 200), newName: 'Docks' })
     c.setRegionStatus(r, 'defunct')

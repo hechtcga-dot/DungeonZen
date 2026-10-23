@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
-import { noteDoc, secret, entity, partyPosition, regionShape,
+import { noteDoc, secret, entity, logEntry, partyPosition, regionShape,
   relationship, session, travelLink, sessionPrep, prepItem, type PrepRow, type PrepItemRow, type EntityRow } from '../db/schema'
 import type { EntityStatus, EntityType,   RowStatus } from '../../shared/schemas'
 import { isEncounterCard, type PrepKind, type SceneType } from '../../shared/schemas'
@@ -389,14 +389,17 @@ export const prepPart = part({
     const open = this.openSession()
     const where = dest?.name ?? 'a new spot'
     this.log.run(`Party travelled to ${where}${minutes ? ` (${minutes >= 60 ? `${Math.round(minutes / 6) / 10} h` : `${minutes} min`})` : ''}`, (w) => {
+      // A new trip ends Redo travel on this map.
+      for (const r of this.partyTrips(input.mapId, 'undone')) w.update('party_position', r.id, { status: 'superseded' })
+      const logId = open && from ? randomUUID() : null
       w.insert('party_position', {
         id: randomUUID(), mapId: input.mapId, x: input.x, y: input.y, locationId: dest?.locationId ?? null, atMin: now + minutes,
-        sessionId: open?.id ?? null, createdAt: new Date().toISOString(), status: 'active'
+        sessionId: open?.id ?? null, createdAt: new Date().toISOString(), status: 'active', minutes, logId
       })
       if (minutes > 0) w.update('campaign_settings', 'clock_min', { value: now + minutes })
-      if (open && from) {
+      if (logId && open && from) {
         w.insert('log_entry', {
-          id: randomUUID(), sessionId: open.id, atMin: now, kind: 'travel',
+          id: logId, sessionId: open.id, atMin: now, kind: 'travel',
           text: `Travelled from ${from.locationName ?? 'the road'} to ${where}`, entityId: dest?.locationId ?? null,
           minutesTaken: minutes, createdAt: new Date().toISOString(), status: 'active'
         })
@@ -406,6 +409,39 @@ export const prepPart = part({
         if (existing) w.update('travel_link', existing.id, { minutes, status: 'active' })
         else w.insert('travel_link', { id: randomUUID(), fromLocationId: from.locationId, toLocationId: dest.locationId, minutes, status: 'active' })
       }
+    })
+  },
+
+  /** The party's own positions on a map with this status (no split player characters), oldest first. */
+  partyTrips(mapId: string, status: string) {
+    return this.db.select().from(partyPosition).where(and(eq(partyPosition.mapId, mapId), eq(partyPosition.status, status))).all()
+      .filter((p) => !p.entityId).sort((a, b) => a.atMin - b.atMin || a.createdAt.localeCompare(b.createdAt))
+  },
+
+  /**
+   * Map › Undo travel / Redo travel: the party's last trip on this map goes back (party to where it was, clock back by
+   * the trip's time, its log line to History) or comes back. Clear travel: the dotted route starts again from here;
+   * trips and log lines stay. One undo step each.
+   */
+  partyTravel(mapId: string, action: 'undo' | 'redo' | 'clear'): void {
+    this.mapRow(mapId)
+    if (action === 'clear') {
+      this.log.run('Cleared party travel on the map', (w) => { w.update('map', mapId, { routeFrom: new Date().toISOString() }) })
+      return
+    }
+    const trip = action === 'undo' ? this.partyTrips(mapId, 'active').at(-1) : this.partyTrips(mapId, 'undone')[0]
+    if (!trip) throw new Error(action === 'undo' ? 'No party travel to undo on this map' : 'No party travel to redo on this map')
+    // Trips from before 3.9.x have no log line id or time: their log line is the travel line that ends at the arrival.
+    const line = trip.logId ? this.db.select().from(logEntry).where(eq(logEntry.id, trip.logId)).get()
+      : this.db.select().from(logEntry).where(and(eq(logEntry.kind, 'travel'), eq(logEntry.status, action === 'undo' ? 'active' : 'defunct'))).all()
+        .filter((l) => l.sessionId === trip.sessionId && l.atMin + (l.minutesTaken ?? 0) === trip.atMin && l.entityId === trip.locationId).at(-1)
+    const minutes = trip.minutes || line?.minutesTaken || 0
+    const now = this.info().clockMin
+    const name = trip.locationId ? this.db.select({ name: entity.name }).from(entity).where(eq(entity.id, trip.locationId)).get()?.name : null
+    this.log.run(`${action === 'undo' ? 'Undid' : 'Redid'} party travel to ${name ?? 'a spot on the map'}`, (w) => {
+      w.update('party_position', trip.id, { status: action === 'undo' ? 'undone' : 'active' })
+      if (minutes) w.update('campaign_settings', 'clock_min', { value: Math.max(0, now + (action === 'undo' ? -minutes : minutes)) })
+      if (line) w.update('log_entry', line.id, { status: action === 'undo' ? 'defunct' : 'active' })
     })
   },
 

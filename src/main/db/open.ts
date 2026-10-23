@@ -265,6 +265,12 @@ export const MIGRATIONS: string[] = [
   `
   UPDATE entity SET type = 'ENCOUNTER', attributes = json_remove(attributes, '$.encounter')
   WHERE type = 'SCENE' AND (json_extract(attributes, '$.encounter') = 1 OR lower(name) = 'encounter' OR lower(name) LIKE 'encounter %' OR lower(name) LIKE 'encounter:%');
+  `,
+  // 3.9.x: party travel undo/redo (each trip keeps its time and log line) and Clear travel (the dotted route starts again).
+  `
+  ALTER TABLE party_position ADD COLUMN minutes INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE party_position ADD COLUMN log_id TEXT;
+  ALTER TABLE map ADD COLUMN route_from TEXT;
   `
 ]
 

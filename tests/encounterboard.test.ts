@@ -74,7 +74,8 @@ describe('encounter card type and Add to prep sheet (owner, 2026-10-21)', () => 
     const db = new Database(join(folder, 'campaign.db'))
     db.prepare(`UPDATE entity SET type = 'SCENE', attributes = json_set(attributes, '$.encounter', json('true')) WHERE id = ?`).run(flagged)
     db.prepare(`UPDATE entity SET type = 'SCENE' WHERE id = ?`).run(named)
-    db.pragma(`user_version = ${MIGRATIONS.length - 1}`)
+    // The upgrade step itself (later steps already ran on this new campaign).
+    db.exec(MIGRATIONS.find((m) => m.includes("type = 'ENCOUNTER'"))!)
     db.close()
     c = Campaign.open(folder)
     expect([flagged, named, scene].map((id) => c.entityRow(id).type)).toEqual(['ENCOUNTER', 'ENCOUNTER', 'SCENE'])
