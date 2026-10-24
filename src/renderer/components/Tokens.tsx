@@ -43,7 +43,7 @@ export async function syncTokens(): Promise<void> {
       }
       if (drew) drawnListeners.forEach((f) => f())
     } while (again)
-  } finally { syncing = false }
+  } catch { /* no campaign open: nothing to draw */ } finally { syncing = false }
 }
 
 /** Keeps token files up to date after every change (mounted once, in the main window). */

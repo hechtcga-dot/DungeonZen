@@ -18,6 +18,7 @@ import './theme.css'
 import './adventure.css'
 import { App } from './App'
 import { applyLook } from './skin'
+import { syncTokens } from './components/Tokens'
 import './textKeys'
 
 applyLook()
@@ -33,6 +34,8 @@ document.addEventListener('dragstart', (ev) => {
   if (!img?.src.startsWith('dz-asset://')) return
   ev.preventDefault()
   window.dungeonzen.dragOut(img.src)
+  // A portrait whose token is not drawn yet (picture just changed) drags as itself this once: draw it now.
+  void syncTokens()
 }, true)
 // A file dropped where nothing takes it must not open in the window (the app would be gone).
 for (const type of ['dragover', 'drop'] as const) {

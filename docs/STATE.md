@@ -177,7 +177,9 @@ built.
   (Cards and rules · Pictures · Tokens), card sheets (beside the picture), Roll20 export window (token per character,
   Save all tokens → `exports/tokens`), sheet Export › Save token…. Right-click a token: Edit, Copy (clipboard PNG),
   Save as…, Open tokens folder, Delete (→ History, look kept, Restore). Drag a portrait out (main `drag-out`) gives
-  its token when the setting says so.
+  its token when the setting says so. Every card always has a best-attempt token drawn (owner, 2026-10-24): drawn on
+  campaign open and after every change, no token window needed; a drag before it is drawn gives the picture once and
+  starts the drawing (`syncTokens` on dragstart).
 - PDF and JPG (`src/main/exporters/pages.ts`, `render.ts`, `ExportDialog.tsx`;
   Library › Print or save, card sheet › Print or save / Print letter, encounter ›
   Stat sheets): character sheets (DM copy with notes, or player copy with only
