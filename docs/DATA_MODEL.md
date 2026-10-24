@@ -170,7 +170,7 @@ commands. `group_id` lets a session or an import undo as one step.
 - `entity.attributes.colour` (card colour override) and
   `entity.attributes.custom` (list of `{label, value}` the DM adds).
 - `entity.attributes.token` (PC, NPC, monster): the card's own token look (`TokenSpec`: border, tint, bg,
-  fit, zoom, dx, dy, size) and/or `removed: true` (in History). Setting `token_settings` (`TokenSettings`).
+  fit, zoom, dx, dy, size, width) and/or `removed: true` (in History). Setting `token_settings` (`TokenSettings`).
   Token PNGs in `assets/tokens/` are drawings of picture + look (no rows).
 - Party travel: `party_position.minutes`, `log_id`, status `undone`; `map.route_from` (Clear travel).
 - Timeline (migration 5): `act` (title, summary, start_min, end_min,

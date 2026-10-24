@@ -163,6 +163,9 @@ built.
   textured, like Token Stamp's; never their art), Gold, Silver, Bronze, Blood red, Iron, Plain white, None; tint.
   No dark edge lines (owner, 2026-10-24): soft drop shadow under the token (3.5 % margin), the ring casts a shadow
   onto the picture, and a lit bevel (per pixel, light top left: rounded rise with a ridge in the middle, gloss).
+  Border thickness adjustable (owner, 2026-10-24): `width` % of the token, 2–15, default 6 (token window slider,
+  Token settings default). Ember: deeper reds with dark cracks on the red side; bevel light as soft light (no white
+  wash over the reds).
   Auto-fit: background colour = median of the picture's edges (fills gaps, soft picture edges), figure = what differs
   from it; Whole body (default: every figure pixel inside the circle) or Head and body (top 45 % of a tall figure);
   busy pictures fill the circle. Token window: border picker with previews, tint, background (matched / my colour),

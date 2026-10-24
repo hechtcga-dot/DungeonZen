@@ -7,7 +7,7 @@ import { OpenFolder } from './OpenFolder'
 import { ENTITY_LABELS } from '../entityStyle'
 import { canvasPng, drawToken, loadTokenPicture, type TokenPicture } from '../token'
 import {
-  DEFAULT_TOKEN_SETTINGS, TOKEN_BORDERS, TOKEN_BORDER_LABELS, TOKEN_SIZE_MAX, TOKEN_SIZE_MIN, TOKEN_TYPES,
+  DEFAULT_TOKEN_SETTINGS, TOKEN_BORDERS, TOKEN_BORDER_LABELS, TOKEN_SIZE_MAX, TOKEN_SIZE_MIN, TOKEN_TYPES, TOKEN_WIDTH_MAX, TOKEN_WIDTH_MIN,
   type TokenBorder, type TokenSettings, type TokenSpec
 } from '../../shared/token'
 import type { EntityType } from '../../shared/schemas'
@@ -140,6 +140,11 @@ export function TokenEditor({ token, onClose }: { token: TokenView; onClose(): v
             <div className="token-borders" role="radiogroup" aria-label="Border">
               {TOKEN_BORDERS.map((b) => <BorderChoice key={b} border={b} pic={pic} spec={spec} on={spec.border === b} onPick={() => set({ border: b })} />)}
             </div>
+            <label className="field">
+              <span className="field-label">Border thickness {spec.width}%</span>
+              <input type="range" min={TOKEN_WIDTH_MIN} max={TOKEN_WIDTH_MAX} step={0.5} value={spec.width} disabled={spec.border === 'none'}
+                onChange={(e) => set({ width: Number(e.target.value) })} />
+            </label>
             <div className="row tight wrap">
               <label className="field checkbox"><input type="checkbox" checked={spec.tint !== null} disabled={spec.border === 'none'}
                 onChange={(e) => set({ tint: e.target.checked ? '#3b6fd8' : null })} /> Border tint</label>
@@ -212,6 +217,10 @@ export function TokenSettingsDialog({ onClose }: { onClose(): void }) {
       <label className="field">
         <span className="field-label">Size of new tokens: {s.size} × {s.size} px</span>
         <input type="range" min={TOKEN_SIZE_MIN} max={TOKEN_SIZE_MAX} step={64} value={s.size} onChange={(e) => setS({ ...s, size: Number(e.target.value) })} />
+      </label>
+      <label className="field">
+        <span className="field-label">Border thickness of new tokens: {s.width}%</span>
+        <input type="range" min={TOKEN_WIDTH_MIN} max={TOKEN_WIDTH_MAX} step={0.5} value={s.width} onChange={(e) => setS({ ...s, width: Number(e.target.value) })} />
       </label>
       <span className="field-label">Border by card type (a card whose token you edited keeps its own)</span>
       <table className="token-type-table">

@@ -22,7 +22,7 @@ export async function loadTokenPicture(dataUrl: string): Promise<TokenPicture> {
 
 /** Ring colours, light (top left) to dark (bottom right). */
 const PALETTES: Record<Exclude<TokenBorder, 'plain' | 'none'>, string[]> = {
-  ember: ['#fffbd2', '#ffe24a', '#ffb623', '#f67e1d', '#d9471a', '#9a1e0b', '#4c0904'],
+  ember: ['#fff4b0', '#ffdc45', '#ffad26', '#f26a1b', '#de4318', '#bf2c10', '#9a1c0a', '#6a0f05'],
   gold: ['#fff8c8', '#f4d466', '#d9a937', '#a8761c', '#6e4a0e'],
   silver: ['#ffffff', '#e2e6ea', '#aab2bb', '#77808a', '#3e444b'],
   bronze: ['#f9d9aa', '#d9975a', '#a8642c', '#743c12', '#3c1d06'],
@@ -68,7 +68,7 @@ export function drawToken(canvas: HTMLCanvasElement, pic: TokenPicture, spec: To
   const c = S / 2
   // Room around the ring for its drop shadow.
   const R = S / 2 - S * 0.035
-  const ringW = spec.border === 'none' ? 0 : spec.border === 'plain' ? S * 0.035 : S * 0.1
+  const ringW = spec.border === 'none' ? 0 : S * spec.width / 100
   const Ri = R - ringW
   // A shadow only (the shape itself drawn far off the canvas), light from the top left.
   const shadow = (shape: () => void, blur: number, alpha: number) => {
@@ -150,6 +150,15 @@ export function drawToken(canvas: HTMLCanvasElement, pic: TokenPicture, spec: To
       tg.fillStyle = m; tg.fillRect(0, 0, S, S)
       g.globalCompositeOperation = 'multiply'
       g.drawImage(t, 0, 0)
+      // Fine dark cracks, deepest on the red side.
+      const k = document.createElement('canvas')
+      k.width = k.height = S
+      const kg = k.getContext('2d')!
+      kg.drawImage(cracks(S), 0, 0)
+      kg.globalCompositeOperation = 'destination-in'
+      kg.fillStyle = m; kg.fillRect(0, 0, S, S)
+      g.globalCompositeOperation = 'source-over'
+      g.drawImage(k, 0, 0)
     }
     // The colours again over the texture (it greys them).
     g.globalCompositeOperation = 'color'
@@ -164,8 +173,12 @@ export function drawToken(canvas: HTMLCanvasElement, pic: TokenPicture, spec: To
     g.globalAlpha = 1
   }
   // Bevel: each pixel lit by its slope across the ring (a rounded rise with a crisp ridge in the middle).
+  // The light brightens the colour (soft light: no white wash over the reds); the shade darkens it.
+  const bv = bevel(S, c, R, Ri, spec.border === 'plain' ? 0.6 : 1)
+  g.globalCompositeOperation = 'soft-light'
+  g.drawImage(bv.light, 0, 0)
   g.globalCompositeOperation = 'source-over'
-  g.drawImage(bevel(S, c, R, Ri, spec.border === 'plain' ? 0.6 : 1), 0, 0)
+  g.drawImage(bv.dark, 0, 0)
   g.restore()
 }
 
@@ -173,15 +186,14 @@ export function drawToken(canvas: HTMLCanvasElement, pic: TokenPicture, spec: To
  * The ring's light and shade, white and black with alpha: height across the ring t (0 inside, 1 outside)
  * is a rounded rise plus a ridge at the middle; the normal from its slope, lit from the top left, with a gloss.
  */
-const bevelCache = new Map<string, HTMLCanvasElement>()
-function bevel(S: number, c: number, R: number, Ri: number, strength: number): HTMLCanvasElement {
+const bevelCache = new Map<string, { light: HTMLCanvasElement; dark: HTMLCanvasElement }>()
+function bevel(S: number, c: number, R: number, Ri: number, strength: number): { light: HTMLCanvasElement; dark: HTMLCanvasElement } {
   const id = `${S}:${strength}:${R}:${Ri}`
   const hit = bevelCache.get(id)
   if (hit) return hit
-  const out = document.createElement('canvas')
-  out.width = out.height = S
-  const g = out.getContext('2d')!
-  const d = g.createImageData(S, S)
+  const canvas = () => { const o = document.createElement('canvas'); o.width = o.height = S; return o }
+  const light = canvas(), dark = canvas()
+  const dl = light.getContext('2d')!.createImageData(S, S), dd = dark.getContext('2d')!.createImageData(S, S)
   const w = R - Ri
   const L = [-0.55, -0.65, 0.52], ln = Math.hypot(...L)
   const lx = L[0] / ln, ly = L[1] / ln, lz = L[2] / ln
@@ -200,11 +212,33 @@ function bevel(S: number, c: number, R: number, Ri: number, strength: number): H
     const rz = 2 * (nx * lx + ny * ly + nz * lz) * nz - lz
     const gloss = Math.pow(Math.max(0, rz), 28) * 0.8
     const i = (y * S + x) * 4
-    if (lit >= 0) { const a = Math.min(0.75, lit * 0.9 + gloss); d.data.set([255, 238, 185, Math.round(a * 255)], i) }
-    else d.data.set([30, 10, 2, Math.round(Math.min(0.5, -lit * 0.9) * 255)], i)
+    if (lit >= 0) dl.data.set([255, 255, 255, Math.round(Math.min(1, lit * 1.6 + gloss) * 255)], i)
+    else dd.data.set([30, 8, 2, Math.round(Math.min(0.55, -lit * 1.0) * 255)], i)
+  }
+  light.getContext('2d')!.putImageData(dl, 0, 0)
+  dark.getContext('2d')!.putImageData(dd, 0, 0)
+  const out = { light, dark }
+  bevelCache.set(id, out)
+  return out
+}
+
+/** Thin dark cracks (where the noise crosses its middle grey), for the ember and blood rings. */
+const crackCache = new Map<number, HTMLCanvasElement>()
+function cracks(S: number): HTMLCanvasElement {
+  const hit = crackCache.get(S)
+  if (hit) return hit
+  const src = noise(S).getContext('2d')!.getImageData(0, 0, S, S).data
+  const out = document.createElement('canvas')
+  out.width = out.height = S
+  const g = out.getContext('2d')!
+  const d = g.createImageData(S, S)
+  const band = 6
+  for (let i = 0; i < S * S; i++) {
+    const v = Math.abs(src[i * 4] - 128)
+    if (v < band) d.data.set([50, 5, 0, Math.round((1 - v / band) * 235)], i * 4)
   }
   g.putImageData(d, 0, 0)
-  bevelCache.set(id, out)
+  crackCache.set(S, out)
   return out
 }
 
