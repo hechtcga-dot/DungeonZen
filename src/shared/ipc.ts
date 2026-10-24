@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Outline } from './outline'
+import { TokenSettings, TokenSpec } from './token'
 import { CalendarDef, CalEvent, WEATHER_KINDS } from './calendar'
 import { StatBlock } from './statblock'
 import { EncounterStory } from './encounterStory'
@@ -25,7 +26,7 @@ import { STYLE_USES } from './types'
 /** A drawing's outline as sent: the sketch as a picture (PNG, base64) or the DM's outline picture (asset path). */
 const OutlineSend = z.object({ png: z.string().max(4_000_000).optional(), path: z.string().max(500).optional() })
 import { PromptTemplateSchema, StyleTagsSchema, TEMPLATE_USES, type PromptTemplate, type StyleTags } from './styleTags'
-import type { EntityBrief, NotesScreenView, SecretView } from './types'
+import type { EntityBrief, NotesScreenView, SecretView, TokenView } from './types'
 import type { RollTable } from './rolltables'
 import { Blocks, type Block } from './noteDoc'
 import type { BSecret, BuildingProposal } from './building'
@@ -151,7 +152,7 @@ export const ipcInputs = {
   'backups:resetFolder': z.void(),
   'charsheet:importDialog': z.void(),
   'charsheet:import': z.object({ paths: z.array(z.string().max(2000)).min(1).max(10) }),
-  'campaign:openFolder': z.object({ sub: z.enum(['', 'assets', 'maps', 'styles', 'pictures', 'notes', 'board', 'encounters', 'exports', 'outlines']) }),
+  'campaign:openFolder': z.object({ sub: z.enum(['', 'assets', 'maps', 'styles', 'pictures', 'notes', 'board', 'encounters', 'exports', 'outlines', 'tokens']) }),
   'campaign:info': z.void(),
   'campaign:save': z.void(),
   'campaign:saveCopy': z.void(),
@@ -246,7 +247,8 @@ export const ipcInputs = {
     units: z.enum(['metric', 'imperial']).optional(),
     artStyle: z.string().trim().max(500).optional(),
     priceScale: z.number().int().min(1).max(10000).optional(),
-    worldOutline: Outline.optional()
+    worldOutline: Outline.optional(),
+    tokens: TokenSettings.optional()
   }),
   'storyline:update': z.object({
     storylineId: Id,
@@ -506,6 +508,14 @@ export const ipcInputs = {
   'party:estimate': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite() }),
   'party:move': z.object({ mapId: Id, x: z.number().finite(), y: z.number().finite(), minutes: z.number().int().min(0).max(525600), rememberTime: z.boolean().optional() }),
   'party:travel': z.object({ mapId: Id, action: z.enum(['undo', 'redo', 'clear']) }),
+  'token:list': z.void(),
+  'token:source': z.object({ entityId: Id }),
+  'token:write': z.object({ entityId: Id, key: z.string().regex(/^[0-9a-f]{8}$/), png: z.string().min(1).max(40_000_000) }),
+  'token:set': z.object({ entityId: Id, spec: TokenSpec.nullable() }),
+  'token:setRemoved': z.object({ entityId: Id, removed: z.boolean() }),
+  'token:copy': z.object({ entityId: Id }),
+  'token:saveAs': z.object({ entityId: Id }),
+  'token:saveAll': z.object({ entityIds: z.array(Id).max(1000) }),
   'review:decide': z.object({
     sessionId: Id, key: z.string().min(1).max(200),
     action: z.enum(['approve', 'reject', 'flag', 'explain', 'revive', 'remove_entry', 'reopen']),
@@ -869,6 +879,14 @@ export interface IpcOutputs {
   'party:estimate': TravelEstimateView
   'party:move': void
   'party:travel': void
+  'token:list': TokenView[]
+  'token:source': string
+  'token:write': void
+  'token:set': void
+  'token:setRemoved': void
+  'token:copy': void
+  'token:saveAs': string | null
+  'token:saveAll': string
   'review:decide': void
   'review:approveAll': number
   'review:feedback': void

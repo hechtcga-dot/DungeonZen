@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { useTokenSync } from './components/Tokens'
 import { SCREEN_NAMES, useBoard, type Screen } from './store'
 import { call } from './api'
 import { DeskFrame } from './components/DeskFrame'
@@ -47,6 +48,7 @@ export function App() {
 }
 
 function MainApp() {
+  useTokenSync()
   const info = useBoard((s) => s.info)
   const view = useBoard((s) => s.view)
   const screen = useBoard((s) => s.screen)

@@ -52,7 +52,7 @@ export function SheetScreen() {
 function Sheet({ sheet }: { sheet: SheetView }) {
   const typeColour = useTypeColour()
   const side = useSidePanel('sheet-side', 'right', 340)
-  const { act, showOnBoard, openSheet, goTo } = useBoard()
+  const { act, showOnBoard, openSheet, goTo, say } = useBoard()
   const [menu, setMenu] = useState<{ x: number; y: number; kind: 'export' | 'more' } | null>(null)
   const fileHook = useSheetFile(sheet.entity.id, sheet.entity.name)
   const file = sheet.entity.type === 'PC' || sheet.entity.type === 'NPC' ? fileHook : null
@@ -161,7 +161,8 @@ function Sheet({ sheet }: { sheet: SheetView }) {
       {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} items={menu.kind === 'export' ? [
         ...(file ? [{ label: 'Character sheet file', items: file.items }] : []),
         { label: e.type === 'HANDOUT' ? 'Print letter…' : 'Print or save…', onClick: () => setExporting('print') },
-        ...(['NPC', 'PC', 'MONSTER'].includes(e.type) ? [{ label: 'Export to Roll20…', onClick: () => setExporting('roll20') }] : [])
+        ...(['NPC', 'PC', 'MONSTER'].includes(e.type) ? [{ label: 'Export to Roll20…', onClick: () => setExporting('roll20') }] : []),
+        ...(['NPC', 'PC', 'MONSTER'].includes(e.type) && typeof e.attributes.picture === 'string' ? [{ label: 'Save token…', onClick: () => void call('token:saveAs', { entityId: e.id }).then((f) => { if (f) say(`Saved ${f}`) }).catch((err: Error) => say(err.message, true)) }] : [])
       ] : [
         { label: 'Duplicate', onClick: async () => { const copy = await act('entity:duplicate', { id: e.id }); if (copy) await openSheet(copy.id) } },
         ...(e.type === 'LOCATION' || e.type === 'BUILDING' ? [{ label: 'Show on map', onClick: () => { useBoard.setState({ mapFocusId: e.id }); goTo('map') } }] : []),

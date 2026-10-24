@@ -2135,3 +2135,25 @@ input.weekday { width: 96px; }
 .moon-row input[type='color'], .cal-seasons input[type='color'] { width: 34px; height: 32px; min-height: 32px; padding: 1px; flex: none; }
 .cal-weather input.tiny { width: 40px; padding: 1px 3px; }
 .cal-weather td, .cal-weather th { padding: 2px 2px; }
+
+/* Tokens for Roll20 (Library › Tokens, card sheets, Roll20 export, token window) */
+.token-image { padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.token-image img, .card-picture .token-image img { width: 100%; height: 100%; border: 0; border-radius: 50%; display: block; }
+.token-image:focus-visible { outline: 2px solid var(--wax); outline-offset: 2px; border-radius: 50%; }
+.token-drawing { font-size: 12px; opacity: 0.7; }
+.token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 10px; }
+.token-tile { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.token-tile figcaption { display: flex; flex-direction: column; font-size: 13px; }
+.sheet-token { display: flex; align-items: center; gap: 10px; }
+.roll20-char-head { display: flex; align-items: center; gap: 10px; }
+.token-editor { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; }
+.token-editor .dz-actions { grid-column: 1 / -1; }
+.token-preview canvas { display: block; cursor: grab; touch-action: none; background: repeating-conic-gradient(#d9d2c4 0% 25%, #f3eee4 0% 50%) 0 0 / 20px 20px; border-radius: 6px; }
+.token-controls { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.token-borders { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.token-border { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; font-size: 11px; line-height: 1.2; border: 2px solid transparent; border-radius: 6px; background: transparent; }
+.token-border.is-on { border-color: var(--wax); background: rgba(143, 42, 33, 0.08); }
+.token-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(42, 31, 18, 0.5); vertical-align: middle; margin-left: 4px; }
+.token-type-table th { text-align: left; padding-right: 10px; font-weight: 600; }
+.token-type-table td { padding: 3px 6px 3px 0; }
+@media (max-width: 760px) { .token-editor { grid-template-columns: 1fr; } }

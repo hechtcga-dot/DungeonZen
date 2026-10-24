@@ -5,6 +5,7 @@ import type { LengthUnit, Units } from './units'
 import type { StatBlock } from './statblock'
 import type { StyleTags } from './styleTags'
 import type { CalendarDef, CalEvent, WeatherDays } from './calendar'
+import type { TokenSettings, TokenSpec } from './token'
 // Plain data the main process sends to the renderer over IPC.
 import type {
   AbilityKind, BoardItemKind, EntityAttributes, EntityStatus, EntityType, KnowledgeField, BoardItemContent, RowStatus,
@@ -30,6 +31,8 @@ export interface CampaignInfo {
   worldOutline: Outline
   /** Percent for every shop and tavern price (Setup › Campaign settings). */
   priceScale: number
+  /** Tokens for Roll20: drag-out choice, default size, border per card type. */
+  tokens: TokenSettings
 }
 
 export interface RecentCampaign {
@@ -161,6 +164,8 @@ export interface HistoryView {
   removedOutcomes: Array<{ id: string; label: string; actTitle: string }>
   removedTriggers: Array<{ id: string; label: string; actTitle: string }>
   removedRegions: Array<{ id: string; name: string }>
+  /** Cards whose token was removed (its look is kept). */
+  removedTokens: Array<{ id: string; name: string }>
   removedStyles: Array<{ id: string; name: string }>
   removedPrep: Array<{ id: string; name: string; what: string }>
   removedNoteDocs: Array<{ id: string; title: string }>
@@ -948,3 +953,20 @@ export interface NoteMentionView { docId: string; title: string; heading: number
 /** Notes screen: DM notes kept per session (the desk journal while that session runs). */
 export interface SessionNotesView { id: string; number: number; startedAt: string; running: boolean; dmNotes: string; recap: string; title: string; playDate: string | null }
 export interface NotesScreenView { docs: NoteDocView[]; sessions: SessionNotesView[]; dmNotes: string; starred: string[]; folders: string[]; folderLinks: Record<string, string> }
+
+/** A card's token for Roll20 (Library › Tokens, card sheets, Roll20 export). */
+export interface TokenView {
+  entityId: string
+  name: string
+  type: string
+  /** The card's picture (assets path). */
+  picture: string
+  spec: TokenSpec
+  /** Names the drawing (picture + look): file tokens/<entityId>-<key>.png. */
+  key: string
+  /** True when the card has its own look (else its type's default). */
+  own: boolean
+  url: string
+  /** The PNG is drawn already (else the window draws it). */
+  exists: boolean
+}

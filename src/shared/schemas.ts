@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CardToken } from './token'
 
 // Enums are stored as strings in SQLite and checked here (CLAUDE.md rule 6).
 
@@ -62,7 +63,8 @@ export const EntityAttributes = z.object({
   ...Object.fromEntries(COUNT_KEYS.map((k) => [k, count])) as Record<(typeof COUNT_KEYS)[number], typeof count>,
   prof_bonus: z.number().int().min(-10).max(30).nullable().optional(),
   spell_bonus: z.number().int().min(-10).max(10).nullable().optional(),
-  encounter: flag, inspiration: flag, generated: flag, link_name: flag
+  encounter: flag, inspiration: flag, generated: flag, link_name: flag,
+  token: CardToken.optional()
 }).catchall(z.unknown())
 export type EntityAttributes = Record<string, unknown>
 

@@ -157,6 +157,22 @@ built.
   (`--replace` refreshes). Creates characters with 5E-by-Roll20 NPC attributes
   and token-action abilities; tested against a stand-in Roll20. Battle maps: Save
   image for Roll20 with the page size in units.
+- Tokens for Roll20 (owner, 2026-10-24): every PC, NPC and monster card with a picture has a token
+  (`src/shared/token.ts` spec/settings/key, `src/shared/tokenFit.ts` auto-fit, `src/renderer/token.ts` canvas
+  drawing, `src/main/campaign/tokens.ts`, `components/Tokens.tsx`). Borders drawn in code: Ember (gold to red
+  textured, like Token Stamp's; never their art), Gold, Silver, Bronze, Blood red, Iron, Plain white, None; tint.
+  Auto-fit: background colour = median of the picture's edges (fills gaps, soft picture edges), figure = what differs
+  from it; Whole body (default: every figure pixel inside the circle) or Head and body (top 45 % of a tall figure);
+  busy pictures fill the circle. Token window: border picker with previews, tint, background (matched / my colour),
+  fit, zoom slider + drag/scroll on the preview, size slider 128–1024 (512 default); Save = this card only
+  (`attributes.token`), "Use the <type> default". Token settings (Library › Tokens or Campaign settings; setting
+  `token_settings`): drag-out gives token (default) or picture, default size, border + tint per type (PC Ember, NPC
+  Silver, Monster Blood red). Files `assets/tokens/<card>-<key>.png`, drawn in the window in the background
+  (`useTokenSync`, after every change; key = picture + look, any change draws a new file). Library › Tokens tab
+  (Cards and rules · Pictures · Tokens), card sheets (beside the picture), Roll20 export window (token per character,
+  Save all tokens → `exports/tokens`), sheet Export › Save token…. Right-click a token: Edit, Copy (clipboard PNG),
+  Save as…, Open tokens folder, Delete (→ History, look kept, Restore). Drag a portrait out (main `drag-out`) gives
+  its token when the setting says so.
 - PDF and JPG (`src/main/exporters/pages.ts`, `render.ts`, `ExportDialog.tsx`;
   Library › Print or save, card sheet › Print or save / Print letter, encounter ›
   Stat sheets): character sheets (DM copy with notes, or player copy with only

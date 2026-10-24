@@ -17,6 +17,7 @@ import { KNOWLEDGE_FIELDS, type PrepKind } from '../../shared/schemas'
 import { freeSpot } from '../../shared/layout'
 import { imageSize } from '../imageSize'
 import { readOutline } from '../../shared/outline'
+import { readTokenSettings } from '../../shared/token'
 import { crToNumber, HAS_STATBLOCK, leadingNumber, passiveScore, readStatBlock, StatBlock, statLine } from '../../shared/statblock'
 import type { SecretKind, SecretView,
   AbilityView, BoardItemView, BoardSettings, BoardSummary, CardActMark, StringType, BoardView, CampaignInfo, DeskView, EntityBrief, EntityView, HistoryView,
@@ -31,6 +32,7 @@ import { livePart } from './live'
 import { reviewPart } from './review'
 import { regionsPart } from './regions'
 import { picturesPart } from './pictures'
+import { tokensPart } from './tokens'
 import { fillPart } from './fill'
 import { notesImportPart } from './notesImport'
 import { encountersPart } from './encounters'
@@ -261,7 +263,8 @@ export class Campaign {
       gettingStarted: settings.get('getting_started') === 'pending',
       artStyle: String(settings.get('art_style') ?? ''),
       priceScale: typeof settings.get('price_scale') === 'number' ? settings.get('price_scale') as number : 100,
-      worldOutline: readOutline(settings.get('world_outline'))
+      worldOutline: readOutline(settings.get('world_outline')),
+      tokens: readTokenSettings(settings.get('token_settings'))
     }
   }
 
@@ -442,6 +445,7 @@ export class Campaign {
         .map((r) => ({ storylineId: r.id, title: r.title })),
       removedMaps: this.db.select().from(map).where(eq(map.status, 'defunct')).all().map((m) => ({ id: m.id, name: m.name })),
       ...this.removedTimeline(),
+      removedTokens: this.removedTokens(),
       removedRegions: this.db.select().from(regionShape).where(eq(regionShape.status, 'defunct')).all()
         .map((r) => ({ id: r.id, name: this.nameOf(r.locationId) })),
       removedPrep: [
@@ -1570,8 +1574,8 @@ export class Campaign {
 }
 
 // The areas in their own files (timeline.ts, live.ts…) are methods of Campaign too.
-const PARTS = [timelinePart, livePart, reviewPart, regionsPart, picturesPart, fillPart, notesImportPart, encountersPart, combatPart, notesPart, prepPart, buildingsPart, calendarPart]
-type Parts = typeof timelinePart & typeof livePart & typeof reviewPart & typeof regionsPart & typeof picturesPart & typeof fillPart & typeof notesImportPart & typeof encountersPart & typeof combatPart & typeof notesPart & typeof prepPart & typeof buildingsPart & typeof calendarPart
+const PARTS = [tokensPart, timelinePart, livePart, reviewPart, regionsPart, picturesPart, fillPart, notesImportPart, encountersPart, combatPart, notesPart, prepPart, buildingsPart, calendarPart]
+type Parts = typeof tokensPart & typeof timelinePart & typeof livePart & typeof reviewPart & typeof regionsPart & typeof picturesPart & typeof fillPart & typeof notesImportPart & typeof encountersPart & typeof combatPart & typeof notesPart & typeof prepPart & typeof buildingsPart & typeof calendarPart
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Campaign extends Parts {}
 for (const p of PARTS) Object.assign(Campaign.prototype, p)

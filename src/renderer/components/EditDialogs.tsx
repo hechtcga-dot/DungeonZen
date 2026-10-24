@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useBoard } from '../store'
 import type { Units } from '../../shared/units'
 import { Dialog } from './Dialog'
+import { TokenSettingsDialog } from './Tokens'
 import { STORY_EMBLEMS, StoryEmblemArt, storyEmblemFor, type StoryEmblem } from '../art/emblems'
 import { RulesEdition, StorylineStatus } from '../../shared/schemas'
 import type { MapView, StorylineDetail } from '../../shared/types'
@@ -25,6 +26,7 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
   const [edition, setEdition] = useState<RulesEdition>(info?.rulesEdition ?? '2024')
   const [units, setUnits] = useState<Units>(info?.units ?? 'imperial')
   const [prices, setPrices] = useState(String(info?.priceScale ?? 100))
+  const [tokens, setTokens] = useState(false)
   const pct = Math.round(Number(prices))
   const valid = name.trim() !== '' && pct >= 1 && pct <= 10000
 
@@ -60,11 +62,17 @@ function CampaignSettingsForm({ onClose }: { onClose(): void }) {
         <input id="cs-prices" className="short" type="number" min={1} max={10000} value={prices} onChange={(e) => setPrices(e.target.value)} />
         <div className="hint">100 is the standard 5e price. Every shop and tavern uses this, times its own scale (its Price settings).</div>
       </div>
+      <div className="field">
+        <span className="field-label">Tokens for Roll20</span>
+        <div className="row tight"><button type="button" onClick={() => setTokens(true)}>Token settings…</button>
+          <span className="hint">What dragging a portrait gives, token size, border per card type.</span></div>
+      </div>
       <div className="hint">The time is set with the clock's Set…; the date, calendar, moons and weather on the Calendar screen.</div>
       <div className="dz-actions">
         <button type="button" onClick={onClose}>Cancel</button>
         <button type="submit" className="primary" disabled={!valid}>Save</button>
       </div>
+      {tokens && <TokenSettingsDialog onClose={() => setTokens(false)} />}
     </form>
   )
 }

@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process'
 import { wakeCursor } from './cursor'
 import { basename, dirname, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, nativeImage, net, protocol, safeStorage, shell } from 'electron'
 import { ASSETS_DIR, Campaign, MAP_EXTENSIONS, storedExt } from './campaign/campaign'
 import { ProfileStore } from './profile'
 import { logError, logFolder } from './log'
@@ -201,8 +201,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   // Drag any picture out of the app (Roll20, Explorer, another program): the full-size file, a small copy under the mouse.
   ipcMain.on(IPC_PREFIX + 'drag-out', (event, raw: unknown) => {
     try {
-      const file = typeof raw === 'string' ? assetOf(new URL(raw)) : null
-      if (!file) return
+      const url = typeof raw === 'string' ? new URL(raw) : null
+      let file = url ? assetOf(url) : null
+      if (!file || !url) return
+      // Token settings › Dragging a portrait gives a token: a PC, NPC or monster picture drags out as its token.
+      if (campaign && url.hostname === 'campaign' && campaign.tokenSettings().drag === 'token') {
+        const pic = decodeURIComponent(url.pathname.slice(1))
+        const t = campaign.tokens().find((x) => x.picture === pic && x.exists)
+        if (t) file = campaign.tokenFile(t.entityId) ?? file
+      }
       const icon = nativeImage.createFromPath(thumbnail(file, 128) ?? file)
       if (icon.isEmpty()) return
       event.sender.startDrag({ file, icon: icon.resize({ width: Math.min(128, icon.getSize().width) }) })
@@ -406,10 +413,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
   handle('notes:set', ({ text }) => current().setDmNotes(text))
   handle('clock:shift', ({ minutes }) => current().shiftClock(minutes))
   handle('clock:set', ({ minutes }) => current().setClock(minutes))
-  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle, priceScale, worldOutline }) => {
+  handle('campaign:update', ({ name, rulesEdition, moonOffsetDays, units, artStyle, priceScale, worldOutline, tokens }) => {
     const c = current()
-    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units, art_style: artStyle, price_scale: priceScale, world_outline: worldOutline },
-      artStyle !== undefined ? 'Changed the art style' : worldOutline ? 'Changed the world map outline' : 'Changed campaign settings')
+    c.setSettings({ name, rules_edition: rulesEdition, moon_offset_days: moonOffsetDays, units, art_style: artStyle, price_scale: priceScale, world_outline: worldOutline, token_settings: tokens },
+      artStyle !== undefined ? 'Changed the art style' : worldOutline ? 'Changed the world map outline' : tokens ? 'Changed the token settings' : 'Changed campaign settings')
     if (name) profile.remember(c.folder, name)
   })
   handle('storyline:update', ({ storylineId, patch }) => current().updateStoryline(storylineId, patch))
@@ -1023,6 +1030,51 @@ export function registerIpc(getWindow: () => BrowserWindow | null, profile: Prof
     const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
     return r.canceled || !r.filePath ? null : r.filePath
   }
+  // ---- tokens (Roll20)
+  const tokenOf = (entityId: string) => {
+    const c = current()
+    const file = c.tokenFile(entityId)
+    if (!file) throw new Error('This token is not drawn yet; open Library › Tokens and try again')
+    return { file, name: c.entityRow(entityId).name }
+  }
+  handle('token:list', () => current().tokens())
+  handle('token:source', ({ entityId }) => {
+    // The card's picture for the token window's canvas (a data URL: a dz-asset picture would lock the canvas).
+    const c = current()
+    const pic = c.entityRow(entityId).attributes.picture
+    const file = typeof pic === 'string' ? c.assetFile(pic) : null
+    if (!file) throw new Error('This card has no picture')
+    let img = nativeImage.createFromPath(file)
+    if (img.isEmpty()) throw new Error('The picture could not be read')
+    const { width, height } = img.getSize()
+    if (Math.max(width, height) > 1600) img = width >= height ? img.resize({ width: 1600, quality: 'best' }) : img.resize({ height: 1600, quality: 'best' })
+    return img.toDataURL()
+  })
+  handle('token:write', ({ entityId, key, png }) => current().writeToken(entityId, key, png))
+  handle('token:set', ({ entityId, spec }) => current().setToken(entityId, spec))
+  handle('token:setRemoved', ({ entityId, removed }) => current().setTokenRemoved(entityId, removed))
+  handle('token:copy', async ({ entityId }) => {
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([readFileSync(tokenOf(entityId).file)], { type: 'image/png' }) })])
+  })
+  handle('token:saveAs', async ({ entityId }) => {
+    const t = tokenOf(entityId)
+    const file = await saveAs('Save the token', `${safeFolderName(t.name)} token.png`, [{ name: 'PNG image', extensions: ['png'] }])
+    if (!file) return null
+    copyFileSync(t.file, file)
+    return file
+  })
+  handle('token:saveAll', ({ entityIds }) => {
+    // Into exports/tokens (one folder to back up), named after the cards.
+    const dir = join(exportsDir(), 'tokens')
+    mkdirSync(dir, { recursive: true })
+    let n = 0
+    for (const id of new Set(entityIds)) {
+      const f = current().tokenFile(id)
+      if (f) { copyFileSync(f, join(dir, `${safeFolderName(current().entityRow(id).name)} token.png`)); n++ }
+    }
+    if (!n) throw new Error('No tokens drawn yet for these cards')
+    return dir
+  })
   handle('roll20:export', ({ entityIds }) => {
     const c = current()
     const sheets = [...new Set(entityIds)].map((id) => c.sheet(id))

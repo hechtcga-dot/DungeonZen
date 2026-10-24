@@ -125,7 +125,10 @@ try {
   await click('Board'); await page.locator('.react-flow__node', { hasText: 'Barliman Butterbur' }).first().click(); await shot('board-inspector')
   await page.getByRole('tab', { name: 'History', exact: true }).click(); await shot('board-history')
   await page.getByRole('tab', { name: 'Inspector', exact: true }).click()
-  for (const [label, name] of [['Library', 'library'], ['Notes', 'notes']]) { await click(label); await shot(name) }
+  await click('Library'); await shot('library')
+  await page.getByRole('tab', { name: 'Tokens' }).click(); await shot('library-tokens')
+  await page.getByRole('tab', { name: 'Cards and rules' }).click()
+  await click('Notes'); await shot('notes')
   // Character sheets with long file names (the file window answered by the test): Make a character card, then Import notes.
   const sheetText = 'Raph, Tortle Sorcerer, Level 9\nArmor Class 18, Proficiency Bonus +4\nStrength 11, Dexterity 12, Constitution 16, Intelligence 10, Wisdom 10, Charisma 18\n'
     + 'Acrobatics +1, Animal Handling +0, Arcana +0, Athletics +0, Deception +8, History +0, Insight +0, Intimidation +4, Investigation +0, Medicine +0, Nature +0, Perception +4, Stealth +5\n'

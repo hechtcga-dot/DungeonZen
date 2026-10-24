@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Dialog } from './Dialog'
 import { call } from '../api'
 import { useBoard } from '../store'
+import { TokenImage, useTokens } from './Tokens'
 import type { MapView, Roll20Export } from '../../shared/types'
 
 /**
@@ -14,6 +15,8 @@ export function Roll20Dialog({ entityIds, title, mapId, onClose }: { entityIds: 
   const [tab, setTab] = useState<'macros' | 'api'>('macros')
   const [error, setError] = useState<string | null>(null)
   const [map, setMap] = useState<MapView | null>(null)
+  const tokens = useTokens()?.filter((t) => entityIds.includes(t.entityId)) ?? []
+  const saveTokens = () => void call('token:saveAll', { entityIds: tokens.map((t) => t.entityId) }).then((d) => say(`Saved the tokens in ${d}`)).catch((e: Error) => say(e.message, true))
   useEffect(() => {
     call('roll20:export', { entityIds }).then(setData).catch((e) => setError((e as Error).message))
     if (mapId) call('desk:view', undefined).then((d) => setMap(d.maps.find((m) => m.id === mapId) ?? null)).catch(() => setMap(null))
@@ -38,11 +41,16 @@ export function Roll20Dialog({ entityIds, title, mapId, onClose }: { entityIds: 
               <p className="hint">In Roll20, open the character, go to Attributes &amp; Abilities, add an ability per line below and paste its macro.
                 Tick “Show as token action” for the ones marked so. Macros you wrote on a card's sheet are used as written.</p>
               <div className="row tight"><button className="primary" onClick={() => copy(allMacros, 'every macro')}>Copy all</button>
-                <button onClick={() => void save(title.replace(/^Roll20:\s*/, ''), allMacros, 'txt')}>Save as text…</button></div>
+                <button onClick={() => void save(title.replace(/^Roll20:\s*/, ''), allMacros, 'txt')}>Save as text…</button>
+                {tokens.length > 0 && <button onClick={saveTokens} title="Into the campaign's exports/tokens folder">Save all tokens</button>}</div>
+              {tokens.length > 0 && <p className="hint">Tokens: drag one into Roll20 (onto the map, or the character's Edit › Default token), or right-click to copy or save it.</p>}
               <div className="roll20-list">
                 {data.characters.map((c) => (
                   <section key={c.entityId}>
-                    <h3 className="side-h">{c.name}</h3>
+                    <div className="roll20-char-head">
+                      {tokens.find((t) => t.entityId === c.entityId) && <TokenImage token={tokens.find((t) => t.entityId === c.entityId)!} size={64} />}
+                      <h3 className="side-h">{c.name}</h3>
+                    </div>
                     {c.abilities.length === 0 ? <p className="hint">No abilities on this card.</p> : c.abilities.map((a) => (
                       <div key={a.name} className="macro-row">
                         <div className="macro-head"><strong>{a.name}</strong>{a.tokenAction && <span className="badge token-badge">TOKEN ACTION</span>}

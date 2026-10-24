@@ -169,6 +169,10 @@ commands. `group_id` lets a session or an import undo as one step.
   `storyline.removed` (in History) were added in migration 4.
 - `entity.attributes.colour` (card colour override) and
   `entity.attributes.custom` (list of `{label, value}` the DM adds).
+- `entity.attributes.token` (PC, NPC, monster): the card's own token look (`TokenSpec`: border, tint, bg,
+  fit, zoom, dx, dy, size) and/or `removed: true` (in History). Setting `token_settings` (`TokenSettings`).
+  Token PNGs in `assets/tokens/` are drawings of picture + look (no rows).
+- Party travel: `party_position.minutes`, `log_id`, status `undone`; `map.route_from` (Clear travel).
 - Timeline (migration 5): `act` (title, summary, start_min, end_min,
   chosen_outcome_id, status), `act_outcome` (label, description, is_default,
   sort, status), `story_trigger` (the doc's `trigger`; renamed because TRIGGER

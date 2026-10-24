@@ -19,7 +19,7 @@ function timeAgo(iso: string): string {
 type Sort = 'recent' | 'az' | 'type'
 const SORTS: Array<[Sort, string]> = [['recent', 'Recently removed'], ['az', 'A–Z'], ['type', 'Type']]
 let sortKept: Sort = 'recent' // kept while the app runs
-type Kind = z.infer<(typeof ipcInputs)['history:forget']>['items'][number]['kind'] | 'notedoc' | 'event' | 'moon'
+type Kind = z.infer<(typeof ipcInputs)['history:forget']>['items'][number]['kind'] | 'notedoc' | 'event' | 'moon' | 'token'
 interface Row { key: string; name: string; type: string; order: number; body: ReactNode }
 
 export function HistoryPanel() {
@@ -35,7 +35,7 @@ export function HistoryPanel() {
   if (!history) return <p className="muted">Loading…</p>
   const removedCount = history.removedEntities.length + history.removedSecrets.length + history.removedStrings.length + history.removedNotes.length +
     history.removedStorylines.length + history.removedMaps.length + history.removedActs.length +
-    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedStyles.length + history.removedPrep.length + history.removedNoteDocs.length +
+    history.removedOutcomes.length + history.removedTriggers.length + history.removedRegions.length + history.removedTokens.length + history.removedStyles.length + history.removedPrep.length + history.removedNoteDocs.length +
     history.removedEvents.length + history.removedMoons.length
 
   const order = history.removedOrder
@@ -100,6 +100,11 @@ export function HistoryPanel() {
         <div className="removed-text"><strong>{r.name}</strong><span className="muted">Map region</span></div>
         <button onClick={() => void act('region:setStatus', { id: r.id, status: 'active' })}>Restore</button>
       </>)),
+    ...history.removedTokens.map((r) => row('token', r.id, `Token of ${r.name}`, 'Token',
+      <>
+        <div className="removed-text"><strong>Token of {r.name}</strong><span className="muted">Token</span></div>
+        <button onClick={() => void act('token:setRemoved', { entityId: r.id, removed: false })}>Restore</button>
+      </>)),
     ...history.removedStyles.map((r) => row('style', r.id, r.name, 'Library picture',
       <>
         <div className="removed-text"><strong>{r.name}</strong><span className="muted">Library picture</span></div>
@@ -149,8 +154,8 @@ export function HistoryPanel() {
   }
   const forget = async (keys: string[]) => {
     const split = keys.map((k) => { const at = k.indexOf(':'); return { kind: k.slice(0, at) as Kind, id: k.slice(at + 1) } })
-    // Calendar events and moons stay in History (no delete for good; they are campaign settings).
-    const items = split.filter((x): x is { kind: Exclude<Kind, 'notedoc' | 'event' | 'moon'>; id: string } => x.kind !== 'notedoc' && x.kind !== 'event' && x.kind !== 'moon')
+    // Calendar events, moons and tokens stay in History (no delete for good; settings and card looks).
+    const items = split.filter((x): x is { kind: Exclude<Kind, 'notedoc' | 'event' | 'moon' | 'token'>; id: string } => !['notedoc', 'event', 'moon', 'token'].includes(x.kind))
     await act('history:forget', { items, noteDocs: split.filter((x) => x.kind === 'notedoc').map((x) => x.id) })
     setSel(new Set()); setConfirm(null)
     say(keys.length === 1 ? 'Deleted for good (Ctrl+Z brings it back)' : `Deleted ${keys.length} things for good (Ctrl+Z brings them back)`)

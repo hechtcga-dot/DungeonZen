@@ -7,6 +7,7 @@ import { useBoard } from '../store'
 import { Dialog } from './Dialog'
 import type { IpcOutputs } from '../../shared/ipc'
 import { OpenFolder } from './OpenFolder'
+import { SheetToken } from './Tokens'
 import { ChangePicture, OutlinePanel, outlineSend } from './OutlinePad'
 import { outlineBlank, outlineText, readOutline } from '../../shared/outline'
 import type { LibraryPictureView, SheetView, StyleExampleView, StyleUse } from '../../shared/types'
@@ -505,6 +506,7 @@ export function PicturePanel({ sheet }: { sheet: SheetView }) {
         <OpenFolder sub="pictures" label="📁" className="ink-button icon" />
         {picture && <button className="ink-button icon danger-ink" title="Remove picture (Ctrl+Z puts it back)" aria-label="Remove picture" onClick={() => void act('entity:removePicture', { entityId: e.id })}>🗑</button>}
       </div>
+      {picture && <SheetToken entityId={e.id} />}
       {mode === 'draw' && <DrawPictureDialog entity={e} onClose={() => setMode(null)} />}
       {mode === 'add' && picture && <AddToPictureDialog entity={e} picture={picture} onClose={() => setMode(null)} />}
       {mode === 'pick' && (
