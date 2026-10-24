@@ -68,7 +68,7 @@ export function tokenSpecFor(type: string, own: unknown, settings: TokenSettings
 }
 
 /** Raise when the drawing changes: every token file is made again. */
-const RENDER_VERSION = 1
+const RENDER_VERSION = 2
 
 /** Short name of one token picture (picture + spec): files are `tokens/<card id>-<key>.png`. */
 export function tokenKey(picture: string, spec: TokenSpec): string {

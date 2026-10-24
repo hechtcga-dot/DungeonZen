@@ -66,9 +66,24 @@ export function drawToken(canvas: HTMLCanvasElement, pic: TokenPicture, spec: To
   const g = canvas.getContext('2d')!
   g.clearRect(0, 0, S, S)
   const c = S / 2
-  const R = S / 2 - S * 0.004
+  // Room around the ring for its drop shadow.
+  const R = S / 2 - S * 0.035
   const ringW = spec.border === 'none' ? 0 : spec.border === 'plain' ? S * 0.035 : S * 0.1
   const Ri = R - ringW
+  // A shadow only (the shape itself drawn far off the canvas), light from the top left.
+  const shadow = (shape: () => void, blur: number, alpha: number) => {
+    const far = S * 4
+    g.save()
+    g.shadowColor = `rgba(0,0,0,${alpha})`
+    g.shadowBlur = blur
+    g.shadowOffsetX = far + S * 0.008; g.shadowOffsetY = S * 0.012
+    g.translate(-far, 0)
+    shape()
+    g.fillStyle = '#000'; g.fill('evenodd')
+    g.restore()
+  }
+  // Drop shadow under the whole token.
+  shadow(() => { g.beginPath(); g.arc(c, c, R, 0, Math.PI * 2) }, S * 0.03, 0.6)
 
   // The picture: background colour, then the portrait framed so the figure's circle fills the opening.
   g.save()
@@ -98,13 +113,14 @@ export function drawToken(canvas: HTMLCanvasElement, pic: TokenPicture, spec: To
   fade(0, oy, 0, oy + f, ox, oy, iw, f)
   fade(0, oy + ih, 0, oy + ih - f, ox, oy + ih - f, iw, f)
   g.drawImage(pc, 0, 0)
-  // Depth: the picture darkens a little under the ring.
-  if (ringW) {
-    const sh = g.createRadialGradient(c, c, Ri * 0.82, c, c, Ri)
-    sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.38)')
-    g.fillStyle = sh; g.fillRect(0, 0, S, S)
-  }
   g.restore()
+  // The ring casts a shadow onto the picture (inside the opening only).
+  if (ringW) {
+    g.save()
+    g.beginPath(); g.arc(c, c, Ri + 1, 0, Math.PI * 2); g.clip()
+    shadow(() => { g.beginPath(); g.rect(-S, -S, S * 3, S * 3); g.arc(c, c, Ri, 0, Math.PI * 2) }, S * 0.035, 0.75)
+    g.restore()
+  }
   if (!ringW) return
 
   const ring = () => { g.beginPath(); g.arc(c, c, R, 0, Math.PI * 2); g.arc(c, c, Ri, 0, Math.PI * 2, true) }
@@ -147,23 +163,49 @@ export function drawToken(canvas: HTMLCanvasElement, pic: TokenPicture, spec: To
     g.fillStyle = spec.tint; g.fillRect(0, 0, S, S)
     g.globalAlpha = 1
   }
-  // Bevel: dark at both edges, a lit band in the middle; a gloss top left.
+  // Bevel: each pixel lit by its slope across the ring (a rounded rise with a crisp ridge in the middle).
   g.globalCompositeOperation = 'source-over'
-  const bv = g.createRadialGradient(c, c, Ri, c, c, R)
-  bv.addColorStop(0, 'rgba(0,0,0,0.6)'); bv.addColorStop(0.16, 'rgba(0,0,0,0)')
-  bv.addColorStop(0.42, 'rgba(255,250,225,0.2)'); bv.addColorStop(0.62, 'rgba(255,255,255,0)')
-  bv.addColorStop(0.86, 'rgba(0,0,0,0.12)'); bv.addColorStop(1, 'rgba(0,0,0,0.6)')
-  g.fillStyle = bv; g.fillRect(0, 0, S, S)
-  g.globalCompositeOperation = 'screen'
-  const gl = g.createRadialGradient(c - R * 0.55, c - R * 0.6, 0, c - R * 0.55, c - R * 0.6, R * 0.7)
-  gl.addColorStop(0, 'rgba(255,245,200,0.3)'); gl.addColorStop(1, 'rgba(255,245,200,0)')
-  g.fillStyle = gl; g.fillRect(0, 0, S, S)
+  g.drawImage(bevel(S, c, R, Ri, spec.border === 'plain' ? 0.6 : 1), 0, 0)
   g.restore()
-  // Fine dark lines at the ring's edges.
-  g.strokeStyle = spec.border === 'plain' ? 'rgba(40,30,20,0.7)' : 'rgba(35,10,3,0.85)'
-  g.lineWidth = Math.max(1, S * 0.006)
-  g.beginPath(); g.arc(c, c, R - g.lineWidth / 2, 0, Math.PI * 2); g.stroke()
-  g.beginPath(); g.arc(c, c, Ri + g.lineWidth / 2, 0, Math.PI * 2); g.stroke()
+}
+
+/**
+ * The ring's light and shade, white and black with alpha: height across the ring t (0 inside, 1 outside)
+ * is a rounded rise plus a ridge at the middle; the normal from its slope, lit from the top left, with a gloss.
+ */
+const bevelCache = new Map<string, HTMLCanvasElement>()
+function bevel(S: number, c: number, R: number, Ri: number, strength: number): HTMLCanvasElement {
+  const id = `${S}:${strength}:${R}:${Ri}`
+  const hit = bevelCache.get(id)
+  if (hit) return hit
+  const out = document.createElement('canvas')
+  out.width = out.height = S
+  const g = out.getContext('2d')!
+  const d = g.createImageData(S, S)
+  const w = R - Ri
+  const L = [-0.55, -0.65, 0.52], ln = Math.hypot(...L)
+  const lx = L[0] / ln, ly = L[1] / ln, lz = L[2] / ln
+  const k = 1.1 * strength // how steep the slopes are
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const dx = x + 0.5 - c, dy = y + 0.5 - c, r = Math.hypot(dx, dy)
+    if (r < Ri - 1 || r > R + 1) continue
+    const t = Math.min(1, Math.max(0, (r - Ri) / w))
+    // slope dh/dt: rounded rise (sin) and a ridge (|2t − 1|) at the middle
+    const slope = 0.65 * Math.PI * Math.cos(Math.PI * t) + 0.5 * (t < 0.5 ? 2 : -2)
+    const ux = dx / (r || 1), uy = dy / (r || 1)
+    let nx = -slope * k * ux / 3, ny = -slope * k * uy / 3, nz = 1
+    const nn = Math.hypot(nx, ny, nz); nx /= nn; ny /= nn; nz /= nn
+    const lit = nx * lx + ny * ly + nz * lz - lz // 0 = as flat
+    // gloss: light mirrored about the normal, towards the viewer
+    const rz = 2 * (nx * lx + ny * ly + nz * lz) * nz - lz
+    const gloss = Math.pow(Math.max(0, rz), 28) * 0.8
+    const i = (y * S + x) * 4
+    if (lit >= 0) { const a = Math.min(0.75, lit * 0.9 + gloss); d.data.set([255, 238, 185, Math.round(a * 255)], i) }
+    else d.data.set([30, 10, 2, Math.round(Math.min(0.5, -lit * 0.9) * 255)], i)
+  }
+  g.putImageData(d, 0, 0)
+  bevelCache.set(id, out)
+  return out
 }
 
 /** The canvas as PNG, base64 (no data: prefix). */

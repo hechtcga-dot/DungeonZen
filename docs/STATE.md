@@ -161,6 +161,8 @@ built.
   (`src/shared/token.ts` spec/settings/key, `src/shared/tokenFit.ts` auto-fit, `src/renderer/token.ts` canvas
   drawing, `src/main/campaign/tokens.ts`, `components/Tokens.tsx`). Borders drawn in code: Ember (gold to red
   textured, like Token Stamp's; never their art), Gold, Silver, Bronze, Blood red, Iron, Plain white, None; tint.
+  No dark edge lines (owner, 2026-10-24): soft drop shadow under the token (3.5 % margin), the ring casts a shadow
+  onto the picture, and a lit bevel (per pixel, light top left: rounded rise with a ridge in the middle, gloss).
   Auto-fit: background colour = median of the picture's edges (fills gaps, soft picture edges), figure = what differs
   from it; Whole body (default: every figure pixel inside the circle) or Head and body (top 45 % of a tall figure);
   busy pictures fill the circle. Token window: border picker with previews, tint, background (matched / my colour),
